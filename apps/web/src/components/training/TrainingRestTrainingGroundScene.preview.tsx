@@ -6,7 +6,10 @@ import "./TrainingRestTrainingGroundScene.preview.css";
 const PREVIEW_LESSON: FormalTrainingGroundLessonViewV4 = {
   lessonId: "preview-training-ground:lesson:0:self-study",
   kind: "self-study",
+  title: "自习课",
   teacherLabel: "自习课",
+  summary: "由宝可梦自主学习，根据课堂状态调整个体值和努力值。",
+  dialogue: "自习课交给宝可梦自主学习。它们会根据课堂状态调整个体值和努力值。",
   introText: "教室里现在没有老师，大家都在埋头自习，是否让宝可梦自主学习？座位费 200 金币。",
   completeText: "自习课结束了。",
   fee: 200,

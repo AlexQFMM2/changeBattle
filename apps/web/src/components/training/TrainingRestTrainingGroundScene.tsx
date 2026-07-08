@@ -34,56 +34,7 @@ export type TrainingRestTrainingGroundSceneProps = {
 
 const TRAINING_GROUND_WELCOME_TEXT = "今天的课程已经排好了，要让哪只宝可梦进教室呢？";
 const TRAINING_GROUND_PICKER_TEXT = "今天教室都空出来了。先在上面的课程牌里选一门课，我会告诉你这堂课适合做什么。";
-const STAT_LABELS = {hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"} as const;
-const STAT_IDS = Object.keys(STAT_LABELS) as DexStatId[];
-const TYPE_ZH_BY_ID: Record<string, string> = {
-  normal: "一般",
-  fire: "火",
-  water: "水",
-  electric: "电",
-  grass: "草",
-  ice: "冰",
-  fighting: "格斗",
-  poison: "毒",
-  ground: "地面",
-  flying: "飞行",
-  psychic: "超能力",
-  bug: "虫",
-  rock: "岩石",
-  ghost: "幽灵",
-  dragon: "龙",
-  dark: "恶",
-  steel: "钢",
-  fairy: "妖精",
-};
-const TYPE_ID_BY_ZH: Record<string, string> = Object.fromEntries(Object.entries(TYPE_ZH_BY_ID).map(([id, label]) => [label, id]));
-const NATURE_LABEL: Record<string, string> = {
-  hardy: "勤奋",
-  lonely: "怕寂寞",
-  brave: "勇敢",
-  adamant: "固执",
-  naughty: "顽皮",
-  bold: "大胆",
-  docile: "坦率",
-  relaxed: "悠闲",
-  impish: "淘气",
-  lax: "乐天",
-  timid: "胆小",
-  hasty: "急躁",
-  serious: "认真",
-  jolly: "爽朗",
-  naive: "天真",
-  modest: "内敛",
-  mild: "慢吞吞",
-  quiet: "冷静",
-  bashful: "害羞",
-  rash: "马虎",
-  calm: "温和",
-  gentle: "温顺",
-  sassy: "自大",
-  careful: "慎重",
-  quirky: "浮躁",
-};
+const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 const PANEL_SWAP_MS = 380;
 const STUDYING_MS = 2000;
 
@@ -134,7 +85,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
       setSelectedLessonId(lessonOptions[0]?.lessonId || "");
       return;
     }
-    setDialogueText(courseDialogueText(selectedLessonOption));
+    setDialogueText(selectedLessonOption.dialogue);
   }, [lesson, lessonOptions, selectedLessonOption?.lessonId]);
 
   useEffect(() => () => clearTimers(), []);
@@ -271,8 +222,8 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
     selectedLessonOption,
     onSelectLesson,
   });
-  const dialogueSpeaker = lesson ? lesson.teacherLabel : selectedLessonOption ? courseTeacherLabel(selectedLessonOption) : "训练场";
-  const dialogueItemName = step && selectedPokemon ? pokemonName(selectedPokemon) : lesson ? courseTitle(lesson) : selectedLessonOption ? courseTitle(selectedLessonOption) : undefined;
+  const dialogueSpeaker = lesson ? lesson.teacherLabel : selectedLessonOption ? selectedLessonOption.teacherLabel : "训练场";
+  const dialogueItemName = step && selectedPokemon ? pokemonName(selectedPokemon) : lesson ? lesson.title : selectedLessonOption ? selectedLessonOption.title : undefined;
 
   return (
     <section className="training-rest-training-ground-scene" data-open={open ? "true" : "false"} aria-label="训练场场景" aria-hidden={!open}>
@@ -299,7 +250,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
               selectedLessonId={selectedLessonOption?.lessonId || ""}
               onSelect={lessonOption => {
                 setSelectedLessonId(lessonOption.lessonId);
-                setDialogueText(courseDialogueText(lessonOption));
+                setDialogueText(lessonOption.dialogue);
               }}
             />
           </div>
@@ -321,6 +272,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
             ) : null}
             {step === "move" ? (
               <MoveLessonPanel
+                api={api}
                 moves={availableMoves}
                 selectedMoveId={selectedMoveId}
                 onMove={selectMove}
@@ -328,6 +280,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
             ) : null}
             {step === "replace" ? (
               <MoveReplacePanel
+                api={api}
                 currentMoves={selectedPokemon?.moves || []}
                 replaceMoveIndex={replaceMoveIndex}
                 onReplace={setReplaceMoveIndex}
@@ -366,7 +319,6 @@ function CoursePickerPanel({lessons, selectedLessonId, onSelect}: {
   return (
     <div className="training-rest-training-ground-course-grid" role="list" aria-label="课程选择">
       {lessons.slice(0, 4).map(lesson => {
-        const detail = courseDetail(lesson);
         return (
           <button
             type="button"
@@ -376,11 +328,11 @@ function CoursePickerPanel({lessons, selectedLessonId, onSelect}: {
             onClick={() => onSelect(lesson)}
           >
             <span className="training-rest-training-ground-course-head">
-              <strong>{detail.title}</strong>
+              <strong>{lesson.title}</strong>
               <small>{lesson.fee.toLocaleString()} 金币</small>
             </span>
-            <span className="training-rest-training-ground-course-teacher">{detail.teacher}</span>
-            <span className="training-rest-training-ground-course-desc">{detail.summary}</span>
+            <span className="training-rest-training-ground-course-teacher">{lesson.teacherLabel}</span>
+            <span className="training-rest-training-ground-course-desc">{lesson.summary}</span>
           </button>
         );
       })}
@@ -420,7 +372,8 @@ function PokemonCardSprite({pokemon}: {pokemon: LocalPokemonV4}) {
   return <span className="training-rest-training-ground-pokemon-sprite"><img src={src} alt="" /></span>;
 }
 
-function MoveLessonPanel({moves, selectedMoveId, onMove}: {
+function MoveLessonPanel({api, moves, selectedMoveId, onMove}: {
+  api: ChangeBattleV2Api;
   moves: Array<{id: string; name: string; nameZh: string; type: string; category: string; power: number; pp: number}>;
   selectedMoveId: string;
   onMove: (moveId: string) => void;
@@ -434,8 +387,8 @@ function MoveLessonPanel({moves, selectedMoveId, onMove}: {
           selected={normalizeId(move.id) === normalizeId(selectedMoveId)}
           name={move.nameZh || move.name}
           moveType={move.type}
-          typeLabel={typeLabel(move.type)}
-          category={categoryLabel(move.category)}
+          typeLabel={api.translateDexLabel("types", move.type)}
+          category={api.translateDexLabel("categories", move.category)}
           power={move.power}
           pp={move.pp}
           meta={[`威力 ${move.power || "--"}`, `PP ${move.pp}`]}
@@ -448,7 +401,8 @@ function MoveLessonPanel({moves, selectedMoveId, onMove}: {
   );
 }
 
-function MoveReplacePanel({currentMoves, replaceMoveIndex, onReplace}: {
+function MoveReplacePanel({api, currentMoves, replaceMoveIndex, onReplace}: {
+  api: ChangeBattleV2Api;
   currentMoves: TrainingMoveSlotV4[];
   replaceMoveIndex: number | null;
   onReplace: (index: number) => void;
@@ -465,8 +419,8 @@ function MoveReplacePanel({currentMoves, replaceMoveIndex, onReplace}: {
               selected={replaceMoveIndex === index}
               name={move.nameZh || move.name || move.moveId}
               moveType={move.type}
-              typeLabel={typeLabel(move.type)}
-              category={categoryLabel(move.category)}
+              typeLabel={api.translateDexLabel("types", move.type)}
+              category={api.translateDexLabel("categories", move.category)}
               power={move.power}
               accuracy={move.accuracy}
               pp={move.remainingPp}
@@ -549,12 +503,12 @@ function TrainingGroundPokemonDetailCard({api, before, after, headline, summary}
           <div className="training-rest-training-ground-detail-namebox">
             <div className="training-rest-training-ground-type-row">
               {types.length ? types.map(type => (
-                <b className="training-rest-training-ground-type-badge" data-type={moveTypeId(type) || "normal"} key={type}>{typeLabel(type)}</b>
+                <b className="training-rest-training-ground-type-badge" data-type={moveTypeId(type) || "normal"} key={type}>{api.translateDexLabel("types", type)}</b>
               )) : <b className="training-rest-training-ground-type-badge" data-type="normal">一般</b>}
             </div>
             <div className="training-rest-training-ground-trait-row">
               <span>特性：{after.abilityNameZh || after.abilityName || "特性未定"}</span>
-              <span>性格：{natureLabel(after.nature)}</span>
+              <span>性格：{api.translateDexLabel("natures", after.nature)}</span>
               <span>道具：{itemName(api, after.itemId)}</span>
             </div>
           </div>
@@ -577,7 +531,7 @@ function TrainingGroundPokemonDetailCard({api, before, after, headline, summary}
             const statRate = Math.max(4, Math.min(100, value / statMax * 100));
             return (
               <div className="training-rest-training-ground-stat-row" data-stat={stat} key={stat}>
-                <dt>{STAT_LABELS[stat]}</dt>
+                <dt>{api.translateDexLabel("stats", stat)}</dt>
                 <dd>
                   <strong style={{"--training-rest-training-ground-stat-rate": `${statRate}%`} as CSSProperties}>
                     <span>{value}<StatDelta value={value - beforeValue} /></span>
@@ -693,56 +647,11 @@ function lessonMovePool(api: ChangeBattleV2Api, lesson: FormalTrainingGroundLess
 function trainingLessonPickerText(lessonOptions: FormalTrainingGroundLessonViewV4[]): string {
   if (!lessonOptions.length) return TRAINING_GROUND_WELCOME_TEXT;
   const firstLesson = lessonOptions[0];
-  return firstLesson ? courseDialogueText(firstLesson) : TRAINING_GROUND_PICKER_TEXT;
+  return firstLesson ? firstLesson.dialogue : TRAINING_GROUND_PICKER_TEXT;
 }
 
 function trainingLessonStartText(team: LocalPokemonV4[]): string {
   return team.length ? "先选择一只宝可梦进入课堂。" : "队伍里还没有可以上课的宝可梦。";
-}
-
-function courseTitle(lesson: FormalTrainingGroundLessonViewV4): string {
-  return courseDetail(lesson).title;
-}
-
-function courseTeacherLabel(lesson: FormalTrainingGroundLessonViewV4): string {
-  return courseDetail(lesson).teacher;
-}
-
-function courseDialogueText(lesson: FormalTrainingGroundLessonViewV4): string {
-  return courseDetail(lesson).dialogue;
-}
-
-function courseDetail(lesson: FormalTrainingGroundLessonViewV4): {title: string; teacher: string; summary: string; dialogue: string} {
-  if (lesson.kind === "egg") {
-    return {
-      title: "遗传学",
-      teacher: "老爷爷",
-      summary: "由培育屋的老爷爷上课，能令宝可梦学会那些与生俱来的招式。",
-      dialogue: "培育屋的老爷爷会讲解招式的遗传来源，让宝可梦学会那些与生俱来的招式。想让哪只宝可梦来听课？",
-    };
-  }
-  if (lesson.kind === "tutor") {
-    return {
-      title: "实践课",
-      teacher: "老奶奶",
-      summary: "由联盟来的老奶奶上课，能教授宝可梦难以学习的招式。",
-      dialogue: "联盟来的老奶奶会带来实战课程，教授宝可梦那些平时难以学习的招式。想让哪只宝可梦上课？",
-    };
-  }
-  if (lesson.kind === "self-learn") {
-    return {
-      title: "冥想课",
-      teacher: "年轻姐姐",
-      summary: "由年轻的姐姐上课，能让宝可梦静下心来修炼，说不定能回忆一些招式。",
-      dialogue: "年轻的姐姐会引导宝可梦静下心来修炼，说不定能回忆起一些曾经掌握或能够领悟的招式。",
-    };
-  }
-  return {
-    title: "自习课",
-    teacher: "自主学习",
-    summary: "由宝可梦自主学习，根据课堂状态调整个体值和努力值。",
-    dialogue: "自习课交给宝可梦自主学习。它们会根据课堂状态调整个体值和努力值。",
-  };
 }
 
 function findResultPokemon(result: FormalTrainingGroundResultV4, pokemonId: string): LocalPokemonV4 | null {
@@ -810,10 +719,6 @@ function statTotal(stats: Record<string, number>): number {
   return Object.values(stats).reduce((sum, value) => sum + Math.max(0, Math.floor(Number(value || 0))), 0);
 }
 
-function natureLabel(nature: string): string {
-  return NATURE_LABEL[normalizeId(nature)] || nature || "未知";
-}
-
 function itemName(api: ChangeBattleV2Api, itemId: string): string {
   if (!itemId) return "无道具";
   try {
@@ -824,23 +729,11 @@ function itemName(api: ChangeBattleV2Api, itemId: string): string {
   }
 }
 
-function categoryLabel(category: string): string {
-  const id = normalizeId(category);
-  if (id === "physical") return "物理";
-  if (id === "special") return "特殊";
-  if (id === "status") return "变化";
-  return category || "?";
-}
-
 function moveTypeId(value: unknown): string {
   const raw = String(value || "").trim();
   const normalized = normalizeId(raw);
   if (normalized) return normalized;
-  return TYPE_ID_BY_ZH[raw] || "";
-}
-
-function typeLabel(value: string): string {
-  return TYPE_ZH_BY_ID[moveTypeId(value)] || value;
+  return normalizeId(raw);
 }
 
 function spriteStyleFromCss(css: string): CSSProperties {

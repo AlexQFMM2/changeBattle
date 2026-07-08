@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, CoopPartnerPreferenceV4, DesktopFormalGameBridge, FormalGameModeV4, FormalGameRunV4, UserProfileV2} from "@changebattle-v2/api";
+import {formalGameModeLabelV4, type ChangeBattleV2Api, type CoopPartnerPreferenceV4, type DesktopFormalGameBridge, type FormalGameModeV4, type FormalGameRunV4, type UserProfileV2} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
@@ -75,7 +75,7 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, mode, 
     <section className="formal-game-transition-wrap">
       <TrainingRunTransitionPage
         title="准备正式游戏"
-        detail={modeLabel(mode, plannedCandidateCount)}
+        detail={formalGamePreparationDetail(mode, plannedCandidateCount)}
         tip={error || (mode === "coop" ? "合作模式会记录队友偏好，具体队友会在进入战斗时派遣。" : "正在生成开局候选宝可梦。")}
         onReady={() => setTransitionReady(true)}
       />
@@ -83,8 +83,6 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, mode, 
   );
 }
 
-function modeLabel(mode: FormalGameModeV4, candidateCount: number): string {
-  if (mode === "doubles") return `双打-AI · 正在生成 ${candidateCount} 只开局候选`;
-  if (mode === "coop") return `合作-AI · 正在生成 ${candidateCount} 只开局候选`;
-  return `单打-AI · 正在生成 ${candidateCount} 只开局候选`;
+function formalGamePreparationDetail(mode: FormalGameModeV4, candidateCount: number): string {
+  return `${formalGameModeLabelV4(mode)} · 正在生成 ${candidateCount} 只开局候选`;
 }

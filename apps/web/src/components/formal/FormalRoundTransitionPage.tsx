@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalGameRunV4, PlayerVaultV4} from "@changebattle-v2/api";
+import {formalGameModeLabelV4, type ChangeBattleV2Api, type DesktopFormalGameBridge, type FormalGameRunV4, type PlayerVaultV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
@@ -51,16 +51,10 @@ export function FormalRoundTransitionPage({api, formalGameBridge, run, playerVau
     <section className="formal-game-transition-wrap">
       <TrainingRunTransitionPage
         title="生成正式赛程"
-        detail={`${modeLabel(run.mode)} · 正在固化 7 场对局计划`}
+        detail={`${formalGameModeLabelV4(run.mode)} · 正在固化 7 场对局计划`}
         tip={error || "正在生成 NPC、对手预览和休整快照，并写入正式存档。"}
         onReady={() => setTransitionReady(true)}
       />
     </section>
   );
-}
-
-function modeLabel(mode: FormalGameRunV4["mode"]): string {
-  if (mode === "doubles") return "双打-AI";
-  if (mode === "coop") return "合作-AI";
-  return "单打-AI";
 }

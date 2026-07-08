@@ -7,7 +7,10 @@ export type FormalTrainingGroundSelfStudyEventV4 = "playful" | "normal" | "focus
 
 export type FormalTrainingGroundLessonRuleV4 = {
   kind: FormalTrainingGroundLessonKindV4;
+  title: string;
   teacherLabel: string;
+  summary: string;
+  dialogue: string;
   introText: string;
   completeText: string;
   fee: number;
@@ -39,7 +42,10 @@ export function formalTrainingGroundLessonTableV4(): FormalTrainingGroundLessonR
   return [
     {
       kind: "tutor",
+      title: "实践课",
       teacherLabel: "老奶奶",
+      summary: "由联盟来的老奶奶上课，能教授宝可梦难以学习的招式。",
+      dialogue: "联盟来的老奶奶会带来实战课程，教授宝可梦那些平时难以学习的招式。想让哪只宝可梦上课？",
       introText: "一位年迈慈祥的奶奶正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
       completeText: "教授课程结束了。",
       fee: 200,
@@ -47,7 +53,10 @@ export function formalTrainingGroundLessonTableV4(): FormalTrainingGroundLessonR
     },
     {
       kind: "egg",
+      title: "遗传学",
       teacherLabel: "老爷爷",
+      summary: "由培育屋的老爷爷上课，能令宝可梦学会那些与生俱来的招式。",
+      dialogue: "培育屋的老爷爷会讲解招式的遗传来源，让宝可梦学会那些与生俱来的招式。想让哪只宝可梦来听课？",
       introText: "一位沉稳严厉的爷爷正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
       completeText: "蛋招式课程结束了。",
       fee: 200,
@@ -55,7 +64,10 @@ export function formalTrainingGroundLessonTableV4(): FormalTrainingGroundLessonR
     },
     {
       kind: "self-learn",
+      title: "冥想课",
       teacherLabel: "年轻小姐",
+      summary: "由年轻的姐姐上课，能让宝可梦静下心来修炼，说不定能回忆一些招式。",
+      dialogue: "年轻的姐姐会引导宝可梦静下心来修炼，说不定能回忆起一些曾经掌握或能够领悟的招式。",
       introText: "一位漂亮美丽的姐姐正在教学，是否让宝可梦进入学习？旁听费 200 金币。",
       completeText: "自学招式课程结束了。",
       fee: 200,
@@ -63,7 +75,10 @@ export function formalTrainingGroundLessonTableV4(): FormalTrainingGroundLessonR
     },
     {
       kind: "self-study",
+      title: "自习课",
       teacherLabel: "自习课",
+      summary: "由宝可梦自主学习，根据课堂状态调整个体值和努力值。",
+      dialogue: "自习课交给宝可梦自主学习。它们会根据课堂状态调整个体值和努力值。",
       introText: "教室里现在没有老师，大家都在埋头自习，是否让宝可梦自主学习？座位费 200 金币。",
       completeText: "自习课结束了。",
       fee: 200,

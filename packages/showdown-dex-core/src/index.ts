@@ -41,6 +41,24 @@ export type {BossTrainerPresetMatrixSummaryData, BossTrainerPresetTeamData, Boss
 
 export type DexCategory = "pokemon" | "moves" | "abilities" | "items" | "trainers";
 export type DexStatId = "hp" | "atk" | "def" | "spa" | "spd" | "spe";
+export type DexTranslateTable =
+  | "pokemon"
+  | "species"
+  | "moves"
+  | "moveDescriptions"
+  | "abilities"
+  | "abilityDescriptions"
+  | "items"
+  | "itemDescriptions"
+  | "types"
+  | "categories"
+  | "natures"
+  | "stats"
+  | "status"
+  | "weather"
+  | "field"
+  | "sideConditions"
+  | "gender";
 export type DexLearnSource = "levelup" | "machine" | "tutor" | "egg" | "event" | "transfer" | "other";
 export type DexItemKind = "berry" | "recovery" | "revive" | "pp" | "tm" | "training" | "evolution" | "system" | "system-battle" | "valuable" | "special" | "held" | "battle" | "other";
 export type DexItemSource = "showdown" | "v1-game" | "overlay" | "system";
@@ -457,6 +475,48 @@ const ITEM_SOURCE_LABEL: Record<DexItemSource, string> = {
   overlay: "Showdown + V1",
   system: "系统道具",
 };
+const TRANSLATE_ID_LABELS: Record<string, Record<string, string>> = {
+  stats: {hp: "HP", accuracy: "命中", evasion: "闪避"},
+  status: {brn: "灼伤", par: "麻痹", psn: "中毒", tox: "剧毒", slp: "睡眠", frz: "冰冻", fnt: "濒死", "": "正常"},
+  weather: {
+    raindance: "下雨",
+    rain: "下雨",
+    sunnyday: "大晴天",
+    sun: "大晴天",
+    sandstorm: "沙暴",
+    hail: "冰雹",
+    snow: "下雪",
+    snowscape: "下雪",
+    desolateland: "大日照",
+    primordialsea: "大雨",
+    deltastream: "乱流",
+    none: "无天气",
+  },
+  field: {
+    electricterrain: "电气场地",
+    grassyterrain: "青草场地",
+    mistyterrain: "薄雾场地",
+    psychicterrain: "精神场地",
+    trickroom: "戏法空间",
+    wonderroom: "奇妙空间",
+    magicroom: "魔法空间",
+    gravity: "重力",
+    tailwind: "顺风",
+  },
+  sideconditions: {
+    reflect: "反射壁",
+    lightscreen: "光墙",
+    auroraveil: "极光幕",
+    safeguard: "神秘守护",
+    mist: "白雾",
+    spikes: "撒菱",
+    toxicspikes: "毒菱",
+    stealthrock: "隐形岩",
+    stickyweb: "黏黏网",
+    tailwind: "顺风",
+  },
+  gender: {m: "雄性", f: "雌性", n: "无性别", male: "雄性", female: "雌性", genderless: "无性别"},
+};
 
 type ItemRegistryEntry = {
   id: string;
@@ -642,7 +702,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
   const dex = options.dex || createLocalShowdownDex();
   const resourcePrefix = normalizeResourcePrefix(options.resourcePrefix || DEFAULT_RESOURCE_PREFIX);
   const publicAssetPrefix = resourcePrefix.replace(/showdown\/$/, "");
-  const translate = options.translate || defaultTranslate;
+  const translate = options.translate || translateDexLabel;
 
   function requireDex(): ShowdownDexLike {
     return dex;
@@ -1283,6 +1343,10 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     resolveTypeIcon,
     resolveCategoryIcon,
     resolveItemIcon,
+    translateDexLabel: translate,
+    translateDexDescription,
+    dexLabelToId,
+    toDexId,
   };
 
   function evolutionChain(speciesId: string): DexPokemonLink[] {
@@ -1386,6 +1450,10 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
 
 export function toID(value: unknown): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+export function toDexId(value: unknown): string {
+  return toID(value);
 }
 
 function showdownSpriteIdFromSpecies(species: any, fallbackSpeciesId: string): string {
@@ -1503,25 +1571,70 @@ function includeSpecies(species: any): boolean {
   return species?.exists && Number(species.num || 0) > 0 && (!species.isNonstandard || species.isNonstandard === "Past" || species.isNonstandard === "Future");
 }
 
-function moveSummary(dex: ShowdownDexLike, move: any, sources: DexLearnSource[] = [], translate: (table: string, value: string) => string = defaultTranslate): DexMoveSummary {
+function moveSummary(dex: ShowdownDexLike, move: any, sources: DexLearnSource[] = [], translate: (table: string, value: string) => string = translateDexLabel): DexMoveSummary {
   return {id: move.id, name: move.name, nameZh: translate("moves", move.name), typeId: move.type || "", categoryId: move.category || "", type: translate("types", move.type || ""), category: translate("categories", move.category || ""), power: Number(move.basePower || 0), accuracy: move.accuracy === true ? null : Number(move.accuracy || 0), pp: Number(move.pp || 0), priority: Number(move.priority || 0), target: move.target || "", flags: Object.keys(move.flags || {}), description: translatedDescription("moves", move.name, move.desc || move.shortDesc || ""), learnSources: sources};
 }
 
-function defaultTranslate(table: string, value: string): string {
-  if (!value) return value;
+export function translateDexLabel(table: DexTranslateTable | string, value: string): string {
   const key = normalizeTranslateTable(table);
   const section = (ZhCnOverrides as Record<string, Record<string, string>>)[key];
-  return section?.[value] || value;
+  const raw = String(value);
+  const id = toDexId(raw);
+  return section?.[raw]
+    || Object.entries(section || {}).find(([entryKey]) => toDexId(entryKey) === id)?.[1]
+    || TRANSLATE_ID_LABELS[key]?.[id]
+    || raw;
+}
+
+export function defaultTranslate(table: DexTranslateTable | string, value: string): string {
+  return translateDexLabel(table, value);
+}
+
+export function dexLabelToId(table: DexTranslateTable | string, value: string): string {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const key = normalizeTranslateTable(table);
+  const rawId = toDexId(raw);
+  const section = (ZhCnOverrides as Record<string, Record<string, string>>)[key];
+  const overrideMatch = Object.entries(section || {}).find(([entryKey, entryValue]) => {
+    return entryKey === raw || entryValue === raw || Boolean(rawId && (toDexId(entryKey) === rawId || toDexId(entryValue) === rawId));
+  });
+  if (overrideMatch) return toDexId(overrideMatch[0]);
+  const idMatch = Object.entries(TRANSLATE_ID_LABELS[key] || {}).find(([entryId, entryValue]) => {
+    return entryValue === raw || Boolean(rawId && (entryId === rawId || toDexId(entryValue) === rawId));
+  });
+  if (idMatch) return idMatch[0];
+  return rawId;
+}
+
+export function translateDexDescription(table: DexTranslateTable | "moves" | "abilities" | "items", name: string, fallback = ""): string {
+  const key = normalizeDescriptionTable(table);
+  if (!key) return fallback;
+  const section = (ZhCnDetails as Record<string, Record<string, {description?: string}>>)[key];
+  const raw = String(name || "");
+  const id = toDexId(raw);
+  return section?.[raw]?.description
+    || Object.entries(section || {}).find(([entryKey]) => toDexId(entryKey) === id)?.[1]?.description
+    || fallback;
 }
 
 function translatedDescription(table: "moves" | "abilities" | "items", name: string, fallback: string): string {
-  const section = (ZhCnDetails as Record<string, Record<string, {description?: string}>>)[table];
-  return section?.[name]?.description || fallback;
+  return translateDexDescription(table, name, fallback);
 }
 
 function normalizeTranslateTable(table: string): string {
-  if (table === "pokemon") return "species";
-  return table;
+  const key = toDexId(table);
+  if (key === "pokemon") return "species";
+  if (key === "movedescriptions") return "moves";
+  if (key === "abilitydescriptions") return "abilities";
+  if (key === "itemdescriptions") return "items";
+  if (key === "sideconditions") return "sideconditions";
+  return key || table;
+}
+
+function normalizeDescriptionTable(table: string): "moves" | "abilities" | "items" | "" {
+  const key = normalizeTranslateTable(table);
+  return key === "moves" || key === "abilities" || key === "items" ? key : "";
 }
 
 function groupLearnset(moves: DexMoveSummary[]): Record<DexLearnSource, DexMoveSummary[]> {

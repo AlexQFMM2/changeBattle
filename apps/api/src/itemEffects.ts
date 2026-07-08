@@ -1,4 +1,4 @@
-import type {DexItemDetail, DexItemRecoveryEffect, DexItemTrainingEffect, DexMoveSummary, DexPokemonDetail, DexStatId} from "@changebattle-v2/showdown-dex-core";
+import {translateDexLabel, type DexItemDetail, type DexItemRecoveryEffect, type DexItemTrainingEffect, type DexMoveSummary, type DexPokemonDetail, type DexStatId} from "@changebattle-v2/showdown-dex-core";
 import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4, StatTableV4, TrainingMoveSlotV4, TrainingStatusV4} from "./training.js";
 
 export type ConsumableItemApplyResultV4 =
@@ -15,7 +15,6 @@ export type TmItemApplyResultV4 =
 
 const RECOVERABLE_STATUS = new Set<TrainingStatusV4>(["brn", "par", "psn", "tox", "slp", "frz"]);
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
-const STAT_LABELS: Record<DexStatId, string> = {hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"};
 const NATURE_NAMES = [
   "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
   "Bold", "Docile", "Relaxed", "Impish", "Lax",
@@ -135,13 +134,14 @@ export function applyTrainingItemToPokemonV4(input: {
 
   if (effect.kind === "ev") {
     const nextEvs = applyEvEffect(before.evs, effect);
-    if (!nextEvs) return {ok: false, reason: `${STAT_LABELS[effect.stat]}努力值当前不需要这个道具。`};
+    const statLabel = translateDexLabel("stats", effect.stat);
+    if (!nextEvs) return {ok: false, reason: `${statLabel}努力值当前不需要这个道具。`};
     next = {...next, evs: nextEvs};
-    message = `${before.nameZh || before.name} 的${STAT_LABELS[effect.stat]}努力值变为 ${nextEvs[effect.stat]}。`;
+    message = `${before.nameZh || before.name} 的${statLabel}努力值变为 ${nextEvs[effect.stat]}。`;
   } else if (effect.kind === "nature") {
     if (before.nature === effect.nature) return {ok: false, reason: "目标已经是这个性格。"};
     next = {...next, nature: effect.nature};
-    message = `${before.nameZh || before.name} 的性格调整为 ${effect.nature}。`;
+    message = `${before.nameZh || before.name} 的性格调整为 ${translateDexLabel("natures", effect.nature)}。`;
   } else if (effect.kind === "ability") {
     const ability = nextAbilityForEffect(before, input.pokemonDetail || null, effect.mode);
     if (!ability) return {ok: false, reason: effect.mode === "patch" ? "目标没有可切换的隐藏特性。" : "目标没有可切换的普通特性。"};

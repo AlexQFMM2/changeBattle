@@ -48,9 +48,10 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   const [unlocking, setUnlocking] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<VaultConfirmDialog | null>(null);
   const unlockedStoragePageCount = api.playerVaultUnlockedStoragePageCountV4(playerVault, tab === "bag" ? "item" : "pokemon");
-  const totalPageCount = 1 + unlockedStoragePageCount + 1;
-  const pageKind: VaultPageKind = pageIndex <= 0 ? "prep" : "storage";
-  const storagePageIndex = pageKind === "storage" ? pageIndex - 1 : -1;
+  const hasPrepPage = tab === "pokemon";
+  const totalPageCount = (hasPrepPage ? 1 : 0) + unlockedStoragePageCount + 1;
+  const pageKind: VaultPageKind = hasPrepPage && pageIndex <= 0 ? "prep" : "storage";
+  const storagePageIndex = pageKind === "storage" ? pageIndex - (hasPrepPage ? 1 : 0) : -1;
   const pageLocked = pageKind === "storage" && storagePageIndex >= unlockedStoragePageCount;
   const pageEntries = useMemo(() => pageLocked ? createEmptyEntries(pageKind, storagePageIndex) : buildPageEntries(playerVault, tab, pageKind, storagePageIndex), [pageLocked, playerVault, tab, pageKind, storagePageIndex]);
   const selectableEntries = pageEntries.filter(isSelectableEntry);
@@ -391,10 +392,10 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
     return (
       <aside className="trainer-vault-detail" aria-label="详情">
         <small>{pageLabel}</small>
-        <strong>{pageKind === "prep" ? "预备箱为空" : "存储箱为空"}</strong>
+        <strong>{pageKind === "prep" ? "预备宝可梦为空" : "存储箱为空"}</strong>
         {movingItemName ? <div className="trainer-vault-detail-actions"><button type="button" onClick={onCancelMove}>取消移动</button></div> : null}
         {message ? <span className="trainer-vault-message">{message}</span> : null}
-        <p>{pageKind === "prep" ? emptyText(tab) : storagePageEmptyText(tab)}</p>
+        <p>{pageKind === "prep" ? emptyPokemonPrepText() : storagePageEmptyText(tab)}</p>
       </aside>
     );
   }
@@ -412,7 +413,7 @@ function VaultDetailCard({api, tab, entry, pageKind, storagePageIndex, pageLocke
           </div>
         </div>
         <dl>
-          <div><dt>来源</dt><dd>{pageKind === "prep" ? "预备背包" : "道具存储箱"}</dd></div>
+          <div><dt>来源</dt><dd>道具存储箱</dd></div>
           <div><dt>数量</dt><dd>{item.quantity}</dd></div>
           <div><dt>编号</dt><dd>{item.itemId}</dd></div>
         </dl>
@@ -551,10 +552,9 @@ function findItemEntryByKey(playerVault: PlayerVaultV4, key: string): Extract<Va
 }
 
 function itemLocation(item: PlayerItemRecordV4): VaultItemLocation {
-  const pageKind: VaultPageKind = item.boxKind === "prep" ? "prep" : "storage";
   return {
-    pageKind,
-    storagePageIndex: pageKind === "storage" ? Math.max(0, Math.floor(Number(item.storagePageIndex || 0))) : -1,
+    pageKind: "storage",
+    storagePageIndex: Math.max(0, Math.floor(Number(item.storagePageIndex || 0))),
     slotIndex: clampSlotIndex(item.slotIndex),
   };
 }
@@ -568,14 +568,6 @@ function entryLocation(entry: VaultPageEntry): VaultItemLocation {
 }
 
 function applyItemLocation(item: PlayerItemRecordV4, location: VaultItemLocation): PlayerItemRecordV4 {
-  if (location.pageKind === "prep") {
-    return {
-      ...item,
-      boxKind: "prep",
-      storagePageIndex: undefined,
-      slotIndex: clampSlotIndex(location.slotIndex),
-    };
-  }
   return {
     ...item,
     boxKind: "storage",
@@ -596,14 +588,12 @@ function clampSlotIndex(value: unknown): number {
 }
 
 function vaultPageLabel(tab: TrainerVaultTab, pageKind: VaultPageKind, storagePageIndex: number): string {
-  if (tab === "bag") return pageKind === "prep" ? "预备背包" : `道具存储箱 ${storagePageIndex + 1}`;
+  if (tab === "bag") return `道具存储箱 ${storagePageIndex + 1}`;
   return pageKind === "prep" ? "预备宝可梦" : `宝可梦存储箱 ${storagePageIndex + 1}`;
 }
 
-function emptyText(tab: TrainerVaultTab): string {
-  return tab === "bag"
-    ? "预备箱用于后续出发前整理。正式流程结算获得的道具会进入后面的道具存储箱。"
-    : "预备箱用于后续出发前整理。获得的长期宝可梦会进入后面的宝可梦存储箱。";
+function emptyPokemonPrepText(): string {
+  return "预备箱用于后续出发前整理。获得的长期宝可梦会进入后面的宝可梦存储箱。";
 }
 
 function storagePageEmptyText(tab: TrainerVaultTab): string {

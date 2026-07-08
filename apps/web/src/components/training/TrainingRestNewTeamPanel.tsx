@@ -25,52 +25,7 @@ export type TrainingRestNewTeamPanelProps = {
   statRerollController?: TrainingRestNewTeamStatRerollController;
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  "": "正常",
-  brn: "灼伤",
-  par: "麻痹",
-  psn: "中毒",
-  tox: "剧毒",
-  slp: "睡眠",
-  frz: "冰冻",
-};
-
-const STAT_ROWS: Array<[DexStatId, string]> = [
-  ["hp", "HP"],
-  ["atk", "攻击"],
-  ["def", "防御"],
-  ["spa", "特攻"],
-  ["spd", "特防"],
-  ["spe", "速度"],
-];
-
-const NATURE_LABEL: Record<string, string> = {
-  Hardy: "勤奋",
-  Lonely: "怕寂寞",
-  Brave: "勇敢",
-  Adamant: "固执",
-  Naughty: "顽皮",
-  Bold: "大胆",
-  Docile: "坦率",
-  Relaxed: "悠闲",
-  Impish: "淘气",
-  Lax: "乐天",
-  Timid: "胆小",
-  Hasty: "急躁",
-  Serious: "认真",
-  Jolly: "爽朗",
-  Naive: "天真",
-  Modest: "内敛",
-  Mild: "慢吞吞",
-  Quiet: "冷静",
-  Bashful: "害羞",
-  Rash: "马虎",
-  Calm: "温和",
-  Gentle: "温顺",
-  Sassy: "自大",
-  Careful: "慎重",
-  Quirky: "浮躁",
-};
+const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 
 type LockKindV4 = "ivs" | "evs" | "moves";
 
@@ -101,7 +56,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
     updatePokemon(pokemon.localPokemonId, current => {
       const detail = api.getPokemonDetail(current.speciesId);
       const patch: Partial<LocalPokemonV4> = {};
-      if (part === "all" || part === "nature") patch.nature = pick(Object.keys(NATURE_LABEL)) || current.nature;
+      if (part === "all" || part === "nature") patch.nature = pick(api.getNatureEffects().map(nature => nature.name)) || current.nature;
       if (part === "all" || part === "ability") {
         const ability = pick(detail.abilities) || detail.abilities[0];
         patch.abilityId = ability?.id || current.abilityId;
@@ -204,6 +159,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
         <div className="training-rest-new-team-slots">
           {team.length ? team.slice(0, 6).map((pokemon, index) => (
             <TrainingRestNewTeamSlot
+              api={api}
               pokemon={pokemon}
               index={index}
               canMoveUp={index > 0}
@@ -222,6 +178,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
 }
 
 function TrainingRestNewTeamSlot({
+  api,
   pokemon,
   index,
   canMoveUp,
@@ -231,6 +188,7 @@ function TrainingRestNewTeamSlot({
   onMoveUp,
   onMoveDown,
 }: {
+  api: ChangeBattleV2Api;
   pokemon: LocalPokemonV4;
   index: number;
   canMoveUp: boolean;
@@ -241,7 +199,7 @@ function TrainingRestNewTeamSlot({
   onMoveDown: () => void;
 }) {
   const hpRate = pokemon.maxHp ? Math.max(0, Math.min(100, pokemon.entryHp / pokemon.maxHp * 100)) : 0;
-  const status = STATUS_LABEL[pokemon.entryStatus] || pokemon.entryStatus || "";
+  const status = api.translateDexLabel("status", pokemon.entryStatus) || "";
   return (
     <div
       className={`training-rest-new-team-slot ${selected ? "selected" : ""} ${pokemon.entryHp <= 0 ? "status-fnt" : ""}`}
@@ -336,6 +294,7 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
       >
         {previewMove ? (
           <TrainingRestNewMovePreviewPanel
+            api={api}
             move={previewMove}
             detail={previewMoveDetail}
             onClose={() => setPreviewMoveId("")}
@@ -349,11 +308,11 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
             <TrainingRestNewPokemonSprite pokemon={pokemon} kind="front" />
             <div className="training-rest-new-pokemon-namebox">
               <div className="training-rest-new-type-row">
-                {detail.types.map(type => <b className={`type-${moveTypeId(type) || "normal"}`} key={type}>{typeLabel(type)}</b>)}
+                {detail.types.map(type => <b className={`type-${moveTypeId(type) || "normal"}`} key={type}>{api.translateDexLabel("types", type)}</b>)}
               </div>
               <div className="training-rest-new-trait-row">
                 <span>特性：{pokemon.abilityNameZh || "特性未定"}</span>
-                <span>性格：{natureLabel(pokemon.nature)}</span>
+                <span>性格：{api.translateDexLabel("natures", pokemon.nature)}</span>
                 <span>道具：{heldItemName}</span>
               </div>
             </div>
@@ -370,12 +329,12 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
             <dt>能力</dt>
             <dd><span>当前数值</span><span>个体值</span><span>努力值</span></dd>
           </div>
-          {STAT_ROWS.map(([stat, label]) => {
+          {STAT_IDS.map(stat => {
             const statMax = Math.max(maxPotentialStats[stat] || calculated[stat] || 1, 1);
             const statRate = Math.max(4, Math.min(100, calculated[stat] / statMax * 100));
             return (
               <div className={`training-rest-new-stat-row stat-tone-${stat}`} key={stat}>
-                <dt>{label}</dt>
+                <dt>{api.translateDexLabel("stats", stat)}</dt>
                 <dd>
                   <strong style={{"--rest-new-stat-rate": `${statRate}%`} as CSSProperties}>
                     <span>{calculated[stat]}</span>
@@ -394,6 +353,7 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
         <div className="training-rest-new-move-row">
           {pokemon.moves.map((move, index) => (
             <TrainingRestNewMoveCard
+              api={api}
               move={move}
               locked={Boolean(pokemon.locks?.moves?.[index])}
               selected={move.moveId === previewMoveId}
@@ -428,7 +388,8 @@ function LockButton({locked, onClick}: {locked: boolean; onClick: () => void}) {
   );
 }
 
-function TrainingRestNewMoveCard({move, locked, selected, onPreview, onToggleLock}: {
+function TrainingRestNewMoveCard({api, move, locked, selected, onPreview, onToggleLock}: {
+  api: ChangeBattleV2Api;
   move: TrainingMoveSlotV4;
   locked: boolean;
   selected: boolean;
@@ -452,10 +413,10 @@ function TrainingRestNewMoveCard({move, locked, selected, onPreview, onToggleLoc
       <LockButton locked={locked} onClick={onToggleLock} />
       <span className="move-name-row">
         <strong>{move.nameZh || move.name || move.moveId}</strong>
-        <i>{categoryLabel(move.category)}</i>
+        <i>{api.translateDexLabel("categories", move.category)}</i>
       </span>
       <span className="move-meta-row">
-        <b>{move.type || "?"}</b>
+        <b>{api.translateDexLabel("types", move.type || "?")}</b>
         <em>威 {move.power || "-"}</em>
         <em>命 {move.accuracy ?? "-"}</em>
         <em>PP {move.remainingPp}/{move.maxPp || move.pp || "-"}</em>
@@ -464,7 +425,8 @@ function TrainingRestNewMoveCard({move, locked, selected, onPreview, onToggleLoc
   );
 }
 
-function TrainingRestNewMovePreviewPanel({move, detail, onClose}: {
+function TrainingRestNewMovePreviewPanel({api, move, detail, onClose}: {
+  api: ChangeBattleV2Api;
   move: TrainingMoveSlotV4;
   detail: ReturnType<ChangeBattleV2Api["getMoveDetail"]> | null;
   onClose: () => void;
@@ -482,8 +444,8 @@ function TrainingRestNewMovePreviewPanel({move, detail, onClose}: {
         <button type="button" onClick={onClose} aria-label="关闭技能说明">×</button>
       </header>
       <div className="training-rest-new-move-preview-badges">
-        <b className={`type-${moveTypeId(detail?.type || move.type) || "normal"}`}>{typeLabel(detail?.type || move.type || "?")}</b>
-        <em>{categoryLabel(detail?.category || move.category)}</em>
+        <b className={`type-${moveTypeId(detail?.type || move.type) || "normal"}`}>{detail?.type || api.translateDexLabel("types", move.type || "?")}</b>
+        <em>{detail?.category || api.translateDexLabel("categories", move.category)}</em>
         <em>威力 {detail?.power || move.power || "-"}</em>
         <em>命中 {detail?.accuracy ?? move.accuracy ?? "-"}</em>
         <em>PP {move.remainingPp}/{move.maxPp || move.pp || detail?.pp || "-"}</em>
@@ -506,10 +468,6 @@ function TrainingRestNewPokemonSprite({pokemon, kind}: {pokemon: LocalPokemonV4;
   return <ImageWithFallback src={src} alt={pokemon.nameZh} fallback={pokemon.nameZh.slice(0, 1) || "?"} />;
 }
 
-function natureLabel(nature: string): string {
-  return NATURE_LABEL[nature] || nature || "未知";
-}
-
 function itemName(api: ChangeBattleV2Api, itemId: string): string {
   if (!itemId) return "无道具";
   try {
@@ -528,14 +486,6 @@ function safeMoveDetail(api: ChangeBattleV2Api, moveId: string): ReturnType<Chan
   }
 }
 
-function categoryLabel(category: string): string {
-  const id = toId(category);
-  if (id === "physical") return "物理";
-  if (id === "special") return "特殊";
-  if (id === "status") return "变化";
-  return category || "?";
-}
-
 function toId(value: unknown): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
@@ -544,55 +494,8 @@ function moveTypeId(value: unknown): string {
   const raw = String(value || "").trim();
   const normalized = toId(raw);
   if (normalized) return normalized;
-  return TYPE_ID_BY_ZH[raw] || "";
+  return toId(raw);
 }
-
-function typeLabel(value: string): string {
-  return TYPE_ZH_BY_ID[moveTypeId(value)] || value;
-}
-
-const TYPE_ID_BY_ZH: Record<string, string> = {
-  一般: "normal",
-  普通: "normal",
-  火: "fire",
-  水: "water",
-  电: "electric",
-  草: "grass",
-  冰: "ice",
-  格斗: "fighting",
-  毒: "poison",
-  地面: "ground",
-  飞行: "flying",
-  超能力: "psychic",
-  虫: "bug",
-  岩石: "rock",
-  幽灵: "ghost",
-  龙: "dragon",
-  恶: "dark",
-  钢: "steel",
-  妖精: "fairy",
-};
-
-const TYPE_ZH_BY_ID: Record<string, string> = {
-  normal: "一般",
-  fire: "火",
-  water: "水",
-  electric: "电",
-  grass: "草",
-  ice: "冰",
-  fighting: "格斗",
-  poison: "毒",
-  ground: "地面",
-  flying: "飞行",
-  psychic: "超能力",
-  bug: "虫",
-  rock: "岩石",
-  ghost: "幽灵",
-  dragon: "龙",
-  dark: "恶",
-  steel: "钢",
-  fairy: "妖精",
-};
 
 function styleFromCss(css: string): CSSProperties {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);
@@ -616,15 +519,15 @@ function finalizePokemon(api: ChangeBattleV2Api, pokemon: LocalPokemonV4): Local
 }
 
 function randomStatsWithinCap(current: Record<DexStatId, number>, totalCap: number, statCap: number, locks: Partial<Record<DexStatId, boolean>> = {}): Record<DexStatId, number> {
-  const next = Object.fromEntries(STAT_ROWS.map(([stat]) => [stat, 0])) as Record<DexStatId, number>;
-  let remaining = Math.max(0, Math.min(totalCap, statCap * STAT_ROWS.length) - STAT_ROWS.reduce((sum, [stat]) => sum + (locks[stat] ? Math.max(0, Math.min(statCap, current[stat] || 0)) : 0), 0));
-  for (const [stat] of STAT_ROWS) {
+  const next = Object.fromEntries(STAT_IDS.map(stat => [stat, 0])) as Record<DexStatId, number>;
+  let remaining = Math.max(0, Math.min(totalCap, statCap * STAT_IDS.length) - STAT_IDS.reduce((sum, stat) => sum + (locks[stat] ? Math.max(0, Math.min(statCap, current[stat] || 0)) : 0), 0));
+  for (const stat of STAT_IDS) {
     if (locks[stat]) next[stat] = Math.max(0, Math.min(statCap, current[stat] || 0));
   }
-  const unlocked = STAT_ROWS.filter(([stat]) => !locks[stat]);
+  const unlocked = STAT_IDS.filter(stat => !locks[stat]);
   while (remaining > 0) {
     let progressed = false;
-    for (const [stat] of shuffle(unlocked)) {
+    for (const stat of shuffle(unlocked)) {
       const open = statCap - next[stat];
       if (open <= 0) continue;
       const value = randomInt(1, Math.min(open, remaining));
@@ -639,7 +542,7 @@ function randomStatsWithinCap(current: Record<DexStatId, number>, totalCap: numb
 }
 
 function statTableTotal(stats: Record<DexStatId, number>): number {
-  return STAT_ROWS.reduce((sum, [stat]) => sum + Math.max(0, Math.floor(Number(stats[stat] || 0))), 0);
+  return STAT_IDS.reduce((sum, stat) => sum + Math.max(0, Math.floor(Number(stats[stat] || 0))), 0);
 }
 
 function lockedStatsForPokemon(locks: TemporaryStatLocksV4, pokemonId: string, part: StatRerollPartV4): DexStatId[] {
@@ -647,7 +550,7 @@ function lockedStatsForPokemon(locks: TemporaryStatLocksV4, pokemonId: string, p
 }
 
 function lockedStatsFromMap(locks: Partial<Record<DexStatId, boolean>> | undefined): DexStatId[] {
-  return STAT_ROWS.map(([stat]) => stat).filter(stat => Boolean(locks?.[stat]));
+  return STAT_IDS.filter(stat => Boolean(locks?.[stat]));
 }
 
 function lockMapFromStats(stats: DexStatId[]): Partial<Record<DexStatId, boolean>> {
@@ -655,7 +558,7 @@ function lockMapFromStats(stats: DexStatId[]): Partial<Record<DexStatId, boolean
 }
 
 function statRerollCost(lockedCount: number): number {
-  return 10 + Math.max(0, Math.min(STAT_ROWS.length, Math.floor(Number(lockedCount || 0)))) * 5;
+  return 10 + Math.max(0, Math.min(STAT_IDS.length, Math.floor(Number(lockedCount || 0)))) * 5;
 }
 
 function pick<T>(entries: T[]): T | undefined {

@@ -105,6 +105,61 @@ scripts/sync-runtime-fallback-sprites.mjs
 - Chinese names are included in search tags.
 - English IDs remain the stable key. Chinese names must never be used to infer battle identity.
 
+### Centralized Translation Contract
+
+All English factual values must be translated through `packages/showdown-dex-core`.
+
+Public entry points:
+
+```ts
+translateDexLabel(table, value)
+translateDexDescription(table, value, fallback?)
+dexLabelToId(table, value)
+toDexId(value)
+```
+
+`createShowdownDexService()` exposes the same methods, and `@changebattle-v2/api` re-exports them for Web/Desktop callers.
+
+Covered tables include:
+
+- `pokemon` / `species`
+- `moves` / `moveDescriptions`
+- `abilities` / `abilityDescriptions`
+- `items` / `itemDescriptions`
+- `types`
+- `categories`
+- `natures`
+- `stats`
+- `status`
+- `weather`
+- `field`
+- `sideConditions`
+- `gender`
+
+Hard rules:
+
+- Do not add local translation dictionaries in `apps/web`, `apps/api`, or `apps/desktop` for any table listed above.
+- Do not add ad hoc helpers like `typeLabelZh`, `moveCategoryZh`, `NATURE_LABEL`, `STATUS_LABEL`, `TYPE_ZH_BY_ID`, `TYPE_ID_BY_ZH`, `weatherLabel`, `fieldLabel`, `sideConditionLabel`, or stat-label maps in UI/API files.
+- Do not translate by mutating saved Pokemon, move, item, or battle records. Runtime records store English IDs; views may carry Chinese display fields.
+- Do not use Chinese names for identity checks, storage keys, Showdown protocol parsing, command generation, battle matching, or save migration.
+- Do not special-case one component because “it is only UI”. If it is an English factual label, extend dex-core and call the shared function.
+- `dexLabelToId("types", value)` is the approved way to convert a display type value back to a CSS/logic id when the UI may receive either English or Chinese.
+
+Allowed outside dex-core, but still centralized by owner:
+
+- ChangeBattle gameplay copy that is not a Showdown/Dex fact belongs to its owning domain package or feature module, not random UI/API call sites. Examples: lesson names, medical insurance tiers, settlement reasons, NPC lines, formal round labels, star-chart text.
+- Shared gameplay labels should live in a catalog or label helper under the owning package/module, for example `packages/changebattle-v2-core`, `apps/api/src/formalGame.ts` formal-game catalogs, or a focused file inside the feature directory. Web components should consume the provided label/view fields.
+- Purely local UI copy may stay in the component when it is not reused and does not encode gameplay meaning: one-off buttons, empty states, toasts, and confirmation prompts.
+- UI-specific abbreviations that are not general translations, such as one-character type badges, if they are strictly presentational and not used as a general label source.
+- Static gameplay labels owned by another domain package, when they are not Showdown/Dex facts.
+
+When adding a new translated enum:
+
+1. Add the table or entries in `packages/showdown-dex-core`.
+2. Add or update tests in `packages/showdown-dex-core/src/index.test.ts`.
+3. Use `api.translateDexLabel(...)`, `api.translateDexDescription(...)`, `api.dexLabelToId(...)`, or the direct dex-core export from the caller.
+4. Run `pnpm --filter @changebattle-v2/showdown-dex-core test` and `pnpm typecheck`.
+
 ## Validation Commands
 
 ```bash

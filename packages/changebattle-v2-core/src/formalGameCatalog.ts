@@ -10,6 +10,20 @@ export type FormalNpcBattlePreferenceV4 = "offense" | "defense" | "support" | "b
 
 export type FormalNpcTeamPreferenceV4 = "balanced" | "rain" | "sun" | "sand" | "snow" | "trick-room" | "tailwind" | "terrain" | "hazard-stack" | "poison-stall" | "setup-offense";
 
+export type FormalGameModeIdV4 = "singles" | "doubles" | "coop";
+
+export type FormalBattleSystemIdV4 = "mega" | "zmove" | "dynamax" | "terastal";
+
+export type FormalMedicalInsuranceTierV4 = "basic" | "standard" | "premium";
+
+export type FormalMedicalInsuranceTierCatalogEntryV4 = {
+  tier: FormalMedicalInsuranceTierV4;
+  label: string;
+  cost: number;
+  reviveCostPerPokemon: number;
+  recoveryShopPriceMultiplier: number;
+};
+
 export const FORMAL_RUN_VERSION = 1 as const;
 
 export const FORMAL_STARTER_SHINY_RATE = 1 / 30;
@@ -19,6 +33,35 @@ export const FORMAL_ROUND_COUNT = 7;
 export const FORMAL_STARTING_MONEY = 0;
 
 export const FORMAL_SHOP_SELL_RATE = 0.25;
+
+export const FORMAL_ROUND_STAGE_LABELS = [
+  "小组赛揭幕战",
+  "小组赛出线战",
+  "十六强赛",
+  "八强赛",
+  "四强争夺战",
+  "半决赛",
+  "决赛",
+] as const;
+
+export const FORMAL_GAME_MODE_LABELS: Record<FormalGameModeIdV4, string> = {
+  singles: "单打-AI",
+  doubles: "双打-AI",
+  coop: "合作-AI",
+};
+
+export const FORMAL_BATTLE_SYSTEM_LABELS: Record<FormalBattleSystemIdV4, string> = {
+  mega: "Mega",
+  zmove: "Z 招式",
+  dynamax: "极巨化",
+  terastal: "太晶化",
+};
+
+export const FORMAL_MEDICAL_INSURANCE_TIERS: FormalMedicalInsuranceTierCatalogEntryV4[] = [
+  {tier: "basic", label: "基础医疗保险", cost: 200, reviveCostPerPokemon: 25, recoveryShopPriceMultiplier: 0.9},
+  {tier: "standard", label: "标准医疗保险", cost: 500, reviveCostPerPokemon: 15, recoveryShopPriceMultiplier: 0.8},
+  {tier: "premium", label: "冠军医疗保险", cost: 1200, reviveCostPerPokemon: 0, recoveryShopPriceMultiplier: 0.5},
+];
 
 export const STARTER_ROLE_PLAN: FormalStarterRoleV4[] = [
   "weather",
@@ -142,3 +185,48 @@ export const FORMAL_STARTER_ROLE_LABELS: Record<FormalStarterRoleV4, string> = {
   "flex-offense": "攻击补位",
   balanced: "平衡补位",
 };
+
+export function formalRoundStageLabelV4(index: number): string {
+  const safeIndex = Math.max(0, Math.floor(Number(index || 0)));
+  return FORMAL_ROUND_STAGE_LABELS[safeIndex] || `第 ${safeIndex + 1} 场`;
+}
+
+export function formalGameModeLabelV4(mode: string): string {
+  return isFormalGameModeIdV4(mode) ? FORMAL_GAME_MODE_LABELS[mode] : String(mode || "");
+}
+
+export function formalBattleSystemLabelV4(system: string): string {
+  return isFormalBattleSystemIdV4(system) ? FORMAL_BATTLE_SYSTEM_LABELS[system] : String(system || "");
+}
+
+export function formalMedicalInsuranceTierLabelV4(tier: string): string {
+  return FORMAL_MEDICAL_INSURANCE_TIERS.find(entry => entry.tier === tier)?.label || "医疗保险";
+}
+
+export function formalMedicalInsuranceTierCatalogV4(): FormalMedicalInsuranceTierCatalogEntryV4[] {
+  return FORMAL_MEDICAL_INSURANCE_TIERS.map(entry => ({...entry}));
+}
+
+export function formalNpcTeamPreferenceLabelV4(preference: string): string {
+  return isFormalNpcTeamPreferenceV4(preference) ? FORMAL_NPC_TEAM_PREFERENCE_LABELS[preference] : String(preference || "");
+}
+
+export function formalStarterRoleLabelV4(role: string): string {
+  return isFormalStarterRoleV4(role) ? FORMAL_STARTER_ROLE_LABELS[role] : String(role || "");
+}
+
+function isFormalGameModeIdV4(value: string): value is FormalGameModeIdV4 {
+  return value === "singles" || value === "doubles" || value === "coop";
+}
+
+function isFormalBattleSystemIdV4(value: string): value is FormalBattleSystemIdV4 {
+  return value === "mega" || value === "zmove" || value === "dynamax" || value === "terastal";
+}
+
+function isFormalNpcTeamPreferenceV4(value: string): value is FormalNpcTeamPreferenceV4 {
+  return value === "balanced" || value === "rain" || value === "sun" || value === "sand" || value === "snow" || value === "trick-room" || value === "tailwind" || value === "terrain" || value === "hazard-stack" || value === "poison-stall" || value === "setup-offense";
+}
+
+function isFormalStarterRoleV4(value: string): value is FormalStarterRoleV4 {
+  return value === "weather" || value === "trick-room" || value === "offense" || value === "support" || value === "defense" || value === "speed-control" || value === "disruption" || value === "flex-defense" || value === "flex-offense" || value === "balanced";
+}

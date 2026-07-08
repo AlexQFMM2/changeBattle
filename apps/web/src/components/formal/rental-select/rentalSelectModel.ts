@@ -1,14 +1,8 @@
+import {formalBattleSystemLabelV4} from "@changebattle-v2/api";
 import type {BattleSystemId, RentalPokemon} from "../formalRentalTypes";
 
-const BATTLE_SYSTEM_LABELS: Record<BattleSystemId, string> = {
-  mega: "Mega",
-  zmove: "Z 招式",
-  dynamax: "极巨化",
-  terastal: "太晶化",
-};
-
 export function rentalBattleSystemLabel(system: BattleSystemId): string {
-  return BATTLE_SYSTEM_LABELS[system] || system;
+  return formalBattleSystemLabelV4(system);
 }
 
 export function rentalSpecialBadges(pokemon: RentalPokemon): string[] {

@@ -1,5 +1,5 @@
 import {useMemo, useState} from "react";
-import type {DexMoveSummary, LocalPokemonV4} from "@changebattle-v2/api";
+import {dexLabelToId, type DexMoveSummary, type LocalPokemonV4} from "@changebattle-v2/api";
 import "../dex/MoveCard.css";
 import "./PokemonMoveReplacePanel.css";
 
@@ -93,30 +93,5 @@ function normalizeId(value: string | undefined): string {
 }
 
 function moveTypeId(value: string | undefined): string {
-  const raw = String(value || "").trim();
-  const normalized = normalizeId(raw);
-  if (normalized) return normalized;
-  return TYPE_ID_BY_ZH[raw] || "";
+  return dexLabelToId("types", value || "");
 }
-
-const TYPE_ID_BY_ZH: Record<string, string> = {
-  一般: "normal",
-  普通: "normal",
-  火: "fire",
-  水: "water",
-  电: "electric",
-  草: "grass",
-  冰: "ice",
-  格斗: "fighting",
-  毒: "poison",
-  地面: "ground",
-  飞行: "flying",
-  超能力: "psychic",
-  虫: "bug",
-  岩石: "rock",
-  幽灵: "ghost",
-  龙: "dragon",
-  恶: "dark",
-  钢: "steel",
-  妖精: "fairy",
-};

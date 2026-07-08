@@ -24,27 +24,26 @@ const SHOP_BUY_TEXT = "想看看今天的货物吗？";
 const SHOP_SELL_TEXT = "需要整理背包里的道具吗？";
 const SHOP_BREAK_ANIMATION_MS = 840;
 const SHOP_RESTOCK_ANIMATION_MS = 720;
-const SHOP_STAT_LABELS = {hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"} as const;
 const SHOP_CONFUSION_HEAL_BERRY_IDS = new Set(["figyberry", "wikiberry", "magoberry", "aguavberry", "iapapaberry"]);
-const SHOP_RESIST_BERRY_EFFECTS: Record<string, {attackType: string; attackTypeZh: string; weakTo: string[]; superEffective?: boolean}> = {
-  occaberry: {attackType: "Fire", attackTypeZh: "火", weakTo: ["Grass", "Ice", "Bug", "Steel"]},
-  passhoberry: {attackType: "Water", attackTypeZh: "水", weakTo: ["Fire", "Ground", "Rock"]},
-  wacanberry: {attackType: "Electric", attackTypeZh: "电", weakTo: ["Water", "Flying"]},
-  rindoberry: {attackType: "Grass", attackTypeZh: "草", weakTo: ["Water", "Ground", "Rock"]},
-  yacheberry: {attackType: "Ice", attackTypeZh: "冰", weakTo: ["Grass", "Ground", "Flying", "Dragon"]},
-  chopleberry: {attackType: "Fighting", attackTypeZh: "格斗", weakTo: ["Normal", "Ice", "Rock", "Dark", "Steel"]},
-  kebiaberry: {attackType: "Poison", attackTypeZh: "毒", weakTo: ["Grass", "Fairy"]},
-  shucaberry: {attackType: "Ground", attackTypeZh: "地面", weakTo: ["Fire", "Electric", "Poison", "Rock", "Steel"]},
-  cobaberry: {attackType: "Flying", attackTypeZh: "飞行", weakTo: ["Grass", "Fighting", "Bug"]},
-  payapaberry: {attackType: "Psychic", attackTypeZh: "超能力", weakTo: ["Fighting", "Poison"]},
-  tangaberry: {attackType: "Bug", attackTypeZh: "虫", weakTo: ["Grass", "Psychic", "Dark"]},
-  chartiberry: {attackType: "Rock", attackTypeZh: "岩石", weakTo: ["Fire", "Ice", "Flying", "Bug"]},
-  kasibberry: {attackType: "Ghost", attackTypeZh: "幽灵", weakTo: ["Psychic", "Ghost"]},
-  habanberry: {attackType: "Dragon", attackTypeZh: "龙", weakTo: ["Dragon"]},
-  colburberry: {attackType: "Dark", attackTypeZh: "恶", weakTo: ["Psychic", "Ghost"]},
-  babiriberry: {attackType: "Steel", attackTypeZh: "钢", weakTo: ["Ice", "Rock", "Fairy"]},
-  chilanberry: {attackType: "Normal", attackTypeZh: "一般", weakTo: [], superEffective: false},
-  roseliberry: {attackType: "Fairy", attackTypeZh: "妖精", weakTo: ["Fighting", "Dragon", "Dark"]},
+const SHOP_RESIST_BERRY_EFFECTS: Record<string, {attackType: string; weakTo: string[]; superEffective?: boolean}> = {
+  occaberry: {attackType: "Fire", weakTo: ["Grass", "Ice", "Bug", "Steel"]},
+  passhoberry: {attackType: "Water", weakTo: ["Fire", "Ground", "Rock"]},
+  wacanberry: {attackType: "Electric", weakTo: ["Water", "Flying"]},
+  rindoberry: {attackType: "Grass", weakTo: ["Water", "Ground", "Rock"]},
+  yacheberry: {attackType: "Ice", weakTo: ["Grass", "Ground", "Flying", "Dragon"]},
+  chopleberry: {attackType: "Fighting", weakTo: ["Normal", "Ice", "Rock", "Dark", "Steel"]},
+  kebiaberry: {attackType: "Poison", weakTo: ["Grass", "Fairy"]},
+  shucaberry: {attackType: "Ground", weakTo: ["Fire", "Electric", "Poison", "Rock", "Steel"]},
+  cobaberry: {attackType: "Flying", weakTo: ["Grass", "Fighting", "Bug"]},
+  payapaberry: {attackType: "Psychic", weakTo: ["Fighting", "Poison"]},
+  tangaberry: {attackType: "Bug", weakTo: ["Grass", "Psychic", "Dark"]},
+  chartiberry: {attackType: "Rock", weakTo: ["Fire", "Ice", "Flying", "Bug"]},
+  kasibberry: {attackType: "Ghost", weakTo: ["Psychic", "Ghost"]},
+  habanberry: {attackType: "Dragon", weakTo: ["Dragon"]},
+  colburberry: {attackType: "Dark", weakTo: ["Psychic", "Ghost"]},
+  babiriberry: {attackType: "Steel", weakTo: ["Ice", "Rock", "Fairy"]},
+  chilanberry: {attackType: "Normal", weakTo: [], superEffective: false},
+  roseliberry: {attackType: "Fairy", weakTo: ["Fighting", "Dragon", "Dark"]},
 };
 
 export function TrainingRestShopScene({api, open, shop, player, money, busy = false, onBuy, onSell, onBack}: TrainingRestShopSceneProps) {
@@ -319,12 +318,13 @@ function buildHeldBerryPitch(api: ChangeBattleV2Api, team: LocalPokemonV4[], ite
   const resistBerry = SHOP_RESIST_BERRY_EFFECTS[itemID];
   if (resistBerry) {
     const target = pickTypeWeakPokemon(api, team, resistBerry.weakTo);
+    const attackTypeZh = api.translateDexLabel("types", resistBerry.attackType);
     const trigger = resistBerry.superEffective === false
-      ? `受到${resistBerry.attackTypeZh}属性招式时`
-      : `受到效果绝佳的${resistBerry.attackTypeZh}属性招式时`;
+      ? `受到${attackTypeZh}属性招式时`
+      : `受到效果绝佳的${attackTypeZh}属性招式时`;
     const effect = `${item.name}可以让携带者在${trigger}，减轻一次伤害。`;
-    if (target) return `${effect}你的${pokemonName(target)}比较怕${resistBerry.attackTypeZh}系招式，带着它能少吃一次关键伤害。`;
-    return `${effect}如果之后队伍里有怕${resistBerry.attackTypeZh}系的宝可梦，它就是很便宜的保险。`;
+    if (target) return `${effect}你的${pokemonName(target)}比较怕${attackTypeZh}系招式，带着它能少吃一次关键伤害。`;
+    return `${effect}如果之后队伍里有怕${attackTypeZh}系的宝可梦，它就是很便宜的保险。`;
   }
   if (SHOP_CONFUSION_HEAL_BERRY_IDS.has(itemID)) {
     const target = pickProfiledPokemon(api, team, ["bulky", "support", "pivot"]) || team.find(pokemon => pokemon.entryHp > 0) || team[0];
@@ -345,7 +345,7 @@ function buildTrainingItemPitch(api: ChangeBattleV2Api, team: LocalPokemonV4[], 
     return `${item.name}能提升等级，不过你的队伍等级已经很漂亮了，先备着也可以。`;
   }
   if (effect.kind === "ev") {
-    const statLabel = SHOP_STAT_LABELS[effect.stat] || effect.stat;
+    const statLabel = api.translateDexLabel("stats", effect.stat);
     const target = pickEvTrainingTarget(team, effect);
     if (target) return `${item.name}能调整${statLabel}努力值。你的${pokemonName(target)}还有提升空间，训练一下会更稳。`;
     return `${item.name}能调整${statLabel}努力值。现在队伍这项暂时不急，之后换配置时可以备着。`;

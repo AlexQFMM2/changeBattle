@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
 import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleTeamPokemonStateV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
-import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, isBattleCommandDraftDoneV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
+import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, formalRoundStageLabelV4, isBattleCommandDraftDoneV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, translateDexLabel, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
@@ -111,60 +111,9 @@ const SURRENDER_SUBMIT_DELAY_MS = 3000;
 const BATTLE_V4_NARRATIVE_FLOW_VERSION = "referee-dialogue-v2";
 const BATTLE_V4_REFEREE_PORTRAIT = "npc/staff/judge.png";
 
-const FORMAL_ROUND_STAGE_LABELS = [
-  "小组赛揭幕战",
-  "小组赛出线战",
-  "十六强赛",
-  "八强赛",
-  "四强争夺战",
-  "半决赛",
-  "决赛",
-];
-
-const BOOST_STAT_ROWS: Array<[BattleV4BoostStat, string]> = [
-  ["atk", "攻击"],
-  ["def", "防御"],
-  ["spa", "特攻"],
-  ["spd", "特防"],
-  ["spe", "速度"],
-  ["accuracy", "命中"],
-  ["evasion", "闪避"],
-];
-
-const WEATHER_LABELS: Record<string, string> = {
-  sunnyday: "晴天",
-  desolateland: "大日照",
-  raindance: "下雨",
-  primordialsea: "大雨",
-  sandstorm: "沙暴",
-  hail: "冰雹",
-  snowscape: "下雪",
-  deltastream: "乱流",
-};
-
-const FIELD_LABELS: Record<string, string> = {
-  electricterrain: "电气场地",
-  grassyterrain: "青草场地",
-  mistyterrain: "薄雾场地",
-  psychicterrain: "精神场地",
-  trickroom: "戏法空间",
-  magicroom: "魔法空间",
-  wonderroom: "奇妙空间",
-  gravity: "重力",
-};
-
-const SIDE_CONDITION_LABELS: Record<string, string> = {
-  reflect: "反射壁",
-  lightscreen: "光墙",
-  auroraveil: "极光幕",
-  safeguard: "神秘守护",
-  mist: "白雾",
-  stealthrock: "岩钉",
-  spikes: "撒菱",
-  toxicspikes: "毒菱",
-  stickyweb: "黏黏网",
-  tailwind: "顺风",
-};
+const BOOST_STAT_IDS: BattleV4BoostStat[] = ["atk", "def", "spa", "spd", "spe", "accuracy", "evasion"];
+const WEATHER_STATUS_IDS = new Set(["sunnyday", "desolateland", "raindance", "primordialsea", "sandstorm", "hail", "snow", "snowscape", "deltastream"]);
+const SIDE_CONDITION_STATUS_IDS = new Set(["reflect", "lightscreen", "auroraveil", "safeguard", "mist", "stealthrock", "spikes", "toxicspikes", "stickyweb", "tailwind"]);
 
 const POKEMON_FORM_LABELS: Array<[RegExp, string]> = [
   [/-mega-x$/i, "Mega X"],
@@ -1135,8 +1084,7 @@ function battleV4RefereeTrainer(): BattleV4ResolvedNarrativeTrainer {
 
 function battleV4StageLabelForNode(run: TrainingRunGameV4, nodeId?: string): string {
   const node = (nodeId ? run.gameMap.find(entry => entry.id === nodeId) : null) || run.gameMap.find(entry => entry.id === run.currentNodeId) || null;
-  const index = Math.max(0, Math.min(FORMAL_ROUND_STAGE_LABELS.length - 1, node?.index ?? 0));
-  return FORMAL_ROUND_STAGE_LABELS[index] || `第 ${index + 1} 场`;
+  return formalRoundStageLabelV4(node?.index ?? 0);
 }
 
 function battleV4NarrativeSessionKey(sessionId: string): string {
@@ -2086,7 +2034,7 @@ function buildBattleV4MoveCard(action: MoveActionV4, api: ChangeBattleV2Api, tar
     name: detail?.nameZh || detail?.name || displayedMove.move || displayedMove.id || action.label || "技能",
     typeId: typeId || "unknown",
     typeLabel: TYPE_SHORT_LABEL[typeId] || detail?.type || "?",
-    categoryLabel: categoryLabel(categoryId, detail?.category),
+    categoryLabel: translateDexLabel("categories", categoryId || detail?.category || "") || "?",
     powerLabel: detail ? Number(detail.power || 0) ? String(detail.power) : "—" : "—",
     accuracyLabel: detail ? detail.accuracy == null ? "必中" : String(detail.accuracy) : "—",
     ppLabel: `${currentPp ?? "—"}/${maxPp ?? "—"}`,
@@ -2192,13 +2140,6 @@ function effectivenessFromMultiplier(multiplier: number): {label: string; tone: 
   if (multiplier >= 4) return {label: "效果无比绝佳", tone: "great"};
   if (multiplier > 1) return {label: "效果拔群", tone: "good"};
   return {label: "效果一般", tone: "normal"};
-}
-
-function categoryLabel(categoryId: string, fallback?: string): string {
-  if (categoryId === "physical") return "物理";
-  if (categoryId === "special") return "特殊";
-  if (categoryId === "status") return "变化";
-  return fallback || "?";
 }
 
 function targetStateForV4(target: string, active: BattleViewSlotV4 | null, slot: BattleViewSlotV4): {selectable: boolean; affected: boolean} {
@@ -3158,7 +3099,7 @@ function BattleV4StatusModal({snapshot, slots, api, onClose}: {
             <div className="battle-v4-status-slot-list">
               {orderedSlots.map(slot => {
                 const boosts = status.boostsBySeat[slot.seat] || {};
-                const visibleBoosts = BOOST_STAT_ROWS.filter(([stat]) => boosts[stat]);
+                const visibleBoosts = BOOST_STAT_IDS.filter(stat => boosts[stat]);
                 const badge = statusBadge(slot.fainted ? "fnt" : slot.status);
                 const displayName = battleSlotDisplayName(slot, api);
                 return (
@@ -3173,11 +3114,11 @@ function BattleV4StatusModal({snapshot, slots, api, onClose}: {
                     </div>
                     {visibleBoosts.length ? (
                       <div className="battle-v4-boost-list">
-                        {BOOST_STAT_ROWS.map(([stat, label]) => {
+                        {BOOST_STAT_IDS.map(stat => {
                           const value = boosts[stat] || 0;
                           return (
                             <span className={value > 0 ? "up" : value < 0 ? "down" : ""} key={stat}>
-                              <b>{label}</b>
+                              <b>{translateDexLabel("stats", stat)}</b>
                               <strong>{value > 0 ? `+${value}` : value}</strong>
                             </span>
                           );
@@ -3287,19 +3228,19 @@ function protocolEffectId(value: unknown): string {
 }
 
 function weatherStatusLabel(id: string, raw: unknown): string {
-  return WEATHER_LABELS[id] || normalizeProtocolDisplayName(String(raw || "")) || id;
+  return id ? translateDexLabel("weather", id) : normalizeProtocolDisplayName(String(raw || "")) || id;
 }
 
 function fieldStatusLabel(id: string, raw: unknown): string {
-  return FIELD_LABELS[id] || normalizeProtocolDisplayName(String(raw || "")) || id;
+  return id ? translateDexLabel("field", id) : normalizeProtocolDisplayName(String(raw || "")) || id;
 }
 
 function sideConditionStatusLabel(id: string, raw: unknown): string {
-  return SIDE_CONDITION_LABELS[id] || normalizeProtocolDisplayName(String(raw || "")) || id;
+  return id ? translateDexLabel("sideConditions", id) : normalizeProtocolDisplayName(String(raw || "")) || id;
 }
 
 function normalizeSideConditionStatusId(id: string): string {
-  if (SIDE_CONDITION_LABELS[id]) return id;
+  if (SIDE_CONDITION_STATUS_IDS.has(id)) return id;
   return "";
 }
 
@@ -3354,7 +3295,7 @@ function applyBoostProtocol(boostsBySeat: BattleV4BattleStatus["boostsBySeat"], 
     if (!otherSeat) return;
     const otherBoosts = boostsBySeat[otherSeat] || {};
     boostsBySeat[otherSeat] = otherBoosts;
-    const stats = (args[3] ? args[3].split(",") : BOOST_STAT_ROWS.map(([stat]) => stat)).map(stat => normalizeBoostStat(stat)).filter((stat): stat is BattleV4BoostStat => Boolean(stat));
+    const stats = (args[3] ? args[3].split(",") : BOOST_STAT_IDS).map(stat => normalizeBoostStat(stat)).filter((stat): stat is BattleV4BoostStat => Boolean(stat));
     for (const stat of stats) {
       if (command === "-copyboost") {
         boosts[stat] = otherBoosts[stat] || 0;
@@ -3408,7 +3349,7 @@ function tickFieldStatus(status: BattleV4BattleStatus) {
 
 function defaultWeatherTurns(id: string): number | null {
   if (id === "desolateland" || id === "primordialsea" || id === "deltastream") return null;
-  return WEATHER_LABELS[id] ? 5 : null;
+  return WEATHER_STATUS_IDS.has(id) ? 5 : null;
 }
 
 function fieldCategory(id: string): BattleV4FieldStatus["category"] {

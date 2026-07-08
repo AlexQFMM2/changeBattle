@@ -57,52 +57,7 @@ const NODE_STATE_LABEL: Record<TrainingRunGameNodeV4["state"], string> = {
   blocked: "阻断",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  "": "正常",
-  brn: "灼伤",
-  par: "麻痹",
-  psn: "中毒",
-  tox: "剧毒",
-  slp: "睡眠",
-  frz: "冰冻",
-};
-
-const STAT_ROWS: Array<[DexStatId, string]> = [
-  ["hp", "HP"],
-  ["atk", "攻击"],
-  ["def", "防御"],
-  ["spa", "特攻"],
-  ["spd", "特防"],
-  ["spe", "速度"],
-];
-
-const NATURE_LABEL: Record<string, string> = {
-  Hardy: "勤奋",
-  Lonely: "怕寂寞",
-  Brave: "勇敢",
-  Adamant: "固执",
-  Naughty: "顽皮",
-  Bold: "大胆",
-  Docile: "坦率",
-  Relaxed: "悠闲",
-  Impish: "淘气",
-  Lax: "乐天",
-  Timid: "胆小",
-  Hasty: "急躁",
-  Serious: "认真",
-  Jolly: "爽朗",
-  Naive: "天真",
-  Modest: "内敛",
-  Mild: "慢吞吞",
-  Quiet: "冷静",
-  Bashful: "害羞",
-  Rash: "马虎",
-  Calm: "温和",
-  Gentle: "温顺",
-  Sassy: "自大",
-  Careful: "慎重",
-  Quirky: "浮躁",
-};
+const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 
 function isTrainingPlayerDraft(player: TrainingPlayerDraftV4 | undefined): player is TrainingPlayerDraftV4 {
   return Boolean(player);
@@ -226,7 +181,7 @@ function TrainingRestPokemonPanel({api, team, selectedSlot, selected, onSelectSl
         </header>
         <div className="training-rest-team-slots">
           {team.slice(0, 6).map((pokemon, index) => (
-            <TrainingRestTeamMiniCard pokemon={pokemon} index={index} selected={index === selectedSlot} onSelect={() => onSelectSlot(index)} key={pokemon.localPokemonId} />
+            <TrainingRestTeamMiniCard api={api} pokemon={pokemon} index={index} selected={index === selectedSlot} onSelect={() => onSelectSlot(index)} key={pokemon.localPokemonId} />
           ))}
         </div>
       </aside>
@@ -235,9 +190,9 @@ function TrainingRestPokemonPanel({api, team, selectedSlot, selected, onSelectSl
   );
 }
 
-function TrainingRestTeamMiniCard({pokemon, index, selected, onSelect}: {pokemon: LocalPokemonV4; index: number; selected: boolean; onSelect: () => void}) {
+function TrainingRestTeamMiniCard({api, pokemon, index, selected, onSelect}: {api: ChangeBattleV2Api; pokemon: LocalPokemonV4; index: number; selected: boolean; onSelect: () => void}) {
   const hpRate = pokemon.maxHp ? Math.max(0, Math.min(100, pokemon.entryHp / pokemon.maxHp * 100)) : 0;
-  const status = STATUS_LABEL[pokemon.entryStatus] || pokemon.entryStatus || "";
+  const status = api.translateDexLabel("status", pokemon.entryStatus) || "";
   return (
     <button className={`training-rest-team-mini-card ${selected ? "selected" : ""} ${pokemon.entryHp <= 0 ? "status-fnt" : ""}`} type="button" onClick={onSelect}>
       <span className="training-rest-team-mini-card-index">{index + 1}</span>
@@ -260,7 +215,7 @@ function TrainingRestPokemonDetail({api, pokemon}: {api: ChangeBattleV2Api; poke
     evs: pokemon.evs,
     ivs: pokemon.ivs,
   }).stats, [api, pokemon.evs, pokemon.ivs, pokemon.level, pokemon.nature, pokemon.speciesId]);
-  const natureZh = natureLabel(pokemon.nature);
+  const natureZh = api.translateDexLabel("natures", pokemon.nature) || "未知";
   return (
     <article className="training-rest-selected-pokemon-detail">
       <section className="training-rest-selected-pokemon-main">
@@ -274,7 +229,7 @@ function TrainingRestPokemonDetail({api, pokemon}: {api: ChangeBattleV2Api; poke
         <div className="training-rest-selected-pokemon-facts">
           <div className="selected"><span>特性</span><strong>{pokemon.abilityNameZh || "特性未定"}</strong></div>
           <div><span>道具</span><strong>{pokemon.itemId || "无道具"}</strong></div>
-          <div><span>状态</span><strong>{STATUS_LABEL[pokemon.entryStatus] || pokemon.entryStatus || "正常"}</strong></div>
+          <div><span>状态</span><strong>{api.translateDexLabel("status", pokemon.entryStatus) || "正常"}</strong></div>
         </div>
         <div className="training-rest-selected-pokemon-hp">
           <span>HP</span>
@@ -283,7 +238,7 @@ function TrainingRestPokemonDetail({api, pokemon}: {api: ChangeBattleV2Api; poke
         </div>
         <div className="training-rest-selected-move-row">
           {pokemon.moves.map((move, index) => (
-            <TrainingRestMoveCard move={move} key={`${move.moveId}-${index}`} />
+            <TrainingRestMoveCard api={api} move={move} key={`${move.moveId}-${index}`} />
           ))}
         </div>
       </section>
@@ -293,9 +248,9 @@ function TrainingRestPokemonDetail({api, pokemon}: {api: ChangeBattleV2Api; poke
           <p><span>特性</span><strong>{pokemon.abilityNameZh || "特性未定"}</strong></p>
         </div>
         <dl>
-          {STAT_ROWS.map(([stat, label]) => (
+          {STAT_IDS.map(stat => (
             <div key={stat}>
-              <dt>{label}</dt>
+              <dt>{api.translateDexLabel("stats", stat)}</dt>
               <dd>{calculated[stat]} ({detail.baseStats[stat]} | {pokemon.ivs[stat]} | {pokemon.evs[stat]})</dd>
             </div>
           ))}
@@ -305,34 +260,22 @@ function TrainingRestPokemonDetail({api, pokemon}: {api: ChangeBattleV2Api; poke
   );
 }
 
-function TrainingRestMoveCard({move}: {move: TrainingMoveSlotV4}) {
+function TrainingRestMoveCard({api, move}: {api: ChangeBattleV2Api; move: TrainingMoveSlotV4}) {
   const typeId = toId(move.type || "normal") || "normal";
   return (
     <div className={`training-rest-move-card move-card move-choice move-card-dex quick-dex-move-card move-type-${typeId}`}>
       <span className="move-name-row">
         <strong>{move.nameZh || move.name || move.moveId}</strong>
-        <i>{categoryLabel(move.category)}</i>
+        <i>{api.translateDexLabel("categories", move.category)}</i>
       </span>
       <span className="move-meta-row">
-        <b>{move.type || "?"}</b>
+        <b>{api.translateDexLabel("types", move.type || "?")}</b>
         <em>威 {move.power || "-"}</em>
         <em>命 {move.accuracy ?? "-"}</em>
         <em>PP {move.remainingPp}/{move.maxPp || move.pp || "-"}</em>
       </span>
     </div>
   );
-}
-
-function natureLabel(nature: string): string {
-  return NATURE_LABEL[nature] || nature || "未知";
-}
-
-function categoryLabel(category: string): string {
-  const id = toId(category);
-  if (id === "physical") return "物理";
-  if (id === "special") return "特殊";
-  if (id === "status") return "变化";
-  return category || "?";
 }
 
 function toId(value: unknown): string {

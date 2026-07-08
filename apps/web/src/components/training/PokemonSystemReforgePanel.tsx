@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
-import type {DexSystemBattleReforgeOption, LocalPokemonV4, PlayerItemInstanceV4} from "@changebattle-v2/api";
+import {dexLabelToId, type DexSystemBattleReforgeOption, type LocalPokemonV4, type PlayerItemInstanceV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {styleUrlAssetPath} from "../../lib/assetUrl";
 import "./PokemonSystemReforgePanel.css";
@@ -94,33 +94,8 @@ function kindLabel(kind: DexSystemBattleReforgeOption["kind"]): string {
 }
 
 function typeClassId(value: string): string {
-  const raw = String(value || "").trim();
-  const normalized = raw.toLowerCase().replace(/[^a-z0-9]+/g, "");
-  if (normalized) return normalized;
-  return TYPE_ID_BY_ZH[raw] || "";
+  return dexLabelToId("types", value);
 }
-
-const TYPE_ID_BY_ZH: Record<string, string> = {
-  一般: "normal",
-  普通: "normal",
-  火: "fire",
-  水: "water",
-  电: "electric",
-  草: "grass",
-  冰: "ice",
-  格斗: "fighting",
-  毒: "poison",
-  地面: "ground",
-  飞行: "flying",
-  超能力: "psychic",
-  虫: "bug",
-  岩石: "rock",
-  幽灵: "ghost",
-  龙: "dragon",
-  恶: "dark",
-  钢: "steel",
-  妖精: "fairy",
-};
 
 function spriteStyleFromCss(css: string): CSSProperties {
   const match = /url\(([^)]+)\).*?(-?\d+)px\s+(-?\d+)px/.exec(css);

@@ -30,6 +30,27 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - `apps/web`：Web 端适配器、V1 风格首屏/首页、QuickDex 图鉴弹窗。
 - `apps/desktop`：Desktop 端适配器，复用 Web UI。
 
+## Translation Rules
+
+英文事实值转中文展示是 Dex 能力，唯一归口是 `packages/showdown-dex-core`。
+
+强制约束：
+
+- API/Web/Desktop 不允许新增自己的宝可梦英汉字典、属性字典、技能分类字典、性格字典、状态/天气/场地/墙钉字典、能力项字典。
+- 需要展示中文时，必须调用 `showdown-dex-core` 暴露的方法，或通过 `@changebattle-v2/api` facade 调用同一套方法：
+  - `translateDexLabel(table, value)`
+  - `translateDexDescription(table, value, fallback?)`
+  - `dexLabelToId(table, value)`
+  - `toDexId(value)`
+- 允许 API view 直接返回 dex-core 已组装好的 `nameZh/type/category/description` 等展示字段；不允许 API/Web 再维护一份本地翻译 fallback 表。
+- 存档、战斗协议、Showdown command、身份判断和主键仍只使用英文 ID / Showdown ID。中文只用于展示、搜索标签和 UI 文案。
+- ChangeBattle 自己发明的玩法文案不进 dex-core，但也不能随手散落：课程名、医保档位、结算原因、NPC 话术、正式赛阶段名、星图文案等共享业务文本，应放到对应 domain package / 模块的 catalog 或 label helper 里，例如 `packages/changebattle-v2-core`、`apps/api/src/formalGame.ts` 的正式玩法 catalog，或所属功能目录的集中文件。Web 组件只消费这些字段。
+- 只有纯局部 UI 文案可以留在组件内，例如一次性按钮、局部空状态、局部 toast、局部确认提示。
+
+如果新增英文枚举展示，先扩展 `packages/showdown-dex-core` 的翻译表和测试，再让 API/Web 调用。不要在组件或 API 文件里临时写 `Record<string, string>` 顶上。
+
+更细规则见 `docs/showdown-dex-integration.md` 的 Chinese Data Policy。
+
 当前已完成：
 
 - V1 风格 `GameViewport`、首屏、首页、玩家设置基础体验迁移。

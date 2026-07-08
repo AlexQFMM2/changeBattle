@@ -1,3 +1,4 @@
+import {createShowdownDexService} from "@changebattle-v2/showdown-dex-core";
 import type {
   DexSystemBattleReforgeOption,
   DexMoveSummary,
@@ -12,7 +13,7 @@ import {
   DEFAULT_TRAINER_AVATAR,
   FALLBACK_MOVES,
   FALLBACK_SPECIES,
-  FORMAL_NPC_TEAM_PREFERENCE_LABELS,
+  FORMAL_MEDICAL_INSURANCE_TIERS,
   FORMAL_ROUND_COUNT,
   FORMAL_RUN_VERSION,
   FORMAL_SHOP_CATEGORY_LABELS,
@@ -25,7 +26,6 @@ import {
   FORMAL_SHOP_PRODUCT_VIEW_CATEGORY_ORDER,
   FORMAL_SHOP_SELL_RATE,
   FORMAL_SHOP_SLOTS_PER_CATEGORY,
-  FORMAL_STARTER_ROLE_LABELS,
   FORMAL_STARTER_SHINY_RATE,
   FORMAL_STARTING_MONEY,
   NATURES,
@@ -45,6 +45,7 @@ import {
   formalAttackStyleFromCountsV4,
   formalCombinePlayerProfilesV4,
   formalInferPowerProfileForTotalsV4,
+  formalMedicalInsuranceTierLabelV4,
   formalMoveQualityRuleForSourceV4,
   formalNormalizePlayerProfileV4,
   formalShopSlotsForCategoryV4,
@@ -53,11 +54,14 @@ import {
   formalNpcPowerProfileForTypeV4,
   formalPowerProfileIndexV4,
   formalPowerProfileRuleV4,
+  formalNpcTeamPreferenceLabelV4,
   formalRoleForTeamPreferenceV4,
   formalRolePreferredMoveIdsV4,
   formalRollPowerProfileEvCapV4,
   formalRollPowerProfileIvCapV4,
   formalSpeciesRankForIdsV4,
+  formalSettlementReasonLabelV4,
+  formalStarterRoleLabelV4,
   formalStarterIvStatCapForPowerProfileV4,
   formalStarterPowerProfileDeckV4,
   formalTargetingIntensityForTrainerTypeV4,
@@ -335,7 +339,10 @@ export type FormalTrainingGroundStateV4 = {
 export type FormalTrainingGroundLessonViewV4 = {
   lessonId: string;
   kind: FormalTrainingGroundLessonKindV4;
+  title: string;
   teacherLabel: string;
+  summary: string;
+  dialogue: string;
   introText: string;
   completeText: string;
   fee: number;
@@ -669,6 +676,7 @@ export type FormalRentalPokemonViewV4 = {
 };
 
 const DEFAULT_FORMAL_RUN_KEY = "changebattle-v2:web:formal-run";
+const FORMAL_DEX_TRANSLATOR = createShowdownDexService();
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
   standard: [],
@@ -676,11 +684,6 @@ const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET: Record<TrainingRuleSetV4, string[]> = {
   gen8: ["system-dynamax-band"],
   gen9: ["system-tera-orb"],
 };
-const FORMAL_MEDICAL_INSURANCE_TIERS: FormalMedicalInsuranceTierViewV4[] = [
-  {tier: "basic", label: "基础医疗保险", cost: 200, reviveCostPerPokemon: 25, recoveryShopPriceMultiplier: 0.9},
-  {tier: "standard", label: "标准医疗保险", cost: 500, reviveCostPerPokemon: 15, recoveryShopPriceMultiplier: 0.8},
-  {tier: "premium", label: "冠军医疗保险", cost: 1200, reviveCostPerPokemon: 0, recoveryShopPriceMultiplier: 0.5},
-];
 const FORMAL_REST_TEAM_HEAL_BASE_COST = 250;
 const POKEMON_TYPES_V4 = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice", "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug", "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"] as const;
 const POKEMON_TYPE_ALIASES_V4: Record<string, string> = {
@@ -1208,7 +1211,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       purchased,
       tiers: FORMAL_MEDICAL_INSURANCE_TIERS.map(tier => ({...tier})),
       message: purchased
-        ? `已购买${insuranceTierLabel(purchased.tier)}。`
+        ? `已购买${formalMedicalInsuranceTierLabelV4(purchased.tier)}。`
         : available
           ? "可以在第一场战斗前购买一次医疗保险。"
           : "需要点亮星图「医疗保险」后才能购买。",
@@ -2024,7 +2027,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         status: "ended",
         result: {
           outcome,
-          reason: settlementReasonLabel(reason),
+          reason: formalSettlementReasonLabelV4(reason),
         },
         updatedAt: now,
       } : null,
@@ -2094,7 +2097,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       speciesRank: normalizeSpeciesRank(candidate.speciesRank),
       powerProfile: normalizePowerProfile(candidate.powerProfile),
       pokemon: normalizeStarterPokemon(candidate.pokemon),
-      display: candidate.display || displayFromDetail(safePokemon(candidate.pokemon?.speciesId)),
+      display: candidate.display || displayFromDetail(dex, safePokemon(candidate.pokemon?.speciesId)),
       diagnostics: candidate.diagnostics || {
         role: normalizeStarterRole(candidate.role),
         speciesRank: normalizeSpeciesRank(candidate.speciesRank),
@@ -2546,7 +2549,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       diagnostics,
       team: {
         id: `formal-team-${input.playerId}-${input.teamPreference}`,
-        name: `${input.playerId.toUpperCase()} ${teamPreferenceLabel(input.teamPreference)}`,
+        name: `${input.playerId.toUpperCase()} ${formalNpcTeamPreferenceLabelV4(input.teamPreference)}`,
         pokemon,
       },
     };
@@ -3098,7 +3101,7 @@ function buildFormalStarterCandidate(dex: ShowdownDexService, input: {
     rng: input.rng,
     seed: input.seed,
   });
-  const display = displayFromDetail(detail);
+  const display = displayFromDetail(dex, detail);
   const calculatedStats = dex.calculatePokemonStats({
     speciesId: detail.id,
     level: pokemon.level,
@@ -3221,9 +3224,9 @@ export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarter
       name: move.name,
       name_zh: move.nameZh,
       type: move.type,
-      type_zh: moveTypeZh(move.type),
+      type_zh: FORMAL_DEX_TRANSLATOR.translateDexLabel("types", move.type),
       category: move.category,
-      category_zh: moveCategoryZh(move.category),
+      category_zh: FORMAL_DEX_TRANSLATOR.translateDexLabel("categories", move.category),
       power: move.power,
       accuracy: move.accuracy,
       pp: move.pp,
@@ -3238,11 +3241,11 @@ export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarter
     evs: pokemon.evs,
     ivs: pokemon.ivs,
     nature: pokemon.nature,
-    nature_zh: NATURE_ZH[pokemon.nature] || pokemon.nature,
+    nature_zh: FORMAL_DEX_TRANSLATOR.translateDexLabel("natures", pokemon.nature),
     nature_plus: "",
     nature_minus: "",
     role: candidate.role,
-    role_zh: starterRoleLabel(candidate.role),
+    role_zh: formalStarterRoleLabelV4(candidate.role),
     shiny: pokemon.shiny,
     is_legendary: candidate.speciesRank === "legendary",
     starter_origin: "current",
@@ -3256,11 +3259,11 @@ export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarter
   };
 }
 
-function displayFromDetail(detail: DexPokemonDetail): FormalStarterCandidateV4["display"] {
+function displayFromDetail(dex: ShowdownDexService, detail: DexPokemonDetail): FormalStarterCandidateV4["display"] {
   return {
     nationalDex: detail.num,
     types: detail.types || [],
-    typesZh: (detail.types || []).map(typeLabelZh),
+    typesZh: (detail.types || []).map(type => dex.translateDexLabel("types", type)),
     baseStats: detail.baseStats,
     heightm: detail.heightm,
     weightkg: detail.weightkg,
@@ -3287,43 +3290,6 @@ function createSystemReforgeProbePokemon(detail: DexPokemonDetail): Pick<LocalPo
     nameZh: detail.nameZh,
     moves: [],
   };
-}
-
-function typeLabelZh(type: string): string {
-  const labels: Record<string, string> = {
-    Normal: "一般",
-    Fire: "火",
-    Water: "水",
-    Electric: "电",
-    Grass: "草",
-    Ice: "冰",
-    Fighting: "格斗",
-    Poison: "毒",
-    Ground: "地面",
-    Flying: "飞行",
-    Psychic: "超能力",
-    Bug: "虫",
-    Rock: "岩石",
-    Ghost: "幽灵",
-    Dragon: "龙",
-    Dark: "恶",
-    Steel: "钢",
-    Fairy: "妖精",
-  };
-  return labels[type] || type;
-}
-
-function moveTypeZh(type: string): string {
-  return typeLabelZh(type);
-}
-
-function moveCategoryZh(category: string): string {
-  const labels: Record<string, string> = {
-    Physical: "物理",
-    Special: "特殊",
-    Status: "变化",
-  };
-  return labels[category] || category;
 }
 
 export function createBrowserFormalGameRunAdapter(storageKey = DEFAULT_FORMAL_RUN_KEY): FormalGameRunStorageAdapter {
@@ -4191,10 +4157,6 @@ function pokemonExchangeResult(ok: boolean, run: FormalGameRunV4, message: strin
   return {ok, run, message, cost, view};
 }
 
-function insuranceTierLabel(tier: FormalMedicalInsuranceTierV4): string {
-  return FORMAL_MEDICAL_INSURANCE_TIERS.find(entry => entry.tier === tier)?.label || "医疗保险";
-}
-
 function formalRestPokemonStatRerollCost(lockedCount: number): number {
   return 10 + Math.max(0, Math.min(STAT_IDS.length, Math.floor(Number(lockedCount || 0)))) * 5;
 }
@@ -4622,10 +4584,6 @@ function stableScore(value: string): number {
   return Math.abs(hash);
 }
 
-function teamPreferenceLabel(preference: FormalNpcTeamPreferenceV4): string {
-  return FORMAL_NPC_TEAM_PREFERENCE_LABELS[preference] || preference;
-}
-
 function normalizeFormalMode(mode: unknown): FormalGameModeV4 {
   return mode === "doubles" || mode === "coop" ? mode : "singles";
 }
@@ -4697,10 +4655,6 @@ function normalizeStatus(status: unknown): TrainingStatusV4 {
 
 function normalizeStats(stats: Record<string, number> | undefined, fallback: number, max: number): StatTableV4 {
   return Object.fromEntries(STAT_IDS.map(stat => [stat, clampInt(stats?.[stat], 0, max, fallback)])) as StatTableV4;
-}
-
-function starterRoleLabel(role: FormalStarterRoleV4): string {
-  return FORMAL_STARTER_ROLE_LABELS[role] || role;
 }
 
 function normalizeSettlement(settlement: FormalGameSettlementV4 | null | undefined): FormalGameSettlementV4 | null {
@@ -5566,13 +5520,6 @@ function bpCoefficientForNpcType(type: FormalNpcTypeV4): number {
   if (type === "elite4") return 1.5;
   if (type === "champion" || type === "villain") return 1.8;
   return 0.5;
-}
-
-function settlementReasonLabel(reason: FormalSettlementReasonV4): string {
-  if (reason === "complete") return "正式游戏通关结算";
-  if (reason === "surrender") return "玩家投降";
-  if (reason === "abandon") return "休整页放弃比赛";
-  return "正式游戏战斗失败";
 }
 
 function normalizeShowdownPlayerId(value: unknown): ShowdownPlayerIdV4 | undefined {

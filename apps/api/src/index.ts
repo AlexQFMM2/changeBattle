@@ -51,8 +51,19 @@ import {
   unlockStarChartNodeForProfileV4,
 } from "./starChart.js";
 export {FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY, REST_CENTER_LEFT_SIDE_ACTIONS_V4, REST_CENTER_PAPER_ACTIONS_V4, REST_CENTER_RIGHT_SIDE_ACTIONS_V4, createSoulmateCandidateListV4, formalShopSlotsForCategoryV4};
+export {
+  formalBattleSystemLabelV4,
+  formalGameModeLabelV4,
+  formalMedicalInsuranceTierLabelV4,
+  formalNpcTeamPreferenceLabelV4,
+  formalRoundStageLabelV4,
+  formalSettlementOutcomeLabelV4,
+  formalSettlementReasonLabelV4,
+  formalStarterRoleLabelV4,
+} from "@changebattle-v2/core";
 export type {NatureEffectV4} from "@changebattle-v2/core";
 export {showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
+export {dexLabelToId, toDexId, translateDexDescription, translateDexLabel} from "@changebattle-v2/showdown-dex-core";
 export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultV4, RestCenterActionEntryV4, SoulmateCandidateV4, TrainerVaultV2, UserProfileDraftV2, UserProfileV2};
 export type {FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4};
 export * from "./itemEffects.js";
@@ -292,6 +303,10 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
 
   return {
     dex,
+    translateDexLabel: dex.translateDexLabel,
+    translateDexDescription: dex.translateDexDescription,
+    dexLabelToId: dex.dexLabelToId,
+    toDexId: dex.toDexId,
     searchDex: (request: DexSearchRequest = {}) => dex.searchDex(request),
     getPokemonDetail: (id: string) => dex.getPokemonDetail(id),
     getMoveDetail: (id: string) => dex.getMoveDetail(id),
@@ -630,7 +645,7 @@ export function createPlayerVaultPokemonDetailView(dex: ReturnType<typeof create
   const ability = detail?.abilities.find(entry => entry.id === pokemon.abilityId);
   const abilityName = ability?.nameZh || ability?.name || pokemon.abilityId || "特性未知";
   const level = Math.max(1, Math.min(100, Math.floor(Number(pokemon.level || 50))));
-  const nature = natureViewForVault(pokemon.nature);
+  const nature = natureViewForVault(dex, pokemon.nature);
   const stats = vaultStatRows(dex, pokemon, level);
   const moves = pokemon.moves.slice(0, 4).map((move, index) => vaultMoveView(dex, move, index));
   const evolutions = vaultEvolutionViews(dex, pokemon.speciesId);
@@ -704,11 +719,12 @@ function safePokemonDetailForVault(dex: ReturnType<typeof createShowdownDexServi
   }
 }
 
-function natureViewForVault(natureId: string): string {
+function natureViewForVault(dex: ReturnType<typeof createShowdownDexService>, natureId: string): string {
   const nature = getNatureEffectsV4().find(entry => entry.id === natureId || entry.name === natureId || entry.nameZh === natureId);
-  if (!nature) return natureId || "未知";
+  const natureName = dex.translateDexLabel("natures", nature?.name || natureId || "");
+  if (!nature) return natureName || "未知";
   const neutral = !nature.plus && !nature.minus;
-  return `${nature.id} · ${neutral ? "无修正" : `+${vaultStatLabel(nature.plus)} / -${vaultStatLabel(nature.minus)}`}`;
+  return `${natureName} · ${neutral ? "无修正" : `+${dex.translateDexLabel("stats", nature.plus)} / -${dex.translateDexLabel("stats", nature.minus)}`}`;
 }
 
 function vaultStatRows(dex: ReturnType<typeof createShowdownDexService>, pokemon: PlayerPokemonRecordV4, level: number): PlayerVaultPokemonDetailViewV4["stats"] {
@@ -721,7 +737,7 @@ function vaultStatRows(dex: ReturnType<typeof createShowdownDexService>, pokemon
   }
   return statIds.map(id => ({
     id,
-    label: vaultStatLabel(id),
+    label: dex.translateDexLabel("stats", id),
     actual: Math.max(0, Math.floor(Number(actual[id] || 0))),
     iv: Math.max(0, Math.floor(Number(pokemon.ivs[id] || 0))),
     ev: Math.max(0, Math.floor(Number(pokemon.evs[id] || 0))),
@@ -735,8 +751,8 @@ function vaultMoveView(dex: ReturnType<typeof createShowdownDexService>, move: P
       slot: index + 1,
       id: detail.id,
       name: detail.nameZh || detail.name || move.moveId,
-      type: detail.type || "",
-      category: detail.category || "",
+      type: detail.type || dex.translateDexLabel("types", detail.typeId || ""),
+      category: detail.category || dex.translateDexLabel("categories", detail.categoryId || ""),
       power: detail.power > 0 ? String(detail.power) : "-",
       pp: `${move.remainingPp ?? detail.pp}/${move.maxPp ?? detail.pp}`,
     };
@@ -769,11 +785,6 @@ function vaultEvolutionMethod(edge: Parameters<typeof normalizeSoulmateEvolution
   if (edge?.evoCondition) parts.push(edge.evoCondition);
   if (edge?.evoRegion) parts.push(edge.evoRegion);
   return parts.join(" · ");
-}
-
-function vaultStatLabel(statId: string | undefined): string {
-  const labels: Record<string, string> = {hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"};
-  return statId ? labels[statId] || statId : "";
 }
 
 function formatVaultDate(value: unknown): string {

@@ -43,34 +43,14 @@ const RULE_LABEL: Record<TrainingRuleSetV4, string> = {
   gen9: "Gen9",
 };
 
-const STAT_LABEL: Record<keyof StatTableV4, string> = {
-  hp: "HP",
-  atk: "攻击",
-  def: "防御",
-  spa: "特攻",
-  spd: "特防",
-  spe: "速度",
-};
-
-const STATUS_LABEL: Record<TrainingStatusV4, string> = {
-  "": "无异常",
-  brn: "灼伤",
-  par: "麻痹",
-  psn: "中毒",
-  tox: "剧毒",
-  slp: "睡眠",
-  frz: "冰冻",
-};
-
-const NATURE_OPTIONS = [
-  ["Hardy", "勤奋"], ["Lonely", "怕寂寞"], ["Brave", "勇敢"], ["Adamant", "固执"], ["Naughty", "顽皮"],
-  ["Bold", "大胆"], ["Docile", "坦率"], ["Relaxed", "悠闲"], ["Impish", "淘气"], ["Lax", "乐天"],
-  ["Timid", "胆小"], ["Hasty", "急躁"], ["Serious", "认真"], ["Jolly", "爽朗"], ["Naive", "天真"],
-  ["Modest", "内敛"], ["Mild", "慢吞吞"], ["Quiet", "冷静"], ["Bashful", "害羞"], ["Rash", "马虎"],
-  ["Calm", "温和"], ["Gentle", "温顺"], ["Sassy", "自大"], ["Careful", "慎重"], ["Quirky", "浮躁"],
+const NATURE_IDS = [
+  "Hardy", "Lonely", "Brave", "Adamant", "Naughty",
+  "Bold", "Docile", "Relaxed", "Impish", "Lax",
+  "Timid", "Hasty", "Serious", "Jolly", "Naive",
+  "Modest", "Mild", "Quiet", "Bashful", "Rash",
+  "Calm", "Gentle", "Sassy", "Careful", "Quirky",
 ] as const;
-
-const NATURE_LABEL = Object.fromEntries(NATURE_OPTIONS.map(([id, label]) => [id, label])) as Record<string, string>;
+const STATUS_IDS: TrainingStatusV4[] = ["", "brn", "par", "psn", "tox", "slp", "frz"];
 const TEST_BAG_ITEM_IDS = [
   "leftovers", "lifeorb", "oranberry", "potion", "ether",
   "ev-hp-plus", "ev-atk-down", "adamantmint", "abilitycapsule", "abilitypatch",
@@ -625,9 +605,9 @@ function TrainingPokemonEditor({api, pokemon, onPatch}: {api: ChangeBattleV2Api;
           </label>
         </div>
         {tab === "base" ? <TrainingBaseEditor api={api} pokemon={pokemon} onPatch={onPatch} /> : null}
-        {tab === "stats" ? <TrainingStatsEditor pokemon={pokemon} onPatch={onPatch} /> : null}
+        {tab === "stats" ? <TrainingStatsEditor api={api} pokemon={pokemon} onPatch={onPatch} /> : null}
         {tab === "moves" ? <TrainingMovesEditor api={api} pokemon={pokemon} onPatch={onPatch} /> : null}
-        {tab === "entry" ? <TrainingEntryEditor pokemon={pokemon} onPatch={onPatch} /> : null}
+        {tab === "entry" ? <TrainingEntryEditor api={api} pokemon={pokemon} onPatch={onPatch} /> : null}
       </div>
     </section>
   );
@@ -657,15 +637,15 @@ function TrainingBaseEditor({api, pokemon, onPatch}: {api: ChangeBattleV2Api; po
       <label>
         <span>性格</span>
         <select value={pokemon.nature} onChange={event => onPatch({nature: event.target.value})}>
-          {NATURE_OPTIONS.map(([id, label]) => <option value={id} key={id}>{label}</option>)}
+          {NATURE_IDS.map(id => <option value={id} key={id}>{api.translateDexLabel("natures", id)}</option>)}
         </select>
-        <small>{NATURE_LABEL[pokemon.nature] || "未选择"}</small>
+        <small>{api.translateDexLabel("natures", pokemon.nature) || "未选择"}</small>
       </label>
     </div>
   );
 }
 
-function TrainingStatsEditor({pokemon, onPatch}: {pokemon: LocalPokemonV4; onPatch: (patch: Partial<LocalPokemonV4>) => void}) {
+function TrainingStatsEditor({api, pokemon, onPatch}: {api: ChangeBattleV2Api; pokemon: LocalPokemonV4; onPatch: (patch: Partial<LocalPokemonV4>) => void}) {
   const evTotal = statKeys().reduce((sum, stat) => sum + (pokemon.evs[stat] || 0), 0);
   return (
     <div className="training-stats-editor">
@@ -680,7 +660,7 @@ function TrainingStatsEditor({pokemon, onPatch}: {pokemon: LocalPokemonV4; onPat
       </div>
       {statKeys().map(stat => (
         <div className="training-stat-row" key={stat}>
-          <span>{STAT_LABEL[stat]}</span>
+          <span>{api.translateDexLabel("stats", stat)}</span>
           <input type="number" min={0} max={252} value={pokemon.evs[stat]} onChange={event => onPatch({evs: {...pokemon.evs, [stat]: Number(event.target.value)}})} />
           <input type="number" min={0} max={31} value={pokemon.ivs[stat]} onChange={event => onPatch({ivs: {...pokemon.ivs, [stat]: Number(event.target.value)}})} />
         </div>
@@ -710,7 +690,7 @@ function TrainingMovesEditor({api, pokemon, onPatch}: {api: ChangeBattleV2Api; p
   );
 }
 
-function TrainingEntryEditor({pokemon, onPatch}: {pokemon: LocalPokemonV4; onPatch: (patch: Partial<LocalPokemonV4>) => void}) {
+function TrainingEntryEditor({api, pokemon, onPatch}: {api: ChangeBattleV2Api; pokemon: LocalPokemonV4; onPatch: (patch: Partial<LocalPokemonV4>) => void}) {
   return (
     <div className="training-entry-editor">
       <strong>{pokemon.nameZh} 进场状态</strong>
@@ -728,7 +708,7 @@ function TrainingEntryEditor({pokemon, onPatch}: {pokemon: LocalPokemonV4; onPat
       <label>
         <span>进场异常</span>
         <select value={pokemon.entryStatus} onChange={event => onPatch({entryStatus: event.target.value as TrainingStatusV4})}>
-          {(Object.keys(STATUS_LABEL) as TrainingStatusV4[]).map(status => <option value={status} key={status || "none"}>{STATUS_LABEL[status]}</option>)}
+          {STATUS_IDS.map(status => <option value={status} key={status || "none"}>{status ? api.translateDexLabel("status", status) : "无异常"}</option>)}
         </select>
       </label>
     </div>

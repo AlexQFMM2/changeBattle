@@ -1,5 +1,5 @@
 import {useMemo, useState, type CSSProperties} from "react";
-import type {FormalGameRunV4, FormalSettlementPokemonStatsV4, UserProfileV2} from "@changebattle-v2/api";
+import {formalSettlementOutcomeLabelV4, type FormalGameRunV4, type FormalSettlementPokemonStatsV4, type UserProfileV2} from "@changebattle-v2/api";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import {pokemonSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "./PokemonSprite.css";
@@ -33,7 +33,7 @@ export function FormalSettlementPage({run, profile, onBackToMain}: {
     <main className="formal-settlement-page">
       <section className="formal-settlement-header">
         <div>
-          <span>{outcomeLabel(settlement.outcome)}</span>
+          <span>{formalSettlementOutcomeLabelV4(settlement.outcome)}</span>
           <strong>{profile.name}</strong>
         </div>
         <dl>
@@ -101,12 +101,6 @@ function Metric({label, value}: {label: string; value: string | number}) {
       <strong>{value}</strong>
     </article>
   );
-}
-
-function outcomeLabel(outcome: string): string {
-  if (outcome === "win") return "挑战完成";
-  if (outcome === "abandoned") return "中途放弃";
-  return "挑战结束";
 }
 
 function hasBattleActivity(entry: FormalSettlementPokemonStatsV4): boolean {

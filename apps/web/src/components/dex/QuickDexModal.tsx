@@ -14,6 +14,7 @@ import type {
   DexTrainerDetail,
   NatureEffectV4,
 } from "@changebattle-v2/api";
+import {translateDexLabel} from "@changebattle-v2/api";
 import {BattleV4MovePreviewModal, type BattleV4EnvironmentPreviewEntry} from "../battle-v4/BattleV4MovePreviewModal";
 import {PokopiaModal, pokopiaItemVariants} from "../motion/PokopiaModal";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
@@ -77,7 +78,6 @@ const TRAINER_RULESET_LABELS: Record<string, string> = {
 };
 
 const PAGE_SIZE = 18;
-const STAT_LABELS: Record<string, string> = {hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"};
 const SOURCE_LABELS: Record<string, string> = {
   levelup: "自学技能",
   tutor: "教授技能",
@@ -448,7 +448,7 @@ function PokemonDetail({
             <div>
               <h3>{detail.nameZh || detail.name}</h3>
               <p>No.{detail.num} · {detail.name}</p>
-              <div className="quick-dex-badges">{detail.types.map(type => <span key={type}>{type}</span>)}</div>
+              <div className="quick-dex-badges">{detail.types.map(type => <span key={type}>{api.translateDexLabel("types", type)}</span>)}</div>
             </div>
           </div>
           <div className="quick-dex-badges">
@@ -474,7 +474,7 @@ function PokemonDetail({
           <div className="quick-dex-stat-grid">
             {Object.entries(detail.baseStats).map(([stat, base]) => (
               <p key={stat}>
-                <span>{STAT_LABELS[stat]}</span>
+                <span>{api.translateDexLabel("stats", stat)}</span>
                 <strong>{base} / Lv.{level}: {stats.stats[stat as keyof typeof stats.stats]}</strong>
               </p>
             ))}
@@ -995,8 +995,7 @@ function searchQueryForCategory(category: QuickDexCategory, query: string, train
 }
 
 function natureStatLabel(stat: NatureEffectV4["plus"]): string {
-  const labels: Record<NatureEffectV4["plus"], string> = {atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度", "": "无"};
-  return labels[stat] || "无";
+  return stat ? translateDexLabel("stats", stat) : "无";
 }
 
 function environmentToSearchRow(entry: BattleV4EnvironmentPreviewEntry): DexSearchRow {

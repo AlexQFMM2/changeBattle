@@ -1,6 +1,6 @@
 import {useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction} from "react";
 import type {AppDebugConfigV4, BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, LocalPokemonV4, ShowdownPlaybackGroupV4, ShowdownPlaybackSceneCallV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4} from "@changebattle-v2/api";
-import {battleDebugLog} from "@changebattle-v2/api";
+import {battleDebugLog, translateDexLabel} from "@changebattle-v2/api";
 import {
   effectSpriteForShowdownAnimationV4,
   projectShowdownAnimationTimelineV4,
@@ -2363,13 +2363,13 @@ function statChangeVerb(direction: "up" | "down", amount: number): string {
 
 function boostStatLabel(stat: string): string {
   const id = toId(stat);
-  if (id === "atk" || id === "attack") return "攻击";
-  if (id === "def" || id === "defense") return "防御";
-  if (id === "spa" || id === "spatk" || id === "specialattack") return "特攻";
-  if (id === "spd" || id === "spdef" || id === "specialdefense") return "特防";
-  if (id === "spe" || id === "speed") return "速度";
-  if (id === "accuracy") return "命中";
-  if (id === "evasion" || id === "evasiveness") return "闪避";
+  if (id === "attack") return translateDexLabel("stats", "atk");
+  if (id === "defense") return translateDexLabel("stats", "def");
+  if (id === "spatk" || id === "specialattack") return translateDexLabel("stats", "spa");
+  if (id === "spdef" || id === "specialdefense") return translateDexLabel("stats", "spd");
+  if (id === "speed") return translateDexLabel("stats", "spe");
+  if (id === "evasiveness") return translateDexLabel("stats", "evasion");
+  if (id) return translateDexLabel("stats", id);
   return stat || "能力";
 }
 
@@ -2502,76 +2502,37 @@ function fieldStartMessage(event: BattleProtocolEventV4): string {
 }
 
 function weatherLabel(weather: string): string {
-  const labels: Record<string, string> = {
-    sunnyday: "晴天",
-    raindance: "雨天",
-    sandstorm: "沙暴",
-    hail: "冰雹",
-    snow: "雪景",
-    desolateland: "大日照",
-    primordialsea: "大雨",
-    deltastream: "乱流",
-  };
-  return labels[weather] || cleanEffect(weather) || "天气";
+  const id = toId(weather);
+  return id ? translateDexLabel("weather", id) : cleanEffect(weather) || "天气";
 }
 
 function fieldLabel(field: string): string {
-  const labels: Record<string, string> = {
-    electricterrain: "电气场地",
-    grassyterrain: "青草场地",
-    mistyterrain: "薄雾场地",
-    psychicterrain: "精神场地",
-    trickroom: "戏法空间",
-    magicroom: "魔法空间",
-    wonderroom: "奇妙空间",
-    gravity: "重力",
-  };
-  return labels[field] || cleanEffect(field) || "环境";
+  const id = toId(field);
+  return id ? translateDexLabel("field", id) : cleanEffect(field) || "环境";
 }
 
 function sideConditionLabel(condition: string): string {
-  const labels: Record<string, string> = {
-    reflect: "反射壁",
-    lightscreen: "光墙",
-    auroraveil: "极光幕",
-    safeguard: "神秘守护",
-    mist: "白雾",
-    stealthrock: "岩钉",
-    spikes: "撒菱",
-    toxicspikes: "毒菱",
-    stickyweb: "黏黏网",
-    tailwind: "顺风",
-  };
-  return labels[condition] || cleanEffect(condition) || "场地状态";
+  const id = toId(condition);
+  return id ? translateDexLabel("sideConditions", id) : cleanEffect(condition) || "场地状态";
 }
 
 function statusMessage(status: string): string {
-  const labels: Record<string, string> = {
-    brn: "被烧伤了",
-    par: "麻痹了",
-    psn: "中毒了",
-    tox: "中了剧毒",
-    slp: "睡着了",
-    frz: "被冰冻了",
-    fnt: "倒下了",
-  };
-  return labels[status] || "状态改变了";
+  const label = translateDexLabel("status", status);
+  if (status === "brn" || status === "par" || status === "frz") return `被${label}了`;
+  if (status === "psn") return "中毒了";
+  if (status === "tox") return "中了剧毒";
+  if (status === "slp") return "睡着了";
+  if (status === "fnt") return "倒下了";
+  return label && label !== status ? `${label}了` : "状态改变了";
 }
 
 function resultTextForStatus(status: string): string {
   const labels: Record<string, string> = {
-    brn: "烧伤",
-    par: "麻痹",
-    psn: "中毒",
-    tox: "剧毒",
-    slp: "睡眠",
-    frz: "冰冻",
-    fnt: "倒下",
     recharge: "必须充能",
     flinch: "畏缩",
     attract: "着迷",
   };
-  return labels[status] || cleanEffect(status);
+  return labels[status] || translateDexLabel("status", status) || cleanEffect(status);
 }
 
 function cleanEffect(value: string): string {

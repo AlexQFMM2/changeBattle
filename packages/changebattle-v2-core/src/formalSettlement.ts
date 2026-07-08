@@ -70,6 +70,19 @@ export type FormalSettlementSummaryV4 = {
   mvp: FormalSettlementPokemonStatsV4 | null;
 };
 
+export const FORMAL_SETTLEMENT_REASON_LABELS: Record<FormalSettlementReasonV4, string> = {
+  complete: "正式游戏通关结算",
+  loss: "正式游戏战斗失败",
+  surrender: "玩家投降",
+  abandon: "休整页放弃比赛",
+};
+
+export const FORMAL_SETTLEMENT_OUTCOME_LABELS: Record<FormalGameSettlementV4["outcome"], string> = {
+  win: "挑战完成",
+  loss: "挑战结束",
+  abandoned: "中途放弃",
+};
+
 export function normalizeFormalRoundSettlementV4(value: unknown, nodeId = ""): FormalRoundSettlementV4 {
   const raw = isRecord(value) ? value : {};
   return {
@@ -87,6 +100,17 @@ export function normalizeFormalRoundSettlementV4(value: unknown, nodeId = ""): F
 
 export function normalizeFormalSettlementReasonV4(reason: unknown): FormalSettlementReasonV4 {
   return reason === "complete" || reason === "loss" || reason === "surrender" || reason === "abandon" ? reason : "loss";
+}
+
+export function formalSettlementReasonLabelV4(reason: string): string {
+  const normalized = normalizeFormalSettlementReasonV4(reason);
+  return FORMAL_SETTLEMENT_REASON_LABELS[normalized];
+}
+
+export function formalSettlementOutcomeLabelV4(outcome: string): string {
+  return outcome === "win" || outcome === "loss" || outcome === "abandoned"
+    ? FORMAL_SETTLEMENT_OUTCOME_LABELS[outcome]
+    : String(outcome || "");
 }
 
 export function normalizeFormalGameSettlementV4(value: unknown, options: {idFallback?: string; totalRoundsFallback?: number; createdAtFallback?: string} = {}): FormalGameSettlementV4 | null {

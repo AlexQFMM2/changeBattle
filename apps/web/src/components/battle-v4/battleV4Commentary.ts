@@ -77,8 +77,8 @@ export function commentaryForBattleV4Command(
   if (event.kind === "switchIn" || event.kind === "dragIn" || event.kind === "switchOut" || event.kind === "turn" || event.kind === "message" || event.kind === "win") return null;
   if (event.kind === "move") return moveCommentary(step, command, api);
   if (event.kind === "weather") return baseEntry(step, command, weatherCommentary(event, api), "weather");
-  if (event.kind === "field") return baseEntry(step, command, fieldCommentary(event), "weather");
-  if (event.kind === "sideCondition") return baseEntry(step, command, sideConditionCommentary(event), "status");
+  if (event.kind === "field") return baseEntry(step, command, fieldCommentary(event, api), "weather");
+  if (event.kind === "sideCondition") return baseEntry(step, command, sideConditionCommentary(event, api), "status");
   if (event.kind === "heal") return baseEntry(step, command, healCommentary(event, api), "heal");
   if (event.kind === "damage") return baseEntry(step, command, damageCommentary(event, api), "bad");
   if (event.kind === "status" || event.kind === "cureStatus") return baseEntry(step, command, statusCommentary(event, api), "status");
@@ -255,7 +255,7 @@ function resultEffectPhrase(event: SemanticEventByKind<"result">): string {
 }
 
 function weatherCommentary(event: SemanticEventByKind<"weather">, api: ChangeBattleV2Api): string {
-  const weather = weatherLabel(event.id);
+  const weather = weatherLabel(event.id, api);
   if (!event.active || event.phase === "end") return `${weather}停止了。`;
   if (event.phase === "upkeep") return `${weather}还在继续。`;
   const from = cleanEffect(event.protocolEvent.kwArgs.from || "");
@@ -266,15 +266,15 @@ function weatherCommentary(event: SemanticEventByKind<"weather">, api: ChangeBat
   return `天气变成了${weather}！`;
 }
 
-function fieldCommentary(event: SemanticEventByKind<"field">): string {
-  const label = fieldLabel(event.id);
+function fieldCommentary(event: SemanticEventByKind<"field">, api: ChangeBattleV2Api): string {
+  const label = fieldLabel(event.id, api);
   if (event.id.includes("terrain")) return event.active ? `${label}覆盖了场地！` : `${label}消失了。`;
   return event.active ? `${label}展开了！` : `${label}结束了。`;
 }
 
-function sideConditionCommentary(event: SemanticEventByKind<"sideCondition">): string {
+function sideConditionCommentary(event: SemanticEventByKind<"sideCondition">, api: ChangeBattleV2Api): string {
   const side = seatSideLabel(event.protocolEvent.seat || event.protocolEvent.targetSeat);
-  const label = sideConditionLabel(event.id);
+  const label = sideConditionLabel(event.id, api);
   if (event.active) {
     if (["stealthrock", "spikes", "toxicspikes", "stickyweb"].includes(toId(event.id))) return `${side}撒下了${label}！`;
     return `${side}展开了${label}！`;
@@ -293,15 +293,15 @@ function healCommentary(event: SemanticEventByKind<"heal">, api: ChangeBattleV2A
 function damageCommentary(event: SemanticEventByKind<"damage">, api: ChangeBattleV2Api): string {
   const target = targetNameForEvent(event, null, api) || "场上的宝可梦";
   const from = cleanEffect(event.protocolEvent.kwArgs.from || "");
-  if (event.source === "status" && from) return `${target}受到了${statusOrEffectLabel(from)}的伤害。`;
-  if (event.source === "field" && from) return `${target}受到了${sideConditionLabel(toId(from))}的伤害。`;
+  if (event.source === "status" && from) return `${target}受到了${statusOrEffectLabel(from, api)}的伤害。`;
+  if (event.source === "field" && from) return `${target}受到了${sideConditionLabel(toId(from), api)}的伤害。`;
   return `${target}受到了伤害。`;
 }
 
 function statusCommentary(event: SemanticEventByKind<"status" | "cureStatus">, api: ChangeBattleV2Api): string {
   const target = targetNameForEvent(event, null, api) || "场上的宝可梦";
-  if (event.kind === "cureStatus") return `${target}的${statusLabel(event.oldStatus)}解除了。`;
-  return `${target}陷入了${statusLabel(event.newStatus)}状态。`;
+  if (event.kind === "cureStatus") return `${target}的${statusLabel(event.oldStatus, api)}解除了。`;
+  return `${target}陷入了${statusLabel(event.newStatus, api)}状态。`;
 }
 
 function statChangeCommentary(event: SemanticEventByKind<"statChange">, api: ChangeBattleV2Api): string {
@@ -445,63 +445,37 @@ function seatSideLabel(seat: BattleProtocolSeatV4): string {
   return seat.startsWith("p2") || seat.startsWith("p4") ? "对方" : "我方";
 }
 
-function weatherLabel(id: string): string {
+function weatherLabel(id: string, api: ChangeBattleV2Api): string {
   const normalized = toId(id);
-  if (normalized === "raindance" || normalized === "primordialsea" || normalized === "rain") return "雨天";
-  if (normalized === "sunnyday" || normalized === "desolateland" || normalized === "sun") return "晴天";
-  if (normalized === "sandstorm") return "沙暴";
-  if (normalized === "hail" || normalized === "snow" || normalized === "snowscape") return "雪天";
-  if (normalized === "deltastream") return "乱流";
+  if (normalized) return api.translateDexLabel("weather", normalized);
   return id || "天气";
 }
 
-function fieldLabel(id: string): string {
+function fieldLabel(id: string, api: ChangeBattleV2Api): string {
   const normalized = toId(id);
-  if (normalized === "trickroom") return "戏法空间";
-  if (normalized === "magicroom") return "魔法空间";
-  if (normalized === "wonderroom") return "奇妙空间";
-  if (normalized === "electricterrain") return "电气场地";
-  if (normalized === "grassyterrain") return "青草场地";
-  if (normalized === "mistyterrain") return "薄雾场地";
-  if (normalized === "psychicterrain") return "精神场地";
-  if (normalized === "gravity") return "重力";
+  if (normalized) return api.translateDexLabel("field", normalized);
   return id || "场地";
 }
 
-function sideConditionLabel(id: string): string {
+function sideConditionLabel(id: string, api: ChangeBattleV2Api): string {
   const normalized = toId(id);
-  if (normalized === "stealthrock") return "隐形岩";
-  if (normalized === "spikes") return "撒菱";
-  if (normalized === "toxicspikes") return "毒菱";
-  if (normalized === "stickyweb") return "黏黏网";
-  if (normalized === "reflect") return "反射壁";
-  if (normalized === "lightscreen") return "光墙";
-  if (normalized === "auroraveil") return "极光幕";
-  if (normalized === "safeguard") return "神秘守护";
-  if (normalized === "mist") return "白雾";
-  if (normalized === "tailwind") return "顺风";
+  if (normalized) return api.translateDexLabel("sideConditions", normalized);
   return id || "场地状态";
 }
 
-function statusOrEffectLabel(id: string): string {
+function statusOrEffectLabel(id: string, api: ChangeBattleV2Api): string {
   const normalized = toId(id);
-  if (normalized === "brn") return "灼伤";
-  if (normalized === "psn") return "中毒";
-  if (normalized === "tox") return "剧毒";
+  const status = api.translateDexLabel("status", normalized);
+  if (status !== normalized) return status;
   if (normalized === "leechseed") return "寄生种子";
   if (normalized === "curse") return "诅咒";
   if (normalized === "confusion") return "混乱";
-  return sideConditionLabel(normalized);
+  return sideConditionLabel(normalized, api);
 }
 
-function statusLabel(status: string): string {
+function statusLabel(status: string, api: ChangeBattleV2Api): string {
   const normalized = toId(status);
-  if (normalized === "brn") return "灼伤";
-  if (normalized === "psn") return "中毒";
-  if (normalized === "tox") return "剧毒";
-  if (normalized === "par") return "麻痹";
-  if (normalized === "slp") return "睡眠";
-  if (normalized === "frz") return "冰冻";
+  if (normalized) return api.translateDexLabel("status", normalized);
   return status || "异常";
 }
 

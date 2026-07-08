@@ -9,6 +9,7 @@
 应该放在 core：
 
 - 静态 catalog：星图节点、商店商品、休息中心服务、正式模式基础配置。
+- 共享玩法文案 catalog / label helper：正式赛阶段名、模式名、课程名、医保档位、结算原因、NPC 队伍偏好等跨 API/Web 复用的 ChangeBattle 自有文本。
 - 纯规则：价格表、费用折扣、等级/IV/EV 档位、NPC 分级、技能质量要求、训练室收益范围。
 - 纯判断：某个物种是否可随机生成、某个 NPC 类型属于哪个强度档、某个 round 是否享受折扣。
 - 纯评分/权重：玩家画像合并权重、NPC 针对强度、候选评分所需的无状态规则。
@@ -21,6 +22,7 @@
 - 直接修改 `LocalPokemonV4`、玩家存档、背包、箱子、金币、BP。
 - React 组件、Electron IPC、localStorage、desktop save store。
 - 隐式效果执行器。例如星图 runtime effect 只能声明效果，具体 `if/else` 执行仍在 API/UI 的显式业务入口里。
+- Dex/Showdown 英文事实值翻译。宝可梦、招式、特性、属性、性格等英文事实值只归 `packages/showdown-dex-core`。
 
 一句话：core 决定“规则是什么”，API/Web/Desktop 决定“什么时候执行、怎么落到存档和界面上”。
 

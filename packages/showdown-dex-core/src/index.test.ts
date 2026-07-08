@@ -4,6 +4,19 @@ import {BossTrainerPresetMatrixSummaries, BossTrainerPresetTeamCount, createShow
 
 const dex = createShowdownDexService();
 
+assert.equal(dex.translateDexLabel("natures", "Quirky"), "浮躁");
+assert.equal(dex.translateDexLabel("natures", "quirky"), "浮躁");
+assert.equal(dex.translateDexLabel("types", "Water"), "水");
+assert.equal(dex.translateDexLabel("categories", "Special"), "特殊");
+assert.equal(dex.translateDexLabel("stats", "spa"), "特攻");
+assert.equal(dex.translateDexLabel("stats", "hp"), "HP");
+assert.equal(dex.translateDexLabel("moves", "Surf"), "冲浪");
+assert.notEqual(dex.translateDexDescription("moves", "Surf", "fallback"), "fallback");
+assert.ok(dex.translateDexDescription("moves", "Surf", "fallback").includes("宝可梦"));
+assert.equal(dex.dexLabelToId("types", "水"), "water");
+assert.equal(dex.dexLabelToId("types", "Water"), "water");
+assert.equal(dex.translateDexLabel("moves", "Definitely Unknown Label"), "Definitely Unknown Label");
+
 const venusaur = dex.getPokemonDetail("venusaur");
 assert.equal(venusaur.id, "venusaur");
 assert.equal(venusaur.nameZh, "妙蛙花");

@@ -1,18 +1,11 @@
 import {useMemo, useState, type CSSProperties} from "react";
-import type {ChangeBattleV2Api} from "@changebattle-v2/api";
+import {dexLabelToId, type ChangeBattleV2Api} from "@changebattle-v2/api";
 import type {RentalPokemon} from "../formalRentalTypes";
 import {MoveCard} from "../move/MoveCard";
 import {PokemonSprite, displayName} from "../formalUi";
 import "./PokemonProfile.css";
 
-const STAT_ROWS = [
-  ["hp", "HP"],
-  ["atk", "攻击"],
-  ["def", "防御"],
-  ["spa", "特攻"],
-  ["spd", "特防"],
-  ["spe", "速度"],
-] as const;
+const STAT_IDS = ["hp", "atk", "def", "spa", "spd", "spe"] as const;
 type DetailTab = "basic" | "stats" | "moves";
 
 export type PokemonProfileMovePresentation = "detail" | "card";
@@ -62,33 +55,8 @@ function FormalPokemonBasic({pokemon}: {pokemon: RentalPokemon}) {
 }
 
 function typeClassId(value: unknown): string {
-  const raw = String(value || "").trim();
-  const normalized = raw.toLowerCase().replace(/[^a-z0-9]+/g, "");
-  if (normalized) return normalized;
-  return TYPE_ID_BY_ZH[raw] || "normal";
+  return dexLabelToId("types", String(value || "")) || "normal";
 }
-
-const TYPE_ID_BY_ZH: Record<string, string> = {
-  一般: "normal",
-  普通: "normal",
-  火: "fire",
-  水: "water",
-  电: "electric",
-  草: "grass",
-  冰: "ice",
-  格斗: "fighting",
-  毒: "poison",
-  地面: "ground",
-  飞行: "flying",
-  超能力: "psychic",
-  虫: "bug",
-  岩石: "rock",
-  幽灵: "ghost",
-  龙: "dragon",
-  恶: "dark",
-  钢: "steel",
-  妖精: "fairy",
-};
 
 function FormalPokemonStats({api, pokemon}: {api: ChangeBattleV2Api; pokemon: RentalPokemon}) {
   const calculatedStats = useMemo(() => {
@@ -113,13 +81,13 @@ function FormalPokemonStats({api, pokemon}: {api: ChangeBattleV2Api; pokemon: Re
   return (
     <section className="formal-pokemon-stats-tab">
       <dl className="formal-pokemon-stat-list">
-        {STAT_ROWS.map(([stat, label]) => {
+        {STAT_IDS.map(stat => {
           const value = Number(calculatedStats?.[stat] || pokemon.stats?.[stat] || 0);
           const statMax = Math.max(Number(maxPotentialStats?.[stat] || value || 1), 1);
           const statRate = Math.max(4, Math.min(100, value / statMax * 100));
           return (
             <div className={`formal-pokemon-stat-row stat-tone-${stat}`} key={stat}>
-              <dt>{label}</dt>
+              <dt>{api.translateDexLabel("stats", stat)}</dt>
               <dd>
                 <strong style={{"--formal-pokemon-profile-stat-rate": `${statRate}%`} as CSSProperties}>
                   <span>{value}</span>

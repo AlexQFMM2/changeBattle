@@ -1,4 +1,4 @@
-import type {BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, LocalPokemonV4, ShowdownPlayerIdV4} from "@changebattle-v2/api";
+import {translateDexLabel, type BattleSessionSnapshotV4, type BattleViewModelV4, type BattleViewSlotV4, type LocalPokemonV4, type ShowdownPlayerIdV4} from "@changebattle-v2/api";
 import {localPokemonSpriteUrls} from "../../lib/showdownPokemonSpriteAdapter.js";
 import type {BattleProtocolArgsV4, BattleProtocolEventV4, BattleProtocolKwArgsV4, BattleProtocolSeatV4, BattleV4TwoTurnMoveState} from "./battleV4Playback";
 
@@ -571,13 +571,7 @@ function normalizeBoostStat(value: string | undefined): BattleV4BoostStat | "" {
 }
 
 function boostStatLabel(stat: BattleV4BoostStat): string {
-  if (stat === "atk") return "攻击";
-  if (stat === "def") return "防御";
-  if (stat === "spa") return "特攻";
-  if (stat === "spd") return "特防";
-  if (stat === "spe") return "速度";
-  if (stat === "accuracy") return "命中";
-  if (stat === "evasion") return "闪避";
+  if (stat) return translateDexLabel("stats", stat);
   return stat;
 }
 
@@ -722,44 +716,24 @@ function resultToneForEvent(event: BattleProtocolEventV4): "good" | "bad" | "neu
 }
 
 function statusLabel(status: string): string {
-  if (status === "brn") return "灼伤";
-  if (status === "psn" || status === "tox") return "中毒";
-  if (status === "par") return "麻痹";
-  if (status === "slp") return "睡眠";
-  if (status === "frz") return "冰冻";
+  const id = toId(status);
+  if (id) return translateDexLabel("status", id);
   return status || "状态";
 }
 
 function weatherLabel(id: string): string {
-  if (id === "raindance" || id === "primordialsea") return "雨天";
-  if (id === "sunnyday" || id === "desolateland") return "晴天";
-  if (id === "sandstorm") return "沙暴";
-  if (id === "hail" || id === "snow" || id === "snowscape") return "雪天";
-  return id || "天气";
+  const normalized = toId(id);
+  return normalized ? translateDexLabel("weather", normalized) : "天气";
 }
 
 function fieldLabel(id: string): string {
-  if (id === "trickroom") return "戏法空间";
-  if (id === "electricterrain") return "电气场地";
-  if (id === "grassyterrain") return "青草场地";
-  if (id === "mistyterrain") return "薄雾场地";
-  if (id === "psychicterrain") return "精神场地";
-  if (id === "gravity") return "重力";
-  return id || "场地";
+  const normalized = toId(id);
+  return normalized ? translateDexLabel("field", normalized) : "场地";
 }
 
 function sideConditionLabel(id: string): string {
-  if (id === "stealthrock") return "岩钉";
-  if (id === "spikes") return "撒菱";
-  if (id === "toxicspikes") return "毒菱";
-  if (id === "stickyweb") return "黏黏网";
-  if (id === "reflect") return "反射壁";
-  if (id === "lightscreen") return "光墙";
-  if (id === "auroraveil") return "极光幕";
-  if (id === "safeguard") return "神秘守护";
-  if (id === "mist") return "白雾";
-  if (id === "tailwind") return "顺风";
-  return id || "场地状态";
+  const normalized = toId(id);
+  return normalized ? translateDexLabel("sideConditions", normalized) : "场地状态";
 }
 
 function cleanEffect(value: string): string {
