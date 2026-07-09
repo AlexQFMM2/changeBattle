@@ -28,12 +28,14 @@
 - 灵魂伴侣蛋生成规则已经抽到 `packages/changebattle-v2-core` helper；正式灵魂伴侣领取和 debug 新增宝可梦共用同一套进化根、个体/性格/技能 fallback 生成逻辑。
 - 训练家长期仓库页已经从旧 tab/格子背包改成同屏整理界面：左侧背包列、右侧 4x6 宝可梦箱、浮层抽屉详情、本地 draft 延迟保存、debug 添加、道具类型化使用、携带/卸下/放生和非阻塞反馈都已接入。
 - 新仓库背包列不再展示空位，也不再支持旧的手动移动道具；道具容量仍按每页 6 个和至少 3 页规则保存，解锁箱页和 profile BP 的边界后续单独收口。
+- 正式普通商店训练格已经切换为 10 个特效药；旧薄荷、王冠、特性胶囊/膏药、努力药等标准养成材料保留在待结算/局外养育侧，正式局内灵魂伴侣副本不能使用 TM 或特效药。
+- 灵魂伴侣边界已经明确：仓库长期资产可以在训练家仓库养成；通过同行许可进入正式流程的是 run-local 副本，不参与局内训练、交换、TM、特效药等任何养成系统。
 - Battle diagnostics 已补充 AI 出招复现方法：遇到 release blocked / invalid choice，可用 diagnostics 的 `allRequests` 直接跑当前 V2 `chooseAiBattleChoiceV4` 判断是旧包落后还是当前 core 仍需修。
 - Plan 文档已收敛到当前主线；运行时标准化这类跨模块迁移保留在根目录，玩法计划优先进入对应目录 README。
 
 ## 下一步
 
 - 下一步正式玩法主线是继续跑完整流程、记录阻断问题，并围绕正式赛程、NPC 配队、特殊系统、商店/训练经济、结算体验和长期仓库整理做回归打磨。
-- 训练家仓库下一步重点是性能/体验回归、组件预览覆盖、解锁箱页的 draft/profile BP 边界，以及 debug 添加与正式 release 隐藏入口的回归验证。
+- 训练家仓库下一步重点是宝可梦进化、性能/体验回归、组件预览覆盖、解锁箱页的 draft/profile BP 边界，以及 debug 添加与正式 release 隐藏入口的回归验证。
 - Battle V4 下一步继续按 diagnostics 驱动修问题：动画/顺序问题先走 playback probe，非法 AI 指令先走 `debug/README.md` 的 `allRequests` 复现方法。
 - 存档级结构迁移仍按运行时标准化计划推进；Pokemon/Item/Bag/Vault/Log 等规则性 helper 优先放 `packages/changebattle-v2-core`，API 主要做编排。
