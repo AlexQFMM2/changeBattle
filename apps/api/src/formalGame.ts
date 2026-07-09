@@ -67,6 +67,7 @@ import {
   formalTargetingIntensityForTrainerTypeV4,
   formalTeamPreferenceForNpcV4,
   formalTeamPreferenceTypeHintsV4,
+  addPlayerPokemonHonorTargetV4,
   applyFormalSoulmateFriendshipSettlementToVaultV4,
   FORMAL_TRAINING_GROUND_SELF_STUDY_NATURE_RISK_TARGETS_V4,
   formalTrainingGroundDynamicSelfStudyGainRuleV4,
@@ -82,6 +83,8 @@ import {
   normalizeFormalRoundSettlementV4,
   normalizeFormalSettlementReasonV4,
   normalizePlayerVaultV4,
+  PLAYER_POKEMON_HONOR_BADGES_V4,
+  playerPokemonHonorMedalMarkerV4,
   playerVaultStorageCapacityV4,
   addPlayerVaultPokemonV4,
   createPlayerVaultEggPokemonRecordV4,
@@ -103,6 +106,9 @@ import {
   type FormalShopProductViewV4,
   type FormalShopCategoryV4,
   type FormalSoulmateBattleFriendshipSummaryV4,
+  type PlayerPokemonHonorBadgeIdV4,
+  type PlayerPokemonHonorTargetV4,
+  type PlayerPokemonHonorBadgeCatalogEntryV4,
   type FormalStarterRoleV4,
   type FormalPlayerProfileRuleInputV4,
   type PokemonPowerProfileV4,
@@ -215,6 +221,30 @@ export type FormalSoulmateBattleFriendshipSettlementResultV4 = {
   run: FormalGameRunV4;
   playerVault: PlayerVaultV4;
   summary: FormalSoulmateFriendshipSettlementRecordV4 | null;
+  alreadySettled: boolean;
+};
+
+export type FormalSoulmateHonorAwardV4 = {
+  sourcePlayerPokemonId: string;
+  displayName: string;
+  badgeId: PlayerPokemonHonorBadgeIdV4;
+  badgeName: string;
+  trainerId: string;
+  trainerName: string;
+  medalEarned: boolean;
+};
+
+export type FormalSoulmateHonorSettlementRecordV4 = {
+  nodeId: string;
+  won: boolean;
+  createdAt: string;
+  awards: FormalSoulmateHonorAwardV4[];
+};
+
+export type FormalSoulmateHonorSettlementResultV4 = {
+  run: FormalGameRunV4;
+  playerVault: PlayerVaultV4;
+  summary: FormalSoulmateHonorSettlementRecordV4 | null;
   alreadySettled: boolean;
 };
 
@@ -432,6 +462,13 @@ type FormalNpcTargetingContextV4 = {
   trainerType: FormalNpcTypeV4;
   targetedTypeUsage: Record<string, number>;
 };
+type FormalSoulmateHonorNodeTargetV4 = {
+  badgeId: PlayerPokemonHonorBadgeIdV4;
+  badgeName: string;
+  trainerId: string;
+  trainerName: string;
+  badgeTargets: PlayerPokemonHonorTargetV4[];
+};
 
 const PLAYER_BACK_IMAGES = [
   "npc/player-back/black-bw-touya-back-b2e0a77d.png",
@@ -546,6 +583,7 @@ export type FormalGameRunV4 = {
   soulmateEggCandidateId?: string;
   soulmatePlayerPokemonId?: string;
   soulmateFriendshipSettlementByNodeId?: Record<string, FormalSoulmateFriendshipSettlementRecordV4>;
+  soulmateHonorSettlementByNodeId?: Record<string, FormalSoulmateHonorSettlementRecordV4>;
   settlement: FormalGameSettlementV4 | null;
   settled: boolean;
   settledAt?: string;
@@ -583,6 +621,7 @@ export type FormalGameRunApi = {
   settleFormalBattleRoundV4(run: FormalGameRunV4): FormalGameRunV4;
   finalizeFormalBattleResultV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, reason?: FormalBattleResultFinalizeReasonV4, options?: FormalBattleLogAppendOptionsV4): FormalBattleResultFinalizeResultV4;
   applyFormalSoulmateBattleFriendshipSettlement(run: FormalGameRunV4, playerVault: PlayerVaultV4 | undefined | null): FormalSoulmateBattleFriendshipSettlementResultV4;
+  applyFormalSoulmateHonorSettlement(run: FormalGameRunV4, playerVault: PlayerVaultV4 | undefined | null): FormalSoulmateHonorSettlementResultV4;
   prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4;
   getFormalMedicalInsuranceOffer(run: FormalGameRunV4): FormalMedicalInsuranceOfferV4;
   chooseFormalMedicalInsurance(run: FormalGameRunV4, choice: FormalMedicalInsuranceChoiceV4): FormalMedicalInsuranceChoiceResultV4;
@@ -1275,6 +1314,107 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       summary: result.summary,
       alreadySettled: false,
     };
+  }
+
+  function applyFormalSoulmateHonorSettlement(run: FormalGameRunV4, playerVault: PlayerVaultV4 | undefined | null): FormalSoulmateHonorSettlementResultV4 {
+    const normalized = normalizeFormalRun(run);
+    const vault = normalizePlayerVaultV4(playerVault);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    const settledNode = [...(restRunSnapshot?.gameMap || [])]
+      .filter(node => node.state === "won" || node.state === "lost")
+      .sort((a, b) => b.index - a.index)[0];
+    if (!restRunSnapshot || !settledNode) {
+      return {run: normalized, playerVault: vault, summary: null, alreadySettled: false};
+    }
+    const existing = normalized.soulmateHonorSettlementByNodeId?.[settledNode.id];
+    if (existing) {
+      return {run: normalized, playerVault: vault, summary: existing, alreadySettled: true};
+    }
+    const now = new Date().toISOString();
+    if (settledNode.state !== "won") {
+      const summary: FormalSoulmateHonorSettlementRecordV4 = {nodeId: settledNode.id, won: false, createdAt: now, awards: []};
+      const nextRun = normalizeFormalRun({
+        ...normalized,
+        soulmateHonorSettlementByNodeId: {
+          ...(normalized.soulmateHonorSettlementByNodeId || {}),
+          [settledNode.id]: summary,
+        },
+        updatedAt: now,
+      });
+      return {run: nextRun, playerVault: vault, summary, alreadySettled: false};
+    }
+    const targets = formalSoulmateHonorTargetsForNode(normalized, settledNode.id);
+    const player = settledNode.participants.p1 || restRunSnapshot.players.p1;
+    const sourcePokemonIds = Array.from(new Set((player?.localTeam.pokemon || [])
+      .filter(pokemon => pokemon.formalSourceKind === "soulmate-vault" && normalizeOptionalText(pokemon.sourcePlayerPokemonId))
+      .map(pokemon => normalizeOptionalText(pokemon.sourcePlayerPokemonId)!)
+      .filter(Boolean)));
+    const awards: FormalSoulmateHonorAwardV4[] = [];
+    const nextPokemon = vault.pokemon.map(record => {
+      if (!sourcePokemonIds.includes(record.playerPokemonId) || !targets.length) return record;
+      let honors = record.honors;
+      for (const target of targets) {
+        const beforeHadMedal = honors.includes(playerPokemonHonorMedalMarkerV4(target.badgeId));
+        const nextHonors = addPlayerPokemonHonorTargetV4(honors, target.badgeId, target.trainerId, target.badgeTargets);
+        const changed = nextHonors.length !== honors.length || nextHonors.some((honor, index) => honor !== honors[index]);
+        if (!changed) {
+          honors = nextHonors;
+          continue;
+        }
+        honors = nextHonors;
+        awards.push({
+          sourcePlayerPokemonId: record.playerPokemonId,
+          displayName: record.nickname || record.speciesId || record.playerPokemonId,
+          badgeId: target.badgeId,
+          badgeName: target.badgeName,
+          trainerId: target.trainerId,
+          trainerName: target.trainerName,
+          medalEarned: !beforeHadMedal && honors.includes(playerPokemonHonorMedalMarkerV4(target.badgeId)),
+        });
+      }
+      return {...record, honors};
+    });
+    const summary: FormalSoulmateHonorSettlementRecordV4 = {nodeId: settledNode.id, won: true, createdAt: now, awards};
+    const nextRun = normalizeFormalRun({
+      ...normalized,
+      soulmateHonorSettlementByNodeId: {
+        ...(normalized.soulmateHonorSettlementByNodeId || {}),
+        [settledNode.id]: summary,
+      },
+      updatedAt: now,
+    });
+    return {
+      run: nextRun,
+      playerVault: normalizePlayerVaultV4({...vault, pokemon: nextPokemon}),
+      summary,
+      alreadySettled: false,
+    };
+  }
+
+  function formalSoulmateHonorTargetsForNode(run: FormalGameRunV4, nodeId: string): FormalSoulmateHonorNodeTargetV4[] {
+    const round = run.roundPlan.find(entry => entry.id === nodeId);
+    if (!round) return [];
+    return round.npcs.flatMap(npc => {
+      const trainerId = normalizeOptionalText(npc.trainerId);
+      if (!trainerId || trainerId.startsWith("generated:")) return [];
+      let detail: DexTrainerDetail;
+      try {
+        detail = dex.getTrainerDetail(trainerId);
+      } catch {
+        return [];
+      }
+      const badge = playerPokemonHonorBadgeForTrainer(detail);
+      if (!badge) return [];
+      const badgeTargets = playerPokemonHonorTargetsForBadge(dex, badge);
+      if (!badgeTargets.some(target => target.trainerId === detail.id)) return [];
+      return [{
+        badgeId: badge.id,
+        badgeName: badge.name,
+        trainerId: detail.id,
+        trainerName: detail.nameZh || detail.name || npc.name || detail.id,
+        badgeTargets,
+      }];
+    });
   }
 
   function getFormalMedicalInsuranceOffer(run: FormalGameRunV4): FormalMedicalInsuranceOfferV4 {
@@ -2176,6 +2316,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       soulmateEggCandidateId: normalizeOptionalText(run.soulmateEggCandidateId),
       soulmatePlayerPokemonId: normalizeOptionalText(run.soulmatePlayerPokemonId),
       soulmateFriendshipSettlementByNodeId: normalizeSoulmateFriendshipSettlementByNodeId(run.soulmateFriendshipSettlementByNodeId),
+      soulmateHonorSettlementByNodeId: normalizeSoulmateHonorSettlementByNodeId(run.soulmateHonorSettlementByNodeId),
       settlement,
       settled,
       settledAt: settled ? run.settledAt || settlement?.createdAt || undefined : undefined,
@@ -2982,6 +3123,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     settleFormalBattleRoundV4,
     finalizeFormalBattleResultV4,
     applyFormalSoulmateBattleFriendshipSettlement,
+    applyFormalSoulmateHonorSettlement,
     prepareFormalSettlement,
     getFormalMedicalInsuranceOffer,
     chooseFormalMedicalInsurance,
@@ -4484,6 +4626,71 @@ function normalizeSoulmateFriendshipSettlement(settlement: Partial<FormalSoulmat
       fainted: Boolean(delta.fainted),
     })).filter(delta => delta.sourcePlayerPokemonId) : [],
   };
+}
+
+function normalizeSoulmateHonorSettlementByNodeId(value: unknown): Record<string, FormalSoulmateHonorSettlementRecordV4> {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(Object.entries(value as Record<string, Partial<FormalSoulmateHonorSettlementRecordV4>>)
+    .filter(([nodeId]) => Boolean(nodeId))
+    .map(([nodeId, settlement]) => [nodeId, normalizeSoulmateHonorSettlement(settlement, nodeId)]));
+}
+
+function normalizeSoulmateHonorSettlement(settlement: Partial<FormalSoulmateHonorSettlementRecordV4> | undefined, nodeId: string): FormalSoulmateHonorSettlementRecordV4 {
+  return {
+    nodeId: normalizeOptionalText(settlement?.nodeId) || nodeId,
+    won: Boolean(settlement?.won),
+    createdAt: normalizeOptionalText(settlement?.createdAt) || new Date(0).toISOString(),
+    awards: Array.isArray(settlement?.awards) ? settlement.awards.map(award => ({
+      sourcePlayerPokemonId: normalizeOptionalText(award.sourcePlayerPokemonId) || "",
+      displayName: normalizeOptionalText(award.displayName) || "灵魂伴侣",
+      badgeId: normalizeHonorBadgeId(award.badgeId),
+      badgeName: normalizeOptionalText(award.badgeName) || "奖章",
+      trainerId: normalizeOptionalText(award.trainerId) || "",
+      trainerName: normalizeOptionalText(award.trainerName) || "目标",
+      medalEarned: Boolean(award.medalEarned),
+    })).filter(award => award.sourcePlayerPokemonId && award.badgeId && award.trainerId) : [],
+  };
+}
+
+function playerPokemonHonorBadgeForTrainer(detail: DexTrainerDetail): PlayerPokemonHonorBadgeCatalogEntryV4 | null {
+  if (detail.trainerType === "villain") return PLAYER_POKEMON_HONOR_BADGES_V4.find(badge => badge.id === "villain") || null;
+  if (detail.trainerType !== "gym" && detail.trainerType !== "elite4" && detail.trainerType !== "champion") return null;
+  const trainerType = detail.trainerType;
+  return PLAYER_POKEMON_HONOR_BADGES_V4.find(badge => badge.region === detail.region && badge.targetKinds.includes(trainerType)) || null;
+}
+
+function playerPokemonHonorTargetsForBadge(dex: ShowdownDexService, badge: PlayerPokemonHonorBadgeCatalogEntryV4): PlayerPokemonHonorTargetV4[] {
+  const rows = dex.searchDex({category: "trainers", query: badge.id === "villain" ? "type:villain" : badge.region || "", limit: 300}).rows.filter(row => row.category === "trainers");
+  const targets = rows.flatMap(row => {
+    let detail: DexTrainerDetail;
+    try {
+      detail = dex.getTrainerDetail(row.id);
+    } catch {
+      return [];
+    }
+    if (!badge.targetKinds.includes(detail.trainerType as PlayerPokemonHonorTargetV4["trainerType"])) return [];
+    if (badge.region && detail.region !== badge.region) return [];
+    return [{
+      trainerId: detail.id,
+      name: detail.nameZh || detail.name || detail.id,
+      trainerType: detail.trainerType as PlayerPokemonHonorTargetV4["trainerType"],
+      region: detail.region,
+    }];
+  });
+  return Array.from(new Map(targets.map(target => [target.trainerId, target])).values())
+    .sort((a, b) => a.region.localeCompare(b.region, "zh-Hans-CN") || trainerTypeSort(a.trainerType) - trainerTypeSort(b.trainerType) || a.name.localeCompare(b.name, "zh-Hans-CN"));
+}
+
+function normalizeHonorBadgeId(value: unknown): PlayerPokemonHonorBadgeIdV4 {
+  const id = normalizeOptionalText(value);
+  return (PLAYER_POKEMON_HONOR_BADGES_V4.some(badge => badge.id === id) ? id : "villain") as PlayerPokemonHonorBadgeIdV4;
+}
+
+function trainerTypeSort(type: PlayerPokemonHonorTargetV4["trainerType"]): number {
+  if (type === "gym") return 0;
+  if (type === "elite4") return 1;
+  if (type === "champion") return 2;
+  return 3;
 }
 
 function normalizeFormalPokemonExchangeByNodeId(value: unknown): Record<string, FormalPokemonExchangeStateV4> {

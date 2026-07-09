@@ -52,7 +52,7 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
         friendship: 80 + index,
         shiny: index === 1 ? true : pokemon.shiny,
         metAt: new Date(2026, 0, index + 1).toISOString(),
-        honors: index === 0 ? ["preview-first-partner"] : [],
+        honors: previewHonorsForPokemon(index),
       })),
     });
   });
@@ -83,4 +83,17 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
       />
     </section>
   );
+}
+
+function previewHonorsForPokemon(index: number): string[] {
+  if (index === 0) {
+    return [
+      "preview-first-partner",
+      "soulmate-honor-medal:kanto",
+      "soulmate-honor-target:johto:gym:城都地区:阿速:1",
+      "soulmate-honor-target:johto:gym:城都地区:小茜:3",
+    ];
+  }
+  if (index === 1) return ["soulmate-honor-target:villain:villain:彩虹火箭队:坂木:1"];
+  return [];
 }

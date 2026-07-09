@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
-import type {ChangeBattleV2Api, DexMoveSummary, PlayerPokemonRecordV4, PlayerVaultV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DexMoveSummary, PlayerPokemonHonorBadgeViewV4, PlayerPokemonRecordV4, PlayerVaultV4} from "@changebattle-v2/api";
 import {AppConfirmModal} from "../shared/AppModal";
 import {GameEvolutionModal, type GameEvolutionModalTarget} from "../shared/GameEvolutionModal";
 import {assetUrl} from "../../lib/assetUrl";
@@ -11,6 +11,7 @@ import {VaultItemDrawer} from "./VaultItemDrawer";
 import {VaultMoveReplaceModal, type VaultMoveReplaceState} from "./VaultMoveReplaceModal";
 import {VaultMoveSelectModal, type VaultMoveSelectState} from "./VaultMoveSelectModal";
 import {VaultNumericPreviewModal, type VaultNumericPreviewModalState} from "./VaultNumericPreviewModal";
+import {VaultPokemonHonorBadgeModal} from "./VaultPokemonHonorBadges";
 import {VaultPokemonDrawer} from "./VaultPokemonDrawer";
 import {VaultUseNotice, type VaultUseNoticeState, type VaultUseNoticeTone} from "./VaultUseNotice";
 import "./TrainerVaultPage.css";
@@ -51,6 +52,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   const [moveReplace, setMoveReplace] = useState<VaultMoveReplaceState | null>(null);
   const [numericPreview, setNumericPreview] = useState<VaultNumericPreviewState | null>(null);
   const [evolutionPreview, setEvolutionPreview] = useState<VaultEvolutionPreviewState | null>(null);
+  const [selectedHonorBadge, setSelectedHonorBadge] = useState<PlayerPokemonHonorBadgeViewV4 | null>(null);
   const [activeUseItem, setActiveUseItem] = useState<VaultActiveUseItem | null>(null);
   const [debugAdd, setDebugAdd] = useState<TrainerVaultDebugAddState | null>(null);
   const [useNotice, setUseNotice] = useState<VaultUseNoticeState | null>(null);
@@ -541,7 +543,11 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
         onToggleBattleMarked={togglePokemonBattleMarked}
         onUnequipHeldItem={unequipHeldItemFromPokemon}
         onReleasePokemon={releaseSelectedPokemon}
+        onSelectHonorBadge={setSelectedHonorBadge}
       />
+      {selectedHonorBadge ? (
+        <VaultPokemonHonorBadgeModal badge={selectedHonorBadge} onClose={() => setSelectedHonorBadge(null)} />
+      ) : null}
       {confirmDialog ? (
         <AppConfirmModal
           title={confirmDialog.title}

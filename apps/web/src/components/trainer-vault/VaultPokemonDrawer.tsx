@@ -1,11 +1,12 @@
 import {useEffect, useMemo, useState} from "react";
-import type {ChangeBattleV2Api, PlayerPokemonRecordV4, PlayerVaultPokemonDetailViewV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, PlayerPokemonHonorBadgeViewV4, PlayerPokemonRecordV4, PlayerVaultPokemonDetailViewV4} from "@changebattle-v2/api";
 import {GameDrawer} from "../shared/GameDrawer";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import type {TrainerVaultPokemonDetailTab, VaultPokemonEntry} from "./TrainerVaultModel";
+import {VaultPokemonHonorBadges} from "./VaultPokemonHonorBadges";
 import "./VaultPokemonDrawer.css";
 
-export function VaultPokemonDrawer({api, entry, saving, useModeActive, onClose, onToggleBattleMarked, onUnequipHeldItem, onReleasePokemon}: {
+export function VaultPokemonDrawer({api, entry, saving, useModeActive, onClose, onToggleBattleMarked, onUnequipHeldItem, onReleasePokemon, onSelectHonorBadge}: {
   api: ChangeBattleV2Api;
   entry: VaultPokemonEntry | null;
   saving: boolean;
@@ -14,10 +15,12 @@ export function VaultPokemonDrawer({api, entry, saving, useModeActive, onClose, 
   onToggleBattleMarked: (pokemonId: string, marked: boolean) => void;
   onUnequipHeldItem: (pokemonId: string) => void;
   onReleasePokemon: (pokemon: PlayerPokemonRecordV4) => void;
+  onSelectHonorBadge: (badge: PlayerPokemonHonorBadgeViewV4) => void;
 }) {
   const selectedPokemonId = entry?.pokemon.playerPokemonId || "";
   const [pokemonDetailTab, setPokemonDetailTab] = useState<TrainerVaultPokemonDetailTab>("overview");
   const pokemonView = useMemo(() => entry ? api.createPlayerVaultPokemonDetailView(entry.pokemon) : null, [api, entry, selectedPokemonId]);
+  const honorBadges = useMemo(() => entry ? api.getPlayerPokemonHonorBadges(entry.pokemon) : [], [api, entry, selectedPokemonId]);
   useEffect(() => {
     setPokemonDetailTab("overview");
   }, [selectedPokemonId]);
@@ -47,7 +50,7 @@ export function VaultPokemonDrawer({api, entry, saving, useModeActive, onClose, 
               </button>
             ))}
           </div>
-          <PokemonDetailTabPanel view={pokemonView} tab={pokemonDetailTab} />
+          <PokemonDetailTabPanel view={pokemonView} tab={pokemonDetailTab} honorBadges={honorBadges} onSelectHonorBadge={onSelectHonorBadge} />
         </section>
       ) : null}
     </GameDrawer>
@@ -58,10 +61,10 @@ const POKEMON_DETAIL_TABS: Array<{id: TrainerVaultPokemonDetailTab; label: strin
   {id: "overview", label: "概览"},
   {id: "stats", label: "数值"},
   {id: "moves", label: "技能"},
-  {id: "evolution", label: "进化"},
+  {id: "honors", label: "荣誉"},
 ];
 
-function PokemonDetailTabPanel({view, tab}: {view: PlayerVaultPokemonDetailViewV4; tab: TrainerVaultPokemonDetailTab}) {
+function PokemonDetailTabPanel({view, tab, honorBadges, onSelectHonorBadge}: {view: PlayerVaultPokemonDetailViewV4; tab: TrainerVaultPokemonDetailTab; honorBadges: ReturnType<ChangeBattleV2Api["getPlayerPokemonHonorBadges"]>; onSelectHonorBadge: (badge: PlayerPokemonHonorBadgeViewV4) => void}) {
   if (tab === "overview") {
     return (
       <div className="vault-pokemon-drawer-tab-panel">
@@ -97,16 +100,12 @@ function PokemonDetailTabPanel({view, tab}: {view: PlayerVaultPokemonDetailViewV
       </div>
     );
   }
-  return (
-    <div className="vault-pokemon-drawer-tab-panel">
-      <div className="vault-pokemon-drawer-evolution-list">
-        {view.evolutions.length ? view.evolutions.map((edge, index) => (
-          <article key={`${edge.from}:${edge.to}:${index}`}>
-            <strong>{edge.from} → {edge.to}</strong>
-            <span>{edge.method}</span>
-          </article>
-        )) : <p>当前形态暂无可用进化。</p>}
+  if (tab === "honors") {
+    return (
+      <div className="vault-pokemon-drawer-tab-panel vault-pokemon-drawer-tab-panel-honors">
+        <VaultPokemonHonorBadges badges={honorBadges} onSelectBadge={onSelectHonorBadge} />
       </div>
-    </div>
-  );
+    );
+  }
+  return null;
 }

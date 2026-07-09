@@ -1,4 +1,4 @@
-import type {DexItemDetail, DexPokemonDetail, DexSearchRequest, DexSearchResult} from "@changebattle-v2/showdown-dex-core";
+import type {DexItemDetail, DexPokemonDetail, DexSearchRequest, DexSearchResult, DexTrainerDetail} from "@changebattle-v2/showdown-dex-core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
 import {
   FORMAL_SHOP_COMMON_BERRY_POOL,
@@ -129,6 +129,12 @@ const MOCK_SELF_LEARN_MOVE_IDS = ["tackle", "watergun", "protect", "raindance", 
 const MOCK_TUTOR_MOVE_IDS = ["protect", "raindance", "thunderbolt"];
 const MOCK_EGG_MOVE_IDS = ["toxic", "willowisp", "substitute"];
 const MOCK_MACHINE_MOVE_IDS = ["watergun", "hydropump", "waterfall", "thunderbolt", "volttackle", "icebeam", "flamethrower", "hurricane", "gigadrain", "sludgebomb", "energyball", "surf", "earthquake", "protect"];
+const mockTrainerDetails = [
+  mockTrainer("gym:关都地区:小刚:1", "gym", "关都地区", "小刚"),
+  mockTrainer("champion:关都地区:青绿:1", "champion", "关都地区", "青绿"),
+  mockTrainer("villain:彩虹火箭队:坂木:1", "villain", "彩虹火箭队", "坂木"),
+];
+const mockTrainerById = new Map(mockTrainerDetails.map(trainer => [trainer.id, trainer]));
 
 function mockEvolutionRoot(speciesId: string) {
   if (toTestId(speciesId) === "charizard") return {id: "charmander", name: "charmander", nameZh: "小火龙"};
@@ -151,6 +157,25 @@ const mockDex = {
   searchDex(request: DexSearchRequest = {}): DexSearchResult {
     const offset = Number(request.offset || 0);
     const limit = Number(request.limit || 20);
+    if (request.category === "trainers") {
+      const query = String(request.query || "");
+      const trainerRows = mockTrainerDetails
+        .filter(trainer => {
+          if (query === "type:villain") return trainer.trainerType === "villain";
+          if (query.startsWith("type:")) return trainer.trainerType === query.slice(5);
+          return !query || trainer.region.includes(query) || trainer.nameZh.includes(query) || trainer.id.includes(query);
+        })
+        .map(trainer => ({
+          id: trainer.id,
+          category: "trainers" as const,
+          name: trainer.name,
+          nameZh: trainer.nameZh,
+          subtitle: `${trainer.region} / ${trainer.trainerTypeLabel}`,
+          description: "",
+          tags: [trainer.id, trainer.nameZh, trainer.region, `type:${trainer.trainerType}`],
+        }));
+      return {category: "trainers", query, offset, limit, total: trainerRows.length, hasMore: offset + limit < trainerRows.length, rows: trainerRows.slice(offset, offset + limit)};
+    }
     const rows = pokemonDetails.map(detail => ({
       id: detail.id,
       category: "pokemon" as const,
@@ -191,6 +216,9 @@ const mockDex = {
   },
   getItemDetail(id: string) {
     return itemDetail(id);
+  },
+  getTrainerDetail(id: string) {
+    return mockTrainerById.get(id) || mockTrainerDetails[0]!;
   },
   getSystemBattleReforgeOptions(itemId: string, pokemon: {speciesId?: string; moves?: Array<{moveId?: string; id?: string; type?: string; typeId?: string}>} | null | undefined) {
     const megaStones: Record<string, {id: string; name: string; nameZh: string}> = {
@@ -298,6 +326,32 @@ function mockPokemon(id: string, nameZh: string, num: number, types: string[], b
       transfer: [],
     },
     ...patch,
+  };
+}
+
+function mockTrainer(id: string, trainerType: DexTrainerDetail["trainerType"], region: string, nameZh: string): DexTrainerDetail {
+  return {
+    id,
+    trainerType,
+    trainerTypeLabel: trainerType === "gym" ? "馆主" : trainerType === "champion" ? "冠军" : trainerType === "villain" ? "反派头目" : trainerType,
+    sourceType: trainerType,
+    region,
+    role: trainerType,
+    sourceTier: "",
+    name: nameZh,
+    nameZh,
+    frontAsset: "",
+    avatarAsset: "",
+    teamPoolIds: [],
+    notes: [],
+    representativePokemon: [],
+    teamPoolCount: 0,
+    dialogueStateCount: 0,
+    isBoss: true,
+    dialogues: {},
+    teamPools: [],
+    teamPoolPresetCounts: {},
+    presetTeamPreviews: [],
   };
 }
 
@@ -1279,6 +1333,10 @@ const soulmateTrainingBlocked = api.applyFormalTrainingGroundLesson(soulmateVaul
 assert(!soulmateTrainingBlocked.ok && soulmateTrainingBlocked.run.money === soulmateVaultRestRun.money, "formal training should reject soulmate vault pokemon without changing money");
 const soulmateFriendshipBattleLogRun = {
   ...soulmateVaultRestRun,
+  roundPlan: soulmateVaultRestRun.roundPlan.map((round, index) => index === 0 ? {
+    ...round,
+    npcs: round.npcs.map((npc, npcIndex) => npcIndex === 0 ? {...npc, trainerId: "gym:关都地区:小刚:1", trainerType: "gym" as const, name: "小刚"} : npc),
+  } : round),
   restRunSnapshot: {
     ...soulmateVaultRestRun.restRunSnapshot!,
     gameMap: soulmateVaultRestRun.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "won" as const} : node),
@@ -1326,6 +1384,14 @@ assert(soulmateFriendshipSettlement.summary?.deltas[0]?.delta === 12, "soulmate 
 const soulmateFriendshipSettlementAgain = api.applyFormalSoulmateBattleFriendshipSettlement(soulmateFriendshipSettlement.run, soulmateFriendshipSettlement.playerVault);
 assert(soulmateFriendshipSettlementAgain.alreadySettled, "soulmate battle settlement should be idempotent per node");
 assert(soulmateFriendshipSettlementAgain.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1")?.friendship === 222, "soulmate battle settlement should not apply twice");
+const soulmateHonorSettlement = api.applyFormalSoulmateHonorSettlement(soulmateFriendshipBattleLogRun, soulmateVault);
+const honoredSoulmate = soulmateHonorSettlement.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1");
+const unhonoredPokemon = soulmateHonorSettlement.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-pikachu-1");
+assert(honoredSoulmate?.honors.includes("soulmate-honor-target:kanto:gym:关都地区:小刚:1"), "soulmate honor settlement should award defeated target to current vault-sourced pokemon");
+assert(!unhonoredPokemon?.honors.includes("soulmate-honor-target:kanto:gym:关都地区:小刚:1"), "soulmate honor settlement should not award pokemon outside the current battle team");
+const soulmateHonorSettlementAgain = api.applyFormalSoulmateHonorSettlement(soulmateHonorSettlement.run, soulmateHonorSettlement.playerVault);
+assert(soulmateHonorSettlementAgain.alreadySettled, "soulmate honor settlement should be idempotent per node");
+assert(soulmateHonorSettlementAgain.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1")?.honors.filter(honor => honor === "soulmate-honor-target:kanto:gym:关都地区:小刚:1").length === 1, "soulmate honor settlement should not duplicate target marker");
 const selectableLessons = api.getFormalTrainingGroundLessons(roundPlanned);
 assert(selectableLessons.length === 4, "formal training ground should expose all selectable lessons");
 assert(new Set(selectableLessons.map(lesson => lesson.kind)).size === 4, "formal training ground selectable lessons should cover every lesson kind");

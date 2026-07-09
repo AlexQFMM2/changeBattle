@@ -8,6 +8,7 @@ import {TrainingRestShopScenePreview} from "../training/TrainingRestShopScene.pr
 import {TrainingRestTrainingGroundScenePreview} from "../training/TrainingRestTrainingGroundScene.preview";
 import {TrainingRestNextPreviewPanelPreview} from "../training/TrainingRestNextPreviewPanel.preview";
 import {TrainerVaultPagePreview} from "../trainer-vault/TrainerVaultPage.preview";
+import {VaultPokemonHonorBadgesPreview} from "../trainer-vault/VaultPokemonHonorBadges.preview";
 import {GameDrawerPreview} from "../shared/GameDrawer.preview";
 import {GameEvolutionModalPreview} from "../shared/GameEvolutionModal.preview";
 import {RentalSelectPagePreview} from "../formal/rental-select/RentalSelectPage.preview";
@@ -73,6 +74,12 @@ export const COMPONENT_PREVIEWS: ComponentPreviewEntry[] = [
     title: "训练家仓库",
     description: "复合页面：同屏背包列表、宝可梦箱、通用浮层抽屉和局外道具使用流程。",
     render: api => <TrainerVaultPagePreview api={api} />,
+  },
+  {
+    id: "vault-pokemon-honor-badges",
+    title: "宝可梦个人奖章",
+    description: "仓库详情组件：10 个常驻奖章、点亮/未点亮状态和奖章详情弹窗。",
+    render: () => <VaultPokemonHonorBadgesPreview />,
   },
   {
     id: "game-drawer",

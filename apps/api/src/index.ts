@@ -12,13 +12,17 @@ import {
   normalizeSaveTableV4,
   normalizeTrainerVaultV2,
   normalizeUserProfileV2,
+  playerPokemonHonorBadgeStateV4,
   playerVaultStorageCapacityV4,
   playerVaultUnlockedStoragePageCountV4,
+  PLAYER_POKEMON_HONOR_BADGES_V4,
   releasePlayerVaultPokemonV4,
   setPlayerVaultPokemonBattleMarkedV4,
   createSoulmateCandidateListV4,
   formalShopSlotsForCategoryV4,
   FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY,
+  type PlayerPokemonHonorBadgeStateV4,
+  type PlayerPokemonHonorTargetV4,
   type PlayerItemRecordV4,
   type PlayerPokemonMoveRecordV4,
   type PlayerPokemonRecordV4,
@@ -33,7 +37,7 @@ import {
 } from "@changebattle-v2/core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
-import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalSoulmateBattleFriendshipSettlementResultV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalSoulmateFriendshipSettlementRecordV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
+import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalSoulmateBattleFriendshipSettlementResultV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalSoulmateFriendshipSettlementRecordV4, FormalSoulmateHonorSettlementRecordV4, FormalSoulmateHonorSettlementResultV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
@@ -72,7 +76,7 @@ export type {NatureEffectV4} from "@changebattle-v2/core";
 export {showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
 export {dexLabelToId, toDexId, translateDexDescription, translateDexLabel} from "@changebattle-v2/showdown-dex-core";
 export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultPokemonReleaseResultV4, PlayerVaultV4, RestCenterActionEntryV4, SoulmateCandidateV4, TrainerVaultV2, UserProfileDraftV2, UserProfileV2};
-export type {FormalSoulmateBattleFriendshipSettlementResultV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalSoulmateFriendshipSettlementRecordV4};
+export type {FormalSoulmateBattleFriendshipSettlementResultV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalSoulmateFriendshipSettlementRecordV4, FormalSoulmateHonorSettlementRecordV4, FormalSoulmateHonorSettlementResultV4};
 export type {DebugPlayerVaultItemAddResultV4, DebugPlayerVaultPokemonAddResultV4} from "./debugVault.js";
 export * from "./itemEffects.js";
 export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};
@@ -123,6 +127,12 @@ export type PlayerVaultPokemonDetailViewV4 = {
   stats: Array<{id: string; label: string; actual: number; iv: number; ev: number}>;
   moves: Array<{slot: number; id: string; name: string; type: string; category: string; power: string; pp: string}>;
   evolutions: Array<{from: string; to: string; method: string}>;
+};
+
+export type PlayerPokemonHonorBadgeViewV4 = PlayerPokemonHonorBadgeStateV4 & {
+  iconPath: string;
+  statusLabel: string;
+  missingTargets: Array<PlayerPokemonHonorTargetV4 & {completed: false}>;
 };
 
 export type PlayerVaultMoveTeachingViewV4 = PlayerVaultMoveTeachingViewResultV4;
@@ -353,6 +363,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     playerVaultUnlockedStoragePageCountV4,
     playerVaultStorageCapacityV4,
     createPlayerVaultPokemonDetailView: (pokemon: PlayerPokemonRecordV4) => createPlayerVaultPokemonDetailView(dex, pokemon),
+    getPlayerPokemonHonorBadges: (pokemon: PlayerPokemonRecordV4) => createPlayerPokemonHonorBadgeViews(dex, pokemon),
     getPlayerVaultMoveTeachingView: (vault: PlayerVaultV4, itemKey: string, pokemonId: string, query = "") => getPlayerVaultMoveTeachingViewV4(dex, vault, itemKey, pokemonId, query),
     applyPlayerVaultMoveTeachingItem: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string; moveId: string; moveSlot: number}) => applyPlayerVaultMoveTeachingItemV4(dex, input),
     previewPlayerVaultNumericItemUse: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string}) => previewPlayerVaultNumericItemUseV4(dex, input),
@@ -411,6 +422,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     settleFormalBattleRoundV4: formalRuns.settleFormalBattleRoundV4,
     finalizeFormalBattleResultV4: formalRuns.finalizeFormalBattleResultV4,
     applyFormalSoulmateBattleFriendshipSettlement: formalRuns.applyFormalSoulmateBattleFriendshipSettlement,
+    applyFormalSoulmateHonorSettlement: formalRuns.applyFormalSoulmateHonorSettlement,
     prepareFormalSettlement: formalRuns.prepareFormalSettlement,
     getFormalMedicalInsuranceOffer: formalRuns.getFormalMedicalInsuranceOffer,
     chooseFormalMedicalInsurance: formalRuns.chooseFormalMedicalInsurance,
@@ -711,6 +723,18 @@ export function createPlayerVaultPokemonDetailView(dex: ReturnType<typeof create
   };
 }
 
+export function createPlayerPokemonHonorBadgeViews(dex: ReturnType<typeof createShowdownDexService>, pokemon: PlayerPokemonRecordV4): PlayerPokemonHonorBadgeViewV4[] {
+  return PLAYER_POKEMON_HONOR_BADGES_V4.map(badge => {
+    const state = playerPokemonHonorBadgeStateV4(pokemon.honors, badge, playerPokemonHonorTargetsForBadgeView(dex, badge));
+    return {
+      ...state,
+      iconPath: badge.assetPath,
+      statusLabel: state.earned ? "已点亮" : `${state.completedTargetCount}/${state.targetCount}`,
+      missingTargets: state.targets.filter((target): target is PlayerPokemonHonorTargetV4 & {completed: false} => !target.completed),
+    };
+  });
+}
+
 export function releasePlayerVaultPokemon(
   dex: ReturnType<typeof createShowdownDexService>,
   input: {vault: PlayerVaultV4 | undefined | null; pokemonId: string},
@@ -733,6 +757,34 @@ function vaultHeldItemLabel(dex: ReturnType<typeof createShowdownDexService>, it
   } catch {
     return itemId;
   }
+}
+
+function playerPokemonHonorTargetsForBadgeView(dex: ReturnType<typeof createShowdownDexService>, badge: (typeof PLAYER_POKEMON_HONOR_BADGES_V4)[number]): PlayerPokemonHonorTargetV4[] {
+  const rows = dex.searchDex({category: "trainers", query: badge.id === "villain" ? "type:villain" : badge.region || "", limit: 300}).rows.filter(row => row.category === "trainers");
+  const targets = rows.flatMap(row => {
+    try {
+      const detail = dex.getTrainerDetail(row.id);
+      if (!badge.targetKinds.includes(detail.trainerType as PlayerPokemonHonorTargetV4["trainerType"])) return [];
+      if (badge.region && detail.region !== badge.region) return [];
+      return [{
+        trainerId: detail.id,
+        name: detail.nameZh || detail.name || detail.id,
+        trainerType: detail.trainerType as PlayerPokemonHonorTargetV4["trainerType"],
+        region: detail.region,
+      }];
+    } catch {
+      return [];
+    }
+  });
+  return Array.from(new Map(targets.map(target => [target.trainerId, target])).values())
+    .sort((a, b) => a.region.localeCompare(b.region, "zh-Hans-CN") || honorTrainerTypeSort(a.trainerType) - honorTrainerTypeSort(b.trainerType) || a.name.localeCompare(b.name, "zh-Hans-CN"));
+}
+
+function honorTrainerTypeSort(type: PlayerPokemonHonorTargetV4["trainerType"]): number {
+  if (type === "gym") return 0;
+  if (type === "elite4") return 1;
+  if (type === "champion") return 2;
+  return 3;
 }
 
 function vaultPokemonOriginLabel(pokemon: PlayerPokemonRecordV4): string {

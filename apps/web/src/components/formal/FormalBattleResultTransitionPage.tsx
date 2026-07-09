@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameRunV4, FormalSoulmateFriendshipSettlementRecordV4, PlayerVaultV4, ShowdownPlaybackTimelineV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameRunV4, FormalSoulmateFriendshipSettlementRecordV4, FormalSoulmateHonorSettlementRecordV4, PlayerVaultV4, ShowdownPlaybackTimelineV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
@@ -44,15 +44,18 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
         ? await formalGameBridge.finalizeFormalBattleResult(run, sessionId, reason, {playbackTimeline: timeline})
         : api.finalizeFormalBattleResultV4(run, await api.battleService.getSnapshot(sessionId), reason, {playbackTimeline: timeline});
       const soulmateSettlement = api.applyFormalSoulmateBattleFriendshipSettlement(result.run, playerVault);
-      const savedVault = soulmateSettlement.playerVault === playerVault
+      const honorSettlement = api.applyFormalSoulmateHonorSettlement(soulmateSettlement.run, soulmateSettlement.playerVault);
+      const savedVault = honorSettlement.playerVault === playerVault
         ? playerVault
         : onSavePlayerVault
-          ? await onSavePlayerVault(soulmateSettlement.playerVault)
-          : await api.savePlayerVault(soulmateSettlement.playerVault);
+          ? await onSavePlayerVault(honorSettlement.playerVault)
+          : await api.savePlayerVault(honorSettlement.playerVault);
       if (savedVault !== playerVault) onPlayerVaultChange?.(savedVault);
       const soulmateNotice = soulmateSettlement.alreadySettled ? "" : formatSoulmateSettlementNotice(soulmateSettlement.summary);
-      if (soulmateNotice) onSoulmateSettlementNotice?.(soulmateNotice);
-      const saved = await api.saveFormalGameRun(soulmateSettlement.run);
+      const honorNotice = honorSettlement.alreadySettled ? "" : formatSoulmateHonorSettlementNotice(honorSettlement.summary);
+      const settlementNotice = [soulmateNotice, honorNotice].filter(Boolean).join("；");
+      if (settlementNotice) onSoulmateSettlementNotice?.(settlementNotice);
+      const saved = await api.saveFormalGameRun(honorSettlement.run);
       if (cancelled) return;
       if (result.destination === "settlement") {
         onSettlementReady(saved, result.reason || "loss");
@@ -84,6 +87,20 @@ function formatSoulmateSettlementNotice(summary: FormalSoulmateFriendshipSettlem
   if (!deltas.length) return "";
   return deltas
     .map(delta => `${delta.displayName}亲密度 ${delta.delta > 0 ? "+" : ""}${delta.delta}`)
+    .join("、");
+}
+
+function formatSoulmateHonorSettlementNotice(summary: FormalSoulmateHonorSettlementRecordV4 | null): string {
+  const awards = summary?.awards || [];
+  if (!awards.length) return "";
+  const medalAwards = awards.filter(award => award.medalEarned);
+  if (medalAwards.length) {
+    return medalAwards
+      .map(award => `${award.displayName}点亮了${award.badgeName}`)
+      .join("、");
+  }
+  return awards
+    .map(award => `${award.displayName}荣誉进度：击败${award.trainerName}`)
     .join("、");
 }
 
