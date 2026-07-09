@@ -73,7 +73,8 @@ export type DexItemTrainingEffect =
   | {kind: "nature"; nature: string}
   | {kind: "ability"; mode: "capsule" | "patch"}
   | {kind: "iv"; mode: "silver" | "gold" | "gray"}
-  | {kind: "level"; amount: number};
+  | {kind: "level"; amount: number}
+  | {kind: "special-medicine"; medicineId: string};
 export type DexItemMoveTeachingEffect =
   | {kind: "learn-source"; sources: DexLearnSource[]}
   | {kind: "any"; oncePerPokemon?: boolean};
@@ -580,6 +581,69 @@ const NATURE_MINT_ENTRIES = NATURE_MINT_ITEMS.map(({nature, label}) =>
   v1Item(`${toID(nature)}mint`, `${nature} Mint`, `${label}薄荷`, "training", `把宝可梦性格调整为${label}。`, {cost: 12000, trainingEffect: {kind: "nature", nature}, iconAsset: natureMintIconAsset(nature)})
 );
 
+const SPECIAL_MEDICINE_ITEM_ENTRIES: ItemRegistryEntry[] = [
+  v1Item("sulfurglasswater", "Sulfur Glass Water", "硫磺玻璃水", "training", "把 HP、物防、特防的个体和努力转移到速度、攻击、特攻，并把当前 HP 压到 1。", {
+    cost: 9000,
+    trainingEffect: {kind: "special-medicine", medicineId: "sulfurglasswater"},
+    iconAsset: "runtime/items/energyroot/icon.png",
+    tags: ["特效药", "硫磺玻璃水", "速度", "攻击", "特攻"],
+  }),
+  v1Item("steeltonic", "Steel Tonic", "钢铁药剂", "training", "把速度、攻击、特攻的个体和努力转移到 HP、物防、特防，恢复 HP，但会让 1 个技能 PP 归 0。", {
+    cost: 9000,
+    trainingEffect: {kind: "special-medicine", medicineId: "steeltonic"},
+    iconAsset: "runtime/items/iron/icon.png",
+    tags: ["特效药", "钢铁药剂", "耐久", "PP"],
+  }),
+  v1Item("boletefluid", "Bolete Fluid", "见手青液", "training", "让 3 个技能 PP 归 0 并陷入中毒，换来 6 项个体全满和 510 点努力重新分配。", {
+    cost: 20000,
+    trainingEffect: {kind: "special-medicine", medicineId: "boletefluid"},
+    iconAsset: "runtime/items/antidote/icon.png",
+    tags: ["特效药", "见手青液", "中毒", "个体", "努力"],
+  }),
+  v1Item("mutationcapsule", "Mutation Capsule", "异化胶囊", "training", "随机改成本物种可用特性之一；若变为隐藏特性，随机 1 项个体降低 15，否则随机 1 项努力增加 30。", {
+    cost: 12000,
+    trainingEffect: {kind: "special-medicine", medicineId: "mutationcapsule"},
+    iconAsset: "runtime/items/abilitycapsule/icon.png",
+    tags: ["特效药", "异化胶囊", "特性", "隐藏特性"],
+  }),
+  v1Item("redheatneedle", "Red Heat Needle", "红温针", "training", "把性格拉向物攻，攻击个体和努力拉满，清空特攻个体和努力，并陷入灼伤。", {
+    cost: 12000,
+    trainingEffect: {kind: "special-medicine", medicineId: "redheatneedle"},
+    iconAsset: "runtime/items/burnheal/icon.png",
+    tags: ["特效药", "红温针", "物攻", "灼伤"],
+  }),
+  v1Item("coolingneedle", "Cooling Needle", "退烧针", "training", "把性格拉向特攻，特攻个体和努力拉满，清空攻击个体和努力，并陷入冰冻。", {
+    cost: 12000,
+    trainingEffect: {kind: "special-medicine", medicineId: "coolingneedle"},
+    iconAsset: "runtime/items/iceheal/icon.png",
+    tags: ["特效药", "退烧针", "特攻", "冰冻"],
+  }),
+  v1Item("emetic", "Emetic", "催吐剂", "training", "扣除 30 点努力值，恢复 HP 并解除异常状态。努力值不足时没有效果。", {
+    cost: 6000,
+    trainingEffect: {kind: "special-medicine", medicineId: "emetic"},
+    iconAsset: "runtime/items/fullheal/icon.png",
+    tags: ["特效药", "催吐剂", "恢复", "努力"],
+  }),
+  v1Item("strangeherb", "Strange Herb", "陌生草药", "training", "特性从整个特性池随机获得，不再限制为本物种可用特性。", {
+    cost: 14000,
+    trainingEffect: {kind: "special-medicine", medicineId: "strangeherb"},
+    iconAsset: "runtime/items/healpowder/icon.png",
+    tags: ["特效药", "陌生草药", "特性", "随机"],
+  }),
+  v1Item("pulseplasma", "Pulse Plasma", "脉冲电浆", "training", "速度个体和努力拉满，清空 HP、物防、特防的个体和努力，当前 HP 减半并陷入麻痹。", {
+    cost: 12000,
+    trainingEffect: {kind: "special-medicine", medicineId: "pulseplasma"},
+    iconAsset: "runtime/items/paralyzeheal/icon.png",
+    tags: ["特效药", "脉冲电浆", "速度", "麻痹"],
+  }),
+  v1Item("fakefatty", "Fake Fatty", "假胖子", "training", "等级提高 10，但全部个体和努力清零。", {
+    cost: 10000,
+    trainingEffect: {kind: "special-medicine", medicineId: "fakefatty"},
+    iconAsset: "runtime/items/rarecandy/icon.png",
+    tags: ["特效药", "假胖子", "等级", "个体", "努力"],
+  }),
+];
+
 const SHOWDOWN_EVOLUTION_ITEM_NAMES = [
   "Auspicious Armor",
   "Black Augurite",
@@ -747,6 +811,7 @@ const V1_GAME_ITEM_ENTRIES: ItemRegistryEntry[] = [
   v1Item("lumberry", "Lum Berry", "木子果", "berry", "解除异常状态。", {cost: 240, canBattleUse: true, canTake: true, recoveryEffect: {cureStatus: "all"}}),
   ...EV_TRAINING_ITEM_ENTRIES,
   ...NATURE_MINT_ENTRIES,
+  ...SPECIAL_MEDICINE_ITEM_ENTRIES,
   v1Item("rarecandy", "Rare Candy", "神奇糖果", "training", "休整页使用，使宝可梦提升 1 级。", {cost: 4800, canBattleUse: false, trainingEffect: {kind: "level", amount: 1}}),
   v1Item("hpup", "HP Up", "HP 增强剂", "training", "休整页使用，提升 HP 努力值 100 点。", {cost: 10000, canBattleUse: false, trainingEffect: {kind: "ev", stat: "hp", mode: "add", target: 100}}),
   v1Item("protein", "Protein", "攻击增强剂", "training", "休整页使用，提升攻击努力值 100 点。", {cost: 10000, canBattleUse: false, trainingEffect: {kind: "ev", stat: "atk", mode: "add", target: 100}}),

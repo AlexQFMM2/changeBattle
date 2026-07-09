@@ -114,6 +114,179 @@ if (grayResult.ok) {
   assert.equal(grayResult.bag.items.length, 0);
 }
 
+const sulfurGlassWater = item("sulfurglasswater", "硫磺玻璃水", {type: "training", canBattleUse: false});
+const sulfurResult = applyTrainingItemToPokemonV4({
+  item: sulfurGlassWater,
+  detail: specialMedicineDetail("sulfurglasswater", "硫磺玻璃水"),
+  pokemon: {...makePokemon(), entryHp: 80, evs: {hp: 40, atk: 10, def: 50, spa: 20, spd: 60, spe: 30}, ivs: {hp: 10, atk: 12, def: 13, spa: 14, spd: 15, spe: 16}},
+  bag: bagWith(sulfurGlassWater),
+  calculateMaxHp: next => 100 + next.ivs.hp + next.evs.hp,
+});
+assert.equal(sulfurResult.ok, true);
+if (sulfurResult.ok) {
+  assert.equal(sulfurResult.pokemon.ivs.hp, 0);
+  assert.equal(sulfurResult.pokemon.evs.hp, 0);
+  assert.equal(sulfurResult.pokemon.ivs.spe, 26);
+  assert.equal(sulfurResult.pokemon.evs.spe, 70);
+  assert.equal(sulfurResult.pokemon.ivs.atk, 25);
+  assert.equal(sulfurResult.pokemon.evs.atk, 60);
+  assert.equal(sulfurResult.pokemon.ivs.spa, 29);
+  assert.equal(sulfurResult.pokemon.evs.spa, 80);
+  assert.equal(sulfurResult.pokemon.entryHp, 1);
+  assert.equal(sulfurResult.bag.items.length, 0);
+}
+
+const steelTonic = item("steeltonic", "钢铁药剂", {type: "training", canBattleUse: false});
+const steelResult = applyTrainingItemToPokemonV4({
+  item: steelTonic,
+  detail: specialMedicineDetail("steeltonic", "钢铁药剂"),
+  pokemon: {...makePokemon(), entryHp: 20, evs: {hp: 0, atk: 40, def: 10, spa: 50, spd: 20, spe: 60}, ivs: {hp: 1, atk: 10, def: 2, spa: 11, spd: 3, spe: 12}},
+  bag: bagWith(steelTonic),
+  rngSeed: "steel",
+});
+assert.equal(steelResult.ok, true);
+if (steelResult.ok) {
+  assert.equal(steelResult.pokemon.ivs.spe, 0);
+  assert.equal(steelResult.pokemon.evs.spe, 0);
+  assert.equal(steelResult.pokemon.ivs.hp, 13);
+  assert.equal(steelResult.pokemon.evs.hp, 60);
+  assert.equal(steelResult.pokemon.entryHp, steelResult.pokemon.maxHp);
+  assert.equal(steelResult.pokemon.moves.length, 4);
+  assert.equal(steelResult.pokemon.moves.filter(move => move.remainingPp === 0).length, 1);
+}
+
+const boleteFluid = item("boletefluid", "见手青液", {type: "training", canBattleUse: false});
+const boleteResult = applyTrainingItemToPokemonV4({
+  item: boleteFluid,
+  detail: specialMedicineDetail("boletefluid", "见手青液"),
+  pokemon: makePokemon(),
+  bag: bagWith(boleteFluid),
+  rngSeed: "bolete",
+});
+assert.equal(boleteResult.ok, true);
+if (boleteResult.ok) {
+  assert.deepEqual(boleteResult.pokemon.ivs, {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31});
+  assert.equal(Object.values(boleteResult.pokemon.evs).reduce((sum, value) => sum + value, 0), 510);
+  assert.equal(boleteResult.pokemon.entryStatus, "psn");
+  assert.equal(boleteResult.pokemon.moves.length, 4);
+  assert.equal(boleteResult.pokemon.moves.filter(move => move.remainingPp === 0).length, 3);
+}
+
+const mutationCapsule = item("mutationcapsule", "异化胶囊", {type: "training", canBattleUse: false});
+const mutationResult = applyTrainingItemToPokemonV4({
+  item: mutationCapsule,
+  detail: specialMedicineDetail("mutationcapsule", "异化胶囊"),
+  pokemon: makePokemon(),
+  bag: bagWith(mutationCapsule),
+  pokemonDetail: fakePokemonDetail(),
+  rngSeed: "mutation",
+});
+assert.equal(mutationResult.ok, true);
+if (mutationResult.ok) {
+  assert.notEqual(mutationResult.pokemon.abilityId, "static");
+}
+
+const redHeatNeedle = item("redheatneedle", "红温针", {type: "training", canBattleUse: false});
+const redHeatResult = applyTrainingItemToPokemonV4({
+  item: redHeatNeedle,
+  detail: specialMedicineDetail("redheatneedle", "红温针"),
+  pokemon: makePokemon(),
+  bag: bagWith(redHeatNeedle),
+});
+assert.equal(redHeatResult.ok, true);
+if (redHeatResult.ok) {
+  assert.equal(redHeatResult.pokemon.nature, "Adamant");
+  assert.equal(redHeatResult.pokemon.ivs.atk, 31);
+  assert.equal(redHeatResult.pokemon.evs.atk, 252);
+  assert.equal(redHeatResult.pokemon.ivs.spa, 0);
+  assert.equal(redHeatResult.pokemon.evs.spa, 0);
+  assert.equal(redHeatResult.pokemon.entryStatus, "brn");
+}
+
+const coolingNeedle = item("coolingneedle", "退烧针", {type: "training", canBattleUse: false});
+const coolingResult = applyTrainingItemToPokemonV4({
+  item: coolingNeedle,
+  detail: specialMedicineDetail("coolingneedle", "退烧针"),
+  pokemon: makePokemon(),
+  bag: bagWith(coolingNeedle),
+});
+assert.equal(coolingResult.ok, true);
+if (coolingResult.ok) {
+  assert.equal(coolingResult.pokemon.nature, "Modest");
+  assert.equal(coolingResult.pokemon.ivs.spa, 31);
+  assert.equal(coolingResult.pokemon.evs.spa, 252);
+  assert.equal(coolingResult.pokemon.ivs.atk, 0);
+  assert.equal(coolingResult.pokemon.evs.atk, 0);
+  assert.equal(coolingResult.pokemon.entryStatus, "frz");
+}
+
+const emetic = item("emetic", "催吐剂", {type: "training", canBattleUse: false});
+const emeticFailResult = applyTrainingItemToPokemonV4({
+  item: emetic,
+  detail: specialMedicineDetail("emetic", "催吐剂"),
+  pokemon: makePokemon(),
+  bag: bagWith(emetic),
+});
+assert.equal(emeticFailResult.ok, false);
+const emeticResult = applyTrainingItemToPokemonV4({
+  item: emetic,
+  detail: specialMedicineDetail("emetic", "催吐剂"),
+  pokemon: {...makePokemon(), entryHp: 7, entryStatus: "brn", evs: {hp: 10, atk: 25, def: 0, spa: 0, spd: 0, spe: 0}},
+  bag: bagWith(emetic),
+});
+assert.equal(emeticResult.ok, true);
+if (emeticResult.ok) {
+  assert.equal(Object.values(emeticResult.pokemon.evs).reduce((sum, value) => sum + value, 0), 5);
+  assert.equal(emeticResult.pokemon.entryHp, emeticResult.pokemon.maxHp);
+  assert.equal(emeticResult.pokemon.entryStatus, "");
+}
+
+const strangeHerb = item("strangeherb", "陌生草药", {type: "training", canBattleUse: false});
+const strangeResult = applyTrainingItemToPokemonV4({
+  item: strangeHerb,
+  detail: specialMedicineDetail("strangeherb", "陌生草药"),
+  pokemon: makePokemon(),
+  bag: bagWith(strangeHerb),
+  allAbilities: [{id: "wonderguard", name: "Wonder Guard", nameZh: "神奇守护"}],
+});
+assert.equal(strangeResult.ok, true);
+if (strangeResult.ok) assert.equal(strangeResult.pokemon.abilityId, "wonderguard");
+
+const pulsePlasma = item("pulseplasma", "脉冲电浆", {type: "training", canBattleUse: false});
+const pulseResult = applyTrainingItemToPokemonV4({
+  item: pulsePlasma,
+  detail: specialMedicineDetail("pulseplasma", "脉冲电浆"),
+  pokemon: {...makePokemon(), moves: [{...move("thunderbolt", 8), category: "Special"}, {...move("swift", 20), category: "Special"}]},
+  bag: bagWith(pulsePlasma),
+});
+assert.equal(pulseResult.ok, true);
+if (pulseResult.ok) {
+  assert.equal(pulseResult.pokemon.nature, "Timid");
+  assert.equal(pulseResult.pokemon.ivs.spe, 31);
+  assert.equal(pulseResult.pokemon.evs.spe, 252);
+  assert.equal(pulseResult.pokemon.ivs.hp, 0);
+  assert.equal(pulseResult.pokemon.evs.hp, 0);
+  assert.equal(pulseResult.pokemon.entryHp, 50);
+  assert.equal(pulseResult.pokemon.entryStatus, "par");
+}
+
+const fakeFatty = item("fakefatty", "假胖子", {type: "training", canBattleUse: false});
+const fakeFattyResult = applyTrainingItemToPokemonV4({
+  item: fakeFatty,
+  detail: specialMedicineDetail("fakefatty", "假胖子"),
+  pokemon: {...makePokemon(), level: 95, maxHp: 100, entryHp: 40, evs: {hp: 10, atk: 20, def: 30, spa: 40, spd: 50, spe: 60}},
+  bag: bagWith(fakeFatty),
+  calculateMaxHp: next => next.level + 50,
+});
+assert.equal(fakeFattyResult.ok, true);
+if (fakeFattyResult.ok) {
+  assert.equal(fakeFattyResult.pokemon.level, 100);
+  assert.deepEqual(fakeFattyResult.pokemon.ivs, {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0});
+  assert.deepEqual(fakeFattyResult.pokemon.evs, {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0});
+  assert.equal(fakeFattyResult.pokemon.maxHp, 150);
+  assert.equal(fakeFattyResult.pokemon.entryHp, 60);
+}
+
 const tm = item("tm:voltswitch", "技能机器：伏特替换", {type: "tm", canBattleUse: false, canTake: false});
 const tmMove = moveSummary("voltswitch", {nameZh: "伏特替换", type: "电", category: "特殊", power: 70, accuracy: 100, pp: 20});
 const tmResult = applyTmItemToPokemonV4({
@@ -130,6 +303,25 @@ if (tmResult.ok) {
   assert.equal(tmResult.pokemon.moves[2]!.remainingPp, 20);
   assert.equal(tmResult.bag.items.length, 0);
 }
+const protectedSoulmate = {...makePokemon(), formalSourceKind: "soulmate-vault" as const, sourcePlayerPokemonId: "vault-pokemon-1"};
+const protectedTmResult = applyTmItemToPokemonV4({
+  item: tm,
+  detail: {id: "tm:voltswitch", name: "TM Volt Switch", nameZh: "技能机器：伏特替换", kind: "tm", kindLabel: "技能机器", description: "", moveId: "voltswitch"},
+  pokemon: protectedSoulmate,
+  bag: bagWith(tm),
+  machineMoves: [tmMove],
+  moveSlot: 2,
+});
+assert.equal(protectedTmResult.ok, false);
+assert.match(protectedTmResult.ok ? "" : protectedTmResult.reason, /灵魂伴侣不能使用技能机器/);
+const protectedMedicineResult = applyTrainingItemToPokemonV4({
+  item: sulfurGlassWater,
+  detail: specialMedicineDetail("sulfurglasswater", "硫磺玻璃水"),
+  pokemon: protectedSoulmate,
+  bag: bagWith(sulfurGlassWater),
+});
+assert.equal(protectedMedicineResult.ok, false);
+assert.match(protectedMedicineResult.ok ? "" : protectedMedicineResult.reason, /灵魂伴侣不能使用特效药/);
 
 const duplicateTm = item("tm:thunderbolt", "技能机器：十万伏特", {type: "tm", canBattleUse: false, canTake: false});
 assert.match(tmUseFailureReasonV4({
@@ -345,6 +537,18 @@ function item(itemID: string, name: string, options: Partial<PlayerItemInstanceV
 
 function bagWith(...items: PlayerItemInstanceV4[]): BagStateV4 {
   return {maxSize: 10, items};
+}
+
+function specialMedicineDetail(itemID: string, nameZh: string) {
+  return {
+    id: itemID,
+    name: itemID,
+    nameZh,
+    kind: "training" as const,
+    kindLabel: "训练道具",
+    description: "",
+    trainingEffect: {kind: "special-medicine" as const, medicineId: itemID},
+  };
 }
 
 function makePokemon(): LocalPokemonV4 {

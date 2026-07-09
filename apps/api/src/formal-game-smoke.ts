@@ -8,8 +8,10 @@ import {
   FORMAL_SHOP_CATEGORY_ORDER,
   FORMAL_COMPANION_ENTRY_NODE_IDS,
   FORMAL_SHOP_ITEM_POOL,
+  FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL,
   FORMAL_SHOP_PRICE_OVERRIDES,
   FORMAL_SHOP_PRICE_LIMITS,
+  FORMAL_SHOP_SPECIAL_MEDICINE_ITEM_POOL,
   FORMAL_SHOP_RESIST_BERRY_POOL,
   FORMAL_SHOP_SELL_RATE,
   FORMAL_SHOP_SLOTS_PER_CATEGORY,
@@ -429,6 +431,7 @@ function itemRecoveryEffect(id: string): DexItemDetail["recoveryEffect"] {
 }
 
 function itemTrainingEffect(id: string): DexItemDetail["trainingEffect"] {
+  if (FORMAL_SHOP_SPECIAL_MEDICINE_ITEM_POOL.includes(id)) return {kind: "special-medicine", medicineId: id};
   const evStats: Record<string, "hp" | "atk" | "def" | "spa" | "spd" | "spe"> = {
     hpup: "hp",
     protein: "atk",
@@ -1117,6 +1120,12 @@ assert(psychicProduct?.price === 150, "psychic TM display price should come from
 const psychicPurchase = api.buyFormalRestShopItem(psychicRun, psychicSlot.slotId);
 assert(psychicPurchase.ok && psychicPurchase.run.money === 0, "150 money should buy psychic TM for 150 and leave zero");
 assert(FORMAL_SHOP_ITEM_BASE_WEIGHTS.focussash < FORMAL_SHOP_ITEM_BASE_WEIGHTS.airballoon, "strong battle shop items should start rarer than light utility items");
+assert(JSON.stringify(FORMAL_SHOP_ITEM_POOL.training) === JSON.stringify(FORMAL_SHOP_SPECIAL_MEDICINE_ITEM_POOL), "standard formal training shop should only offer special medicines");
+assert(!FORMAL_SHOP_ITEM_POOL.training.includes("rarecandy"), "standard formal training shop should not offer rare candy");
+assert(!FORMAL_SHOP_ITEM_POOL.training.includes("ppup"), "standard formal training shop should not offer PP Up");
+assert(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("adamantmint"), "pending settlement training shop should retain mints");
+assert(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("bottlecap"), "pending settlement training shop should retain bottle caps");
+assert(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("abilitycapsule"), "pending settlement training shop should retain ability capsules");
 const calmRestockContext: FormalShopRestockContextV4 = {
   roundIndex: 0,
   money: FORMAL_STARTING_MONEY,
@@ -1151,6 +1160,25 @@ if (boughtItem) {
   assert(sellResult.ok, "formal shop sell should accept bought item");
   assert(sellResult.run.money === buyResult.run.money + sellPrice, "formal shop sell should derive value from formal shop price");
 }
+const trainingRestockShop = api.getFormalRestShop(roundPlanned)!;
+const trainingRestockSlot = {...trainingRestockShop.categories.training[0]!, itemID: "emetic", stock: 1};
+const trainingRestockRun = {
+  ...roundPlanned,
+  money: 3000,
+  shopByNodeId: {
+    ...(roundPlanned.shopByNodeId || {}),
+    [trainingRestockShop.nodeId]: {
+      ...trainingRestockShop,
+      categories: {
+        ...trainingRestockShop.categories,
+        training: [trainingRestockSlot, ...trainingRestockShop.categories.training.slice(1)],
+      },
+    },
+  },
+};
+const trainingRestockResult = api.buyFormalRestShopItem(trainingRestockRun, trainingRestockSlot.slotId);
+const trainingRestockedProduct = api.getFormalRestShopProducts(trainingRestockResult.run).find(product => product.slotId === trainingRestockSlot.slotId);
+assert(trainingRestockResult.ok && trainingRestockedProduct && FORMAL_SHOP_SPECIAL_MEDICINE_ITEM_POOL.includes(trainingRestockedProduct.itemID), "training shop restock should stay in the special medicine pool");
 
 const pendingNoExportProduct = pendingShopProducts[0]!;
 const pendingNoExportBuy = api.buyFormalRestShopItem(pendingShopRun, pendingNoExportProduct.slotId);

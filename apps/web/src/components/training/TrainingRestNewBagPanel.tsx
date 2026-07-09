@@ -161,7 +161,9 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
         pokemon: selectedPokemon,
         bag,
         pokemonDetail: pokemonDetailFor(api, selectedPokemon),
+        allAbilities: allAbilitiesFor(api),
         calculateMaxHp: pokemon => calculateMaxHp(api, pokemon),
+        rngSeed: `${currentRunNodeSeed(run) || run.id || "formal-rest"}:${selectedItem.id}:${selectedPokemon.localPokemonId}`,
         translateDexLabel: api.translateDexLabel,
       });
     if (!result.ok) {
@@ -402,6 +404,22 @@ function moveDetailFor(api: ChangeBattleV2Api, moveId: string) {
   } catch {
     return null;
   }
+}
+
+function allAbilitiesFor(api: ChangeBattleV2Api) {
+  try {
+    return api.searchDex({category: "abilities", query: "", limit: 1000}).rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      nameZh: row.nameZh,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function currentRunNodeSeed(run: TrainingRunGameV4): string {
+  return run.gameMap.find(node => node.id === run.currentNodeId)?.seed || "";
 }
 
 function calculateMaxHp(api: ChangeBattleV2Api, pokemon: LocalPokemonV4): number {
