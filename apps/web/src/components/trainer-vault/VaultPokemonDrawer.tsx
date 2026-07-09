@@ -5,12 +5,13 @@ import {ImageWithFallback} from "../shared/ImageWithFallback";
 import type {TrainerVaultPokemonDetailTab, VaultPokemonEntry} from "./TrainerVaultModel";
 import "./VaultPokemonDrawer.css";
 
-export function VaultPokemonDrawer({api, entry, saving, useModeActive, onClose, onUnequipHeldItem, onReleasePokemon}: {
+export function VaultPokemonDrawer({api, entry, saving, useModeActive, onClose, onToggleBattleMarked, onUnequipHeldItem, onReleasePokemon}: {
   api: ChangeBattleV2Api;
   entry: VaultPokemonEntry | null;
   saving: boolean;
   useModeActive: boolean;
   onClose: () => void;
+  onToggleBattleMarked: (pokemonId: string, marked: boolean) => void;
   onUnequipHeldItem: (pokemonId: string) => void;
   onReleasePokemon: (pokemon: PlayerPokemonRecordV4) => void;
 }) {
@@ -27,6 +28,7 @@ export function VaultPokemonDrawer({api, entry, saving, useModeActive, onClose, 
         <section className="vault-pokemon-drawer">
           {!useModeActive ? (
             <div className="vault-pokemon-drawer-top-actions" aria-label="宝可梦操作">
+              <button type="button" onClick={() => onToggleBattleMarked(pokemon.playerPokemonId, !pokemon.battleMarked)} disabled={saving}>{pokemon.battleMarked ? "取消出战" : "标记出战"}</button>
               {pokemon.heldItemId ? <button type="button" onClick={() => onUnequipHeldItem(pokemon.playerPokemonId)} disabled={saving}>卸下道具</button> : null}
               <button className="danger" type="button" onClick={() => onReleasePokemon(pokemon)} disabled={saving}>放生</button>
             </div>

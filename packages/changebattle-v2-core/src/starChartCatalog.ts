@@ -25,6 +25,7 @@ export type StarChartTalentEffectIdV4 =
   | "soulmate_egg_reward"
   | "pending_settlement_shop_export"
   | "pending_settlement_purchase_bonus"
+  | "soulmate_vault_starter_slot"
   | "soulmate_held_item_entry"
   | "soulmate_shiny_rate_bonus"
   | "soulmate_base_friendship_bonus";
@@ -77,7 +78,8 @@ export const CARRY_PREP_ITEMS_NODE_ID = "economy_carry_prep_items" as const;
 export const SOULMATE_REWARD_NODE_ID = "bond_soulmate_egg" as const;
 export const PENDING_SETTLEMENT_SHOP_EXPORT_NODE_ID = "bond_imported_formula" as const;
 export const PENDING_SETTLEMENT_PURCHASE_BONUS_NODE_ID = "bond_childcare_fund" as const;
-export const SOULMATE_HELD_ITEM_ENTRY_NODE_ID = CARRY_PREP_ITEMS_NODE_ID;
+export const FORMAL_COMPANION_ENTRY_NODE_IDS = ["starter_companion_entry_1", "starter_companion_entry_2"] as const;
+export const SOULMATE_HELD_ITEM_ENTRY_NODE_ID = "bond_love_to_hold" as const;
 export const SOULMATE_SHINY_RATE_BONUS_NODE_ID = "bond_european_parents" as const;
 export const SOULMATE_BASE_FRIENDSHIP_BONUS_NODE_ID = "bond_love_at_first_sight" as const;
 
@@ -233,6 +235,34 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
     runtimeEffects: [{id: "soulmate_egg_reward"}],
     kind: "talent",
     x: 160,
+    y: 520,
+  },
+  {
+    id: FORMAL_COMPANION_ENTRY_NODE_IDS[0],
+    name: "同行许可 I",
+    category: "工厂携行",
+    desc: "正式流程开局时，允许从玩家仓库追加 1 个标记出战的宝可梦候选。",
+    max_level: 1,
+    costs: [8],
+    requires: [{id: SOULMATE_REWARD_NODE_ID}],
+    effects: ["正式流程开局时，额外追加 1 个仓库宝可梦候选。"],
+    runtimeEffects: [{id: "soulmate_vault_starter_slot", value: 1}],
+    kind: "talent",
+    x: -20,
+    y: 520,
+  },
+  {
+    id: FORMAL_COMPANION_ENTRY_NODE_IDS[1],
+    name: "同行许可 II",
+    category: "工厂携行",
+    desc: "正式流程开局时，仓库宝可梦候选追加数量提升到 2。",
+    max_level: 1,
+    costs: [10],
+    requires: [{id: FORMAL_COMPANION_ENTRY_NODE_IDS[0]}],
+    effects: ["正式流程开局时，最多追加 2 个仓库宝可梦候选。"],
+    runtimeEffects: [{id: "soulmate_vault_starter_slot", value: 1}],
+    kind: "talent",
+    x: -200,
     y: 520,
   },
   {
@@ -434,16 +464,16 @@ export const STAR_CHART_NODES_V4: StarChartNodeViewV4[] = [
   {
     id: SOULMATE_HELD_ITEM_ENTRY_NODE_ID,
     name: "爱不释手",
-    category: "羁绊养成",
-    desc: "后续允许灵魂伴侣携带全局道具进入战斗。",
+    category: "工厂携行",
+    desc: "正式流程中，通过同行许可带入的宝可梦允许携带道具一起进入战斗。",
     max_level: 1,
     costs: [10],
-    requires: [{id: PENDING_SETTLEMENT_PURCHASE_BONUS_NODE_ID}],
-    effects: ["灵魂伴侣携带道具进入战斗的入口占位，后续版本开放。"],
+    requires: [{id: FORMAL_COMPANION_ENTRY_NODE_IDS[1]}],
+    effects: ["从仓库带入正式流程的宝可梦会保留携带道具。"],
     runtimeEffects: [{id: "soulmate_held_item_entry"}],
     kind: "talent",
-    x: 700,
-    y: 380,
+    x: -380,
+    y: 520,
   },
   {
     id: SOULMATE_SHINY_RATE_BONUS_NODE_ID,

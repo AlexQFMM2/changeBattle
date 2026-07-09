@@ -16,6 +16,9 @@ export type LocalTeamV4 = {
 
 export type LocalPokemonV4 = {
   localPokemonId: string;
+  formalSourceKind?: "starter-random" | "soulmate-vault";
+  sourcePlayerPokemonId?: string;
+  originKind?: "soulmate" | "debug-custom";
   showdownIdentityToken?: string;
   showdownId?: string;
   pokeballId?: string;
@@ -134,6 +137,9 @@ export function normalizeLocalPokemonV4(pokemon: unknown, options: {
   const rawMoves = Array.isArray(raw.moves) ? raw.moves : [];
   return {
     localPokemonId: normalizeText(raw.localPokemonId) || options.fallbackId || speciesId,
+    formalSourceKind: raw.formalSourceKind === "starter-random" || raw.formalSourceKind === "soulmate-vault" ? raw.formalSourceKind : undefined,
+    sourcePlayerPokemonId: normalizeOptionalText(raw.sourcePlayerPokemonId),
+    originKind: raw.originKind === "soulmate" || raw.originKind === "debug-custom" ? raw.originKind : undefined,
     showdownIdentityToken: normalizeOptionalText(raw.showdownIdentityToken),
     showdownId: normalizeOptionalText(raw.showdownId),
     pokeballId: normalizeOptionalText(raw.pokeballId),

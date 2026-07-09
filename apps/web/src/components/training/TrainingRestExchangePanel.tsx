@@ -29,7 +29,7 @@ export function TrainingRestExchangePanel({
   onConfirm,
   onClose,
 }: TrainingRestExchangePanelProps) {
-  const sourceTeam = view?.player?.localTeam.pokemon || [];
+  const sourceTeam = (view?.player?.localTeam.pokemon || []).filter(pokemon => !isProtectedSoulmatePokemon(pokemon));
   const targetTeam = view?.opponent?.localTeam.pokemon || [];
   const selectedSource = sourceTeam.find(pokemon => pokemon.localPokemonId === selectedSourceId) || null;
   const selectedTarget = targetTeam.find(pokemon => pokemon.localPokemonId === selectedTargetId) || null;
@@ -46,7 +46,7 @@ export function TrainingRestExchangePanel({
   const confirmText = view?.nextCost ? `交换（${view.nextCost}金币）` : "交换（免费）";
   const dialogueText = disabledReason
     ? disabledReason
-    : `${selectedSource?.nameZh || selectedSource?.name || "我方宝可梦"} 与 ${selectedTarget?.nameZh || selectedTarget?.name || "对手宝可梦"} 将进行交换。确认后会立即生效。`;
+    : `${selectedSource ? pokemonName(selectedSource) : "我方宝可梦"} 与 ${selectedTarget ? pokemonName(selectedTarget) : "对手宝可梦"} 将进行交换。确认后会立即生效。`;
   return (
     <section className={`training-rest-exchange-panel ${open ? "open" : ""}`} aria-label="宝可梦交换面板" aria-hidden={!open}>
       <TrainingRestUiPanel
@@ -145,7 +145,7 @@ function PokemonExchangeList({
         >
           <span className="training-rest-exchange-index">{index + 1}</span>
           <PokemonIcon pokemon={entry} />
-          <strong>{entry.nameZh || entry.name}</strong>
+          <strong>{pokemonName(entry)}</strong>
           <small>Lv.{entry.level} · {Math.max(0, entry.entryHp)}/{Math.max(1, entry.maxHp)}</small>
           <i aria-hidden="true" />
         </button>
@@ -159,7 +159,15 @@ function PokemonIcon({pokemon}: {pokemon: LocalPokemonV4}) {
   if (pokemon.iconStyle) {
     return <span className="training-rest-exchange-picon picon" aria-hidden="true" style={styleFromCss(pokemon.iconStyle)} />;
   }
-  return <ImageWithFallback src={pokemon.iconUrl || pokemon.spriteUrl || ""} alt="" fallback={(pokemon.nameZh || pokemon.name).slice(0, 1) || "?"} />;
+  return <ImageWithFallback src={pokemon.iconUrl || pokemon.spriteUrl || ""} alt="" fallback={pokemonName(pokemon).slice(0, 1) || "?"} />;
+}
+
+function pokemonName(pokemon: LocalPokemonV4): string {
+  return pokemon.nickname || pokemon.nameZh || pokemon.name || pokemon.speciesId;
+}
+
+function isProtectedSoulmatePokemon(pokemon: LocalPokemonV4): boolean {
+  return pokemon.formalSourceKind === "soulmate-vault" || pokemon.originKind === "soulmate";
 }
 
 function styleFromCss(css: string): CSSProperties {

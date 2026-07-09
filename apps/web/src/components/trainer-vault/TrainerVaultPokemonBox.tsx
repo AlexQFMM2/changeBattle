@@ -62,7 +62,7 @@ function VaultPokemonCell({api, entry, useTarget, onSelect}: {
   const pokemonView = pokemonRecordView(api, entry.pokemon);
   const heldItemView = entry.pokemon.heldItemId ? itemRecordView(api, {itemId: entry.pokemon.heldItemId, quantity: 1}, {preferSpriteIcon: true}) : null;
   return (
-    <button className={`trainer-vault-pokemon-box-cell pokemon ${useTarget ? "use-target" : ""}`} type="button" title={pokemonView.name} onClick={onSelect}>
+    <button className={`trainer-vault-pokemon-box-cell pokemon ${entry.pokemon.battleMarked ? "battle-marked" : ""} ${useTarget ? "use-target" : ""}`} type="button" title={pokemonView.name} onClick={onSelect}>
       <VaultPokemonCellIcon view={pokemonView} />
       {entry.pokemon.shiny ? <em>★</em> : null}
       {heldItemView ? <span className="trainer-vault-pokemon-box-held-item"><span><PlayerBagItemIcon api={api} item={heldItemView.iconItem} /></span></span> : null}

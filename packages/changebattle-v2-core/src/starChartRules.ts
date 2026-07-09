@@ -169,6 +169,12 @@ export function starChartHasSoulmateRewardV4(starChart?: StarChartStateV4 | null
   return starChartHasRuntimeEffectV4(starChart, "soulmate_egg_reward");
 }
 
+export function soulmateVaultStarterSlotCountForStarChartV4(starChart?: StarChartStateV4 | null): number {
+  const slots = starChartRuntimeEffectValuesV4(starChart, "soulmate_vault_starter_slot")
+    .reduce((sum, value) => sum + Math.max(0, Math.floor(value)), 0);
+  return Math.max(0, Math.min(2, slots));
+}
+
 export function starChartHasPendingSettlementShopExportV4(starChart?: StarChartStateV4 | null): boolean {
   return starChartHasRuntimeEffectV4(starChart, "pending_settlement_shop_export");
 }

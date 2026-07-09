@@ -41,6 +41,7 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
       pokemon: (p1?.localTeam.pokemon || []).slice(0, 6).map((pokemon, index) => ({
         playerPokemonId: `trainer-vault-preview-pokemon-${index + 1}`,
         speciesId: pokemon.speciesId,
+        battleMarked: index === 0 || index === 2,
         gender: pokemon.gender,
         nature: pokemon.nature,
         abilityId: pokemon.abilityId,
@@ -63,7 +64,6 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
         playerVault={playerVault}
         playerVaultDirty={playerVaultDirty}
         profileBattlePoints={999}
-        tab="bag"
         debugFeatureEnabled
         onPlayerVaultChange={setPlayerVault}
         onPlayerVaultDirtyChange={setPlayerVaultDirty}
@@ -79,7 +79,6 @@ export function TrainerVaultPagePreview({api}: {api: ChangeBattleV2Api}) {
           setPlayerVaultDirty(false);
           return nextVault;
         }}
-        onTabChange={() => undefined}
         onBack={() => undefined}
       />
     </section>

@@ -48,8 +48,8 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
       ipcRenderer.invoke("formalRun:delete") as ReturnType<DesktopFormalGameRunBridge["deleteFormalGameRun"]>,
   },
   formalGame: {
-    createFormalGameWithStarterCandidates: (profile: UserProfileV2, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}) =>
-      ipcRenderer.invoke("formalGame:createWithStarterCandidates", profile, options) as ReturnType<DesktopFormalGameBridge["createFormalGameWithStarterCandidates"]>,
+    createFormalGameWithStarterCandidates: (profile: UserProfileV2, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}, playerVault?: PlayerVaultV4 | null) =>
+      ipcRenderer.invoke("formalGame:createWithStarterCandidates", profile, options, playerVault) as ReturnType<DesktopFormalGameBridge["createFormalGameWithStarterCandidates"]>,
     prepareFormalRoundPlan: (run: FormalGameRunV4) =>
       ipcRenderer.invoke("formalGame:prepareRoundPlan", run) as ReturnType<DesktopFormalGameBridge["prepareFormalRoundPlan"]>,
     prepareFormalBattleSession: (run: FormalGameRunV4) =>

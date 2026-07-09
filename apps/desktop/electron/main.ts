@@ -35,7 +35,7 @@ let desktopUpdateAbortController: AbortController | null = null;
 
 type FormalComputeMethodMap = {
   createFormalGameWithStarterCandidates: {
-    args: [UserProfileV2, {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}];
+    args: [UserProfileV2, {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}, PlayerVaultV4 | null | undefined];
     result: FormalGameRunV4;
   };
   prepareFormalRoundPlan: {args: [FormalGameRunV4]; result: FormalGameRunV4};
@@ -180,8 +180,8 @@ ipcMain.handle("formalRun:delete", async () => {
   await ensureSaveStore().deleteFormalGameRun();
 });
 
-ipcMain.handle("formalGame:createWithStarterCandidates", async (_event: IpcMainInvokeEvent, profile: UserProfileV2, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}) => {
-  return callFormalComputeWorker("createFormalGameWithStarterCandidates", profile, options);
+ipcMain.handle("formalGame:createWithStarterCandidates", async (_event: IpcMainInvokeEvent, profile: UserProfileV2, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}, playerVault?: PlayerVaultV4 | null) => {
+  return callFormalComputeWorker("createFormalGameWithStarterCandidates", profile, options, playerVault);
 });
 
 ipcMain.handle("formalGame:prepareRoundPlan", async (_event: IpcMainInvokeEvent, run: FormalGameRunV4) => {

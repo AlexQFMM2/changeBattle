@@ -124,6 +124,12 @@
   background: rgb(8 12 10 / 40%);
 }
 
+.trainer-vault-pokemon-box-cell.battle-marked {
+  border-color: rgb(97 227 136 / 78%);
+  background: linear-gradient(180deg, rgb(203 255 207 / 22%), transparent 48%), rgb(24 78 48 / 84%);
+  box-shadow: inset 0 0 0 1px rgb(218 255 209 / 18%), 0 0 0 2px rgb(97 227 136 / 14%), 0 2px 0 rgb(0 0 0 / 24%);
+}
+
 .trainer-vault-pokemon-box-cell.use-target {
   border-color: rgb(255 228 111 / 78%);
   cursor: crosshair;

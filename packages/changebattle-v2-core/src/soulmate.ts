@@ -102,10 +102,17 @@ export const SOULMATE_UNIVERSAL_EVOLUTION_STONE_ITEM_ID_V4 = "universal-evolutio
 export const SOULMATE_LINKING_CORD_ITEM_ID_V4 = "linking-cord";
 
 export const SOULMATE_EVOLUTION_FRIENDSHIP_REQUIREMENTS_V4 = [100, 200] as const;
+export const SOULMATE_SINGLE_EVOLUTION_FRIENDSHIP_REQUIREMENT_V4 = 150;
 
 export function soulmateEvolutionFriendshipRequirementV4(evolutionIndex: number): number | null {
   const index = Math.max(0, Math.floor(Number(evolutionIndex || 0)));
   return SOULMATE_EVOLUTION_FRIENDSHIP_REQUIREMENTS_V4[index] ?? null;
+}
+
+export function soulmateEvolutionFriendshipRequirementForChainV4(evolutionIndex: number, evolutionStageCount: number): number | null {
+  const stageCount = Math.max(0, Math.floor(Number(evolutionStageCount || 0)));
+  if (stageCount === 1) return SOULMATE_SINGLE_EVOLUTION_FRIENDSHIP_REQUIREMENT_V4;
+  return soulmateEvolutionFriendshipRequirementV4(evolutionIndex);
 }
 
 export function normalizeSoulmateEvolutionRequirementV4(edge: SoulmateEvolutionEdgeInputV4 | null | undefined): SoulmateEvolutionRequirementV4 {

@@ -6,6 +6,7 @@ import {
   FORMAL_SHOP_ITEM_BASE_WEIGHTS,
   FORMAL_ROUND_COUNT,
   FORMAL_SHOP_CATEGORY_ORDER,
+  FORMAL_COMPANION_ENTRY_NODE_IDS,
   FORMAL_SHOP_ITEM_POOL,
   FORMAL_SHOP_PRICE_OVERRIDES,
   FORMAL_SHOP_PRICE_LIMITS,
@@ -44,6 +45,7 @@ import {
   normalizeSoulmateEvolutionRequirementV4,
   getNatureEffectsV4,
   normalizePlayerVaultV4,
+  setPlayerVaultPokemonBattleMarkedV4,
   validateFormalShopCatalogV4,
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
@@ -77,6 +79,7 @@ import {
   starChartHasVictoryDividendV4,
   soulmateBaseFriendshipForStarChartV4,
   soulmateShinyRateForStarChartV4,
+  soulmateVaultStarterSlotCountForStarChartV4,
   starterCandidateCountForStarChart,
   unlockStarChartNodeForProfileV4,
   type StarChartStateV4,
@@ -675,9 +678,16 @@ assert(starChartHasPendingSettlementShopExportV4(starProfile.starChart), "import
 starProfile = unlockStarChartNodeForProfileV4(starProfile, PENDING_SETTLEMENT_PURCHASE_BONUS_NODE_ID);
 assert(starProfile.battlePoints === 78, "childcare fund should cost 8 BP");
 assert(starChartHasPendingSettlementPurchaseBonusV4(starProfile.starChart), "childcare fund should unlock one purchase bonus");
-starProfile = unlockStarChartNodeForProfileV4(starProfile, SOULMATE_HELD_ITEM_ENTRY_NODE_ID);
-assert(starProfile.battlePoints === 68, "love-to-hold should cost 10 BP");
-assert(starChartHasSoulmateHeldItemEntryV4(starProfile.starChart), "love-to-hold should unlock held item entry placeholder");
+let companionEntryProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, SOULMATE_REWARD_NODE_ID);
+companionEntryProfile = unlockStarChartNodeForProfileV4(companionEntryProfile, FORMAL_COMPANION_ENTRY_NODE_IDS[0]);
+assert(companionEntryProfile.battlePoints === 84, "companion entry I should require soulmate reward and cost 8 BP");
+assert(soulmateVaultStarterSlotCountForStarChartV4(companionEntryProfile.starChart) === 1, "companion entry I should grant one vault starter slot");
+companionEntryProfile = unlockStarChartNodeForProfileV4(companionEntryProfile, FORMAL_COMPANION_ENTRY_NODE_IDS[1]);
+assert(companionEntryProfile.battlePoints === 74, "companion entry II should cost 10 BP");
+assert(soulmateVaultStarterSlotCountForStarChartV4(companionEntryProfile.starChart) === 2, "companion entry II should grant two vault starter slots");
+companionEntryProfile = unlockStarChartNodeForProfileV4(companionEntryProfile, SOULMATE_HELD_ITEM_ENTRY_NODE_ID);
+assert(companionEntryProfile.battlePoints === 64, "love-to-hold should cost 10 BP");
+assert(starChartHasSoulmateHeldItemEntryV4(companionEntryProfile.starChart), "love-to-hold should unlock held item entry");
 const soulmateGrowthStarProfile = unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, SOULMATE_REWARD_NODE_ID), SOULMATE_SHINY_RATE_BONUS_NODE_ID);
 assert(soulmateShinyRateForStarChartV4(soulmateGrowthStarProfile.starChart) === 1 / 8, "european parents should raise soulmate shiny rate to 1/8");
 const soulmateFriendshipStarProfile = unlockStarChartNodeForProfileV4(soulmateGrowthStarProfile, SOULMATE_BASE_FRIENDSHIP_BONUS_NODE_ID);
@@ -768,6 +778,68 @@ const fullVault = normalizePlayerVaultV4({pokemonStoragePageCount: 1, pokemon: A
 }))});
 const soulmateFullClaim = api.claimFormalSoulmateEgg(soulmatePendingRun, fullVault, "soulmate-candidate-formal-p1-1-charizard");
 assert(!soulmateFullClaim.ok && !soulmateFullClaim.run.soulmateEggClaimedAt, "soulmate claim should fail without marking run when vault is full");
+
+const soulmateVaultPokemon = {
+  playerPokemonId: "vault-starmie-1",
+  speciesId: "starmie",
+  nickname: "小海星",
+  battleMarked: true,
+  level: 88,
+  originKind: "soulmate" as const,
+  gender: "N" as const,
+  nature: "Timid",
+  abilityId: "analytic",
+  heldItemId: "leftovers",
+  evs: {hp: 4, atk: 0, def: 0, spa: 252, spd: 0, spe: 252},
+  ivs: {hp: 31, atk: 0, def: 31, spa: 31, spd: 31, spe: 31},
+  moves: [{moveId: "surf"}, {moveId: "icebeam"}, {moveId: "recover"}, {moveId: "thunderbolt"}],
+  friendship: 210,
+  shiny: true,
+  metAt: "2026-01-01T00:00:00.000Z",
+  honors: ["灵魂伴侣"],
+};
+const unmarkedVaultPokemon = {
+  ...soulmateVaultPokemon,
+  playerPokemonId: "vault-pikachu-1",
+  speciesId: "pikachu",
+  nickname: "小电",
+  battleMarked: false,
+  originKind: "debug-custom" as const,
+  abilityId: "static",
+  heldItemId: "lifeorb",
+  shiny: false,
+};
+const soulmateVault = normalizePlayerVaultV4({pokemon: [unmarkedVaultPokemon, soulmateVaultPokemon]});
+const markedVault = setPlayerVaultPokemonBattleMarkedV4(soulmateVault, "vault-pikachu-1", true);
+assert(markedVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-pikachu-1")?.battleMarked, "battle mark helper should mark target pokemon");
+const soulmateOnlyProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, SOULMATE_REWARD_NODE_ID);
+assert(soulmateVaultStarterSlotCountForStarChartV4(soulmateOnlyProfile.starChart) === 0, "soulmate reward should not grant vault starter slots");
+const soulmateOnlyPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(soulmateOnlyProfile, {mode: "singles", seed: "formal-smoke-soulmate-vault-disabled-seed"}), {playerVault: soulmateVault});
+assert(soulmateOnlyPrepared.starterCandidates.every(candidate => candidate.pokemon.formalSourceKind !== "soulmate-vault"), "soulmate reward alone should not append vault starter candidates");
+const companionEntryBaseProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, SOULMATE_REWARD_NODE_ID);
+const companionEntryOneProfile = unlockStarChartNodeForProfileV4(companionEntryBaseProfile, FORMAL_COMPANION_ENTRY_NODE_IDS[0]);
+assert(soulmateVaultStarterSlotCountForStarChartV4(companionEntryOneProfile.starChart) === 1, "companion entry I should grant one vault starter slot");
+const soulmateVaultPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(companionEntryOneProfile, {mode: "singles", seed: "formal-smoke-soulmate-vault-seed"}), {playerVault: soulmateVault});
+const soulmateVaultCandidate = soulmateVaultPrepared.starterCandidates.find(candidate => candidate.pokemon.formalSourceKind === "soulmate-vault");
+assert(soulmateVaultPrepared.starterCandidates.length === 7, "companion entry I should append one vault starter candidate");
+assert(soulmateVaultCandidate?.pokemon.sourcePlayerPokemonId === "vault-starmie-1", "marked vault pokemon should be preferred for soulmate starter candidate");
+assert(soulmateVaultCandidate.pokemon.nickname === "小海星", "vault starter candidate should preserve nickname");
+assert(soulmateVaultCandidate.pokemon.level === 88, "vault starter candidate should preserve trained level");
+assert(soulmateVaultCandidate.pokemon.ivs.atk === 0 && soulmateVaultCandidate.pokemon.evs.spa === 252, "vault starter candidate should preserve IVs and EVs");
+assert(soulmateVaultCandidate.pokemon.shiny, "vault starter candidate should preserve shiny");
+assert(!soulmateVaultCandidate.pokemon.itemId, "companion entry I should not bring held item");
+let companionEntryHeldProfile = unlockStarChartNodeForProfileV4(companionEntryOneProfile, FORMAL_COMPANION_ENTRY_NODE_IDS[1]);
+assert(soulmateVaultStarterSlotCountForStarChartV4(companionEntryHeldProfile.starChart) === 2, "companion entry II should grant two vault starter slots");
+companionEntryHeldProfile = unlockStarChartNodeForProfileV4(companionEntryHeldProfile, SOULMATE_HELD_ITEM_ENTRY_NODE_ID);
+assert(starChartHasSoulmateHeldItemEntryV4(companionEntryHeldProfile.starChart), "love-to-hold should unlock held item entry");
+const soulmateLevelThreePrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(companionEntryHeldProfile, {mode: "singles", seed: "formal-smoke-soulmate-vault-level-three-seed"}), {playerVault: soulmateVault});
+const soulmateLevelThreeCandidates = soulmateLevelThreePrepared.starterCandidates.filter(candidate => candidate.pokemon.formalSourceKind === "soulmate-vault");
+assert(soulmateLevelThreeCandidates.length === 2, "companion entry II should append two vault starter candidates when available");
+assert(soulmateLevelThreeCandidates.some(candidate => candidate.pokemon.itemId === "leftovers"), "love-to-hold should bring held item into local team candidate");
+const soulmateSelectedRun = api.selectFormalStarterPokemon(soulmateLevelThreePrepared, [0, 1, 6]);
+const selectedSoulmate = soulmateSelectedRun.playerTeam?.pokemon.find(pokemon => pokemon.formalSourceKind === "soulmate-vault");
+assert(selectedSoulmate?.nickname === "小海星", "selected soulmate vault pokemon should keep nickname in player team");
+assert(selectedSoulmate?.itemId === "leftovers", "selected soulmate vault pokemon should keep held item when level three is unlocked");
 const debugItemAdd = addDebugPlayerVaultItemV4(mockDex as any, normalizePlayerVaultV4(), "potion", 3);
 assert(debugItemAdd.ok, `debug item add should succeed: ${debugItemAdd.ok ? debugItemAdd.message : debugItemAdd.reason}`);
 if (debugItemAdd.ok) {
@@ -1162,6 +1234,10 @@ const trainingLesson = api.getFormalTrainingGroundLesson(roundPlanned);
 const trainingLessonAgain = api.getFormalTrainingGroundLesson(roundPlanned);
 assert(trainingLesson && trainingLesson.lessonId === trainingLessonAgain?.lessonId, "formal training ground lesson should be stable for same run node and roll");
 assert(!trainingLesson || trainingLesson.fee === expectedTrainingGroundLessonFee(trainingLesson.kind), "formal training ground lesson should use balanced fee table");
+const soulmateVaultRestRun = {...api.prepareFormalRoundPlan(soulmateSelectedRun), money: 500};
+const protectedSoulmatePokemon = soulmateVaultRestRun.restRunSnapshot!.players.p1!.localTeam.pokemon.find(pokemon => pokemon.formalSourceKind === "soulmate-vault")!;
+const soulmateTrainingBlocked = api.applyFormalTrainingGroundLesson(soulmateVaultRestRun, {pokemonId: protectedSoulmatePokemon.localPokemonId, lessonKind: "self-study"});
+assert(!soulmateTrainingBlocked.ok && soulmateTrainingBlocked.run.money === soulmateVaultRestRun.money, "formal training should reject soulmate vault pokemon without changing money");
 const selectableLessons = api.getFormalTrainingGroundLessons(roundPlanned);
 assert(selectableLessons.length === 4, "formal training ground should expose all selectable lessons");
 assert(new Set(selectableLessons.map(lesson => lesson.kind)).size === 4, "formal training ground selectable lessons should cover every lesson kind");
@@ -1323,6 +1399,21 @@ const exchangeRestRun = {
 const exchangeBaseRun = {...withCoinLog, restRunSnapshot: exchangeRestRun};
 const exchangeView = api.getFormalRestExchangeView(exchangeBaseRun);
 assert(exchangeView.available && exchangeView.nodeId === exchangeRestRun.gameMap[0]!.id, "formal exchange should target latest won round");
+const soulmateExchangeRestRun = {
+  ...soulmateVaultRestRun.restRunSnapshot!,
+  currentNodeId: soulmateVaultRestRun.restRunSnapshot!.gameMap[1]!.id,
+  gameMap: soulmateVaultRestRun.restRunSnapshot!.gameMap.map((node, index) => index === 0
+    ? {...node, state: "won" as const}
+    : index === 1
+      ? {...node, state: "ready" as const}
+      : node),
+};
+const soulmateExchangeRun = {...soulmateVaultRestRun, restRunSnapshot: soulmateExchangeRestRun};
+const soulmateExchangeView = api.getFormalRestExchangeView(soulmateExchangeRun);
+assert(!soulmateExchangeView.player?.localTeam.pokemon.some(pokemon => pokemon.localPokemonId === protectedSoulmatePokemon.localPokemonId), "formal exchange view should hide soulmate vault pokemon");
+const soulmateExchangeTarget = soulmateExchangeView.opponent!.localTeam.pokemon[0]!;
+const soulmateExchangeBlocked = api.exchangeFormalRestPokemon(soulmateExchangeRun, {sourcePokemonId: protectedSoulmatePokemon.localPokemonId, targetPokemonId: soulmateExchangeTarget.localPokemonId});
+assert(!soulmateExchangeBlocked.ok && soulmateExchangeBlocked.run.restRunSnapshot!.players.p1!.localTeam.pokemon.some(pokemon => pokemon.localPokemonId === protectedSoulmatePokemon.localPokemonId), "formal exchange should reject protected soulmate pokemon without changing team");
 const exchangeSource = exchangeView.player!.localTeam.pokemon[0]!;
 const exchangeTarget = exchangeView.opponent!.localTeam.pokemon[0]!;
 const exchangeResult = api.exchangeFormalRestPokemon(exchangeBaseRun, {sourcePokemonId: exchangeSource.localPokemonId, targetPokemonId: exchangeTarget.localPokemonId});

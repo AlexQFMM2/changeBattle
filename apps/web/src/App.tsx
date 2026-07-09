@@ -582,8 +582,7 @@ function RoutedApp({runtime}: AppProps) {
         onFormalGame={startFormalGame}
         onContinueGame={continueGameLabel ? () => void continueSavedRunGame() : undefined}
         onStarChart={() => navigate("/star-chart")}
-        onTrainerVaultBag={() => navigate("/trainer-vault/bag")}
-        onTrainerVaultPokemon={() => navigate("/trainer-vault/pokemon")}
+        onTrainerVault={() => navigate("/trainer-vault")}
         onManualSave={() => void saveAllCurrentState()}
         manualSaveState={manualSaveState}
         onBattlePreference={() => navigate("/battle-preference")}
@@ -632,36 +631,17 @@ function RoutedApp({runtime}: AppProps) {
     />
   ) : <Navigate to="/" replace />;
 
-  const trainerVaultBagPage = profile ? (
+  const trainerVaultPage = profile ? (
     <TrainerVaultPage
       api={api}
       playerVault={playerVault}
       playerVaultDirty={playerVaultDirty}
       profileBattlePoints={profile.battlePoints}
-      tab="bag"
       debugFeatureEnabled={DEBUG_FEATURE_ENABLED}
       onPlayerVaultChange={setPlayerVault}
       onPlayerVaultDirtyChange={setPlayerVaultDirty}
       onSavePlayerVault={api.savePlayerVault}
       onUnlockStoragePage={unlockPlayerVaultStoragePage}
-      onTabChange={tab => navigate(`/trainer-vault/${tab}`)}
-      onBack={() => navigate("/main", {replace: true})}
-    />
-  ) : <Navigate to="/" replace />;
-
-  const trainerVaultPokemonPage = profile ? (
-    <TrainerVaultPage
-      api={api}
-      playerVault={playerVault}
-      playerVaultDirty={playerVaultDirty}
-      profileBattlePoints={profile.battlePoints}
-      tab="pokemon"
-      debugFeatureEnabled={DEBUG_FEATURE_ENABLED}
-      onPlayerVaultChange={setPlayerVault}
-      onPlayerVaultDirtyChange={setPlayerVaultDirty}
-      onSavePlayerVault={api.savePlayerVault}
-      onUnlockStoragePage={unlockPlayerVaultStoragePage}
-      onTabChange={tab => navigate(`/trainer-vault/${tab}`)}
       onBack={() => navigate("/main", {replace: true})}
     />
   ) : <Navigate to="/" replace />;
@@ -777,6 +757,7 @@ function RoutedApp({runtime}: AppProps) {
       api={api}
       formalGameBridge={formalGameBridge}
       profile={profile}
+      playerVault={playerVault}
       mode={formalMode}
       onRunReady={run => {
         setFormalRun(run);
@@ -1081,8 +1062,9 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/components" element={componentGalleryPage} />
         <Route path="/user" element={settingsPage} />
         <Route path="/star-chart" element={starChartPage} />
-        <Route path="/trainer-vault/bag" element={trainerVaultBagPage} />
-        <Route path="/trainer-vault/pokemon" element={trainerVaultPokemonPage} />
+        <Route path="/trainer-vault" element={trainerVaultPage} />
+        <Route path="/trainer-vault/bag" element={<Navigate to="/trainer-vault" replace />} />
+        <Route path="/trainer-vault/pokemon" element={<Navigate to="/trainer-vault" replace />} />
         <Route path="/battle-preference" element={battlePreferencePage} />
         <Route path="/training/transition" element={<Navigate to="/training/config" replace />} />
         <Route path="/training/config" element={trainingConfigPage} />

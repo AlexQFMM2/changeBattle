@@ -81,7 +81,10 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - 正式流程稳定化：NPC 等级改为按玩家队伍最高等级动态计算，究极异兽在正式候选中统一归入神兽分类，自习收益改为按当前 IV/EV 缺口动态追赶，并继续使用逐次自习随机种子。
 - 星图天赋静态化：节点 catalog 同时声明展示文案和 `runtimeEffects`，业务侧显式读取效果；新增/移除天赋时维护静态节点、对应业务分支和 smoke 断言即可。
 - 星图新天赋“随身携带”：点亮后，每个正式 run 第一次进入休整页时，会从玩家长期仓库的预备背包随机带入最多 3 种道具，每种 1 个，并扣减预备背包库存；run 内只触发一次。
-- 玩家长期仓库：玩家道具/宝可梦已从 profile 中拆到独立 player vault，背包仓库支持预备箱/存储箱、移动、丢弃和解锁箱页；正式结算会把本局背包道具放入长期存储箱。
+- 玩家长期仓库：玩家道具/宝可梦已从 profile 中拆到独立 player vault；训练家仓库页已改为同屏整理界面，左侧背包列、右侧宝可梦箱固定展示，详情通过浮层抽屉打开，普通整理操作走页面本地 draft，只有“保存并返回”才写回顶层存档。
+- 训练家仓库道具使用：局外道具已统一接入目标选择模式和类型化流程，覆盖数值变化、技能学习/替换、进化道具暂未开放提示、战斗携带道具；携带道具支持格子角标、详情卸下、替换归还背包，技能和数值结果都有非阻塞反馈。
+- 训练家仓库宝可梦操作：宝可梦详情抽屉支持卸下道具和危险操作“放生”；放生会二次确认，携带道具优先放回道具箱，道具箱满时阻止放生。
+- 训练家仓库 debug 入口：beta/dev 下可通过简单搜索弹窗添加 debug 道具和 debug 宝可梦；debug 宝可梦复用 core 蛋生成规则 helper，来源标记为 `debug-custom`，debug 道具来源标记为 `debug`；stable/release 隐藏入口但不隐藏已有数据。
 - 休整页弹窗栈：背包触发的技能学习替换、Mega/Z/太晶系统道具重铸等二级弹窗已提升到背包上方，关闭上层弹窗不会误关闭背包。
 - 通用弹窗组件：`AppModal` 已作为统一遮罩层 + 居中弹窗组件接入，后续系统弹窗优先复用它，避免局部 z-index/绝对定位造成层级错乱。
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
@@ -101,13 +104,15 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - Battle service 使用 Showdown `BattleStream` 创建 session，保留 raw protocol/request/debug。
 - 战斗页使用 V2 风格战斗壳展示场景、HP、模型、指令、日志/解说和裁判对话。
 - 单打、双打、合作使用同一 session API 和合法随机 AI 推进；特殊系统 gate 和 AI 选择已有 core smoke 覆盖。
+- Battle V4 AI 特殊系统目标选择已修复：Z/Max/Mega/Tera 等特殊后缀会基于实际执行招式重新判定目标需求，避免 gen7 双打中 `move 1 zmove` 缺目标导致 Showdown 拒绝并 blocked。遇到 release 旧包卡死时，可按 `debug/README.md` 用 diagnostics 里的 `allRequests` 直接复现当前 V2 AI 出招。
 - 天气/场地持久层会按资源 key 重建 video/image 层，避免沙暴、雨天、晴天、雪天切换时继续播放旧资源。
 - 当前主要工作点已经从“打通流程”转到正式游戏内容打磨、战斗演出稳定性、NPC 队伍质量和 Windows portable 体验。
 
 下一步：
 
 - 继续回归 Battle V4：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择和双打 seat 映射。
-- 继续打磨正式 GameRun：NPC 配队、特殊系统、商店/训练经济、赛程叙事和结算体验。
+- 继续打磨正式 GameRun：NPC 配队、特殊系统、商店/训练经济、赛程叙事、结算体验和长期仓库整理体验。
+- 训练家仓库下一步主要是性能/体验回归、组件预览补齐和解锁箱页与 profile BP 扣除的 draft 边界收口；背包手动移动已从新布局中移除，后续不要再按旧格子移动体验扩展。
 - Windows release 后续可做 `ChangeBattle-V2-Desk.exe` launcher，替代当前 `.cmd` 启动入口；安装器、签名仍不在当前范围。
 
 详细路线见 `docs/training-and-battle-roadmap.md`。
@@ -245,3 +250,13 @@ node tools/probe-battle-scheduler-parity.mjs debug/battle-v4-diagnostics-xxx.jso
 - `--json`：输出摘要 JSON，方便 diff。
 - `--full`：带完整 timeline / plan。
 - `--saved`：直接读取 diagnostics 里保存的 `showdownPlaybackTimeline`，不重新编译 rawLog。
+
+## Battle AI Choice Reproduction
+
+遇到 release 包“玩家出招后卡死”、diagnostics 显示 `blocked` / `p2-pending-action` / Showdown `[Invalid choice]` 时，优先判断是不是 AI 生成了非法指令。复现方法记录在 `debug/README.md`：
+
+```bash
+node --input-type=module -e '/* read debug/battle-v4-diagnostics-xxx.json allRequests.p2, then call chooseAiBattleChoiceV4 */'
+```
+
+核心判断是：把 diagnostics 里的 `allRequests.p2` 喂给当前 `packages/showdown-battle-core/dist/index.js` 的 `chooseAiBattleChoiceV4`，再用 `validateShowdownChoiceCommandV4` 校验旧 release choice 和当前 choice。若旧 choice 失败、当前 choice 通过，说明当前 V2 已修，release 包只是落后；若当前 choice 仍失败，再补 battle-core regression。

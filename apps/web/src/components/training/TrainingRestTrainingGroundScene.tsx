@@ -57,7 +57,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
   const [selectedLessonId, setSelectedLessonId] = useState("");
   const [resultState, setResultState] = useState<TrainingGroundResultState | null>(null);
   const timersRef = useRef<number[]>([]);
-  const team = player?.localTeam.pokemon || [];
+  const team = (player?.localTeam.pokemon || []).filter(pokemon => !isProtectedSoulmatePokemon(pokemon));
   const selectedLessonOption = lessonOptions.find(option => option.lessonId === selectedLessonId) || lessonOptions[0] || null;
   const selectedPokemon = team.find(pokemon => pokemon.localPokemonId === selectedPokemonId) || team[0] || null;
   const movePool = useMemo(() => lesson && selectedPokemon ? lessonMovePool(api, lesson, selectedPokemon.speciesId) : [], [api, lesson, selectedPokemon]);
@@ -713,6 +713,10 @@ function formatDelta(delta: number): string {
 
 function pokemonName(pokemon: LocalPokemonV4): string {
   return pokemon.nickname || pokemon.nameZh || pokemon.name || pokemon.speciesId;
+}
+
+function isProtectedSoulmatePokemon(pokemon: LocalPokemonV4): boolean {
+  return pokemon.formalSourceKind === "soulmate-vault" || pokemon.originKind === "soulmate";
 }
 
 function statTotal(stats: Record<string, number>): number {

@@ -84,6 +84,7 @@ import {
   playerVaultStorageCapacityV4,
   addPlayerVaultPokemonV4,
   createPlayerVaultEggPokemonRecordV4,
+  soulmateVaultStarterSlotCountForStarChartV4,
   createSoulmateCandidateListV4,
   summarizeBattleLogByPokemonV4,
   summarizeCoinLogV4,
@@ -110,7 +111,7 @@ import {
   type SoulmateCandidateV4,
 } from "@changebattle-v2/core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
-import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, formalTrainingGroundDiscountForStarChartV4, soulmateBaseFriendshipForStarChartV4, soulmateShinyRateForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasPendingSettlementPurchaseBonusV4, starChartHasPendingSettlementShopExportV4, starChartHasRuntimeEffectV4, starChartHasSoulmateRewardV4, starChartRuntimeEffectValuesV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
+import {cloneStarChartV4, FORMAL_SHOP_AUTO_RESTOCK_ENABLED, formalShopRowsForStarChartV4, formalStartingMoneyForStarChartV4, formalTrainingGroundDiscountForStarChartV4, soulmateBaseFriendshipForStarChartV4, soulmateShinyRateForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasPendingSettlementPurchaseBonusV4, starChartHasPendingSettlementShopExportV4, starChartHasRuntimeEffectV4, starChartHasSoulmateHeldItemEntryV4, starChartHasSoulmateRewardV4, starChartRuntimeEffectValuesV4, starterCandidateCountForStarChart, type StarChartStateV4} from "./starChart.js";
 import {
   normalizeBattlePreferenceV4,
   normalizeFormalCompetitionModeV4,
@@ -561,7 +562,7 @@ export type FormalGameRunApi = {
   saveFormalGameRun(run: FormalGameRunV4): Promise<FormalGameRunV4>;
   deleteFormalGameRun(): Promise<void>;
   createFormalGameRun(profile: FormalGameUserProfileInputV4, options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}): FormalGameRunV4;
-  prepareFormalStarterCandidates(run: FormalGameRunV4, options?: {count?: number; seed?: string}): FormalGameRunV4;
+  prepareFormalStarterCandidates(run: FormalGameRunV4, options?: {count?: number; seed?: string; playerVault?: PlayerVaultV4 | null}): FormalGameRunV4;
   selectFormalStarterPokemon(run: FormalGameRunV4, selectedIndexes: number[]): FormalGameRunV4;
   prepareFormalRoundPlan(run: FormalGameRunV4): FormalGameRunV4;
   prepareFormalBattleSession(run: FormalGameRunV4): FormalBattleSessionPreparationV4;
@@ -775,15 +776,21 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     return normalizeFormalRun(run);
   }
 
-  function prepareFormalStarterCandidates(run: FormalGameRunV4, options: {count?: number; seed?: string} = {}): FormalGameRunV4 {
+  function prepareFormalStarterCandidates(run: FormalGameRunV4, options: {count?: number; seed?: string; playerVault?: PlayerVaultV4 | null} = {}): FormalGameRunV4 {
     const normalized = normalizeFormalRun(run);
     const seed = options.seed || normalized.seed;
-    const candidates = createFormalStarterCandidatesV4(dex, {
+    const randomCandidates = createFormalStarterCandidatesV4(dex, {
       mode: normalized.mode,
       streak: normalized.streak,
       battlePreference: normalized.battlePreference,
       seed,
       count: options.count || starterCandidateCountForStarChart(normalized.starChartSnapshot),
+    });
+    const candidates = appendSoulmateVaultStarterCandidatesV4(dex, randomCandidates, {
+      playerVault: options.playerVault,
+      starChart: normalized.starChartSnapshot,
+      seed,
+      battlePreference: normalized.battlePreference,
     });
     return normalizeFormalRun({
       ...normalized,
@@ -819,7 +826,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       pokemon: selectedPokemon.map((pokemon, index) => ({
         ...pokemon!,
         localPokemonId: pokemon!.localPokemonId || `formal-starter-${index + 1}`,
-        itemId: "",
+        itemId: pokemon!.itemId || "",
         heldItemInstanceId: undefined,
         entryHp: pokemon!.maxHp,
         entryStatus: "",
@@ -1631,6 +1638,13 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const opponent = wonNode.participants[opponentPlayerId] || normalized.restRunSnapshot.players[opponentPlayerId] || null;
     if (!player) return empty("缺少我方队伍。");
     if (!opponent) return empty("缺少上一场对位对手队伍。");
+    const visiblePlayer = {
+      ...player,
+      localTeam: {
+        ...player.localTeam,
+        pokemon: player.localTeam.pokemon.filter(pokemon => !isProtectedSoulmateLocalPokemonV4(pokemon)),
+      },
+    };
     const exchangeCount = normalized.exchangeByNodeId?.[wonNode.id]?.records.length || 0;
     const maxExchangeCount = flags.secondExchange ? 2 : 1;
     const nextCost = exchangeCount === 0 ? 0 : exchangeCount === 1 && flags.secondExchange ? FORMAL_SECOND_EXCHANGE_COST : 0;
@@ -1641,7 +1655,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       nodeId: wonNode.id,
       playerId,
       opponentPlayerId,
-      player,
+      player: visiblePlayer,
       opponent,
       exchangeCount,
       maxExchangeCount,
@@ -1662,9 +1676,16 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const targetPokemonId = String(input.targetPokemonId || "").trim();
     if (!sourcePokemonId || !targetPokemonId) return pokemonExchangeResult(false, normalized, "请选择双方宝可梦。", view.nextCost, view);
     if (view.nextCost > 0 && normalized.money < view.nextCost) return pokemonExchangeResult(false, normalized, "金币不足。", view.nextCost, view);
-    const sourceIndex = view.player.localTeam.pokemon.findIndex(pokemon => pokemon.localPokemonId === sourcePokemonId);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    if (!restRunSnapshot) return pokemonExchangeResult(false, normalized, "当前没有可交换的休整队伍。", view.nextCost, view);
+    const fullPlayer = restRunSnapshot.players[playerId] || null;
+    const sourceIndex = fullPlayer?.localTeam.pokemon.findIndex(pokemon => pokemon.localPokemonId === sourcePokemonId) ?? -1;
+    const source = sourceIndex >= 0 ? fullPlayer?.localTeam.pokemon[sourceIndex] : null;
     const target = view.opponent.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === targetPokemonId) || null;
     if (sourceIndex < 0) return pokemonExchangeResult(false, normalized, "请选择我方队伍中的宝可梦。", view.nextCost, view);
+    if (source && isProtectedSoulmateLocalPokemonV4(source)) {
+      return pokemonExchangeResult(false, normalized, "灵魂伴侣不能参与交换。", view.nextCost, view);
+    }
     if (!target) return pokemonExchangeResult(false, normalized, "请选择上一场对手队伍中的宝可梦。", view.nextCost, view);
     const existing = normalized.exchangeByNodeId?.[view.nodeId]?.records.find(record =>
       record.playerId === view.playerId
@@ -1691,15 +1712,15 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         }).stats.hp;
       },
     );
-    const replaced = view.player.localTeam.pokemon[sourceIndex]!;
+    const replaced = fullPlayer!.localTeam.pokemon[sourceIndex]!;
     const nextPlayer = {
-      ...view.player,
+      ...fullPlayer!,
       localTeam: {
-        ...view.player.localTeam,
-        pokemon: view.player.localTeam.pokemon.map((pokemon, index) => index === sourceIndex ? received : pokemon),
+        ...fullPlayer!.localTeam,
+        pokemon: fullPlayer!.localTeam.pokemon.map((pokemon, index) => index === sourceIndex ? received : pokemon),
       },
     };
-    const nextRestRun = patchFormalRestPlayer(normalized.restRunSnapshot!, nextPlayer, view.nodeId, now);
+    const nextRestRun = patchFormalRestPlayer(restRunSnapshot, nextPlayer, view.nodeId, now);
     const previousState = normalized.exchangeByNodeId?.[view.nodeId] || {nodeId: view.nodeId, records: [], updatedAt: now};
     const record: FormalPokemonExchangeRecordV4 = {
       id: createId("exchange"),
@@ -1788,6 +1809,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const pokemonIndex = p1.localTeam.pokemon.findIndex(pokemon => pokemon.localPokemonId === input.pokemonId);
     const pokemon = pokemonIndex >= 0 ? p1.localTeam.pokemon[pokemonIndex] : null;
     if (!pokemon) return trainingGroundResult(false, normalized, "请选择要进入课堂的宝可梦。", lesson);
+    if (isProtectedSoulmateLocalPokemonV4(pokemon)) return trainingGroundResult(false, normalized, "灵魂伴侣不能参与训练交换流程。", lesson);
     if (lesson.kind === "self-study") {
       return applyFormalTrainingGroundSelfStudy(normalized, node, p1, pokemon, pokemonIndex, lesson);
     }
@@ -1808,7 +1830,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const movePool = formalTrainingGroundMovePool(lesson.kind, pokemon.speciesId);
     const selectedMove = movePool.find(move => toID(move.id) === moveId) || null;
     if (!selectedMove) return trainingGroundResult(false, run, "这堂课不能学习这个招式。", lesson);
-    if (pokemon.moves.some(move => toID(move.moveId) === moveId)) return trainingGroundResult(false, run, `${pokemon.nameZh || pokemon.name}已经会这个招式了。`, lesson);
+    if (pokemon.moves.some(move => toID(move.moveId) === moveId)) return trainingGroundResult(false, run, `${formalPokemonDisplayNameV4(pokemon)}已经会这个招式了。`, lesson);
     const replaceMoveIndex = clampInt(input.replaceMoveIndex, 0, 3, -1);
     if (replaceMoveIndex < 0 || replaceMoveIndex >= pokemon.moves.length) return trainingGroundResult(false, run, "请选择要替换的招式。", lesson);
     if (pokemon.locks?.moves?.[replaceMoveIndex]) return trainingGroundResult(false, run, "这个招式槽被锁定，不能替换。", lesson);
@@ -1817,7 +1839,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       ...pokemon,
       moves: pokemon.moves.map((move, index) => index === replaceMoveIndex ? nextMove : move),
     };
-    const message = `${pokemon.nameZh || pokemon.name}学会了${nextMove.nameZh || nextMove.name}。${lesson.completeText}`;
+    const message = `${formalPokemonDisplayNameV4(pokemon)}学会了${nextMove.nameZh || nextMove.name}。${lesson.completeText}`;
     return commitFormalTrainingGroundPokemonUpdate(run, node, p1, pokemonIndex, nextPokemon, lesson, message);
   }
 
@@ -1877,7 +1899,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       : event === "focused"
         ? "认真学习了一整节课，数值明显提升"
         : "踏踏实实自习了一节课，数值稳步提升";
-    const message = `${pokemon.nameZh || pokemon.name}${eventText}。${lesson.completeText}`;
+    const message = `${formalPokemonDisplayNameV4(pokemon)}${eventText}。${lesson.completeText}`;
     const result = commitFormalTrainingGroundPokemonUpdate(run, node, p1, pokemonIndex, nextPokemon, lesson, message, {selfStudyRollDelta: 1});
     return {
       ...result,
@@ -2139,8 +2161,8 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     return {
       ...pokemon,
       speciesId: detail.id,
-      name: detail.name,
-      nameZh: detail.nameZh,
+      name: pokemon.nickname || detail.name,
+      nameZh: pokemon.nickname || detail.nameZh,
       level,
       gender: normalizeGender(pokemon.gender),
       nature,
@@ -2149,7 +2171,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       powerProfile,
       ivTotalCap,
       evTotalCap,
-      itemId: "",
+      itemId: pokemon.itemId || "",
       heldItemInstanceId: undefined,
       moves: normalizeMoves(dex, pokemon.moves?.map(move => move.moveId) || [], 4),
       maxHp,
@@ -2173,7 +2195,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       pokemon: team.pokemon.map((pokemon, index) => ({
         ...pokemon,
         localPokemonId: `formal-p1-${index + 1}-${pokemon.speciesId}`,
-        itemId: "",
+        itemId: pokemon.itemId || "",
         heldItemInstanceId: undefined,
         entryHp: pokemon.maxHp,
         entryStatus: "" as TrainingStatusV4,
@@ -3121,6 +3143,137 @@ function buildFormalStarterCandidate(dex: ShowdownDexService, input: {
   };
 }
 
+function appendSoulmateVaultStarterCandidatesV4(dex: ShowdownDexService, candidates: FormalStarterCandidateV4[], input: {
+  playerVault?: PlayerVaultV4 | null;
+  starChart?: StarChartStateV4 | null;
+  seed: string;
+  battlePreference: BattlePreferenceV4;
+}): FormalStarterCandidateV4[] {
+  const slotCount = soulmateVaultStarterSlotCountForStarChartV4(input.starChart);
+  if (slotCount <= 0 || !input.playerVault) return candidates;
+  const vault = normalizePlayerVaultV4(input.playerVault);
+  if (!vault.pokemon.length) return candidates;
+  const rng = createRng(`${input.seed}:soulmate-vault-starters`);
+  const marked = vault.pokemon.filter(pokemon => pokemon.battleMarked);
+  const markedSelected = shuffle(marked, rng).slice(0, slotCount);
+  const markedIds = new Set(markedSelected.map(pokemon => pokemon.playerPokemonId));
+  const fallbackSelected = markedSelected.length < slotCount
+    ? shuffle(vault.pokemon.filter(pokemon => !markedIds.has(pokemon.playerPokemonId)), rng).slice(0, slotCount - markedSelected.length)
+    : [];
+  const selected = [...markedSelected, ...fallbackSelected];
+  const allowHeldItem = starChartHasSoulmateHeldItemEntryV4(input.starChart);
+  const startIndex = candidates.length;
+  const vaultCandidates = selected.map((pokemon, index) => buildSoulmateVaultStarterCandidateV4(dex, pokemon, {
+    index: startIndex + index,
+    allowHeldItem,
+    battlePreference: input.battlePreference,
+    poolSize: vault.pokemon.length,
+    selectedFromMarked: Boolean(pokemon.battleMarked),
+  }));
+  return [...candidates, ...vaultCandidates];
+}
+
+function buildSoulmateVaultStarterCandidateV4(dex: ShowdownDexService, record: PlayerPokemonRecordV4, input: {
+  index: number;
+  allowHeldItem: boolean;
+  battlePreference: BattlePreferenceV4;
+  poolSize: number;
+  selectedFromMarked: boolean;
+}): FormalStarterCandidateV4 {
+  const detail = safePokemonDetail(dex, record.speciesId);
+  const level = clampInt(record.level, 1, 100, 50);
+  const evs = normalizeStats(record.evs, 0, 252);
+  const ivs = normalizeStats(record.ivs, 31, 31);
+  const nature = record.nature || "Serious";
+  const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level, nature, evs, ivs}).stats.hp;
+  const pokemon: LocalPokemonV4 = {
+    localPokemonId: `formal-soulmate-${input.index + 1}-${record.playerPokemonId}`,
+    formalSourceKind: "soulmate-vault",
+    sourcePlayerPokemonId: record.playerPokemonId,
+    originKind: record.originKind,
+    showdownId: detail.id,
+    speciesId: detail.id,
+    name: record.nickname || detail.name,
+    nameZh: record.nickname || detail.nameZh || detail.name,
+    nickname: record.nickname,
+    level,
+    gender: record.gender,
+    shiny: Boolean(record.shiny),
+    itemId: input.allowHeldItem ? record.heldItemId || "" : "",
+    heldItemInstanceId: undefined,
+    abilityId: record.abilityId || detail.abilities[0]?.id || "",
+    abilityName: detail.abilities.find(ability => ability.id === record.abilityId)?.name || record.abilityId || "",
+    abilityNameZh: detail.abilities.find(ability => ability.id === record.abilityId)?.nameZh || detail.abilities.find(ability => ability.id === record.abilityId)?.name || record.abilityId || "",
+    nature,
+    moves: record.moves.map(move => vaultMoveSlotFromRecordV4(dex, move.moveId, move.remainingPp, move.maxPp)).slice(0, 4),
+    evs,
+    ivs,
+    powerProfile: "champion",
+    entryHp: maxHp,
+    entryStatus: "",
+    maxHp,
+    spriteUrl: detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+    shinySpriteUrl: detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+    frontSpriteUrl: detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+    backSpriteUrl: detail.sprites.backUrl || detail.sprites.fallbackBackUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+    frontShinySpriteUrl: detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl,
+    backShinySpriteUrl: detail.sprites.backShinyUrl || detail.sprites.fallbackBackShinyUrl || detail.sprites.backUrl || detail.sprites.fallbackBackUrl || detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.iconUrl,
+    iconUrl: detail.sprites.iconUrl,
+    iconStyle: detail.sprites.iconStyle,
+  };
+  const display = displayFromDetail(dex, detail);
+  const calculatedStats = dex.calculatePokemonStats({
+    speciesId: detail.id,
+    level: pokemon.level,
+    nature: pokemon.nature,
+    evs: pokemon.evs,
+    ivs: pokemon.ivs,
+  }).stats;
+  return {
+    id: `soulmate-vault-${record.playerPokemonId}`,
+    role: "balanced",
+    speciesRank: speciesRankForDetail(detail),
+    powerProfile: "champion",
+    pokemon,
+    display: {...display, stats: calculatedStats},
+    diagnostics: {
+      role: "balanced",
+      speciesRank: speciesRankForDetail(detail),
+      powerProfile: "champion",
+      generation: generationForDexNum(detail.num),
+      poolSize: input.poolSize,
+      filters: {
+        allowedGenerations: input.battlePreference.allowedGenerations,
+        legendaryBattle: input.battlePreference.legendaryBattle,
+        battleBagEnabled: input.battlePreference.battleBagEnabled,
+        ruleSet: input.battlePreference.ruleSet,
+      },
+      messages: [
+        "soulmate-vault-starter",
+        input.selectedFromMarked ? "selected-from-battle-marked" : "selected-from-vault-random",
+        input.allowHeldItem && record.heldItemId ? "held-item-entry" : "",
+      ].filter(Boolean),
+    },
+  };
+}
+
+function vaultMoveSlotFromRecordV4(dex: ShowdownDexService, moveId: string, remainingPp?: number, maxPp?: number): TrainingMoveSlotV4 {
+  const move = safeMove(dex, moveId);
+  const pp = clampInt(maxPp ?? move.pp, 1, 99, move.pp || 1);
+  return {
+    moveId: move.id,
+    name: move.name,
+    nameZh: move.nameZh,
+    type: move.type,
+    category: move.category,
+    power: move.power,
+    accuracy: move.accuracy,
+    pp,
+    maxPp: pp,
+    remainingPp: clampInt(remainingPp ?? pp, 0, pp, pp),
+  };
+}
+
 function ensureGen7StarterMegaCandidates(
   dex: ShowdownDexService,
   candidates: FormalStarterCandidateV4[],
@@ -3367,6 +3520,7 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
   const maxHp = dex.calculatePokemonStats({speciesId: detail.id, level, nature, evs, ivs}).stats.hp;
   return {
     localPokemonId: `formal-starter-${options.index + 1}-${detail.id}`,
+    formalSourceKind: "starter-random",
     showdownId: detail.id,
     speciesId: detail.id,
     name: detail.name,
@@ -4643,6 +4797,14 @@ function normalizeStatus(status: unknown): TrainingStatusV4 {
 
 function normalizeStats(stats: Record<string, number> | undefined, fallback: number, max: number): StatTableV4 {
   return Object.fromEntries(STAT_IDS.map(stat => [stat, clampInt(stats?.[stat], 0, max, fallback)])) as StatTableV4;
+}
+
+function formalPokemonDisplayNameV4(pokemon: Pick<LocalPokemonV4, "nickname" | "nameZh" | "name" | "speciesId">): string {
+  return pokemon.nickname || pokemon.nameZh || pokemon.name || pokemon.speciesId;
+}
+
+function isProtectedSoulmateLocalPokemonV4(pokemon: Pick<LocalPokemonV4, "formalSourceKind" | "originKind"> | null | undefined): boolean {
+  return pokemon?.formalSourceKind === "soulmate-vault" || pokemon?.originKind === "soulmate";
 }
 
 function normalizeSettlement(settlement: FormalGameSettlementV4 | null | undefined): FormalGameSettlementV4 | null {

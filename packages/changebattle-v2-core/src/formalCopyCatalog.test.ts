@@ -17,6 +17,7 @@ import {
   FORMAL_SHOP_ITEM_POOL,
   formalTrainingGroundLessonTableV4,
   soulmateEvolutionFriendshipRequirementV4,
+  soulmateEvolutionFriendshipRequirementForChainV4,
   createPlayerVaultEggPokemonRecordV4,
 } from "./index.js";
 
@@ -33,6 +34,9 @@ assert.equal(formalStarterRoleLabelV4("speed-control"), "速度控制");
 assert.equal(soulmateEvolutionFriendshipRequirementV4(0), 100);
 assert.equal(soulmateEvolutionFriendshipRequirementV4(1), 200);
 assert.equal(soulmateEvolutionFriendshipRequirementV4(2), null);
+assert.equal(soulmateEvolutionFriendshipRequirementForChainV4(0, 1), 150);
+assert.equal(soulmateEvolutionFriendshipRequirementForChainV4(0, 2), 100);
+assert.equal(soulmateEvolutionFriendshipRequirementForChainV4(1, 2), 200);
 assert.deepEqual(FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY, {
   recovery: 0,
   berry: 0,

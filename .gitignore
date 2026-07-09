@@ -13,5 +13,7 @@ assets/*
 !assets/rest/
 assets/rest/*
 !assets/rest/heal.png
-debug/
+debug/*
+!debug/
+!debug/README.md
 release/

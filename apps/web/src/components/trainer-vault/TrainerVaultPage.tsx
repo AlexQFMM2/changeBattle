@@ -28,13 +28,11 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   playerVault: PlayerVaultV4;
   playerVaultDirty: boolean;
   profileBattlePoints: number;
-  tab: TrainerVaultTab;
   debugFeatureEnabled?: boolean;
   onPlayerVaultChange: (vault: PlayerVaultV4) => void;
   onPlayerVaultDirtyChange: (dirty: boolean) => void;
   onSavePlayerVault: (vault: PlayerVaultV4) => Promise<PlayerVaultV4>;
   onUnlockStoragePage: (tab: TrainerVaultTab) => Promise<PlayerVaultV4>;
-  onTabChange: (tab: TrainerVaultTab) => void;
   onBack: () => void;
 }) {
   const [draftVault, setDraftVault] = useState(() => api.normalizePlayerVault(playerVault));
@@ -322,6 +320,20 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     updateVaultDraft(result.vault, `${result.message} 返回主页时保存。`);
   }
 
+  function togglePokemonBattleMarked(pokemonId: string, marked: boolean) {
+    if (activeUseItem) return;
+    const pokemon = draftVault.pokemon.find(entry => entry.playerPokemonId === pokemonId);
+    if (!pokemon) {
+      showUseNotice("请选择要标记的宝可梦。");
+      return;
+    }
+    const result = api.setPlayerVaultPokemonBattleMarked({vault: draftVault, pokemonId, marked});
+    const pokemonName = playerPokemonDisplayName(api, pokemon);
+    const message = marked ? `${pokemonName} 已标记出战。` : `${pokemonName} 已取消出战。`;
+    showUseNotice(message, "normal");
+    updateVaultDraft(result, `${message} 返回主页时保存。`);
+  }
+
   function releaseSelectedPokemon(pokemon: PlayerPokemonRecordV4) {
     if (activeUseItem) return;
     const pokemonName = playerPokemonDisplayName(api, pokemon);
@@ -355,20 +367,20 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       setVaultMessage(`${message} 可继续选择目标。`);
       return;
     }
-    finishUseMode(`${message} 道具已用完。`, normalized);
+    finishUseMode(`${message} 道具已用完。`);
   }
 
-  function finishUseMode(message = "已结束使用。", nextVault: PlayerVaultV4 = draftVault) {
+  function finishUseMode(message = "已结束使用。") {
     const useItem = activeUseItem;
     setActiveUseItem(null);
+    setItemDrawerKey("");
+    setPokemonDrawerId("");
     setMoveSelect(null);
     setMoveReplace(null);
     setNumericPreview(null);
     setVaultMessage(message);
     if (!useItem) return;
     setItemPageIndex(useItem.startedFromPageIndex);
-    const remainingItem = findPlayerVaultItemRecordByKey(nextVault, useItem.itemKey);
-    setItemDrawerKey(remainingItem ? itemRecordKey(remainingItem) : "");
   }
 
   async function unlockCurrentStoragePage(kind: TrainerVaultTab) {
@@ -483,6 +495,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
         saving={saving}
         useModeActive={Boolean(activeUseItem)}
         onClose={() => setPokemonDrawerId("")}
+        onToggleBattleMarked={togglePokemonBattleMarked}
         onUnequipHeldItem={unequipHeldItemFromPokemon}
         onReleasePokemon={releaseSelectedPokemon}
       />

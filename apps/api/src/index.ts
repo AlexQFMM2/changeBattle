@@ -7,7 +7,7 @@ import {
   REST_CENTER_RIGHT_SIDE_ACTIONS_V4,
   getNatureEffectsV4,
   normalizeSoulmateEvolutionRequirementV4,
-  soulmateEvolutionFriendshipRequirementV4,
+  soulmateEvolutionFriendshipRequirementForChainV4,
   normalizeProfileNameV2,
   normalizeSaveTableV4,
   normalizeTrainerVaultV2,
@@ -15,6 +15,7 @@ import {
   playerVaultStorageCapacityV4,
   playerVaultUnlockedStoragePageCountV4,
   releasePlayerVaultPokemonV4,
+  setPlayerVaultPokemonBattleMarkedV4,
   createSoulmateCandidateListV4,
   formalShopSlotsForCategoryV4,
   FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY,
@@ -50,6 +51,7 @@ import {
   starChartHasPendingSettlementShopExportV4,
   starChartHasSoulmateHeldItemEntryV4,
   starChartHasSoulmateRewardV4,
+  soulmateVaultStarterSlotCountForStarChartV4,
   soulmateBaseFriendshipForStarChartV4,
   soulmateShinyRateForStarChartV4,
   starterCandidateCountForStarChart,
@@ -227,6 +229,7 @@ export type DesktopFormalGameBridge = {
   createFormalGameWithStarterCandidates(
     profile: UserProfileV2,
     options: {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string},
+    playerVault?: PlayerVaultV4 | null,
   ): Promise<FormalGameRunV4>;
   prepareFormalRoundPlan(run: FormalGameRunV4): Promise<FormalGameRunV4>;
   prepareFormalBattleSession(run: FormalGameRunV4): Promise<FormalBattleSessionPreparationV4>;
@@ -356,6 +359,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     applyPlayerVaultHeldItem: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string}) => applyPlayerVaultHeldItemV4(dex, input),
     unequipPlayerVaultHeldItem: (input: {vault: PlayerVaultV4; pokemonId: string}) => unequipPlayerVaultHeldItemV4(dex, input),
     releasePlayerVaultPokemon: (input: {vault: PlayerVaultV4; pokemonId: string}) => releasePlayerVaultPokemon(dex, input),
+    setPlayerVaultPokemonBattleMarked: (input: {vault: PlayerVaultV4; pokemonId: string; marked: boolean}) => setPlayerVaultPokemonBattleMarkedV4(input.vault, input.pokemonId, input.marked),
     addDebugPlayerVaultItem: (vault: PlayerVaultV4, itemId: string, quantity = 1) => addDebugPlayerVaultItemV4(dex, vault, itemId, quantity),
     addDebugPlayerVaultPokemon: (vault: PlayerVaultV4, speciesId: string) => addDebugPlayerVaultPokemonV4(dex, vault, speciesId),
     getTrainerCatalog: () => normalizeTrainerCatalogAssets(TRAINER_CATALOG, publicAssetPrefix),
@@ -383,6 +387,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     unlockStarChartNode: async (profile: UserProfileV2, nodeId: string) => userProfiles.saveUserProfile(normalizeProfile(unlockStarChartNodeForProfileV4(profile, nodeId))),
     enableTestMode: async (profile: UserProfileV2) => userProfiles.saveUserProfile(normalizeProfile(enableTestModeForProfileV4(profile))),
     starterCandidateCountForStarChart,
+    soulmateVaultStarterSlotCountForStarChartV4,
     deleteUserProfile: () => userProfiles.deleteUserProfile(),
     loadTrainingRun: () => trainingRuns.loadTrainingRun(),
     saveTrainingRun: trainingRuns.saveTrainingRun,
@@ -825,24 +830,25 @@ function vaultEvolutionViews(dex: ReturnType<typeof createShowdownDexService>, s
   try {
     const tree = dex.getPokemonEvolutionTree(speciesId);
     const edges = tree.edges.filter(edge => edge.fromSpeciesId === speciesId || edge.toSpeciesId === speciesId);
+    const evolutionStageCount = vaultEvolutionStageCount(tree.edges);
     return edges.map(edge => ({
       from: edge.fromSpeciesNameZh || edge.fromSpeciesName || edge.fromSpeciesId,
       to: edge.toSpeciesNameZh || edge.toSpeciesName || edge.toSpeciesId,
-      method: vaultEvolutionMethod(dex, edge, vaultEvolutionIndexForEdge(tree.edges, edge)),
+      method: vaultEvolutionMethod(dex, edge, vaultEvolutionIndexForEdge(tree.edges, edge), evolutionStageCount),
     }));
   } catch {
     return [];
   }
 }
 
-function vaultEvolutionMethod(dex: ReturnType<typeof createShowdownDexService>, edge: Parameters<typeof normalizeSoulmateEvolutionRequirementV4>[0] & {evoLevel?: number; evoMove?: string; evoCondition?: string; evoRegion?: string}, evolutionIndex: number): string {
+function vaultEvolutionMethod(dex: ReturnType<typeof createShowdownDexService>, edge: Parameters<typeof normalizeSoulmateEvolutionRequirementV4>[0] & {evoLevel?: number; evoMove?: string; evoCondition?: string; evoRegion?: string}, evolutionIndex: number, evolutionStageCount: number): string {
   const requirement = normalizeSoulmateEvolutionRequirementV4(edge);
   const itemLabel = requirement.requirementKind === "linking-cord"
     ? "通讯绳"
     : requirement.requirementKind === "specific-item"
       ? dex.translateDexLabel("items", edge?.evoItem || requirement.itemId)
       : "通用进化石";
-  const friendshipRequirement = soulmateEvolutionFriendshipRequirementV4(evolutionIndex);
+  const friendshipRequirement = soulmateEvolutionFriendshipRequirementForChainV4(evolutionIndex, evolutionStageCount);
   const parts = [
     friendshipRequirement === null
       ? "亲密度达到后续开放门槛后"
@@ -867,6 +873,32 @@ function vaultEvolutionIndexForEdge(edges: Array<{fromSpeciesId: string; toSpeci
     cursor = incoming.get(cursor)!;
   }
   return index;
+}
+
+function vaultEvolutionStageCount(edges: Array<{fromSpeciesId: string; toSpeciesId: string}>): number {
+  const incoming = new Map(edges.map(edge => [edge.toSpeciesId, edge.fromSpeciesId]));
+  const outgoing = new Map<string, string[]>();
+  for (const edge of edges) {
+    const next = outgoing.get(edge.fromSpeciesId) || [];
+    next.push(edge.toSpeciesId);
+    outgoing.set(edge.fromSpeciesId, next);
+  }
+  const roots = new Set(edges.map(edge => edge.fromSpeciesId).filter(speciesId => !incoming.has(speciesId)));
+  const stack = [...roots].map(speciesId => ({speciesId, depth: 0, visited: new Set<string>()}));
+  let maxDepth = edges.length ? 1 : 0;
+  while (stack.length) {
+    const current = stack.pop()!;
+    if (current.visited.has(current.speciesId)) continue;
+    const visited = new Set(current.visited);
+    visited.add(current.speciesId);
+    const nextSpecies = outgoing.get(current.speciesId) || [];
+    if (!nextSpecies.length) {
+      maxDepth = Math.max(maxDepth, current.depth);
+      continue;
+    }
+    for (const next of nextSpecies) stack.push({speciesId: next, depth: current.depth + 1, visited});
+  }
+  return maxDepth;
 }
 
 function formatVaultDate(value: unknown): string {

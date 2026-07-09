@@ -22,6 +22,7 @@ export type PlayerPokemonRecordV4 = {
   playerPokemonId: string;
   speciesId: string;
   nickname?: string;
+  battleMarked?: boolean;
   level?: number;
   originKind?: "soulmate" | "debug-custom";
   rootSpeciesId?: string;
@@ -132,6 +133,7 @@ export function normalizePlayerPokemonRecordV4(value: unknown, nowIso = new Date
     playerPokemonId,
     speciesId,
     nickname: normalizeNonEmptyText(value.nickname) || undefined,
+    battleMarked: Boolean(value.battleMarked),
     level: optionalPositiveInt(value.level),
     originKind: normalizePlayerPokemonOriginKindV4(value.originKind),
     rootSpeciesId: normalizeNonEmptyText(value.rootSpeciesId) || undefined,
@@ -223,6 +225,16 @@ export function addPlayerVaultPokemonV4(vault: PlayerVaultV4 | undefined | null,
   const pokemonList = next.pokemon.filter(entry => entry.playerPokemonId !== record.playerPokemonId);
   pokemonList.push(record);
   return normalizePlayerVaultV4({...next, pokemon: pokemonList});
+}
+
+export function setPlayerVaultPokemonBattleMarkedV4(vault: PlayerVaultV4 | undefined | null, pokemonId: string, marked: boolean): PlayerVaultV4 {
+  const next = normalizePlayerVaultV4(vault);
+  const targetId = normalizeNonEmptyText(pokemonId);
+  if (!targetId) return next;
+  return normalizePlayerVaultV4({
+    ...next,
+    pokemon: next.pokemon.map(pokemon => pokemon.playerPokemonId === targetId ? {...pokemon, battleMarked: Boolean(marked)} : pokemon),
+  });
 }
 
 export function releasePlayerVaultPokemonV4(vault: PlayerVaultV4 | undefined | null, pokemonId: string): PlayerVaultPokemonReleaseResultV4 {

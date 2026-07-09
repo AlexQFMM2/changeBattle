@@ -10,7 +10,7 @@ import "./MainMenuPage.css";
 
 export type MainMenuManualSaveState = "idle" | "saving" | "saved" | "error";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", debugFeatureEnabled = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVaultBag, onTrainerVaultPokemon, onManualSave, onBattlePreference, onEnableTestMode, onUserInfo, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", debugFeatureEnabled = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVault, onManualSave, onBattlePreference, onEnableTestMode, onUserInfo, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
@@ -24,8 +24,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   onFormalGame: (mode: FormalGameModeV4) => void;
   onContinueGame?: () => void;
   onStarChart: () => void;
-  onTrainerVaultBag: () => void;
-  onTrainerVaultPokemon: () => void;
+  onTrainerVault: () => void;
   onManualSave: () => void;
   onBattlePreference: () => void;
   onEnableTestMode?: () => void;
@@ -43,8 +42,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
     {label: "图鉴", action: onOpenDex, instant: true},
     {label: "训练家星图", action: onStarChart},
     {label: "对局偏好", action: onBattlePreference},
-    {label: "我的背包", action: onTrainerVaultBag},
-    {label: "我的宝可梦", action: onTrainerVaultPokemon},
+    {label: "我的仓库", action: onTrainerVault},
     {label: "玩家设置", action: onUserInfo},
     ...(debugFeatureEnabled && onEnableTestMode ? [{label: "测试模式", action: onEnableTestMode, instant: true}] : []),
     {label: manualSaveLabel(manualSaveState), action: onManualSave, instant: true},

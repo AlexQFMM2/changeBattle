@@ -1,9 +1,9 @@
 import {parentPort} from "node:worker_threads";
 import {createChangeBattleV2Api} from "@changebattle-v2/api";
-import type {BattleSessionSnapshotV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, ShowdownPlaybackTimelineV4, UserProfileV2} from "@changebattle-v2/api";
+import type {BattleSessionSnapshotV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, PlayerVaultV4, ShowdownPlaybackTimelineV4, UserProfileV2} from "@changebattle-v2/api";
 
 type FormalComputeRequest =
-  | {id: number; method: "createFormalGameWithStarterCandidates"; args: [UserProfileV2, {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}]}
+  | {id: number; method: "createFormalGameWithStarterCandidates"; args: [UserProfileV2, {mode: FormalGameModeV4; coopPartnerPreference?: CoopPartnerPreferenceV4; streak?: number; seed?: string}, PlayerVaultV4 | null | undefined]}
   | {id: number; method: "prepareFormalRoundPlan"; args: [FormalGameRunV4]}
   | {id: number; method: "prepareFormalBattleSession"; args: [FormalGameRunV4]}
   | {id: number; method: "getFormalMedicalInsuranceOffer"; args: [FormalGameRunV4]}
@@ -37,9 +37,9 @@ parentPort?.on("message", async (request: FormalComputeRequest) => {
 
 async function handleRequest(request: FormalComputeRequest): Promise<unknown> {
   if (request.method === "createFormalGameWithStarterCandidates") {
-    const [profile, options] = request.args;
+    const [profile, options, playerVault] = request.args;
     const run = api.createFormalGameRun(profile, options);
-    return api.prepareFormalStarterCandidates(run);
+    return api.prepareFormalStarterCandidates(run, {playerVault});
   }
   if (request.method === "prepareFormalRoundPlan") {
     return api.prepareFormalRoundPlan(request.args[0]);

@@ -1,12 +1,13 @@
 import {useEffect, useRef, useState} from "react";
-import {formalGameModeLabelV4, type ChangeBattleV2Api, type CoopPartnerPreferenceV4, type DesktopFormalGameBridge, type FormalGameModeV4, type FormalGameRunV4, type UserProfileV2} from "@changebattle-v2/api";
+import {formalGameModeLabelV4, type ChangeBattleV2Api, type CoopPartnerPreferenceV4, type DesktopFormalGameBridge, type FormalGameModeV4, type FormalGameRunV4, type PlayerVaultV4, type UserProfileV2} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
-export function FormalGameTransitionPage({api, formalGameBridge, profile, mode, onRunReady}: {
+export function FormalGameTransitionPage({api, formalGameBridge, profile, playerVault, mode, onRunReady}: {
   api: ChangeBattleV2Api;
   formalGameBridge?: DesktopFormalGameBridge;
   profile: UserProfileV2;
+  playerVault: PlayerVaultV4;
   mode: FormalGameModeV4;
   onRunReady: (run: FormalGameRunV4) => void;
 }) {
@@ -36,8 +37,8 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, mode, 
           const candidateCount = api.starterCandidateCountForStarChart(base?.starChartSnapshot || profile.starChart);
           if (!cancelled) setPlannedCandidateCount(candidateCount);
           const preparedPromise = formalGameBridge
-            ? formalGameBridge.createFormalGameWithStarterCandidates(profile, options)
-            : Promise.resolve(api.prepareFormalStarterCandidates(base!));
+            ? formalGameBridge.createFormalGameWithStarterCandidates(profile, options, playerVault)
+            : Promise.resolve(api.prepareFormalStarterCandidates(base!, {playerVault}));
           void preparedPromise
             .then(prepared => {
               if (!cancelled) setPlannedCandidateCount(api.starterCandidateCountForStarChart(prepared.starChartSnapshot));
@@ -63,7 +64,7 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, mode, 
       window.cancelAnimationFrame(firstFrame);
       if (frameRefs.second !== null) window.cancelAnimationFrame(frameRefs.second);
     };
-  }, [api, formalGameBridge, mode, partnerPreference, profile]);
+  }, [api, formalGameBridge, mode, partnerPreference, playerVault, profile]);
 
   useEffect(() => {
     if (!transitionReady || !preparedRun || readySentRef.current) return;
