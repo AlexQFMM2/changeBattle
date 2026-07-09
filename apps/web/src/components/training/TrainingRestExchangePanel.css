@@ -158,6 +158,31 @@
   filter: grayscale(0.35);
 }
 
+.training-rest-exchange-list button[data-disabled="true"] {
+  border-color: rgb(106 167 102 / 74%);
+  background: linear-gradient(180deg, rgb(235 255 226 / 62%), transparent 46%), #edf8df;
+  color: #31402e;
+  cursor: help;
+}
+
+.training-rest-exchange-list button[data-disabled="true"]:hover,
+.training-rest-exchange-list button[data-disabled="true"]:focus-visible {
+  border-color: rgb(106 167 102 / 86%);
+  outline-color: #9ccf93;
+  background: linear-gradient(180deg, rgb(235 255 226 / 72%), transparent 46%), #edf8df;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 62%),
+    0 0 8px rgb(122 190 111 / 20%);
+}
+
+.training-rest-exchange-list button[data-disabled="true"] strong {
+  color: #31402e;
+}
+
+.training-rest-exchange-list button[data-disabled="true"] small {
+  color: #4f6d4a;
+}
+
 .training-rest-exchange-index {
   display: none;
 }

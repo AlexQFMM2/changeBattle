@@ -242,6 +242,27 @@
   outline: 2px solid #64e179;
 }
 
+.training-rest-new-bag-pokemon-list button[data-disabled="true"] {
+  border-color: rgb(106 167 102 / 74%);
+  background:
+    linear-gradient(180deg, rgb(235 255 226 / 70%), transparent 46%),
+    #edf8df;
+  color: #31402e;
+  cursor: help;
+}
+
+.training-rest-new-bag-pokemon-list button[data-disabled="true"].selected {
+  outline-color: #9ccf93;
+}
+
+.training-rest-new-bag-pokemon-list button[data-disabled="true"] .training-rest-new-bag-pokemon-level {
+  color: #4f6d4a;
+}
+
+.training-rest-new-bag-pokemon-list button[data-disabled="true"] .training-rest-new-bag-pokemon-held-label {
+  color: #31402e;
+}
+
 .training-rest-new-bag-pokemon-level {
   grid-column: 2;
   grid-row: 1;

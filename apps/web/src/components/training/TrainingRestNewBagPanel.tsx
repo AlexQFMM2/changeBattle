@@ -40,7 +40,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const selectedHeldItem = selectedPokemon ? itemForPokemon(api, bag.items, selectedPokemon) : null;
   const canUntake = Boolean(selectedPokemon && (selectedPokemon.heldItemInstanceId || selectedPokemon.itemId) && !isProtectedSoulmatePokemon(selectedPokemon) && !isSoulmateBoundHeldItem(selectedHeldItem));
   const heldItemIds = useMemo(() => buildHeldItemIds(team), [team]);
-  const targets = useMemo(() => team.map(pokemonToTarget(api, bag.items)), [api, bag.items, team]);
+  const targets = useMemo(() => team.map(pokemonToTarget(api, bag.items, selectedItem, selectedDetail)), [api, bag.items, selectedDetail, selectedItem, team]);
   const tmReplaceItem = tmReplace ? bag.items.find(item => item.id === tmReplace.item.id) || null : null;
   const tmReplacePokemon = tmReplace ? team.find(pokemon => pokemon.localPokemonId === tmReplace.pokemonId) || null : null;
   const tmReplaceDetail = useMemo(() => itemDetailFor(api, tmReplaceItem), [api, tmReplaceItem]);
@@ -263,6 +263,11 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
           setSystemReforge(null);
           onClose();
         }}
+        onDisabledTargetClick={target => {
+          const reason = target.disabledReason || "该宝可梦当前不能作为目标。";
+          onNotice?.(reason, "danger");
+          onRunDraftChange(run, reason);
+        }}
         onSelectionChange={nextSelection => {
           setSelection(current => {
             if (current.item?.id === nextSelection.item?.id && current.target?.key === nextSelection.target?.key) return current;
@@ -440,7 +445,7 @@ function calculateMaxHp(api: ChangeBattleV2Api, pokemon: LocalPokemonV4): number
   }
 }
 
-function pokemonToTarget(api: ChangeBattleV2Api, items: PlayerItemInstanceV4[]): (pokemon: LocalPokemonV4) => PlayerBagPokemonTarget {
+function pokemonToTarget(api: ChangeBattleV2Api, items: PlayerItemInstanceV4[], selectedItem: PlayerItemInstanceV4 | null, selectedDetail: DexItemDetail | null): (pokemon: LocalPokemonV4) => PlayerBagPokemonTarget {
   return pokemon => ({
     key: pokemon.localPokemonId,
     name: pokemon.nickname || pokemon.name,
@@ -453,11 +458,18 @@ function pokemonToTarget(api: ChangeBattleV2Api, items: PlayerItemInstanceV4[]):
     spriteUrl: pokemon.spriteUrl,
     iconStyle: pokemon.iconStyle,
     heldItem: itemForPokemon(api, items, pokemon),
+    disabledReason: formalRestBagTargetDisabledReason(pokemon, selectedItem, selectedDetail),
   });
 }
 
 function isProtectedSoulmatePokemon(pokemon: Pick<LocalPokemonV4, "formalSourceKind" | "originKind"> | null | undefined): boolean {
   return pokemon?.formalSourceKind === "soulmate-vault" || pokemon?.originKind === "soulmate";
+}
+
+function formalRestBagTargetDisabledReason(pokemon: LocalPokemonV4, selectedItem: PlayerItemInstanceV4 | null, selectedDetail: DexItemDetail | null): string | undefined {
+  if (!isProtectedSoulmatePokemon(pokemon)) return undefined;
+  if (canUseTmItemV4(selectedItem, selectedDetail) || canUseTrainingItemV4(selectedItem, selectedDetail)) return "灵魂伴侣不能参与正式局内养成。";
+  return undefined;
 }
 
 function isSoulmateBoundHeldItem(item: Pick<PlayerItemInstanceV4, "sourceKind"> | null | undefined): boolean {

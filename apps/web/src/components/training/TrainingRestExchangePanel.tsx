@@ -1,4 +1,4 @@
-import type {CSSProperties} from "react";
+import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import type {FormalPokemonExchangeViewV4, LocalPokemonV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {TrainingRestUiPanel} from "./TrainingRestUiPanel";
@@ -29,24 +29,42 @@ export function TrainingRestExchangePanel({
   onConfirm,
   onClose,
 }: TrainingRestExchangePanelProps) {
-  const sourceTeam = (view?.player?.localTeam.pokemon || []).filter(pokemon => !isProtectedSoulmatePokemon(pokemon));
+  const [localDialogueText, setLocalDialogueText] = useState("");
+  const sourceTeam = view?.player?.localTeam.pokemon || [];
+  const exchangeableSourceTeam = useMemo(() => sourceTeam.filter(pokemon => !isProtectedSoulmatePokemon(pokemon)), [sourceTeam]);
   const targetTeam = view?.opponent?.localTeam.pokemon || [];
-  const selectedSource = sourceTeam.find(pokemon => pokemon.localPokemonId === selectedSourceId) || null;
+  const selectedSource = exchangeableSourceTeam.find(pokemon => pokemon.localPokemonId === selectedSourceId) || null;
   const selectedTarget = targetTeam.find(pokemon => pokemon.localPokemonId === selectedTargetId) || null;
+  useEffect(() => {
+    if (!open) setLocalDialogueText("");
+  }, [open]);
   const disabledReason = !view
     ? "交换功能正在整理中。"
     : !view.available
       ? view.message
       : !selectedSource
-        ? "请选择我方宝可梦。"
+        ? exchangeableSourceTeam.length ? "请选择我方宝可梦。" : "队伍里还没有可以交换的宝可梦。"
         : !selectedTarget
           ? "请选择对手宝可梦。"
           : "";
   const canConfirm = open && !busy && !disabledReason;
   const confirmText = view?.nextCost ? `交换（${view.nextCost}金币）` : "交换（免费）";
-  const dialogueText = disabledReason
+  const dialogueText = localDialogueText || (disabledReason
     ? disabledReason
-    : `${selectedSource ? pokemonName(selectedSource) : "我方宝可梦"} 与 ${selectedTarget ? pokemonName(selectedTarget) : "对手宝可梦"} 将进行交换。确认后会立即生效。`;
+    : `${selectedSource ? pokemonName(selectedSource) : "我方宝可梦"} 与 ${selectedTarget ? pokemonName(selectedTarget) : "对手宝可梦"} 将进行交换。确认后会立即生效。`);
+  function selectSourcePokemon(pokemonId: string) {
+    const pokemon = sourceTeam.find(entry => entry.localPokemonId === pokemonId) || null;
+    if (isProtectedSoulmatePokemon(pokemon)) {
+      setLocalDialogueText("灵魂伴侣的宝可梦不支持交换。");
+      return;
+    }
+    setLocalDialogueText("");
+    onSelectSource(pokemonId);
+  }
+  function selectTargetPokemon(pokemonId: string) {
+    setLocalDialogueText("");
+    onSelectTarget(pokemonId);
+  }
   return (
     <section className={`training-rest-exchange-panel ${open ? "open" : ""}`} aria-label="宝可梦交换面板" aria-hidden={!open}>
       <TrainingRestUiPanel
@@ -62,7 +80,7 @@ export function TrainingRestExchangePanel({
             pokemon={sourceTeam}
             selectedId={selectedSourceId}
             side="source"
-            onSelect={onSelectSource}
+            onSelect={selectSourcePokemon}
             emptyText="暂无可交换宝可梦"
           />
           <ExchangeTeamColumn
@@ -71,7 +89,7 @@ export function TrainingRestExchangePanel({
             pokemon={targetTeam}
             selectedId={selectedTargetId}
             side="target"
-            onSelect={onSelectTarget}
+            onSelect={selectTargetPokemon}
             emptyText="还没有可交换的上一场对手"
           />
         </div>
@@ -135,10 +153,14 @@ function PokemonExchangeList({
     <div className="training-rest-exchange-list">
       {pokemon.slice(0, 6).map((entry, index) => {
         const hpRate = `${Math.max(0, Math.min(100, Math.round((Math.max(0, entry.entryHp) / Math.max(1, entry.maxHp)) * 100)))}%`;
+        const isSoulmate = side === "source" && isProtectedSoulmatePokemon(entry);
         return (
         <button
           className={`${selectedId === entry.localPokemonId ? "selected" : ""} ${entry.entryHp <= 0 ? "fainted" : ""}`}
+          data-disabled={isSoulmate ? "true" : "false"}
           type="button"
+          title={isSoulmate ? "灵魂伴侣的宝可梦不支持交换。" : undefined}
+          aria-disabled={isSoulmate}
           onClick={() => onSelect(entry.localPokemonId)}
           key={`${side}-${entry.localPokemonId}`}
           style={{"--rest-exchange-hp-rate": hpRate} as CSSProperties}
@@ -146,7 +168,7 @@ function PokemonExchangeList({
           <span className="training-rest-exchange-index">{index + 1}</span>
           <PokemonIcon pokemon={entry} />
           <strong>{pokemonName(entry)}</strong>
-          <small>Lv.{entry.level} · {Math.max(0, entry.entryHp)}/{Math.max(1, entry.maxHp)}</small>
+          <small>{isSoulmate ? "不可交换" : `Lv.${entry.level} · ${Math.max(0, entry.entryHp)}/${Math.max(1, entry.maxHp)}`}</small>
           <i aria-hidden="true" />
         </button>
       );
@@ -166,8 +188,8 @@ function pokemonName(pokemon: LocalPokemonV4): string {
   return pokemon.nickname || pokemon.nameZh || pokemon.name || pokemon.speciesId;
 }
 
-function isProtectedSoulmatePokemon(pokemon: LocalPokemonV4): boolean {
-  return pokemon.formalSourceKind === "soulmate-vault" || pokemon.originKind === "soulmate";
+function isProtectedSoulmatePokemon(pokemon: Pick<LocalPokemonV4, "formalSourceKind" | "originKind"> | null | undefined): boolean {
+  return pokemon?.formalSourceKind === "soulmate-vault" || pokemon?.originKind === "soulmate";
 }
 
 function styleFromCss(css: string): CSSProperties {

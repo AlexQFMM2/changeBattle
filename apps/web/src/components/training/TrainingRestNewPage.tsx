@@ -462,7 +462,10 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         return;
       }
       const nextExchangeView = exchangeController.getView?.() || exchangeController.view || null;
+      const nextExchangeSource = nextExchangeView?.player?.localTeam.pokemon.find(pokemon => !isProtectedSoulmatePokemon(pokemon))?.localPokemonId || "";
+      const nextExchangeTarget = nextExchangeView?.opponent?.localTeam.pokemon[0]?.localPokemonId || "";
       setExchangeView(nextExchangeView);
+      setExchangeSelection({sourcePokemonId: nextExchangeSource, targetPokemonId: nextExchangeTarget});
       setExchangePanelOpen(true);
       setMessage(nextExchangeView?.message || "选择双方宝可梦后即可交换。");
       return;
@@ -920,6 +923,10 @@ function resolveSoulmateCandidateTeamKey(rawKey: string, team: NonNullable<Train
     }
   }
   return null;
+}
+
+function isProtectedSoulmatePokemon(pokemon: Pick<TrainingPlayerDraftV4["localTeam"]["pokemon"][number], "formalSourceKind" | "originKind"> | null | undefined): boolean {
+  return pokemon?.formalSourceKind === "soulmate-vault" || pokemon?.originKind === "soulmate";
 }
 
 function normalizeSoulmateKey(value: unknown): string {

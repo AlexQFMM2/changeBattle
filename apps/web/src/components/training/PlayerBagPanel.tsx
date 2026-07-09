@@ -18,6 +18,7 @@ export type PlayerBagPokemonTarget = {
   iconStyle?: string;
   heldItem?: PlayerItemInstanceV4 | null;
   battleIdLabel?: string;
+  disabledReason?: string;
 };
 
 export type PlayerBagAction = {
@@ -45,6 +46,7 @@ export type PlayerBagPanelProps = {
   footerNote?: ReactNode;
   onClose: () => void;
   onSelectionChange?: (selection: {item: PlayerItemInstanceV4 | null; target: PlayerBagPokemonTarget | null}) => void;
+  onDisabledTargetClick?: (target: PlayerBagPokemonTarget) => void;
 };
 
 export function PlayerBagPanel({
@@ -63,6 +65,7 @@ export function PlayerBagPanel({
   footerNote,
   onClose,
   onSelectionChange,
+  onDisabledTargetClick,
 }: PlayerBagPanelProps) {
   const visibleItems = useMemo(() => isBattle ? items.filter(item => item.canBattleUse) : items, [isBattle, items]);
   const [selectedItemId, setSelectedItemId] = useState(visibleItems[0]?.id || "");
@@ -140,6 +143,14 @@ export function PlayerBagPanel({
     });
   }
 
+  function selectPokemonTarget(target: PlayerBagPokemonTarget) {
+    if (target.disabledReason) {
+      onDisabledTargetClick?.(target);
+      return;
+    }
+    setSelectedTargetKey(target.key);
+  }
+
   return (
     <>
       <motion.section
@@ -184,8 +195,11 @@ export function PlayerBagPanel({
                   {pokemonTargets.length ? pokemonTargets.slice(0, 4).map(target => (
                     <button
                       className={target.key === selectedTarget?.key ? "selected" : ""}
+                      data-disabled={target.disabledReason ? "true" : "false"}
                       type="button"
-                      onClick={() => setSelectedTargetKey(target.key)}
+                      title={target.disabledReason || undefined}
+                      aria-disabled={Boolean(target.disabledReason)}
+                      onClick={() => selectPokemonTarget(target)}
                       key={target.key}
                     >
                       <PlayerBagPokemonIcon target={target} />
@@ -210,7 +224,7 @@ export function PlayerBagPanel({
                         </span>
                       ) : null}
                       <small className="training-rest-new-bag-pokemon-level">
-                        {target.status && target.status !== "" ? `${target.status} · ` : ""}Lv.{target.level ?? "?"}
+                        {target.disabledReason ? "不可养成" : target.status && target.status !== "" ? `${target.status} · ` : ""}Lv.{target.level ?? "?"}
                       </small>
                       <small className={`training-rest-new-bag-pokemon-held-label ${target.heldItem ? "has-item" : "empty"}`}>
                         {target.heldItem ? displayItemName(target.heldItem) : "无道具"}
