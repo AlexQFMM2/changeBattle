@@ -9,6 +9,7 @@ import {TrainingRestTrainingGroundScenePreview} from "../training/TrainingRestTr
 import {TrainingRestNextPreviewPanelPreview} from "../training/TrainingRestNextPreviewPanel.preview";
 import {TrainerVaultPagePreview} from "../trainer-vault/TrainerVaultPage.preview";
 import {GameDrawerPreview} from "../shared/GameDrawer.preview";
+import {GameEvolutionModalPreview} from "../shared/GameEvolutionModal.preview";
 
 export type ComponentPreviewEntry = {
   id: string;
@@ -71,5 +72,11 @@ export const COMPONENT_PREVIEWS: ComponentPreviewEntry[] = [
     title: "通用抽屉",
     description: "全局组件：motion 滑入抽屉、默认阻塞遮罩、四方向 placement。",
     render: () => <GameDrawerPreview />,
+  },
+  {
+    id: "game-evolution-modal",
+    title: "通用进化弹窗",
+    description: "全局组件：异样提示、进化动画、结果提示和形态对比。",
+    render: () => <GameEvolutionModalPreview />,
   },
 ];

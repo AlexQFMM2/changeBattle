@@ -1,12 +1,12 @@
 import {useEffect, useMemo, useState} from "react";
 import type {ChangeBattleV2Api, DexMoveSummary, PlayerPokemonRecordV4, PlayerVaultV4} from "@changebattle-v2/api";
 import {AppConfirmModal} from "../shared/AppModal";
+import {GameEvolutionModal, type GameEvolutionModalTarget} from "../shared/GameEvolutionModal";
 import {assetUrl} from "../../lib/assetUrl";
 import {TrainerVaultBagList} from "./TrainerVaultBagList";
 import {TrainerVaultDebugAddModal, type TrainerVaultDebugAddState} from "./TrainerVaultDebugAddModal";
-import {buildItemPageEntries, buildPokemonPageEntries, createEmptyEntries, findItemEntryByKey, findPlayerVaultItemRecordByKey, findPokemonEntryById, isItemEntryWithKey, isPokemonEntryWithId, isVaultUsableItemDetail, itemRecordKey, itemRecordView, moveTeachingUnavailableMessage, playerMoveToReplaceMove, playerPokemonDisplayName, POKEMON_PAGE_SIZE, safeItemDetail, STORAGE_BOX_UNLOCK_BP_COST, type TrainerVaultTab, type VaultActiveUseItem, type VaultItemEntry, type VaultPageEntry, type VaultPokemonEntry} from "./TrainerVaultModel";
+import {buildItemPageEntries, buildPokemonPageEntries, createEmptyEntries, findItemEntryByKey, findPlayerVaultItemRecordByKey, findPokemonEntryById, isItemEntryWithKey, isPokemonEntryWithId, isVaultUsableItemDetail, itemRecordKey, itemRecordView, moveTeachingUnavailableMessage, playerMoveToReplaceMove, playerPokemonShortName, POKEMON_PAGE_SIZE, safeItemDetail, STORAGE_BOX_UNLOCK_BP_COST, type TrainerVaultTab, type VaultActiveUseItem, type VaultItemEntry, type VaultPageEntry, type VaultPokemonEntry} from "./TrainerVaultModel";
 import {TrainerVaultPokemonBox} from "./TrainerVaultPokemonBox";
-import {VaultEvolutionPreviewModal, type VaultEvolutionPreviewModalState} from "./VaultEvolutionPreviewModal";
 import {VaultItemDrawer} from "./VaultItemDrawer";
 import {VaultMoveReplaceModal, type VaultMoveReplaceState} from "./VaultMoveReplaceModal";
 import {VaultMoveSelectModal, type VaultMoveSelectState} from "./VaultMoveSelectModal";
@@ -23,7 +23,7 @@ type VaultConfirmDialog = {
   onConfirm: () => void | Promise<void>;
 };
 type VaultNumericPreviewState = VaultNumericPreviewModalState;
-type VaultEvolutionPreviewState = VaultEvolutionPreviewModalState;
+type VaultEvolutionPreviewState = Extract<ReturnType<ChangeBattleV2Api["previewPlayerVaultEvolutionItemUse"]>, {ok: true}>;
 
 export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBattlePoints, debugFeatureEnabled = false, onPlayerVaultChange, onPlayerVaultDirtyChange, onSavePlayerVault, onUnlockStoragePage, onBack}: {
   api: ChangeBattleV2Api;
@@ -67,6 +67,16 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   const pokemonDrawerEntry = useMemo<VaultPokemonEntry | null>(() => pokemonEntries.find(isPokemonEntryWithId(pokemonDrawerId)) || findPokemonEntryById(draftVault, pokemonDrawerId), [draftVault, pokemonEntries, pokemonDrawerId]);
   const activeUseItemRecord = activeUseItem ? findPlayerVaultItemRecordByKey(draftVault, activeUseItem.itemKey) : null;
   const activeUseItemQuantity = activeUseItemRecord?.quantity ?? activeUseItem?.quantity ?? 0;
+  const evolutionModalTargets = useMemo<GameEvolutionModalTarget[]>(
+    () => evolutionPreview?.targets.map(target => ({
+      toSpeciesId: target.toSpeciesId,
+      toName: target.toName,
+      toSpriteUrl: target.toSpriteUrl,
+      friendshipRequirement: target.friendshipRequirement,
+      statChanges: target.statChanges,
+    })) || [],
+    [evolutionPreview],
+  );
 
   useEffect(() => {
     if (draftDirty) return;
@@ -247,7 +257,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       finishUseMode("已结束使用。");
       return;
     }
-    const pokemonName = playerPokemonDisplayName(api, entry.pokemon);
+    const pokemonName = playerPokemonShortName(api, entry.pokemon);
     if (detail.friendshipEffect || detail.trainingEffect) {
       setEvolutionPreview(null);
       const preview = api.previewPlayerVaultNumericItemUse({vault: draftVault, itemKey: activeUseItem.itemKey, pokemonId: entry.pokemon.playerPokemonId});
@@ -360,7 +370,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       return;
     }
     const result = api.setPlayerVaultPokemonBattleMarked({vault: draftVault, pokemonId, marked});
-    const pokemonName = playerPokemonDisplayName(api, pokemon);
+    const pokemonName = playerPokemonShortName(api, pokemon);
     const message = marked ? `${pokemonName} 已标记出战。` : `${pokemonName} 已取消出战。`;
     showUseNotice(message, "normal");
     updateVaultDraft(result, `${message} 返回主页时保存。`);
@@ -368,7 +378,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
 
   function releaseSelectedPokemon(pokemon: PlayerPokemonRecordV4) {
     if (activeUseItem) return;
-    const pokemonName = playerPokemonDisplayName(api, pokemon);
+    const pokemonName = playerPokemonShortName(api, pokemon);
     setConfirmDialog({
       title: "放生宝可梦",
       message: `确认放生 ${pokemonName}？该操作不可撤销。${pokemon.heldItemId ? " 携带道具会尝试放回道具箱。" : ""}`,
@@ -576,8 +586,13 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
         />
       ) : null}
       {evolutionPreview ? (
-        <VaultEvolutionPreviewModal
-          preview={evolutionPreview}
+        <GameEvolutionModal
+          open={Boolean(evolutionPreview)}
+          fromName={evolutionPreview.fromName}
+          displayName={evolutionPreview.pokemonName}
+          fromSpriteUrl={evolutionPreview.fromSpriteUrl}
+          itemName={evolutionPreview.itemName}
+          targets={evolutionModalTargets}
           onCancel={() => setEvolutionPreview(null)}
           onConfirm={applyEvolutionItem}
         />

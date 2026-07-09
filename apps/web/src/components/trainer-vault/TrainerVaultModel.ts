@@ -173,6 +173,11 @@ export function playerPokemonDisplayName(api: ChangeBattleV2Api, pokemon: Player
   return pokemon.nickname ? `${pokemon.nickname}（${view.name}）` : view.name;
 }
 
+export function playerPokemonShortName(api: ChangeBattleV2Api, pokemon: PlayerPokemonRecordV4): string {
+  if (pokemon.nickname) return pokemon.nickname;
+  return pokemonRecordView(api, pokemon).name;
+}
+
 export function playerMoveToReplaceMove(api: ChangeBattleV2Api, moveId: string): VaultMoveReplaceMove {
   try {
     const detail = cachedMoveDetail(api, moveId);

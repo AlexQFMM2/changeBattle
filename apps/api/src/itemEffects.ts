@@ -339,7 +339,7 @@ export function getPlayerVaultMoveTeachingViewV4(
       item,
       itemName: detail.nameZh || detail.name || item.itemId,
       pokemon,
-      pokemonName: playerVaultPokemonDisplayNameV4(dex, pokemon),
+      pokemonName: playerVaultPokemonShortNameV4(dex, pokemon),
       sourceLabel: "技能机器",
       oncePerPokemon: false,
       alreadyUsed: Boolean(unavailableReason),
@@ -356,7 +356,7 @@ export function getPlayerVaultMoveTeachingViewV4(
     item,
     itemName: detail?.nameZh || detail?.name || item.itemId,
     pokemon,
-    pokemonName: playerVaultPokemonDisplayNameV4(dex, pokemon),
+    pokemonName: playerVaultPokemonShortNameV4(dex, pokemon),
     sourceLabel: playerVaultMoveTeachingSourceLabelV4(effect),
     oncePerPokemon: effect.kind === "any" && Boolean(effect.oncePerPokemon),
     alreadyUsed: effect.kind === "any" && Boolean(effect.oncePerPokemon && pokemon.growthFlags?.forbiddenManualUsedAt),
@@ -411,7 +411,7 @@ export function previewPlayerVaultNumericItemUseV4(
     item,
     itemName: preview.itemName,
     pokemon,
-    pokemonName: playerVaultPokemonDisplayNameV4(dex, pokemon),
+    pokemonName: playerVaultPokemonShortNameV4(dex, pokemon),
     changes: preview.changes,
   };
 }
@@ -437,7 +437,7 @@ export function applyPlayerVaultNumericItemV4(
     ok: true,
     vault: nextVault,
     pokemon: preview.pokemon,
-    message: `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 使用了 ${preview.itemName}。`,
+    message: `对${playerVaultPokemonShortNameV4(dex, pokemon)}使用了${preview.itemName}。`,
     changes: preview.changes,
   };
 }
@@ -446,6 +446,10 @@ export function applyPlayerVaultFriendshipItemV4(
   dex: PlayerVaultMoveTeachingDexV4,
   input: {vault: PlayerVaultV4 | undefined | null; itemKey: string; pokemonId: string},
 ): PlayerVaultFriendshipItemApplyResultV4 {
+  const normalized = normalizePlayerVaultV4(input.vault);
+  const item = findPlayerVaultItemByKeyV4(normalized, input.itemKey);
+  const detail = item ? safeVaultItemDetailV4(dex, item.itemId) : null;
+  const itemName = detail?.nameZh || detail?.name || item?.itemId || "道具";
   const result = applyPlayerVaultNumericItemV4(dex, input);
   if (!result.ok) return result;
   const friendshipChange = result.changes.find(entry => entry.label === "亲密度");
@@ -455,7 +459,7 @@ export function applyPlayerVaultFriendshipItemV4(
     vault: result.vault,
     pokemon: result.pokemon,
     message: friendshipDelta > 0
-      ? `${playerVaultPokemonDisplayNameV4(dex, result.pokemon)} 亲密度提升 ${friendshipDelta} 点。`
+      ? `对${playerVaultPokemonShortNameV4(dex, result.pokemon)}使用了${itemName}，亲密度提升了 ${friendshipDelta} 点。`
       : result.message,
     friendshipDelta,
   };
@@ -492,8 +496,8 @@ export function applyPlayerVaultHeldItemV4(
     vault: nextVault,
     pokemon: nextPokemon,
     message: replacedName
-      ? `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 将 ${replacedName} 替换为 ${itemName}。`
-      : `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 携带了 ${itemName}。`,
+      ? `${playerVaultPokemonShortNameV4(dex, pokemon)} 将 ${replacedName} 替换为 ${itemName}。`
+      : `${playerVaultPokemonShortNameV4(dex, pokemon)} 携带了 ${itemName}。`,
     replacedItemId: pokemon.heldItemId,
   };
 }
@@ -522,7 +526,7 @@ export function unequipPlayerVaultHeldItemV4(
     ok: true,
     vault: added.vault,
     pokemon: nextPokemon,
-    message: `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 卸下了 ${itemName}。`,
+    message: `${playerVaultPokemonShortNameV4(dex, pokemon)} 卸下了 ${itemName}。`,
     unequippedItemId,
   };
 }
@@ -546,14 +550,14 @@ export function previewPlayerVaultEvolutionItemUseV4(
     evolutionEdges: tree.edges,
     evolutionStageCount: vaultEvolutionStageCountV4(tree.edges),
   });
-  if (!preview.ok) return {ok: false, reason: preview.reason.replace("目标宝可梦", playerVaultPokemonDisplayNameV4(dex, pokemon))};
+  if (!preview.ok) return {ok: false, reason: preview.reason.replace("目标宝可梦", playerVaultPokemonShortNameV4(dex, pokemon))};
   const fromDetail = safePokemonDetailV4(dex, pokemon.speciesId);
   return {
     ok: true,
     item,
     itemName: detail.nameZh || detail.name || item.itemId,
     pokemon,
-    pokemonName: playerVaultPokemonDisplayNameV4(dex, pokemon),
+    pokemonName: playerVaultPokemonShortNameV4(dex, pokemon),
     fromSpeciesId: pokemon.speciesId,
     fromName: fromDetail?.nameZh || fromDetail?.name || pokemon.speciesId,
     fromSpriteUrl: vaultPokemonFrontSpriteUrlV4(fromDetail, pokemon.shiny),
@@ -664,7 +668,7 @@ function applyPlayerVaultMoveRecordV4(
     ok: true,
     vault: nextVault,
     pokemon: nextPokemon,
-    message: `${playerVaultPokemonDisplayNameV4(dex, pokemon)} 学会了 ${move.nameZh || move.name || move.id}。`,
+    message: `${playerVaultPokemonShortNameV4(dex, pokemon)} 学会了 ${move.nameZh || move.name || move.id}。`,
   };
 }
 
@@ -684,15 +688,14 @@ function safeVaultMoveDetailV4(dex: PlayerVaultMoveTeachingDexV4, moveId: string
   }
 }
 
-function playerVaultPokemonDisplayNameV4(dex: PlayerVaultMoveTeachingDexV4, pokemon: PlayerPokemonRecordV4): string {
-  let speciesName = pokemon.speciesId;
+function playerVaultPokemonShortNameV4(dex: PlayerVaultMoveTeachingDexV4, pokemon: PlayerPokemonRecordV4): string {
+  if (pokemon.nickname) return pokemon.nickname;
   try {
     const detail = dex.getPokemonDetail(pokemon.speciesId);
-    speciesName = detail?.nameZh || detail?.name || pokemon.speciesId;
+    return detail?.nameZh || detail?.name || pokemon.speciesId;
   } catch {
-    speciesName = pokemon.speciesId;
+    return pokemon.speciesId;
   }
-  return pokemon.nickname ? `${pokemon.nickname}（${speciesName}）` : speciesName;
 }
 
 function previewPlayerVaultNumericItemRecordV4(
