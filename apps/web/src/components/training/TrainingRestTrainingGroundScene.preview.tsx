@@ -48,6 +48,9 @@ function createPreviewPlayer(api: ChangeBattleV2Api): TrainingPlayerDraftV4 {
       pokemon: team.pokemon.map((pokemon, index) => ({
         ...pokemon,
         nameZh: index === 0 ? "黏美龙（洗翠的样子）" : pokemon.nameZh,
+        nickname: index === 1 ? "小毒泥" : pokemon.nickname,
+        formalSourceKind: index === 1 ? "soulmate-vault" : pokemon.formalSourceKind,
+        sourcePlayerPokemonId: index === 1 ? "preview-soulmate-grimer" : pokemon.sourcePlayerPokemonId,
         level: 52,
       })),
     },

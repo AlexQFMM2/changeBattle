@@ -57,9 +57,10 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
   const [selectedLessonId, setSelectedLessonId] = useState("");
   const [resultState, setResultState] = useState<TrainingGroundResultState | null>(null);
   const timersRef = useRef<number[]>([]);
-  const team = (player?.localTeam.pokemon || []).filter(pokemon => !isProtectedSoulmatePokemon(pokemon));
+  const team = player?.localTeam.pokemon || [];
+  const trainableTeam = team.filter(pokemon => !isProtectedSoulmatePokemon(pokemon));
   const selectedLessonOption = lessonOptions.find(option => option.lessonId === selectedLessonId) || lessonOptions[0] || null;
-  const selectedPokemon = team.find(pokemon => pokemon.localPokemonId === selectedPokemonId) || team[0] || null;
+  const selectedPokemon = trainableTeam.find(pokemon => pokemon.localPokemonId === selectedPokemonId) || trainableTeam[0] || null;
   const movePool = useMemo(() => lesson && selectedPokemon ? lessonMovePool(api, lesson, selectedPokemon.speciesId) : [], [api, lesson, selectedPokemon]);
   const availableMoves = useMemo(() => {
     const known = new Set((selectedPokemon?.moves || []).map(move => normalizeId(move.moveId)));
@@ -72,7 +73,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
     setStep(lesson ? "pokemon" : null);
     setDialogueText(lesson ? trainingLessonStartText(team) : trainingLessonPickerText(lessonOptions));
     setSelectedLessonId(lessonOptions[0]?.lessonId || "");
-    setSelectedPokemonId(team[0]?.localPokemonId || "");
+    setSelectedPokemonId(trainableTeam[0]?.localPokemonId || "");
     setSelectedMoveId("");
     setReplaceMoveIndex(null);
     setStudying(false);
@@ -91,8 +92,8 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
   useEffect(() => () => clearTimers(), []);
 
   useEffect(() => {
-    if (!selectedPokemon && team[0]) setSelectedPokemonId(team[0].localPokemonId);
-  }, [selectedPokemon, team]);
+    if (!selectedPokemon && trainableTeam[0]) setSelectedPokemonId(trainableTeam[0].localPokemonId);
+  }, [selectedPokemon, trainableTeam]);
 
   function leaveTrainingGround() {
     clearTimers();
@@ -107,7 +108,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
       setDialogueText("今天暂时没有课程。");
       return;
     }
-    if (!team.length) {
+    if (!trainableTeam.length) {
       setDialogueText("队伍里还没有可以上课的宝可梦。");
       return;
     }
@@ -264,6 +265,11 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
                 team={team}
                 selectedPokemonId={selectedPokemon?.localPokemonId || ""}
                 onSelect={pokemonId => {
+                  const nextPokemon = team.find(pokemon => pokemon.localPokemonId === pokemonId) || null;
+                  if (isProtectedSoulmatePokemon(nextPokemon)) {
+                    setDialogueText("灵魂伴侣的宝可梦不支持训练。");
+                    return;
+                  }
                   setSelectedPokemonId(pokemonId);
                   setSelectedMoveId("");
                   setReplaceMoveIndex(null);
@@ -343,21 +349,27 @@ function CoursePickerPanel({lessons, selectedLessonId, onSelect}: {
 function PokemonSelectPanel({team, selectedPokemonId, onSelect}: {team: LocalPokemonV4[]; selectedPokemonId: string; onSelect: (pokemonId: string) => void}) {
   return (
     <div className="training-rest-training-ground-pokemon-only">
-      {team.map((pokemon, index) => (
-        <button
-          type="button"
-          data-selected={pokemon.localPokemonId === selectedPokemonId ? "true" : "false"}
-          key={pokemon.localPokemonId}
-          onClick={() => onSelect(pokemon.localPokemonId)}
-        >
-          <span className="training-rest-training-ground-pokemon-slot">{index + 1}</span>
-          <PokemonCardSprite pokemon={pokemon} />
-          <span className="training-rest-training-ground-pokemon-info">
-            <strong>{pokemonName(pokemon)}</strong>
-            <small>Lv.{pokemon.level}</small>
-          </span>
-        </button>
-      ))}
+      {team.map((pokemon, index) => {
+        const isSoulmate = isProtectedSoulmatePokemon(pokemon);
+        return (
+          <button
+            type="button"
+            data-selected={pokemon.localPokemonId === selectedPokemonId ? "true" : "false"}
+            data-disabled={isSoulmate ? "true" : "false"}
+            aria-disabled={isSoulmate}
+            title={isSoulmate ? "灵魂伴侣的宝可梦不支持训练。" : undefined}
+            key={pokemon.localPokemonId}
+            onClick={() => onSelect(pokemon.localPokemonId)}
+          >
+            <span className="training-rest-training-ground-pokemon-slot">{index + 1}</span>
+            <PokemonCardSprite pokemon={pokemon} />
+            <span className="training-rest-training-ground-pokemon-info">
+              <strong>{pokemonName(pokemon)}</strong>
+              <small>{isSoulmate ? "不可训练" : `Lv.${pokemon.level}`}</small>
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -715,8 +727,8 @@ function pokemonName(pokemon: LocalPokemonV4): string {
   return pokemon.nickname || pokemon.nameZh || pokemon.name || pokemon.speciesId;
 }
 
-function isProtectedSoulmatePokemon(pokemon: LocalPokemonV4): boolean {
-  return pokemon.formalSourceKind === "soulmate-vault" || pokemon.originKind === "soulmate";
+function isProtectedSoulmatePokemon(pokemon: Pick<LocalPokemonV4, "formalSourceKind" | "originKind"> | null | undefined): boolean {
+  return pokemon?.formalSourceKind === "soulmate-vault" || pokemon?.originKind === "soulmate";
 }
 
 function statTotal(stats: Record<string, number>): number {

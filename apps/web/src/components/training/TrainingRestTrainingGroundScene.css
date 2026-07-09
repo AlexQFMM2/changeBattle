@@ -305,6 +305,26 @@
   outline-offset: -3px;
 }
 
+.training-rest-training-ground-pokemon-only button[data-disabled="true"] {
+  border-color: rgb(106 167 102 / 74%);
+  background:
+    linear-gradient(180deg, rgb(235 255 226 / 78%), rgb(203 229 190 / 88%));
+  color: #31402e;
+  cursor: help;
+}
+
+.training-rest-training-ground-pokemon-only button[data-disabled="true"] .training-rest-training-ground-pokemon-slot {
+  background: #4e7049;
+}
+
+.training-rest-training-ground-pokemon-only button[data-disabled="true"] .training-rest-training-ground-pokemon-info strong {
+  color: #31402e;
+}
+
+.training-rest-training-ground-pokemon-only button[data-disabled="true"] .training-rest-training-ground-pokemon-info small {
+  color: #4f6d4a;
+}
+
 .training-rest-training-ground-pokemon-slot {
   z-index: 1;
   width: 18px;
