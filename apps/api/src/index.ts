@@ -37,7 +37,7 @@ import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, Formal
 import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
-import {applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultNumericItemUseV4, unequipPlayerVaultHeldItemV4, type PlayerVaultFriendshipItemApplyResultV4, type PlayerVaultHeldItemApplyResultV4, type PlayerVaultHeldItemUnequipResultV4, type PlayerVaultMoveTeachingApplyResultV4 as PlayerVaultMoveTeachingApplyResultFromItemEffectsV4, type PlayerVaultMoveTeachingViewResultV4, type PlayerVaultNumericItemApplyResultV4, type PlayerVaultNumericItemPreviewResultV4} from "./itemEffects.js";
+import {applyPlayerVaultEvolutionItemV4, applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultEvolutionItemUseV4, previewPlayerVaultNumericItemUseV4, unequipPlayerVaultHeldItemV4, type PlayerVaultEvolutionApplyResultV4, type PlayerVaultEvolutionPreviewResultV4, type PlayerVaultFriendshipItemApplyResultV4, type PlayerVaultHeldItemApplyResultV4, type PlayerVaultHeldItemUnequipResultV4, type PlayerVaultMoveTeachingApplyResultV4 as PlayerVaultMoveTeachingApplyResultFromItemEffectsV4, type PlayerVaultMoveTeachingViewResultV4, type PlayerVaultNumericItemApplyResultV4, type PlayerVaultNumericItemPreviewResultV4} from "./itemEffects.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
 import {
   enableTestModeForProfileV4,
@@ -130,6 +130,8 @@ export type PlayerVaultMoveTeachingApplyResultV4 = PlayerVaultMoveTeachingApplyR
 export type PlayerVaultFriendshipApplyResultV4 = PlayerVaultFriendshipItemApplyResultV4;
 export type PlayerVaultNumericPreviewResultV4 = PlayerVaultNumericItemPreviewResultV4;
 export type PlayerVaultNumericApplyResultV4 = PlayerVaultNumericItemApplyResultV4;
+export type PlayerVaultEvolutionPreviewResult = PlayerVaultEvolutionPreviewResultV4;
+export type PlayerVaultEvolutionApplyResult = PlayerVaultEvolutionApplyResultV4;
 export type PlayerVaultHeldApplyResultV4 = PlayerVaultHeldItemApplyResultV4;
 export type PlayerVaultHeldUnequipResultV4 = PlayerVaultHeldItemUnequipResultV4;
 export type PlayerVaultPokemonReleaseViewResultV4 =
@@ -355,6 +357,8 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     applyPlayerVaultMoveTeachingItem: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string; moveId: string; moveSlot: number}) => applyPlayerVaultMoveTeachingItemV4(dex, input),
     previewPlayerVaultNumericItemUse: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string}) => previewPlayerVaultNumericItemUseV4(dex, input),
     applyPlayerVaultNumericItem: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string}) => applyPlayerVaultNumericItemV4(dex, input),
+    previewPlayerVaultEvolutionItemUse: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string}) => previewPlayerVaultEvolutionItemUseV4(dex, input),
+    applyPlayerVaultEvolutionItem: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string; toSpeciesId: string}) => applyPlayerVaultEvolutionItemV4(dex, input),
     applyPlayerVaultFriendshipItem: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string}) => applyPlayerVaultFriendshipItemV4(dex, input),
     applyPlayerVaultHeldItem: (input: {vault: PlayerVaultV4; itemKey: string; pokemonId: string}) => applyPlayerVaultHeldItemV4(dex, input),
     unequipPlayerVaultHeldItem: (input: {vault: PlayerVaultV4; pokemonId: string}) => unequipPlayerVaultHeldItemV4(dex, input),

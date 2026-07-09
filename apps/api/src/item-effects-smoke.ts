@@ -2,7 +2,7 @@ import {strict as assert} from "node:assert";
 import type {DexMoveSummary, DexPokemonDetail} from "@changebattle-v2/showdown-dex-core";
 import {releasePlayerVaultPokemonV4} from "@changebattle-v2/core";
 import {createBattleCommandDraftV4, normalizeBattleRequestV4, splitBattleTrainerItemChoicesV4, stringifyBattleTrainerItemChoiceV4} from "./battle.js";
-import {applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultNumericItemUseV4, tmUseFailureReasonV4, unequipPlayerVaultHeldItemV4} from "./itemEffects.js";
+import {applyPlayerVaultEvolutionItemV4, applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultEvolutionItemUseV4, previewPlayerVaultNumericItemUseV4, tmUseFailureReasonV4, unequipPlayerVaultHeldItemV4} from "./itemEffects.js";
 import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4} from "./training.js";
 
 const pokemon = makePokemon();
@@ -512,6 +512,80 @@ const maxFriendshipResult = applyPlayerVaultFriendshipItemV4(vaultDex as any, {
 assert.equal(maxFriendshipResult.ok, false);
 assert.match(maxFriendshipResult.ok ? "" : maxFriendshipResult.reason, /上限/);
 
+const evolutionVault = {
+  ...vault,
+  items: [
+    {itemId: "universal-evolution-stone", quantity: 2, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 0},
+    {itemId: "firestone", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 1},
+    {itemId: "linking-cord", quantity: 1, boxKind: "storage" as const, storagePageIndex: 0, slotIndex: 2},
+  ],
+  pokemon: [
+    {...vault.pokemon[0]!, playerPokemonId: "vault-charmander", speciesId: "charmander", nickname: "小火", friendship: 99, nature: "Adamant", heldItemId: "leftovers", battleMarked: true},
+    {...vault.pokemon[0]!, playerPokemonId: "vault-eevee", speciesId: "eevee", friendship: 150},
+    {...vault.pokemon[0]!, playerPokemonId: "vault-kadabra", speciesId: "kadabra", friendship: 150},
+  ],
+};
+const evolutionTooEarly = previewPlayerVaultEvolutionItemUseV4(vaultDex as any, {
+  vault: evolutionVault,
+  itemKey: "storage:0:0:universal-evolution-stone",
+  pokemonId: "vault-charmander",
+});
+assert.equal(evolutionTooEarly.ok, false);
+assert.match(evolutionTooEarly.ok ? "" : evolutionTooEarly.reason, /亲密度不足/);
+const evolutionPreview = previewPlayerVaultEvolutionItemUseV4(vaultDex as any, {
+  vault: {...evolutionVault, pokemon: evolutionVault.pokemon.map(entry => entry.playerPokemonId === "vault-charmander" ? {...entry, friendship: 100} : entry)},
+  itemKey: "storage:0:0:universal-evolution-stone",
+  pokemonId: "vault-charmander",
+});
+assert.equal(evolutionPreview.ok, true);
+if (evolutionPreview.ok) {
+  assert.equal(evolutionPreview.fromName, "小火龙");
+  assert.deepEqual(evolutionPreview.targets.map(target => target.toSpeciesId), ["charmeleon"]);
+  assert.equal(evolutionPreview.targets[0]!.friendshipRequirement, 100);
+  assert.ok(evolutionPreview.targets[0]!.statChanges.some(change => change.label === "HP"));
+}
+const evolutionApply = applyPlayerVaultEvolutionItemV4(vaultDex as any, {
+  vault: {...evolutionVault, pokemon: evolutionVault.pokemon.map(entry => entry.playerPokemonId === "vault-charmander" ? {...entry, friendship: 100} : entry)},
+  itemKey: "storage:0:0:universal-evolution-stone",
+  pokemonId: "vault-charmander",
+  toSpeciesId: "charmeleon",
+});
+assert.equal(evolutionApply.ok, true);
+if (evolutionApply.ok) {
+  assert.equal(evolutionApply.pokemon.speciesId, "charmeleon");
+  assert.equal(evolutionApply.pokemon.nickname, "小火");
+  assert.equal(evolutionApply.pokemon.nature, "Adamant");
+  assert.deepEqual(evolutionApply.pokemon.ivs, vault.pokemon[0]!.ivs);
+  assert.deepEqual(evolutionApply.pokemon.evs, vault.pokemon[0]!.evs);
+  assert.deepEqual(evolutionApply.pokemon.moves, vault.pokemon[0]!.moves);
+  assert.equal(evolutionApply.pokemon.heldItemId, "leftovers");
+  assert.equal(evolutionApply.pokemon.battleMarked, true);
+  assert.equal(evolutionApply.vault.items.find(entry => entry.itemId === "universal-evolution-stone")?.quantity, 1);
+}
+const fireStoneEvolutionPreview = previewPlayerVaultEvolutionItemUseV4(vaultDex as any, {
+  vault: evolutionVault,
+  itemKey: "storage:0:1:firestone",
+  pokemonId: "vault-eevee",
+});
+assert.equal(fireStoneEvolutionPreview.ok, true);
+assert.deepEqual(fireStoneEvolutionPreview.ok ? fireStoneEvolutionPreview.targets.map(target => target.toSpeciesId) : [], ["flareon"]);
+const wrongEvolutionPreview = previewPlayerVaultEvolutionItemUseV4(vaultDex as any, {
+  vault: evolutionVault,
+  itemKey: "storage:0:0:universal-evolution-stone",
+  pokemonId: "vault-eevee",
+});
+assert.equal(wrongEvolutionPreview.ok, false);
+assert.match(wrongEvolutionPreview.ok ? "" : wrongEvolutionPreview.reason, /不能让/);
+const linkingCordEvolution = applyPlayerVaultEvolutionItemV4(vaultDex as any, {
+  vault: evolutionVault,
+  itemKey: "storage:0:2:linking-cord",
+  pokemonId: "vault-kadabra",
+  toSpeciesId: "alakazam",
+});
+assert.equal(linkingCordEvolution.ok, true);
+assert.equal(linkingCordEvolution.ok ? linkingCordEvolution.pokemon.speciesId : "", "alakazam");
+assert.equal(linkingCordEvolution.ok ? linkingCordEvolution.vault.items.some(entry => entry.itemId === "linking-cord") : true, false);
+
 console.log("item effects smoke ok");
 
 function item(itemID: string, name: string, options: Partial<PlayerItemInstanceV4> = {}): PlayerItemInstanceV4 {
@@ -598,14 +672,25 @@ function moveSummary(moveId: string, options: Partial<DexMoveSummary> = {}): Dex
   };
 }
 
-function fakePokemonDetail(): DexPokemonDetail {
+function fakePokemonDetail(speciesId = "pikachu"): DexPokemonDetail {
+  const species: Record<string, {name: string; nameZh: string; stats: Record<string, number>}> = {
+    pikachu: {name: "Pikachu", nameZh: "皮卡丘", stats: {hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90}},
+    charmander: {name: "Charmander", nameZh: "小火龙", stats: {hp: 39, atk: 52, def: 43, spa: 60, spd: 50, spe: 65}},
+    charmeleon: {name: "Charmeleon", nameZh: "火恐龙", stats: {hp: 58, atk: 64, def: 58, spa: 80, spd: 65, spe: 80}},
+    charizard: {name: "Charizard", nameZh: "喷火龙", stats: {hp: 78, atk: 84, def: 78, spa: 109, spd: 85, spe: 100}},
+    eevee: {name: "Eevee", nameZh: "伊布", stats: {hp: 55, atk: 55, def: 50, spa: 45, spd: 65, spe: 55}},
+    flareon: {name: "Flareon", nameZh: "火伊布", stats: {hp: 65, atk: 130, def: 60, spa: 95, spd: 110, spe: 65}},
+    kadabra: {name: "Kadabra", nameZh: "勇基拉", stats: {hp: 40, atk: 35, def: 30, spa: 120, spd: 70, spe: 105}},
+    alakazam: {name: "Alakazam", nameZh: "胡地", stats: {hp: 55, atk: 50, def: 45, spa: 135, spd: 95, spe: 120}},
+  };
+  const detail = species[speciesId] || species.pikachu!;
   return {
-    id: "pikachu",
-    name: "Pikachu",
-    nameZh: "皮卡丘",
+    id: speciesId,
+    name: detail.name,
+    nameZh: detail.nameZh,
     num: 25,
     types: ["Electric"],
-    baseStats: {hp: 35, atk: 55, def: 40, spa: 50, spd: 50, spe: 90},
+    baseStats: detail.stats as DexPokemonDetail["baseStats"],
     abilities: [
       {id: "static", name: "Static", nameZh: "静电"},
       {id: "lightningrod", name: "Lightning Rod", nameZh: "避雷针"},
@@ -615,7 +700,7 @@ function fakePokemonDetail(): DexPokemonDetail {
     evolutionChain: [],
     evolutionEdges: [],
     formes: [],
-    sprites: {resourcePrefix: ""},
+    sprites: {resourcePrefix: "", frontUrl: `${speciesId}.gif`, iconUrl: `${speciesId}.png`},
     learnset: [],
     learnsetGroups: {levelup: [], machine: [], tutor: [], egg: [], event: [], transfer: [], other: []},
   };
@@ -646,21 +731,27 @@ function fakeVaultDex() {
   const trainingEffects = new Map([
     ["adamantmint", {kind: "nature", nature: "Adamant"}],
   ]);
+  const speciesEvolutionEdges = [
+    {fromSpeciesId: "charmander", fromSpeciesName: "Charmander", fromSpeciesNameZh: "小火龙", toSpeciesId: "charmeleon", toSpeciesName: "Charmeleon", toSpeciesNameZh: "火恐龙", evoType: "levelExtra" as const},
+    {fromSpeciesId: "charmeleon", fromSpeciesName: "Charmeleon", fromSpeciesNameZh: "火恐龙", toSpeciesId: "charizard", toSpeciesName: "Charizard", toSpeciesNameZh: "喷火龙", evoType: "levelExtra" as const},
+    {fromSpeciesId: "eevee", fromSpeciesName: "Eevee", fromSpeciesNameZh: "伊布", toSpeciesId: "flareon", toSpeciesName: "Flareon", toSpeciesNameZh: "火伊布", evoType: "useItem" as const, evoItem: "Fire Stone", evoItemId: "firestone"},
+    {fromSpeciesId: "kadabra", fromSpeciesName: "Kadabra", fromSpeciesNameZh: "勇基拉", toSpeciesId: "alakazam", toSpeciesName: "Alakazam", toSpeciesNameZh: "胡地", evoType: "trade" as const},
+  ];
   return {
     toDexId: (value: string) => String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, ""),
     getItemDetail: (id: string) => ({
       id,
       name: id,
       nameZh: id,
-      kind: id.startsWith("tm:") ? "tm" : id === "leftovers" || id === "choicescarf" ? "battle" : trainingEffects.has(id) ? "training" : "parenting",
-      kindLabel: id.startsWith("tm:") ? "技能机器" : id === "leftovers" || id === "choicescarf" ? "战斗道具" : trainingEffects.has(id) ? "训练道具" : "养育道具",
+      kind: id.startsWith("tm:") ? "tm" : id === "leftovers" || id === "choicescarf" ? "battle" : ["universal-evolution-stone", "firestone", "linking-cord"].includes(id) ? "evolution" : trainingEffects.has(id) ? "training" : "parenting",
+      kindLabel: id.startsWith("tm:") ? "技能机器" : id === "leftovers" || id === "choicescarf" ? "战斗道具" : ["universal-evolution-stone", "firestone", "linking-cord"].includes(id) ? "进化道具" : trainingEffects.has(id) ? "训练道具" : "养育道具",
       description: "",
       moveId: id === "tm:surf" ? "surf" : id === "tm:earthquake" ? "earthquake" : undefined,
       moveTeachingEffect: itemEffects.get(id),
       friendshipEffect: friendshipEffects.get(id),
       trainingEffect: trainingEffects.get(id),
     }),
-    getPokemonDetail: (id: string) => fakePokemonDetail(),
+    getPokemonDetail: (id: string) => fakePokemonDetail(id),
     translateDexLabel: (table: "stats" | "natures", value: string) => {
       const labels: Record<string, string> = {Serious: "认真", Adamant: "固执", hp: "HP", atk: "攻击", def: "防御", spa: "特攻", spd: "特防", spe: "速度"};
       return labels[value] || value;
@@ -674,6 +765,15 @@ function fakeVaultDex() {
         .map(move => ({id: move.id})),
     }),
     getMoveDetail: (id: string) => moveById.get(id),
-    calculatePokemonStats: () => ({stats: {hp: 100, atk: 100, def: 100, spa: 100, spd: 100, spe: 100}}),
+    calculatePokemonStats: ({speciesId}: {speciesId: string}) => {
+      const detail = fakePokemonDetail(speciesId);
+      return {stats: Object.fromEntries(Object.entries(detail.baseStats).map(([stat, value]) => [stat, Number(value) + 50]))};
+    },
+    getPokemonEvolutionTree: (speciesId: string) => ({
+      edges: speciesEvolutionEdges.filter(edge => {
+        if (["charmander", "charmeleon", "charizard"].includes(speciesId)) return ["charmander", "charmeleon"].includes(edge.fromSpeciesId);
+        return edge.fromSpeciesId === speciesId;
+      }),
+    }),
   };
 }

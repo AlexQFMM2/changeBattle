@@ -1,5 +1,5 @@
-import type {DexItemDetail, DexItemRecoveryEffect, DexItemTrainingEffect, DexMoveSummary, DexPokemonDetail, DexStatId} from "@changebattle-v2/showdown-dex-core";
-import {addPlayerVaultItemV4, applyFormalSpecialMedicineToPokemonV4, isProtectedSoulmateItemUseTargetV4, normalizePlayerVaultV4, type PlayerItemRecordV4, type PlayerPokemonRecordV4, type PlayerVaultV4} from "@changebattle-v2/core";
+import type {DexItemDetail, DexItemRecoveryEffect, DexItemTrainingEffect, DexMoveSummary, DexPokemonDetail, DexPokemonEvolutionEdge, DexStatId} from "@changebattle-v2/showdown-dex-core";
+import {addPlayerVaultItemV4, applyFormalSpecialMedicineToPokemonV4, applyPlayerVaultEvolutionV4, isProtectedSoulmateItemUseTargetV4, normalizePlayerVaultV4, previewPlayerVaultEvolutionCandidatesV4, type PlayerItemRecordV4, type PlayerPokemonRecordV4, type PlayerVaultEvolutionCandidateV4, type PlayerVaultV4} from "@changebattle-v2/core";
 import type {BagStateV4, LocalPokemonV4, PlayerItemInstanceV4, StatTableV4, TrainingMoveSlotV4, TrainingStatusV4} from "./training.js";
 
 export type ConsumableItemApplyResultV4 =
@@ -42,6 +42,22 @@ export type PlayerVaultHeldItemUnequipResultV4 =
   | {ok: true; vault: PlayerVaultV4; pokemon: PlayerPokemonRecordV4; message: string; unequippedItemId: string}
   | {ok: false; reason: string};
 
+export type PlayerVaultEvolutionViewTargetV4 = {
+  toSpeciesId: string;
+  toName: string;
+  toSpriteUrl: string;
+  friendshipRequirement: number;
+  statChanges: Array<{label: string; before: string; after: string}>;
+};
+
+export type PlayerVaultEvolutionPreviewResultV4 =
+  | {ok: true; item: PlayerItemRecordV4; itemName: string; pokemon: PlayerPokemonRecordV4; pokemonName: string; fromSpeciesId: string; fromName: string; fromSpriteUrl: string; targets: PlayerVaultEvolutionViewTargetV4[]}
+  | {ok: false; reason: string};
+
+export type PlayerVaultEvolutionApplyResultV4 =
+  | {ok: true; vault: PlayerVaultV4; pokemon: PlayerPokemonRecordV4; beforePokemon: PlayerPokemonRecordV4; message: string; fromName: string; toName: string; fromSpriteUrl: string; toSpriteUrl: string}
+  | {ok: false; reason: string};
+
 type PlayerVaultMoveTeachingDexV4 = {
   toDexId(value: string): string;
   getItemDetail(itemId: string): DexItemDetail;
@@ -52,6 +68,7 @@ type PlayerVaultMoveTeachingDexV4 = {
   searchDex(request: {category: "moves"; query?: string; limit?: number}): {rows: Array<{id: string}>};
   getMoveDetail(moveId: string): DexMoveSummary;
   calculatePokemonStats?: (input: {speciesId: string; level?: number; nature?: string; evs?: StatTableV4; ivs?: StatTableV4}) => {stats: Record<string, number>};
+  getPokemonEvolutionTree?: (speciesId: string) => {edges: DexPokemonEvolutionEdge[]};
 };
 
 const RECOVERABLE_STATUS = new Set<TrainingStatusV4>(["brn", "par", "psn", "tox", "slp", "frz"]);
@@ -510,6 +527,74 @@ export function unequipPlayerVaultHeldItemV4(
   };
 }
 
+export function previewPlayerVaultEvolutionItemUseV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  input: {vault: PlayerVaultV4 | undefined | null; itemKey: string; pokemonId: string},
+): PlayerVaultEvolutionPreviewResultV4 {
+  const normalized = normalizePlayerVaultV4(input.vault);
+  const item = findPlayerVaultItemByKeyV4(normalized, input.itemKey);
+  if (!item) return {ok: false, reason: "道具不存在。"};
+  const pokemon = normalized.pokemon.find(entry => entry.playerPokemonId === input.pokemonId);
+  if (!pokemon) return {ok: false, reason: "请选择宝可梦。"};
+  const detail = safeVaultItemDetailV4(dex, item.itemId);
+  if (detail?.kind !== "evolution") return {ok: false, reason: "该道具不是进化道具。"};
+  const tree = safeVaultEvolutionTreeV4(dex, pokemon.speciesId);
+  const preview = previewPlayerVaultEvolutionCandidatesV4({
+    vault: normalized,
+    itemKey: input.itemKey,
+    pokemonId: input.pokemonId,
+    evolutionEdges: tree.edges,
+    evolutionStageCount: vaultEvolutionStageCountV4(tree.edges),
+  });
+  if (!preview.ok) return {ok: false, reason: preview.reason.replace("目标宝可梦", playerVaultPokemonDisplayNameV4(dex, pokemon))};
+  const fromDetail = safePokemonDetailV4(dex, pokemon.speciesId);
+  return {
+    ok: true,
+    item,
+    itemName: detail.nameZh || detail.name || item.itemId,
+    pokemon,
+    pokemonName: playerVaultPokemonDisplayNameV4(dex, pokemon),
+    fromSpeciesId: pokemon.speciesId,
+    fromName: fromDetail?.nameZh || fromDetail?.name || pokemon.speciesId,
+    fromSpriteUrl: vaultPokemonFrontSpriteUrlV4(fromDetail, pokemon.shiny),
+    targets: preview.candidates.map(candidate => evolutionCandidateViewV4(dex, pokemon, candidate)),
+  };
+}
+
+export function applyPlayerVaultEvolutionItemV4(
+  dex: PlayerVaultMoveTeachingDexV4,
+  input: {vault: PlayerVaultV4 | undefined | null; itemKey: string; pokemonId: string; toSpeciesId: string},
+): PlayerVaultEvolutionApplyResultV4 {
+  const normalized = normalizePlayerVaultV4(input.vault);
+  const pokemon = normalized.pokemon.find(entry => entry.playerPokemonId === input.pokemonId);
+  if (!pokemon) return {ok: false, reason: "请选择宝可梦。"};
+  const tree = safeVaultEvolutionTreeV4(dex, pokemon.speciesId);
+  const result = applyPlayerVaultEvolutionV4({
+    vault: normalized,
+    itemKey: input.itemKey,
+    pokemonId: input.pokemonId,
+    toSpeciesId: input.toSpeciesId,
+    evolutionEdges: tree.edges,
+    evolutionStageCount: vaultEvolutionStageCountV4(tree.edges),
+  });
+  if (!result.ok) return result;
+  const beforeDetail = safePokemonDetailV4(dex, result.beforePokemon.speciesId);
+  const afterDetail = safePokemonDetailV4(dex, result.pokemon.speciesId);
+  const fromName = beforeDetail?.nameZh || beforeDetail?.name || result.beforePokemon.speciesId;
+  const toName = afterDetail?.nameZh || afterDetail?.name || result.pokemon.speciesId;
+  return {
+    ok: true,
+    vault: result.vault,
+    pokemon: result.pokemon,
+    beforePokemon: result.beforePokemon,
+    message: `${fromName} 进化成了 ${toName}。`,
+    fromName,
+    toName,
+    fromSpriteUrl: vaultPokemonFrontSpriteUrlV4(beforeDetail, result.beforePokemon.shiny),
+    toSpriteUrl: vaultPokemonFrontSpriteUrlV4(afterDetail, result.pokemon.shiny),
+  };
+}
+
 function applyPpRecovery(moves: TrainingMoveSlotV4[], effect: NonNullable<DexItemRecoveryEffect["pp"]>): {moves: TrainingMoveSlotV4[]; recovered: number; moveIndex: number | null} {
   if (effect.scope === "all") {
     let recovered = 0;
@@ -728,6 +813,73 @@ function safePokemonDetailV4(dex: PlayerVaultMoveTeachingDexV4, speciesId: strin
   } catch {
     return null;
   }
+}
+
+function safeVaultEvolutionTreeV4(dex: PlayerVaultMoveTeachingDexV4, speciesId: string): {edges: DexPokemonEvolutionEdge[]} {
+  try {
+    return dex.getPokemonEvolutionTree?.(speciesId) || {edges: []};
+  } catch {
+    return {edges: []};
+  }
+}
+
+function evolutionCandidateViewV4(dex: PlayerVaultMoveTeachingDexV4, pokemon: PlayerPokemonRecordV4, candidate: PlayerVaultEvolutionCandidateV4): PlayerVaultEvolutionViewTargetV4 {
+  const toDetail = safePokemonDetailV4(dex, candidate.toSpeciesId);
+  const beforeStats = vaultPokemonStatMapV4(dex, pokemon);
+  const afterStats = vaultPokemonStatMapV4(dex, {...pokemon, speciesId: candidate.toSpeciesId});
+  return {
+    toSpeciesId: candidate.toSpeciesId,
+    toName: toDetail?.nameZh || toDetail?.name || candidate.toSpeciesId,
+    toSpriteUrl: vaultPokemonFrontSpriteUrlV4(toDetail, pokemon.shiny),
+    friendshipRequirement: candidate.friendshipRequirement || 0,
+    statChanges: STAT_IDS.flatMap(stat => {
+      const before = Math.max(0, Math.floor(Number(beforeStats[stat] || 0)));
+      const after = Math.max(0, Math.floor(Number(afterStats[stat] || 0)));
+      if (before === after) return [];
+      return [{label: dex.translateDexLabel?.("stats", stat) || stat, before: String(before), after: String(after)}];
+    }),
+  };
+}
+
+function vaultPokemonStatMapV4(dex: PlayerVaultMoveTeachingDexV4, pokemon: PlayerPokemonRecordV4): Record<string, number> {
+  try {
+    return dex.calculatePokemonStats?.({speciesId: pokemon.speciesId, level: pokemon.level || 50, nature: pokemon.nature, evs: pokemon.evs, ivs: pokemon.ivs}).stats || {};
+  } catch {
+    return {};
+  }
+}
+
+function vaultPokemonFrontSpriteUrlV4(detail: DexPokemonDetail | null, shiny: boolean): string {
+  if (!detail) return "";
+  return shiny
+    ? detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl || ""
+    : detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl || "";
+}
+
+function vaultEvolutionStageCountV4(edges: Array<{fromSpeciesId: string; toSpeciesId: string}>): number {
+  const incoming = new Map(edges.map(edge => [edge.toSpeciesId, edge.fromSpeciesId]));
+  const outgoing = new Map<string, string[]>();
+  for (const edge of edges) {
+    const next = outgoing.get(edge.fromSpeciesId) || [];
+    next.push(edge.toSpeciesId);
+    outgoing.set(edge.fromSpeciesId, next);
+  }
+  const roots = new Set(edges.map(edge => edge.fromSpeciesId).filter(speciesId => !incoming.has(speciesId)));
+  const stack = [...roots].map(speciesId => ({speciesId, depth: 0, visited: new Set<string>()}));
+  let maxDepth = edges.length ? 1 : 0;
+  while (stack.length) {
+    const current = stack.pop()!;
+    if (current.visited.has(current.speciesId)) continue;
+    const visited = new Set(current.visited);
+    visited.add(current.speciesId);
+    const nextSpecies = outgoing.get(current.speciesId) || [];
+    if (!nextSpecies.length) {
+      maxDepth = Math.max(maxDepth, current.depth);
+      continue;
+    }
+    for (const next of nextSpecies) stack.push({speciesId: next, depth: current.depth + 1, visited});
+  }
+  return maxDepth;
 }
 
 function numericChangesForPlayerVaultPokemonV4(dex: PlayerVaultMoveTeachingDexV4, before: PlayerPokemonRecordV4, after: PlayerPokemonRecordV4): Array<{label: string; before: string; after: string}> {

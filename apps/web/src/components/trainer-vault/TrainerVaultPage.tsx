@@ -6,6 +6,7 @@ import {TrainerVaultBagList} from "./TrainerVaultBagList";
 import {TrainerVaultDebugAddModal, type TrainerVaultDebugAddState} from "./TrainerVaultDebugAddModal";
 import {buildItemPageEntries, buildPokemonPageEntries, createEmptyEntries, findItemEntryByKey, findPlayerVaultItemRecordByKey, findPokemonEntryById, isItemEntryWithKey, isPokemonEntryWithId, isVaultUsableItemDetail, itemRecordKey, itemRecordView, moveTeachingUnavailableMessage, playerMoveToReplaceMove, playerPokemonDisplayName, POKEMON_PAGE_SIZE, safeItemDetail, STORAGE_BOX_UNLOCK_BP_COST, type TrainerVaultTab, type VaultActiveUseItem, type VaultItemEntry, type VaultPageEntry, type VaultPokemonEntry} from "./TrainerVaultModel";
 import {TrainerVaultPokemonBox} from "./TrainerVaultPokemonBox";
+import {VaultEvolutionPreviewModal, type VaultEvolutionPreviewModalState} from "./VaultEvolutionPreviewModal";
 import {VaultItemDrawer} from "./VaultItemDrawer";
 import {VaultMoveReplaceModal, type VaultMoveReplaceState} from "./VaultMoveReplaceModal";
 import {VaultMoveSelectModal, type VaultMoveSelectState} from "./VaultMoveSelectModal";
@@ -22,6 +23,7 @@ type VaultConfirmDialog = {
   onConfirm: () => void | Promise<void>;
 };
 type VaultNumericPreviewState = VaultNumericPreviewModalState;
+type VaultEvolutionPreviewState = VaultEvolutionPreviewModalState;
 
 export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBattlePoints, debugFeatureEnabled = false, onPlayerVaultChange, onPlayerVaultDirtyChange, onSavePlayerVault, onUnlockStoragePage, onBack}: {
   api: ChangeBattleV2Api;
@@ -48,6 +50,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
   const [moveSelect, setMoveSelect] = useState<VaultMoveSelectState | null>(null);
   const [moveReplace, setMoveReplace] = useState<VaultMoveReplaceState | null>(null);
   const [numericPreview, setNumericPreview] = useState<VaultNumericPreviewState | null>(null);
+  const [evolutionPreview, setEvolutionPreview] = useState<VaultEvolutionPreviewState | null>(null);
   const [activeUseItem, setActiveUseItem] = useState<VaultActiveUseItem | null>(null);
   const [debugAdd, setDebugAdd] = useState<TrainerVaultDebugAddState | null>(null);
   const [useNotice, setUseNotice] = useState<VaultUseNoticeState | null>(null);
@@ -175,6 +178,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     setMoveSelect(null);
     setMoveReplace(null);
     setNumericPreview(null);
+    setEvolutionPreview(null);
     setActiveUseItem({
       itemKey: entry.key,
       itemId: entry.item.itemId,
@@ -196,6 +200,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       moveSlot,
     });
     if (!result.ok) {
+      setEvolutionPreview(null);
       showUseNotice(result.reason);
       return;
     }
@@ -244,6 +249,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     }
     const pokemonName = playerPokemonDisplayName(api, entry.pokemon);
     if (detail.friendshipEffect || detail.trainingEffect) {
+      setEvolutionPreview(null);
       const preview = api.previewPlayerVaultNumericItemUse({vault: draftVault, itemKey: activeUseItem.itemKey, pokemonId: entry.pokemon.playerPokemonId});
       if (!preview.ok) {
         showUseNotice(preview.reason);
@@ -254,11 +260,20 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     }
     if (detail.moveTeachingEffect || detail.kind === "tm") {
       setNumericPreview(null);
+      setEvolutionPreview(null);
       openMoveSelectForTarget(activeUseItem.itemKey, entry.pokemon);
       return;
     }
     if (detail.kind === "evolution") {
-      showUseNotice("进化功能稍后开放，这个道具现在没有效果。");
+      setNumericPreview(null);
+      setMoveSelect(null);
+      setMoveReplace(null);
+      const preview = api.previewPlayerVaultEvolutionItemUse({vault: draftVault, itemKey: activeUseItem.itemKey, pokemonId: entry.pokemon.playerPokemonId});
+      if (!preview.ok) {
+        showUseNotice(preview.reason);
+        return;
+      }
+      setEvolutionPreview(preview);
       return;
     }
     if (detail.kind === "battle" || detail.kind === "held") {
@@ -290,6 +305,23 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
       return;
     }
     setNumericPreview(null);
+    showUseNotice(result.message, "normal");
+    updateVaultAfterUse(result.vault, result.message);
+  }
+
+  function applyEvolutionItem(toSpeciesId: string) {
+    if (!activeUseItem || !evolutionPreview) return;
+    const result = api.applyPlayerVaultEvolutionItem({
+      vault: draftVault,
+      itemKey: activeUseItem.itemKey,
+      pokemonId: evolutionPreview.pokemon.playerPokemonId,
+      toSpeciesId,
+    });
+    if (!result.ok) {
+      showUseNotice(result.reason);
+      return;
+    }
+    setEvolutionPreview(null);
     showUseNotice(result.message, "normal");
     updateVaultAfterUse(result.vault, result.message);
   }
@@ -378,6 +410,7 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
     setMoveSelect(null);
     setMoveReplace(null);
     setNumericPreview(null);
+    setEvolutionPreview(null);
     setVaultMessage(message);
     if (!useItem) return;
     setItemPageIndex(useItem.startedFromPageIndex);
@@ -540,6 +573,13 @@ export function TrainerVaultPage({api, playerVault, playerVaultDirty, profileBat
           preview={numericPreview}
           onCancel={() => setNumericPreview(null)}
           onConfirm={applyNumericItem}
+        />
+      ) : null}
+      {evolutionPreview ? (
+        <VaultEvolutionPreviewModal
+          preview={evolutionPreview}
+          onCancel={() => setEvolutionPreview(null)}
+          onConfirm={applyEvolutionItem}
         />
       ) : null}
       {debugAdd ? (

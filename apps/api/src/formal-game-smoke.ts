@@ -1005,9 +1005,16 @@ eliteOpponent.forEach((pokemon, index) => assertRecommendedMoveCount(pokemon, 3,
 
 const shop = api.getFormalRestShop(roundPlanned);
 const shopProducts = api.getFormalRestShopProducts(roundPlanned);
-assert(shopProducts.length === FORMAL_SHOP_CATEGORY_ORDER.length, "formal shop product view should expose one row by default");
+const standardShopProductCount = (rows: number) => FORMAL_SHOP_CATEGORY_ORDER.reduce((sum, category) => sum + Math.max(0, Math.min(FORMAL_SHOP_SLOTS_PER_CATEGORY[category], rows)), 0);
+assert(shopProducts.length === standardShopProductCount(1), "formal shop product view should expose one row for active standard shelves by default");
 assert(shopProducts.every(product => product.slotId && product.itemID && product.name && product.summary && product.price > 0), "formal shop product view should include display fields");
 assert(shopProducts.every(product => shop?.categories[product.type]?.some(item => item.slotId === product.slotId)), "formal shop product view should preserve slot mapping");
+assert(shopProducts.some(product => product.type === "recovery"), "standard formal shop should expose recovery products");
+assert(shopProducts.some(product => product.type === "berry"), "standard formal shop should expose berry products");
+assert(shopProducts.some(product => product.type === "battle"), "standard formal shop should expose battle products");
+assert(shopProducts.some(product => product.type === "training"), "standard formal shop should expose special medicines");
+assert(shopProducts.some(product => product.type === "tm"), "standard formal shop should expose TMs");
+assert(!shopProducts.some(product => product.type === "parenting" || product.type === "evolution"), "standard formal shop should hide growth and evolution products");
 const pendingShopRun = {
   ...roundPlanned,
   money: 3000,
@@ -1019,12 +1026,11 @@ const pendingShopRun = {
 };
 const pendingShopProducts = api.getFormalRestShopProducts(pendingShopRun);
 assert(pendingShopProducts.filter(product => product.type === "training").length === 2, "pending settlement shop should expose two training products");
-assert(pendingShopProducts.filter(product => product.type === "parenting").length === 2, "pending settlement shop should expose two parenting products");
 assert(pendingShopProducts.filter(product => product.type === "evolution").length === 2, "pending settlement shop should expose two evolution products");
 assert(pendingShopProducts.filter(product => product.type === "tm").length === 2, "pending settlement shop should expose two TM products");
 assert(pendingShopProducts.filter(product => product.type === "battle").length === 1, "pending settlement shop should expose one battle product");
-assert(!pendingShopProducts.some(product => product.type === "recovery" || product.type === "berry"), "pending settlement shop should hide recovery and berry products");
-assert(!pendingShopProducts.some(product => ["rarecandy", "ppup", "ppmax", "abilitycapsule", "abilitypatch"].includes(product.itemID)), "pending settlement training products should stay focused on mints, caps, and EV medicine");
+assert(!pendingShopProducts.some(product => product.type === "recovery" || product.type === "berry" || product.type === "parenting"), "pending settlement shop should hide recovery, berry, and standalone parenting products");
+assert(!pendingShopProducts.some(product => ["rarecandy", "ppup", "ppmax"].includes(product.itemID)), "pending settlement training products should exclude candy and PP items");
 const insuranceBlocked = api.chooseFormalMedicalInsurance(roundPlanned, "basic");
 assert(!insuranceBlocked.ok && insuranceBlocked.run.money === roundPlanned.money, "medical insurance should require star chart unlock");
 const insuranceProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, FREE_MEDICAL_CARE_NODE_ID);
@@ -1077,10 +1083,10 @@ const poorHealResult = api.healFormalRestTeam({...damagedInsuranceRun, money: 19
 assert(!poorHealResult.ok && poorHealResult.run.money === 199, "formal full team heal should reject insufficient money without mutation");
 const counterOneProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "shop_luxury_counter_1");
 const counterOneRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(counterOneProfile, {mode: "singles", seed: "formal-smoke-counter-one-seed"})), [0, 1, 2]));
-assert(api.getFormalRestShopProducts(counterOneRun).length === FORMAL_SHOP_CATEGORY_ORDER.length * 2, "luxury counter I should expose two shop rows");
+assert(api.getFormalRestShopProducts(counterOneRun).length === standardShopProductCount(2), "luxury counter I should expose two shop rows on active standard shelves");
 const counterTwoProfile = unlockStarChartNodeForProfileV4(counterOneProfile, "shop_luxury_counter_2");
 const counterTwoRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(counterTwoProfile, {mode: "singles", seed: "formal-smoke-counter-two-seed"})), [0, 1, 2]));
-assert(api.getFormalRestShopProducts(counterTwoRun).length === FORMAL_SHOP_CATEGORY_ORDER.length * 3, "luxury counter II should expose three shop rows");
+assert(api.getFormalRestShopProducts(counterTwoRun).length === standardShopProductCount(3), "luxury counter II should expose three shop rows on active standard shelves");
 const tmProduct = shopProducts.find(product => product.type === "tm");
 assert(tmProduct && !/^技能机器[：:]/.test(tmProduct.name), "formal shop TM product should display move name instead of TM item prefix");
 assert(shopProducts.every(product => product.price > 0 && product.price <= 900), "formal shop products should use low formal prices instead of dex prices");
@@ -1126,6 +1132,8 @@ assert(!FORMAL_SHOP_ITEM_POOL.training.includes("ppup"), "standard formal traini
 assert(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("adamantmint"), "pending settlement training shop should retain mints");
 assert(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("bottlecap"), "pending settlement training shop should retain bottle caps");
 assert(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("abilitycapsule"), "pending settlement training shop should retain ability capsules");
+assert(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("heartscale"), "pending settlement training shop should include growth items");
+assert(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("forbiddenmanual"), "pending settlement training shop should include rare growth items");
 const calmRestockContext: FormalShopRestockContextV4 = {
   roundIndex: 0,
   money: FORMAL_STARTING_MONEY,

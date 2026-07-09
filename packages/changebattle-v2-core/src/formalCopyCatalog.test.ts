@@ -11,14 +11,20 @@ import {
   formalShopGenerationRuleV4,
   formalShopItemPoolForCategoryV4,
   FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY,
+  FORMAL_SHOP_SLOTS_PER_CATEGORY,
   FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL,
   FORMAL_SHOP_PARENTING_ITEM_POOL,
   FORMAL_SHOP_EVOLUTION_ITEM_POOL,
   FORMAL_SHOP_ITEM_POOL,
+  FORMAL_SHOP_SPECIAL_MEDICINE_ITEM_POOL,
   formalTrainingGroundLessonTableV4,
   soulmateEvolutionFriendshipRequirementV4,
   soulmateEvolutionFriendshipRequirementForChainV4,
   createPlayerVaultEggPokemonRecordV4,
+  applyPlayerVaultEvolutionV4,
+  previewPlayerVaultEvolutionCandidatesV4,
+  type PlayerPokemonRecordV4,
+  type PlayerVaultV4,
 } from "./index.js";
 
 assert.equal(formalRoundStageLabelV4(0), "小组赛揭幕战");
@@ -37,25 +43,157 @@ assert.equal(soulmateEvolutionFriendshipRequirementV4(2), null);
 assert.equal(soulmateEvolutionFriendshipRequirementForChainV4(0, 1), 150);
 assert.equal(soulmateEvolutionFriendshipRequirementForChainV4(0, 2), 100);
 assert.equal(soulmateEvolutionFriendshipRequirementForChainV4(1, 2), 200);
+
+const evolutionEdges = [
+  {fromSpeciesId: "charmander", toSpeciesId: "charmeleon", evoType: "levelExtra"},
+  {fromSpeciesId: "charmeleon", toSpeciesId: "charizard", evoType: "levelExtra"},
+  {fromSpeciesId: "eevee", toSpeciesId: "flareon", evoType: "useItem", evoItemId: "firestone"},
+  {fromSpeciesId: "kadabra", toSpeciesId: "alakazam", evoType: "trade"},
+];
+const vaultPokemon: PlayerPokemonRecordV4 = {
+  playerPokemonId: "vault-charmander",
+  speciesId: "charmander",
+  nickname: "小火",
+  level: 50,
+  originKind: "soulmate",
+  rootSpeciesId: "charmander",
+  gender: "M",
+  nature: "Adamant",
+  abilityId: "blaze",
+  heldItemId: "leftovers",
+  evs: {hp: 1, atk: 2, def: 3, spa: 4, spd: 5, spe: 6},
+  ivs: {hp: 31, atk: 30, def: 29, spa: 28, spd: 27, spe: 26},
+  moves: [{moveId: "scratch", remainingPp: 35, maxPp: 35}],
+  friendship: 99,
+  shiny: true,
+  metAt: "2026-01-01T00:00:00.000Z",
+  honors: ["灵魂伴侣"],
+  battleMarked: true,
+};
+const evolutionVault: PlayerVaultV4 = {
+  version: 1,
+  items: [{itemId: "universal-evolution-stone", quantity: 2, boxKind: "storage", storagePageIndex: 0, slotIndex: 0}],
+  pokemon: [vaultPokemon],
+  itemStoragePageCount: 3,
+  pokemonStoragePageCount: 2,
+};
+const tooEarlyEvolution = previewPlayerVaultEvolutionCandidatesV4({vault: evolutionVault, itemKey: "storage:0:0:universal-evolution-stone", pokemonId: "vault-charmander", evolutionEdges, evolutionStageCount: 2});
+assert.equal(tooEarlyEvolution.ok, false);
+assert.match(tooEarlyEvolution.ok ? "" : tooEarlyEvolution.reason, /亲密度不足/);
+const evolvedCharmander = applyPlayerVaultEvolutionV4({
+  vault: {...evolutionVault, pokemon: [{...vaultPokemon, friendship: 100}]},
+  itemKey: "storage:0:0:universal-evolution-stone",
+  pokemonId: "vault-charmander",
+  toSpeciesId: "charmeleon",
+  evolutionEdges,
+  evolutionStageCount: 2,
+});
+assert.equal(evolvedCharmander.ok, true);
+if (evolvedCharmander.ok) {
+  assert.equal(evolvedCharmander.pokemon.speciesId, "charmeleon");
+  assert.equal(evolvedCharmander.pokemon.nickname, "小火");
+  assert.equal(evolvedCharmander.pokemon.nature, "Adamant");
+  assert.deepEqual(evolvedCharmander.pokemon.ivs, vaultPokemon.ivs);
+  assert.deepEqual(evolvedCharmander.pokemon.evs, vaultPokemon.evs);
+  assert.deepEqual(evolvedCharmander.pokemon.moves, vaultPokemon.moves);
+  assert.equal(evolvedCharmander.pokemon.heldItemId, "leftovers");
+  assert.equal(evolvedCharmander.pokemon.battleMarked, true);
+  assert.equal(evolvedCharmander.vault.items.find(item => item.itemId === "universal-evolution-stone")?.quantity, 1);
+}
+const tooEarlyCharmeleon = previewPlayerVaultEvolutionCandidatesV4({
+  vault: {...evolutionVault, pokemon: [{...vaultPokemon, speciesId: "charmeleon", friendship: 199}]},
+  itemKey: "storage:0:0:universal-evolution-stone",
+  pokemonId: "vault-charmander",
+  evolutionEdges,
+  evolutionStageCount: 2,
+});
+assert.equal(tooEarlyCharmeleon.ok, false);
+assert.match(tooEarlyCharmeleon.ok ? "" : tooEarlyCharmeleon.reason, /200/);
+const evolvedCharmeleon = applyPlayerVaultEvolutionV4({
+  vault: {...evolutionVault, pokemon: [{...vaultPokemon, speciesId: "charmeleon", friendship: 200}]},
+  itemKey: "storage:0:0:universal-evolution-stone",
+  pokemonId: "vault-charmander",
+  toSpeciesId: "charizard",
+  evolutionEdges,
+  evolutionStageCount: 2,
+});
+assert.equal(evolvedCharmeleon.ok, true);
+assert.equal(evolvedCharmeleon.ok ? evolvedCharmeleon.pokemon.speciesId : "", "charizard");
+const tooEarlySingleStage = previewPlayerVaultEvolutionCandidatesV4({
+  vault: {...evolutionVault, items: [{itemId: "firestone", quantity: 1, boxKind: "storage", storagePageIndex: 0, slotIndex: 1}], pokemon: [{...vaultPokemon, playerPokemonId: "vault-eevee", speciesId: "eevee", friendship: 149}]},
+  itemKey: "storage:0:1:firestone",
+  pokemonId: "vault-eevee",
+  evolutionEdges,
+  evolutionStageCount: 1,
+});
+assert.equal(tooEarlySingleStage.ok, false);
+assert.match(tooEarlySingleStage.ok ? "" : tooEarlySingleStage.reason, /150/);
+const fireStonePreview = previewPlayerVaultEvolutionCandidatesV4({
+  vault: {...evolutionVault, items: [{itemId: "firestone", quantity: 1, boxKind: "storage", storagePageIndex: 0, slotIndex: 1}], pokemon: [{...vaultPokemon, playerPokemonId: "vault-eevee", speciesId: "eevee", friendship: 150}]},
+  itemKey: "storage:0:1:firestone",
+  pokemonId: "vault-eevee",
+  evolutionEdges,
+  evolutionStageCount: 1,
+});
+assert.equal(fireStonePreview.ok, true);
+assert.deepEqual(fireStonePreview.ok ? fireStonePreview.candidates.map(candidate => candidate.toSpeciesId) : [], ["flareon"]);
+const wrongStonePreview = previewPlayerVaultEvolutionCandidatesV4({
+  vault: {...evolutionVault, items: [{itemId: "universal-evolution-stone", quantity: 1, boxKind: "storage", storagePageIndex: 0, slotIndex: 1}], pokemon: [{...vaultPokemon, playerPokemonId: "vault-eevee", speciesId: "eevee", friendship: 150}]},
+  itemKey: "storage:0:1:universal-evolution-stone",
+  pokemonId: "vault-eevee",
+  evolutionEdges,
+  evolutionStageCount: 1,
+});
+assert.equal(wrongStonePreview.ok, false);
+assert.match(wrongStonePreview.ok ? "" : wrongStonePreview.reason, /不能让/);
+const linkingCordResult = applyPlayerVaultEvolutionV4({
+  vault: {...evolutionVault, items: [{itemId: "linking-cord", quantity: 1, boxKind: "storage", storagePageIndex: 0, slotIndex: 2}], pokemon: [{...vaultPokemon, playerPokemonId: "vault-kadabra", speciesId: "kadabra", friendship: 150}]},
+  itemKey: "storage:0:2:linking-cord",
+  pokemonId: "vault-kadabra",
+  toSpeciesId: "alakazam",
+  evolutionEdges,
+  evolutionStageCount: 1,
+});
+assert.equal(linkingCordResult.ok, true);
+assert.equal(linkingCordResult.ok ? linkingCordResult.vault.items.length : -1, 0);
 assert.deepEqual(FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY, {
   recovery: 0,
   berry: 0,
   battle: 1,
   training: 2,
-  parenting: 2,
+  parenting: 0,
   evolution: 2,
   tm: 2,
 });
+assert.deepEqual(FORMAL_SHOP_SLOTS_PER_CATEGORY, {
+  recovery: 3,
+  berry: 3,
+  battle: 3,
+  training: 3,
+  parenting: 0,
+  evolution: 0,
+  tm: 3,
+});
 assert.ok(FORMAL_SHOP_PARENTING_ITEM_POOL.includes("heartscale"));
 assert.ok(FORMAL_SHOP_PARENTING_ITEM_POOL.includes("forbiddenmanual"));
+assert.ok(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("heartscale"));
+assert.ok(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("forbiddenmanual"));
 assert.ok(FORMAL_SHOP_EVOLUTION_ITEM_POOL.includes("universal-evolution-stone"));
 assert.ok(FORMAL_SHOP_EVOLUTION_ITEM_POOL.includes("linking-cord"));
-assert.ok(!FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.some(itemID => ["rarecandy", "ppup", "ppmax", "abilitycapsule", "abilitypatch"].includes(itemID)));
+assert.ok(!FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.some(itemID => ["rarecandy", "ppup", "ppmax"].includes(itemID)));
+assert.ok(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("abilitycapsule"));
+assert.ok(FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes("abilitypatch"));
+assert.deepEqual(FORMAL_SHOP_ITEM_POOL.training, FORMAL_SHOP_SPECIAL_MEDICINE_ITEM_POOL);
+assert.equal(FORMAL_SHOP_ITEM_POOL.training.some(itemID => FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL.includes(itemID)), false);
+assert.deepEqual(FORMAL_SHOP_ITEM_POOL.parenting, []);
+assert.deepEqual(FORMAL_SHOP_ITEM_POOL.evolution, []);
 assert.ok(FORMAL_SHOP_ITEM_POOL.recovery.length > 0);
 assert.equal(formalShopGenerationRuleV4(false).id, "standard");
 assert.equal(formalShopGenerationRuleV4(true).id, "pendingSettlement");
 assert.deepEqual(formalShopItemPoolForCategoryV4("recovery", true), []);
 assert.deepEqual(formalShopItemPoolForCategoryV4("berry", true), []);
+assert.deepEqual(formalShopItemPoolForCategoryV4("parenting", true), []);
+assert.deepEqual(formalShopItemPoolForCategoryV4("evolution", false), []);
 assert.equal(formalShopItemPoolForCategoryV4("training", true), FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL);
 assert.equal(formalShopItemPoolForCategoryV4("training", false), FORMAL_SHOP_ITEM_POOL.training);
 

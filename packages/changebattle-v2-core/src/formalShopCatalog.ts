@@ -58,6 +58,7 @@ export const FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL = [
   "hpup", "protein", "iron", "calcium", "zinc", "carbos",
   "abilitycapsule", "abilitypatch", "bottlecap", "goldbottlecap", "graybottlecap",
   "adamantmint", "modestmint", "jollymint", "timidmint", "calmmint", "boldmint",
+  "heartscale", "standardtextbook", "redthread", "soothebell", "lostmanual", "forbiddenmanual",
 ];
 export const FORMAL_SHOP_SPECIAL_MEDICINE_ITEM_POOL = [
   "sulfurglasswater",
@@ -81,6 +82,16 @@ export const FORMAL_SHOP_EVOLUTION_ITEM_POOL = [
   "blackaugurite", "peatblock", "auspiciousarmor", "maliciousarmor", "galaricacuff",
   "galaricawreath", "chippedpot", "crackedpot", "unremarkableteacup", "masterpieceteacup",
   "metalalloy",
+];
+export const FORMAL_SHOP_PENDING_BATTLE_ITEM_POOL = [
+  "leftovers", "lifeorb", "choicescarf", "choiceband", "choicespecs",
+  "focussash", "assaultvest", "rockyhelmet", "eviolite", "expertbelt",
+  "airballoon", "heavydutyboots", "blacksludge", "shellbell",
+];
+export const FORMAL_SHOP_PENDING_TM_ITEM_POOL = [
+  "tm:protect", "tm:thunderbolt", "tm:icebeam", "tm:flamethrower", "tm:earthquake",
+  "tm:surf", "tm:psychic", "tm:shadowball", "tm:rockslide", "tm:calmmind",
+  "tm:swordsdance", "tm:substitute", "tm:willowisp", "tm:toxic", "tm:trickroom",
 ];
 
 export const FORMAL_SHOP_PRICE_LIMITS = {
@@ -220,7 +231,7 @@ export const FORMAL_SHOP_PRICE_OVERRIDES: Record<string, number> = {
   redthread: 220,
   soothebell: 250,
   lostmanual: 360,
-  forbiddenmanual: 800,
+  forbiddenmanual: 400,
   "universal-evolution-stone": 180,
   "linking-cord": 220,
   linkingcord: 220,
@@ -420,19 +431,18 @@ export const FORMAL_SHOP_ITEM_POOL: Record<FormalShopCategoryV4, string[]> = {
     "tm:swordsdance", "tm:substitute", "tm:willowisp", "tm:toxic", "tm:trickroom",
   ],
   training: FORMAL_SHOP_SPECIAL_MEDICINE_ITEM_POOL,
-  parenting: FORMAL_SHOP_PARENTING_ITEM_POOL,
-  evolution: FORMAL_SHOP_EVOLUTION_ITEM_POOL,
+  parenting: [],
+  evolution: [],
 };
 
 export const FORMAL_PENDING_SETTLEMENT_SHOP_ITEM_POOL: Record<FormalShopCategoryV4, string[]> = {
-  ...FORMAL_SHOP_ITEM_POOL,
   recovery: [],
   berry: [],
-  battle: FORMAL_SHOP_ITEM_POOL.battle,
+  battle: FORMAL_SHOP_PENDING_BATTLE_ITEM_POOL,
   training: FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL,
-  parenting: FORMAL_SHOP_PARENTING_ITEM_POOL,
+  parenting: [],
   evolution: FORMAL_SHOP_EVOLUTION_ITEM_POOL,
-  tm: FORMAL_SHOP_ITEM_POOL.tm,
+  tm: FORMAL_SHOP_PENDING_TM_ITEM_POOL,
 };
 
 export const FORMAL_SHOP_SLOTS_PER_CATEGORY: Record<FormalShopCategoryV4, number> = {
@@ -440,8 +450,8 @@ export const FORMAL_SHOP_SLOTS_PER_CATEGORY: Record<FormalShopCategoryV4, number
   berry: 3,
   battle: 3,
   training: 3,
-  parenting: 3,
-  evolution: 3,
+  parenting: 0,
+  evolution: 0,
   tm: 3,
 };
 
@@ -450,7 +460,7 @@ export const FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY: Record<FormalSho
   berry: 0,
   battle: 1,
   training: 2,
-  parenting: 2,
+  parenting: 0,
   evolution: 2,
   tm: 2,
 };
@@ -481,6 +491,7 @@ export function formalShopSlotsForCategoryV4(category: FormalShopCategoryV4, pen
   const rule = formalShopGenerationRuleV4(pendingSettlement);
   const maxSlots = rule.slotsPerCategory[category] || 0;
   if (rule.fixedSlots) return Math.max(0, maxSlots);
+  if (maxSlots <= 0) return 0;
   return Math.max(1, Math.min(maxSlots, rows));
 }
 

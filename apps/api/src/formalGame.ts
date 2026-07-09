@@ -2909,7 +2909,7 @@ export function createFormalShopProductViewsV4(
   if (!shop) return [];
   const products: FormalShopProductViewV4[] = [];
   for (const category of FORMAL_SHOP_PRODUCT_VIEW_CATEGORY_ORDER) {
-    const slotCount = Math.max(shop.categories[category]?.length || 0, FORMAL_SHOP_SLOTS_PER_CATEGORY[category] || 3);
+    const slotCount = Math.max(shop.categories[category]?.length || 0, FORMAL_SHOP_SLOTS_PER_CATEGORY[category] ?? 3);
     for (let index = 0; index < slotCount; index += 1) {
       const item = shop.categories[category]?.[index] || null;
       if (!item) continue;
