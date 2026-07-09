@@ -67,6 +67,7 @@ import {
   formalTargetingIntensityForTrainerTypeV4,
   formalTeamPreferenceForNpcV4,
   formalTeamPreferenceTypeHintsV4,
+  applyFormalSoulmateFriendshipSettlementToVaultV4,
   FORMAL_TRAINING_GROUND_SELF_STUDY_NATURE_RISK_TARGETS_V4,
   formalTrainingGroundDynamicSelfStudyGainRuleV4,
   formalRollTrainingGroundSelfStudyEventV4,
@@ -101,6 +102,7 @@ import {
   type FormalSettlementReasonV4,
   type FormalShopProductViewV4,
   type FormalShopCategoryV4,
+  type FormalSoulmateBattleFriendshipSummaryV4,
   type FormalStarterRoleV4,
   type FormalPlayerProfileRuleInputV4,
   type PokemonPowerProfileV4,
@@ -205,6 +207,15 @@ export type FormalSoulmateEggClaimResultV4 = {
   candidate?: SoulmateCandidateV4;
   pokemon?: PlayerPokemonRecordV4;
   display?: FormalSoulmateEggPokemonDisplayV4;
+};
+
+export type FormalSoulmateFriendshipSettlementRecordV4 = FormalSoulmateBattleFriendshipSummaryV4;
+
+export type FormalSoulmateBattleFriendshipSettlementResultV4 = {
+  run: FormalGameRunV4;
+  playerVault: PlayerVaultV4;
+  summary: FormalSoulmateFriendshipSettlementRecordV4 | null;
+  alreadySettled: boolean;
 };
 
 export type FormalMedicalInsuranceTierV4 = "basic" | "standard" | "premium";
@@ -534,6 +545,7 @@ export type FormalGameRunV4 = {
   soulmateEggClaimedAt?: string;
   soulmateEggCandidateId?: string;
   soulmatePlayerPokemonId?: string;
+  soulmateFriendshipSettlementByNodeId?: Record<string, FormalSoulmateFriendshipSettlementRecordV4>;
   settlement: FormalGameSettlementV4 | null;
   settled: boolean;
   settledAt?: string;
@@ -570,6 +582,7 @@ export type FormalGameRunApi = {
   appendBattleLogEntriesFromSnapshotV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, options?: FormalBattleLogAppendOptionsV4): FormalGameRunV4;
   settleFormalBattleRoundV4(run: FormalGameRunV4): FormalGameRunV4;
   finalizeFormalBattleResultV4(run: FormalGameRunV4, snapshot: BattleSessionSnapshotV4, reason?: FormalBattleResultFinalizeReasonV4, options?: FormalBattleLogAppendOptionsV4): FormalBattleResultFinalizeResultV4;
+  applyFormalSoulmateBattleFriendshipSettlement(run: FormalGameRunV4, playerVault: PlayerVaultV4 | undefined | null): FormalSoulmateBattleFriendshipSettlementResultV4;
   prepareFormalSettlement(run: FormalGameRunV4, reason: FormalSettlementReasonV4): FormalGameRunV4;
   getFormalMedicalInsuranceOffer(run: FormalGameRunV4): FormalMedicalInsuranceOfferV4;
   chooseFormalMedicalInsurance(run: FormalGameRunV4, choice: FormalMedicalInsuranceChoiceV4): FormalMedicalInsuranceChoiceResultV4;
@@ -632,6 +645,8 @@ export type FormalRentalMoveViewV4 = {
 export type FormalRentalPokemonViewV4 = {
   run_member_id?: string;
   showdown_id?: string;
+  starter_source_kind?: LocalPokemonV4["formalSourceKind"];
+  source_player_pokemon_id?: string;
   name: string;
   species: string;
   species_zh: string;
@@ -1208,6 +1223,58 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       return {run: pendingRun, destination: "rest"};
     }
     return {run: settled, destination: "rest"};
+  }
+
+  function applyFormalSoulmateBattleFriendshipSettlement(run: FormalGameRunV4, playerVault: PlayerVaultV4 | undefined | null): FormalSoulmateBattleFriendshipSettlementResultV4 {
+    const normalized = normalizeFormalRun(run);
+    const vault = normalizePlayerVaultV4(playerVault);
+    const restRunSnapshot = normalized.restRunSnapshot;
+    const settledNode = [...(restRunSnapshot?.gameMap || [])]
+      .filter(node => node.state === "won" || node.state === "lost")
+      .sort((a, b) => b.index - a.index)[0];
+    if (!restRunSnapshot || !settledNode) {
+      return {run: normalized, playerVault: vault, summary: null, alreadySettled: false};
+    }
+    const existing = normalized.soulmateFriendshipSettlementByNodeId?.[settledNode.id];
+    if (existing) {
+      return {run: normalized, playerVault: vault, summary: existing, alreadySettled: true};
+    }
+    const player = settledNode.participants.p1 || restRunSnapshot.players.p1;
+    const team = player?.localTeam.pokemon || [];
+    const localByBattleKey = buildPlayerBattleKeyMap(normalized, safePokemon);
+    const localByNodeBattleKey = buildPlayerBattleKeyMapByNode(normalized, safePokemon);
+    const resolveBattleKeyForSettlement = (nodeId: string, battleKey: string | undefined) => {
+      if (!battleKey) return undefined;
+      const normalizedKey = normalizeBattlePokemonKey(battleKey);
+      return localByNodeBattleKey.get(nodeId)?.get(normalizedKey) || localByBattleKey.get(normalizedKey);
+    };
+    const result = applyFormalSoulmateFriendshipSettlementToVaultV4({
+      vault,
+      nodeId: settledNode.id,
+      team,
+      battleLog: restRunSnapshot.battleLog || [],
+      won: settledNode.state === "won",
+      createdAt: new Date().toISOString(),
+      resolvePokemonKey: (entry, role) => {
+        const rawKey = role === "source" ? entry.sourcePokemonKey : entry.targetPokemonKey;
+        const rawName = role === "source" ? entry.sourcePokemonName : entry.targetPokemonName;
+        return resolveBattleKeyForSettlement(entry.nodeId, rawKey) || battleLogFallbackPokemonKey(rawKey, rawName);
+      },
+    });
+    const nextRun = normalizeFormalRun({
+      ...normalized,
+      soulmateFriendshipSettlementByNodeId: {
+        ...(normalized.soulmateFriendshipSettlementByNodeId || {}),
+        [settledNode.id]: result.summary,
+      },
+      updatedAt: new Date().toISOString(),
+    });
+    return {
+      run: nextRun,
+      playerVault: result.vault,
+      summary: result.summary,
+      alreadySettled: false,
+    };
   }
 
   function getFormalMedicalInsuranceOffer(run: FormalGameRunV4): FormalMedicalInsuranceOfferV4 {
@@ -2108,6 +2175,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       soulmateEggClaimedAt: normalizeOptionalText(run.soulmateEggClaimedAt),
       soulmateEggCandidateId: normalizeOptionalText(run.soulmateEggCandidateId),
       soulmatePlayerPokemonId: normalizeOptionalText(run.soulmatePlayerPokemonId),
+      soulmateFriendshipSettlementByNodeId: normalizeSoulmateFriendshipSettlementByNodeId(run.soulmateFriendshipSettlementByNodeId),
       settlement,
       settled,
       settledAt: settled ? run.settledAt || settlement?.createdAt || undefined : undefined,
@@ -2201,14 +2269,49 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         entryStatus: "" as TrainingStatusV4,
       })),
     };
+    const bag = createFormalBag(run.battlePreference.battleBagEnabled, run.battlePreference.ruleSet);
+    const soulmateHeldItemResult = bindSoulmateHeldItemsToFormalBag(run, localTeam, bag);
     return {
       playerId: "p1",
       name: "玩家",
       avatar: "npc/avatars/6-asset-a73f3e71.webp",
       controller: "local",
       alliance: "near",
-      localTeam,
-      bag: createFormalBag(run.battlePreference.battleBagEnabled, run.battlePreference.ruleSet),
+      localTeam: soulmateHeldItemResult.localTeam,
+      bag: soulmateHeldItemResult.bag,
+    };
+  }
+
+  function bindSoulmateHeldItemsToFormalBag(run: FormalGameRunV4, localTeam: LocalTeamV4, bag: BagStateV4): {localTeam: LocalTeamV4; bag: BagStateV4} {
+    if (!starChartHasSoulmateHeldItemEntryV4(run.starChartSnapshot)) return {localTeam, bag};
+    const items = [...bag.items];
+    const pokemon = localTeam.pokemon.map((entry, index) => {
+      if (entry.formalSourceKind !== "soulmate-vault" || !entry.itemId) return entry;
+      const detail = getItemDetailSafe(entry.itemId);
+      const itemInstance: PlayerItemInstanceV4 = {
+        id: `formal-soulmate-held-${run.id}-${index + 1}-${entry.itemId}`,
+        itemID: entry.itemId,
+        name: detail?.nameZh || detail?.name || entry.itemId,
+        image: detail?.iconUrl || "",
+        cost: detail ? formalShopItemPriceV4({itemID: entry.itemId}, detail) : 0,
+        canSale: false,
+        type: detail ? formalPlayerItemTypeFromDetail(detail) : "held",
+        canBattleUse: Boolean(detail?.canBattleUse),
+        canUse: Boolean(detail?.canUse),
+        canUseToPokemon: Boolean(detail?.canUseToPokemon),
+        canTake: true,
+        effectRound: null,
+        getRound: 0,
+        maxUseCount: null,
+        useCount: 0,
+        sourceKind: "soulmate-vault-held",
+      };
+      items.push(itemInstance);
+      return {...entry, heldItemInstanceId: itemInstance.id};
+    });
+    return {
+      localTeam: {...localTeam, pokemon},
+      bag: {...bag, items: items.slice(0, bag.maxSize)},
     };
   }
 
@@ -2878,6 +2981,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     appendBattleLogEntriesFromSnapshotV4,
     settleFormalBattleRoundV4,
     finalizeFormalBattleResultV4,
+    applyFormalSoulmateBattleFriendshipSettlement,
     prepareFormalSettlement,
     getFormalMedicalInsuranceOffer,
     chooseFormalMedicalInsurance,
@@ -3328,6 +3432,7 @@ export function selectedCountForFormalMode(mode: FormalGameModeV4): number {
 
 export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarterCandidateV4, translator?: FormalDexLabelTranslatorV4): FormalRentalPokemonViewV4 {
   const pokemon = candidate.pokemon;
+  const itemDetail = pokemon.itemId ? safeItemForRentalPokemon(pokemon.itemId, translator) : null;
   const baseStats = candidate.display?.baseStats || Object.fromEntries(STAT_IDS.map(stat => [stat, 0]));
   const stats = candidate.display?.stats || {
     hp: pokemon.maxHp,
@@ -3340,9 +3445,11 @@ export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarter
   return {
     run_member_id: pokemon.localPokemonId,
     showdown_id: pokemon.showdownId || pokemon.speciesId,
+    starter_source_kind: pokemon.formalSourceKind,
+    source_player_pokemon_id: pokemon.sourcePlayerPokemonId,
     name: pokemon.nickname || pokemon.name,
     species: pokemon.name,
-    species_zh: pokemon.nameZh,
+    species_zh: pokemon.nickname || pokemon.nameZh,
     species_id: pokemon.speciesId,
     level: pokemon.level,
     gender: pokemon.gender,
@@ -3355,11 +3462,11 @@ export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarter
     ability_id: pokemon.abilityId,
     ability_desc: "",
     ability_desc_zh: "",
-    item: "",
-    item_zh: "无",
-    item_id: "",
-    item_desc: "",
-    item_desc_zh: "",
+    item: itemDetail?.name || "",
+    item_zh: itemDetail?.nameZh || itemDetail?.name || "无",
+    item_id: pokemon.itemId || "",
+    item_desc: itemDetail?.description || itemDetail?.effectSummary || "",
+    item_desc_zh: itemDetail?.description || itemDetail?.effectSummary || "",
     moves: pokemon.moves.map(move => ({
       id: move.moveId,
       name: move.name,
@@ -3398,6 +3505,14 @@ export function formalStarterCandidateToRentalPokemonV4(candidate: FormalStarter
       icon_style: pokemon.iconStyle,
     },
   };
+}
+
+function safeItemForRentalPokemon(itemId: string, translator?: Partial<ShowdownDexService>): DexItemDetail | null {
+  try {
+    return translator?.getItemDetail?.(itemId) || null;
+  } catch {
+    return null;
+  }
 }
 
 function displayFromDetail(dex: ShowdownDexService, detail: DexPokemonDetail): FormalStarterCandidateV4["display"] {
@@ -4342,6 +4457,33 @@ function normalizeFormalRoundSettlementByNodeId(value: unknown): Record<string, 
   return Object.fromEntries(Object.entries(value as Record<string, Partial<FormalRoundSettlementV4>>)
     .filter(([nodeId]) => Boolean(nodeId))
     .map(([nodeId, settlement]) => [nodeId, normalizeFormalRoundSettlementV4(settlement, nodeId)]));
+}
+
+function normalizeSoulmateFriendshipSettlementByNodeId(value: unknown): Record<string, FormalSoulmateFriendshipSettlementRecordV4> {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(Object.entries(value as Record<string, Partial<FormalSoulmateFriendshipSettlementRecordV4>>)
+    .filter(([nodeId]) => Boolean(nodeId))
+    .map(([nodeId, settlement]) => [nodeId, normalizeSoulmateFriendshipSettlement(settlement, nodeId)]));
+}
+
+function normalizeSoulmateFriendshipSettlement(settlement: Partial<FormalSoulmateFriendshipSettlementRecordV4> | undefined, nodeId: string): FormalSoulmateFriendshipSettlementRecordV4 {
+  return {
+    nodeId: normalizeOptionalText(settlement?.nodeId) || nodeId,
+    won: Boolean(settlement?.won),
+    createdAt: normalizeOptionalText(settlement?.createdAt) || new Date(0).toISOString(),
+    deltas: Array.isArray(settlement?.deltas) ? settlement.deltas.map(delta => ({
+      localPokemonId: normalizeOptionalText(delta.localPokemonId) || "",
+      sourcePlayerPokemonId: normalizeOptionalText(delta.sourcePlayerPokemonId) || "",
+      displayName: normalizeOptionalText(delta.displayName) || "灵魂伴侣",
+      before: clampInt(delta.before, 0, 255, 0),
+      after: clampInt(delta.after, 0, 255, 0),
+      delta: clampInt(delta.delta, -255, 255, 0),
+      winDelta: clampInt(delta.winDelta, 0, 15, 0),
+      faintDelta: clampInt(delta.faintDelta, -3, 0, 0),
+      participated: Boolean(delta.participated),
+      fainted: Boolean(delta.fainted),
+    })).filter(delta => delta.sourcePlayerPokemonId) : [],
+  };
 }
 
 function normalizeFormalPokemonExchangeByNodeId(value: unknown): Record<string, FormalPokemonExchangeStateV4> {

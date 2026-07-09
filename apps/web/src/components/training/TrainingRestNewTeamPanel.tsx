@@ -53,6 +53,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
   }
 
   function randomizePart(part: "all" | "nature" | "ability" | "ivs" | "evs", pokemon: LocalPokemonV4, lockedStats: DexStatId[] = []) {
+    if (isProtectedSoulmatePokemon(pokemon)) return;
     updatePokemon(pokemon.localPokemonId, current => {
       const detail = api.getPokemonDetail(current.speciesId);
       const patch: Partial<LocalPokemonV4> = {};
@@ -70,6 +71,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
   }
 
   async function rerollStats(pokemon: LocalPokemonV4, part: StatRerollPartV4) {
+    if (isProtectedSoulmatePokemon(pokemon)) return;
     const lockedStats = lockedStatsForPokemon(temporaryLocks, pokemon.localPokemonId, part);
     if (statRerollController) {
       const result = await statRerollController.onRerollStats({pokemonId: pokemon.localPokemonId, part, lockedStats});
@@ -91,6 +93,7 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
   }
 
   function toggleLock(pokemon: LocalPokemonV4, kind: LockKindV4, key: DexStatId | number) {
+    if (isProtectedSoulmatePokemon(pokemon)) return;
     if (kind === "ivs" || kind === "evs") {
       if (!statLocksEnabled) return;
       const stat = key as DexStatId;
@@ -200,9 +203,11 @@ function TrainingRestNewTeamSlot({
 }) {
   const hpRate = pokemon.maxHp ? Math.max(0, Math.min(100, pokemon.entryHp / pokemon.maxHp * 100)) : 0;
   const status = api.translateDexLabel("status", pokemon.entryStatus) || "";
+  const isSoulmate = isProtectedSoulmatePokemon(pokemon);
+  const display = pokemon.nickname || pokemon.nameZh || pokemon.name;
   return (
     <div
-      className={`training-rest-new-team-slot ${selected ? "selected" : ""} ${pokemon.entryHp <= 0 ? "status-fnt" : ""}`}
+      className={`training-rest-new-team-slot ${selected ? "selected" : ""} ${pokemon.entryHp <= 0 ? "status-fnt" : ""} ${isSoulmate ? "soulmate" : ""}`}
       role="button"
       tabIndex={0}
       onClick={onSelect}
@@ -217,7 +222,7 @@ function TrainingRestNewTeamSlot({
         <button
           type="button"
           disabled={!canMoveUp}
-          aria-label={`${pokemon.nameZh || pokemon.name}上移`}
+          aria-label={`${display}上移`}
           onClick={event => {
             event.preventDefault();
             event.stopPropagation();
@@ -227,7 +232,7 @@ function TrainingRestNewTeamSlot({
         <button
           type="button"
           disabled={!canMoveDown}
-          aria-label={`${pokemon.nameZh || pokemon.name}下移`}
+          aria-label={`${display}下移`}
           onClick={event => {
             event.preventDefault();
             event.stopPropagation();
@@ -237,7 +242,7 @@ function TrainingRestNewTeamSlot({
       </span>
       {status && status !== "正常" ? <em>{status}</em> : null}
       <TrainingRestNewPokemonSprite pokemon={pokemon} kind="icon" />
-      <strong>{pokemon.nameZh || pokemon.name}</strong>
+      <strong>{display}</strong>
       <small>Lv.{pokemon.level}</small>
       <i style={{"--rest-new-hp-rate": `${hpRate}%`} as CSSProperties} />
     </div>
@@ -255,6 +260,7 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
   onToggleLock: (kind: LockKindV4, key: DexStatId | number) => void;
 }) {
   const [previewMoveId, setPreviewMoveId] = useState("");
+  const isSoulmate = isProtectedSoulmatePokemon(pokemon);
   const hpRate = pokemon.maxHp ? Math.max(0, Math.min(100, pokemon.entryHp / pokemon.maxHp * 100)) : 0;
   const detail = useMemo(() => api.getPokemonDetail(pokemon.speciesId), [api, pokemon.speciesId]);
   const statsResult = useMemo(() => api.dex.calculatePokemonStats({
@@ -282,8 +288,10 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
     setPreviewMoveId("");
   }, [pokemon.localPokemonId]);
 
+  const display = pokemon.nickname || pokemon.nameZh || pokemon.name;
+
   return (
-    <article className={`training-rest-new-pokemon-detail-card ${statLocksEnabled ? "locks-enabled" : "locks-hidden"}`}>
+    <article className={`training-rest-new-pokemon-detail-card ${statLocksEnabled ? "locks-enabled" : "locks-hidden"} ${isSoulmate ? "soulmate" : ""}`}>
       <button className="training-rest-new-team-close" type="button" onClick={onClose} aria-label="关闭队伍面板">×</button>
       <motion.aside
         className={`training-rest-new-move-preview-drawer ${previewMove ? "open" : ""}`}
@@ -303,7 +311,7 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
       </motion.aside>
       <div className="training-rest-new-pokemon-top-grid">
         <section className="training-rest-new-pokemon-profile-area">
-          <h3 className="training-rest-new-pokemon-title">{pokemon.nameZh || pokemon.name}<small>Lv.{pokemon.level}</small></h3>
+          <h3 className="training-rest-new-pokemon-title">{display}<small>Lv.{pokemon.level}</small></h3>
           <div className="training-rest-new-pokemon-identity">
             <TrainingRestNewPokemonSprite pokemon={pokemon} kind="front" />
             <div className="training-rest-new-pokemon-namebox">
@@ -352,11 +360,12 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
       <section className="training-rest-new-pokemon-move-area">
         <div className="training-rest-new-move-row">
           {pokemon.moves.map((move, index) => (
-            <TrainingRestNewMoveCard
-              api={api}
-              move={move}
-              locked={Boolean(pokemon.locks?.moves?.[index])}
-              selected={move.moveId === previewMoveId}
+                <TrainingRestNewMoveCard
+                  api={api}
+                  move={move}
+                  locked={Boolean(pokemon.locks?.moves?.[index])}
+                  lockDisabled={isSoulmate}
+                  selected={move.moveId === previewMoveId}
               onPreview={() => setPreviewMoveId(current => current === move.moveId ? "" : move.moveId)}
               onToggleLock={() => onToggleLock("moves", index)}
               key={`${move.moveId}-${index}`}
@@ -365,8 +374,9 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
         </div>
       </section>
       <div className="training-rest-new-detail-actions">
-        <button type="button" onClick={() => onRandomizePart("ivs")}>🎲 随机个体 {statRerollController ? ivRerollCost : "免费"}</button>
-        <button type="button" onClick={() => onRandomizePart("evs")}>🎲 随机努力 {statRerollController ? evRerollCost : "免费"}</button>
+        {isSoulmate ? <span className="training-rest-new-soulmate-note">灵魂伴侣不能参与正式局内养成。</span> : null}
+        <button type="button" disabled={isSoulmate} title={isSoulmate ? "灵魂伴侣不能参与正式局内养成。" : undefined} onClick={() => onRandomizePart("ivs")}>🎲 随机个体 {statRerollController ? ivRerollCost : "免费"}</button>
+        <button type="button" disabled={isSoulmate} title={isSoulmate ? "灵魂伴侣不能参与正式局内养成。" : undefined} onClick={() => onRandomizePart("evs")}>🎲 随机努力 {statRerollController ? evRerollCost : "免费"}</button>
       </div>
     </article>
   );
@@ -388,10 +398,11 @@ function LockButton({locked, onClick}: {locked: boolean; onClick: () => void}) {
   );
 }
 
-function TrainingRestNewMoveCard({api, move, locked, selected, onPreview, onToggleLock}: {
+function TrainingRestNewMoveCard({api, move, locked, lockDisabled = false, selected, onPreview, onToggleLock}: {
   api: ChangeBattleV2Api;
   move: TrainingMoveSlotV4;
   locked: boolean;
+  lockDisabled?: boolean;
   selected: boolean;
   onPreview: () => void;
   onToggleLock: () => void;
@@ -410,7 +421,7 @@ function TrainingRestNewMoveCard({api, move, locked, selected, onPreview, onTogg
         onPreview();
       }}
     >
-      <LockButton locked={locked} onClick={onToggleLock} />
+      {lockDisabled ? null : <LockButton locked={locked} onClick={onToggleLock} />}
       <span className="move-name-row">
         <strong>{move.nameZh || move.name || move.moveId}</strong>
         <i>{api.translateDexLabel("categories", move.category)}</i>
@@ -423,6 +434,10 @@ function TrainingRestNewMoveCard({api, move, locked, selected, onPreview, onTogg
       </span>
     </div>
   );
+}
+
+function isProtectedSoulmatePokemon(pokemon: Pick<LocalPokemonV4, "formalSourceKind" | "originKind"> | null | undefined): boolean {
+  return pokemon?.formalSourceKind === "soulmate-vault" || pokemon?.originKind === "soulmate";
 }
 
 function TrainingRestNewMovePreviewPanel({api, move, detail, onClose}: {

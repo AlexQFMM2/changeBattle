@@ -40,6 +40,9 @@ function patchPreviewPokemon(pokemon: LocalPokemonV4, index: number): LocalPokem
   const longName = index === 2;
   return {
     ...pokemon,
+    nickname: index === 0 ? "小海星" : pokemon.nickname,
+    formalSourceKind: index === 0 ? "soulmate-vault" : pokemon.formalSourceKind,
+    sourcePlayerPokemonId: index === 0 ? "preview-vault-starmie" : pokemon.sourcePlayerPokemonId,
     nameZh: longName ? "很长很长的宝可梦名字" : pokemon.nameZh,
     entryHp: lowHp ? Math.max(1, Math.floor(pokemon.maxHp * 0.28)) : pokemon.entryHp,
     entryStatus: index === 1 ? "brn" : pokemon.entryStatus,

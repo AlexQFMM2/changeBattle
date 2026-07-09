@@ -33,7 +33,7 @@ import {
 } from "@changebattle-v2/core";
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
-import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
+import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalSoulmateBattleFriendshipSettlementResultV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalSoulmateFriendshipSettlementRecordV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
@@ -72,7 +72,7 @@ export type {NatureEffectV4} from "@changebattle-v2/core";
 export {showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
 export {dexLabelToId, toDexId, translateDexDescription, translateDexLabel} from "@changebattle-v2/showdown-dex-core";
 export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultPokemonReleaseResultV4, PlayerVaultV4, RestCenterActionEntryV4, SoulmateCandidateV4, TrainerVaultV2, UserProfileDraftV2, UserProfileV2};
-export type {FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4};
+export type {FormalSoulmateBattleFriendshipSettlementResultV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalSoulmateFriendshipSettlementRecordV4};
 export type {DebugPlayerVaultItemAddResultV4, DebugPlayerVaultPokemonAddResultV4} from "./debugVault.js";
 export * from "./itemEffects.js";
 export type {BossTrainerPresetTeamV4, BossTrainerPresetMatrixSummaryV4};
@@ -410,6 +410,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     appendBattleLogEntriesFromSnapshotV4: formalRuns.appendBattleLogEntriesFromSnapshotV4,
     settleFormalBattleRoundV4: formalRuns.settleFormalBattleRoundV4,
     finalizeFormalBattleResultV4: formalRuns.finalizeFormalBattleResultV4,
+    applyFormalSoulmateBattleFriendshipSettlement: formalRuns.applyFormalSoulmateBattleFriendshipSettlement,
     prepareFormalSettlement: formalRuns.prepareFormalSettlement,
     getFormalMedicalInsuranceOffer: formalRuns.getFormalMedicalInsuranceOffer,
     chooseFormalMedicalInsurance: formalRuns.chooseFormalMedicalInsurance,

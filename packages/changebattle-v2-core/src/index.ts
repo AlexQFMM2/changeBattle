@@ -7,6 +7,7 @@ export * from "./formalGameCatalog.js";
 export * from "./formalMoveGenerationRules.js";
 export * from "./formalPlayerProfileRules.js";
 export * from "./formalPowerProfileRules.js";
+export * from "./formalSoulmateSettlement.js";
 export * from "./formalSettlement.js";
 export * from "./formalShopCatalog.js";
 export * from "./formalSpecialMedicineRules.js";

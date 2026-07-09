@@ -141,6 +141,7 @@ function RoutedApp({runtime}: AppProps) {
   const [manualSaveState, setManualSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [battleSessionId, setBattleSessionId] = useState("");
   const [seenRoundSettlementNodeIds, setSeenRoundSettlementNodeIds] = useState<Record<string, true>>({});
+  const [formalRestInitialNotice, setFormalRestInitialNotice] = useState<string | null>(null);
   const [medicalInsuranceBusy, setMedicalInsuranceBusy] = useState(false);
   const [medicalInsuranceError, setMedicalInsuranceError] = useState<string | null>(null);
   const [desktopUpdateStatus, setDesktopUpdateStatus] = useState<DesktopUpdateStatusV4 | null>(null);
@@ -879,6 +880,8 @@ function RoutedApp({runtime}: AppProps) {
               return result;
             },
           }}
+          initialNotice={formalRestInitialNotice}
+          onInitialNoticeConsumed={() => setFormalRestInitialNotice(null)}
           soulmateRewardEnabled={starChartHasSoulmateRewardV4(formalRun.starChartSnapshot)}
           onSoulmateEggPrepare={input => {
             if (!formalRun) throw new Error("正式存档不存在。");
@@ -992,8 +995,15 @@ function RoutedApp({runtime}: AppProps) {
         api={api}
         formalGameBridge={formalGameBridge}
         run={formalRun}
+        playerVault={playerVault}
         sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || ""}
         reason={parseFormalBattleResultReason(new URLSearchParams(location.search).get("reason"))}
+        onSavePlayerVault={api.savePlayerVault}
+        onPlayerVaultChange={nextPlayerVault => {
+          setPlayerVault(nextPlayerVault);
+          setPlayerVaultDirty(false);
+        }}
+        onSoulmateSettlementNotice={setFormalRestInitialNotice}
         onRestReady={run => {
           setFormalRun(run);
           navigate("/formal/rest", {replace: true});

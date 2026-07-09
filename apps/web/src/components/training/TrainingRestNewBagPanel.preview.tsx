@@ -73,11 +73,14 @@ function createPreviewRun(api: ChangeBattleV2Api, variant: BagPreviewVariant): T
   const items = variant === "empty" ? [] : createPreviewItems(api, variant);
   const team = p1.localTeam.pokemon.slice(0, 4).map((pokemon, index) => ({
     ...pokemon,
+    nickname: index === 1 ? "小海星" : pokemon.nickname,
+    formalSourceKind: index === 1 ? "soulmate-vault" as const : pokemon.formalSourceKind,
+    sourcePlayerPokemonId: index === 1 ? "preview-vault-starmie" : pokemon.sourcePlayerPokemonId,
     nameZh: index === 1 && variant === "long" ? "超长名字测试宝可梦" : pokemon.nameZh,
     entryHp: Math.max(1, Math.floor(pokemon.maxHp * ([0.92, 0.54, 0.26, 1][index] || 1))),
     itemId: index === 0 && items[0] ? items[0].itemID : "",
     heldItemInstanceId: index === 0 && items[0] ? items[0].id : undefined,
-  }));
+  })).map((pokemon, index) => index === 1 && items[1] ? {...pokemon, itemId: items[1].itemID, heldItemInstanceId: items[1].id} : pokemon);
   const nextP1: TrainingPlayerDraftV4 = {
     ...p1,
     localTeam: {...p1.localTeam, pokemon: team},
@@ -90,9 +93,12 @@ function createPreviewItems(api: ChangeBattleV2Api, variant: BagPreviewVariant):
   const sourceIds = variant === "long"
     ? [...TEST_BAG_ITEM_IDS, ...TEST_BAG_ITEM_IDS, "choicescarf", "choiceband", "choicespecs", "sitrusberry", "lumberry"]
     : TEST_BAG_ITEM_IDS;
-  return sourceIds.map((itemID, index) => api.createItemInstance(itemID, {
-    id: `preview-item-${index + 1}-${itemID.replace(/[^a-z0-9]+/gi, "-")}`,
-    name: variant === "long" && index === 2 ? "很长很长的树果名字测试" : undefined,
+  return sourceIds.map((itemID, index) => ({
+    ...api.createItemInstance(itemID, {
+      id: `preview-item-${index + 1}-${itemID.replace(/[^a-z0-9]+/gi, "-")}`,
+      name: variant === "long" && index === 2 ? "很长很长的树果名字测试" : undefined,
+    }),
+    ...(index === 1 ? {sourceKind: "soulmate-vault-held" as const, canSale: false} : {}),
   }));
 }
 

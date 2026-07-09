@@ -103,6 +103,8 @@ export type TrainingRestNewPageProps = {
   teamRerollController?: TrainingRestTeamRerollController;
   opponentPreviewController?: TrainingRestOpponentPreviewController;
   exchangeController?: TrainingRestExchangeController;
+  initialNotice?: string | null;
+  onInitialNoticeConsumed?: () => void;
   soulmateRewardEnabled?: boolean;
   onSoulmateEggPrepare?: (input: {candidateId: string}) => Promise<FormalSoulmateEggHatchResultV4> | FormalSoulmateEggHatchResultV4;
   onSoulmateEggClaim?: (input: {candidateId: string; nickname?: string}) => Promise<FormalSoulmateEggClaimResultV4> | FormalSoulmateEggClaimResultV4;
@@ -120,7 +122,7 @@ type SoulmateHatchState =
   | {phase: "done"; result: FormalSoulmateEggClaimResultV4}
   | {phase: "error"; message: string};
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, initialNotice, onInitialNoticeConsumed, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -160,6 +162,12 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     if (!pendingSettlement || !soulmateRewardEnabled || soulmateDialogDismissed || roundSettlement || soulmateHatch.phase !== "idle" || !soulmateCandidates.length) return;
     setSoulmateDialogOpen(true);
   }, [pendingSettlement, roundSettlement, soulmateCandidates.length, soulmateDialogDismissed, soulmateHatch.phase, soulmateRewardEnabled]);
+
+  useEffect(() => {
+    if (!initialNotice) return;
+    setToast({id: Date.now(), message: initialNotice});
+    onInitialNoticeConsumed?.();
+  }, [initialNotice, onInitialNoticeConsumed]);
 
   function updateP1Team(localTeam: TrainingPlayerDraftV4["localTeam"]) {
     const p1 = run.players.p1;

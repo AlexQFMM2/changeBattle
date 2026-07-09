@@ -14,7 +14,7 @@ export const STAT_ROWS = [
 ] as const;
 
 export function displayName(pokemon: RentalPokemon): string {
-  return pokemon.species_zh || pokemon.name || pokemon.species || pokemon.species_id;
+  return pokemon.name || pokemon.species_zh || pokemon.species || pokemon.species_id;
 }
 
 export function statLine(pokemon: RentalPokemon, stat: string, revealTraining: boolean): string {

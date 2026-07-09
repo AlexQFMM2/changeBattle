@@ -27,16 +27,18 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const selectedPokemon = selection.target ? team.find(pokemon => pokemon.localPokemonId === selection.target?.key) || null : team[0] || null;
   const selectedDetail = useMemo(() => itemDetailFor(api, selectedItem), [api, selectedItem]);
   const equipEligibility = selectedItem ? getBagItemEquipEligibility(selectedItem, selectedDetail) : {canEquip: false, reason: "请选择道具"};
+  const selectedPokemonIsSoulmate = isProtectedSoulmatePokemon(selectedPokemon);
+  const selectedItemIsSoulmateBound = isSoulmateBoundHeldItem(selectedItem);
   const canUseRecovery = canUseRecoveryItemV4(selectedItem, selectedDetail);
-  const canUseTraining = canUseTrainingItemV4(selectedItem, selectedDetail);
-  const canUseTm = canUseTmItemV4(selectedItem, selectedDetail);
+  const canUseTraining = canUseTrainingItemV4(selectedItem, selectedDetail) && !selectedPokemonIsSoulmate;
+  const canUseTm = canUseTmItemV4(selectedItem, selectedDetail) && !selectedPokemonIsSoulmate;
   const canUseInFormalRest = selectedDetail?.kind !== "parenting" && selectedDetail?.kind !== "evolution";
   const selectedMachineMoves = useMemo(() => selectedPokemon ? api.getPokemonMachineSkills(selectedPokemon.speciesId) : [], [api, selectedPokemon]);
   const tmFailureReason = canUseTm ? tmUseFailureReasonV4({item: selectedItem, detail: selectedDetail, pokemon: selectedPokemon, machineMoves: selectedMachineMoves}) : "";
   const canUseItemKind = canUseInFormalRest && (canUseRecovery || canUseTraining || canUseTm);
-  const canDiscard = Boolean(selectedItem && !isSystemItem(selectedItem, selectedDetail));
+  const canDiscard = Boolean(selectedItem && !isSystemItem(selectedItem, selectedDetail) && !selectedItemIsSoulmateBound);
   const selectedHeldItem = selectedPokemon ? itemForPokemon(api, bag.items, selectedPokemon) : null;
-  const canUntake = Boolean(selectedPokemon && (selectedPokemon.heldItemInstanceId || selectedPokemon.itemId));
+  const canUntake = Boolean(selectedPokemon && (selectedPokemon.heldItemInstanceId || selectedPokemon.itemId) && !isProtectedSoulmatePokemon(selectedPokemon) && !isSoulmateBoundHeldItem(selectedHeldItem));
   const heldItemIds = useMemo(() => buildHeldItemIds(team), [team]);
   const targets = useMemo(() => team.map(pokemonToTarget(api, bag.items)), [api, bag.items, team]);
   const tmReplaceItem = tmReplace ? bag.items.find(item => item.id === tmReplace.item.id) || null : null;
@@ -49,7 +51,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const systemReforgeOptions = useMemo(() => systemReforgeItem && systemReforgePokemon ? api.getSystemBattleReforgeOptions(systemReforgeItem.itemID, systemReforgePokemon) : [], [api, systemReforgeItem, systemReforgePokemon]);
 
   function equipSelectedItem() {
-    if (!p1 || !selectedItem || !selectedPokemon || !equipEligibility.canEquip) return;
+    if (!p1 || !selectedItem || !selectedPokemon || !equipEligibility.canEquip || selectedPokemonIsSoulmate || selectedItemIsSoulmateBound) return;
     const heldItemPatch = heldItemPatchForEquip(selectedItem);
     const nextTeam = {
       ...p1.localTeam,
@@ -115,7 +117,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   }
 
   function discardSelectedItem() {
-    if (!p1 || !selectedItem || !canDiscard) return;
+    if (!p1 || !selectedItem || !canDiscard || selectedItemIsSoulmateBound) return;
     const nextBag = {...bag, items: bag.items.filter(item => item.id !== selectedItem.id)};
     const nextTeam = {
       ...p1.localTeam,
@@ -136,7 +138,9 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   function useSelectedItem() {
     if (!p1 || !selectedItem || !selectedPokemon) return;
     if (!canUseItemKind) {
-      noticeUseFailure(selectedDetail?.kind === "parenting" || selectedDetail?.kind === "evolution" ? "灵魂伴侣养成道具请在训练家仓库中使用。" : "该道具当前不能立即使用。");
+      noticeUseFailure(selectedPokemonIsSoulmate && (canUseTmItemV4(selectedItem, selectedDetail) || canUseTrainingItemV4(selectedItem, selectedDetail))
+        ? "灵魂伴侣不能参与正式局内养成。"
+        : selectedDetail?.kind === "parenting" || selectedDetail?.kind === "evolution" ? "灵魂伴侣养成道具请在训练家仓库中使用。" : "该道具当前不能立即使用。");
       return;
     }
     if (canUseTm) {
@@ -210,8 +214,8 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     {
       key: "take",
       label: "立即携带",
-      disabled: !selectedItem || !selectedPokemon || !equipEligibility.canEquip,
-      title: equipEligibility.reason,
+      disabled: !selectedItem || !selectedPokemon || !equipEligibility.canEquip || selectedPokemonIsSoulmate || selectedItemIsSoulmateBound,
+      title: selectedPokemonIsSoulmate || selectedItemIsSoulmateBound ? "灵魂伴侣带入的携带物不能在正式休整页调整。" : equipEligibility.reason,
       onClick: equipSelectedItem,
     },
     {
@@ -225,7 +229,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
       key: "use",
       label: "立即使用",
       disabled: !selectedItem || !selectedPokemon || !canUseItemKind,
-      title: canUseItemKind ? tmFailureReason || "对选中宝可梦立即使用" : "该道具当前不能立即使用。",
+      title: selectedPokemonIsSoulmate && (canUseTmItemV4(selectedItem, selectedDetail) || canUseTrainingItemV4(selectedItem, selectedDetail)) ? "灵魂伴侣不能参与正式局内养成。" : canUseItemKind ? tmFailureReason || "对选中宝可梦立即使用" : "该道具当前不能立即使用。",
       onClick: useSelectedItem,
     },
     {
@@ -439,8 +443,8 @@ function calculateMaxHp(api: ChangeBattleV2Api, pokemon: LocalPokemonV4): number
 function pokemonToTarget(api: ChangeBattleV2Api, items: PlayerItemInstanceV4[]): (pokemon: LocalPokemonV4) => PlayerBagPokemonTarget {
   return pokemon => ({
     key: pokemon.localPokemonId,
-    name: pokemon.name,
-    nameZh: pokemon.nameZh,
+    name: pokemon.nickname || pokemon.name,
+    nameZh: pokemon.nickname || pokemon.nameZh,
     level: pokemon.level,
     hp: pokemon.entryHp,
     maxHp: pokemon.maxHp,
@@ -450,6 +454,14 @@ function pokemonToTarget(api: ChangeBattleV2Api, items: PlayerItemInstanceV4[]):
     iconStyle: pokemon.iconStyle,
     heldItem: itemForPokemon(api, items, pokemon),
   });
+}
+
+function isProtectedSoulmatePokemon(pokemon: Pick<LocalPokemonV4, "formalSourceKind" | "originKind"> | null | undefined): boolean {
+  return pokemon?.formalSourceKind === "soulmate-vault" || pokemon?.originKind === "soulmate";
+}
+
+function isSoulmateBoundHeldItem(item: Pick<PlayerItemInstanceV4, "sourceKind"> | null | undefined): boolean {
+  return item?.sourceKind === "soulmate-vault-held";
 }
 
 function itemForPokemon(api: ChangeBattleV2Api, items: PlayerItemInstanceV4[], pokemon: LocalPokemonV4): PlayerItemInstanceV4 | null {

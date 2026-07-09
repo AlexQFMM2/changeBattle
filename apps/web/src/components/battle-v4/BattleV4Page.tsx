@@ -1959,7 +1959,10 @@ function localizeProtocolPokemonFormName(name: string, api: ChangeBattleV2Api): 
 }
 
 function battleSlotDisplayName(slot: BattleViewSlotV4, api: ChangeBattleV2Api): string {
-  return localizePokemonFormDisplayName(slot.nameZh || slot.name, slot.speciesId || slot.name, api);
+  const preferred = slot.nameZh || slot.name;
+  const species = slot.speciesId || slot.name;
+  if (preferred && toId(preferred) !== toId(species)) return preferred;
+  return localizePokemonFormDisplayName(preferred, species, api);
 }
 
 function localizePokemonFormDisplayName(preferredName: string, speciesName: string, api: ChangeBattleV2Api): string {

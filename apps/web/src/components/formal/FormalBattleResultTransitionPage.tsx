@@ -1,14 +1,18 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameRunV4, ShowdownPlaybackTimelineV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameRunV4, FormalSoulmateFriendshipSettlementRecordV4, PlayerVaultV4, ShowdownPlaybackTimelineV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
-export function FormalBattleResultTransitionPage({api, formalGameBridge, run, sessionId, reason, onRestReady, onSettlementReady}: {
+export function FormalBattleResultTransitionPage({api, formalGameBridge, run, playerVault, sessionId, reason, onSavePlayerVault, onPlayerVaultChange, onSoulmateSettlementNotice, onRestReady, onSettlementReady}: {
   api: ChangeBattleV2Api;
   formalGameBridge?: DesktopFormalGameBridge;
   run: FormalGameRunV4;
+  playerVault: PlayerVaultV4;
   sessionId: string;
   reason?: FormalBattleResultFinalizeReasonV4;
+  onSavePlayerVault?: (vault: PlayerVaultV4) => Promise<PlayerVaultV4>;
+  onPlayerVaultChange?: (vault: PlayerVaultV4) => void;
+  onSoulmateSettlementNotice?: (message: string) => void;
   onRestReady: (run: FormalGameRunV4) => void;
   onSettlementReady: (run: FormalGameRunV4, reason: FormalBattleResultFinalizeReasonV4) => void;
 }) {
@@ -39,7 +43,16 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, se
       const result = formalGameBridge
         ? await formalGameBridge.finalizeFormalBattleResult(run, sessionId, reason, {playbackTimeline: timeline})
         : api.finalizeFormalBattleResultV4(run, await api.battleService.getSnapshot(sessionId), reason, {playbackTimeline: timeline});
-      const saved = await api.saveFormalGameRun(result.run);
+      const soulmateSettlement = api.applyFormalSoulmateBattleFriendshipSettlement(result.run, playerVault);
+      const savedVault = soulmateSettlement.playerVault === playerVault
+        ? playerVault
+        : onSavePlayerVault
+          ? await onSavePlayerVault(soulmateSettlement.playerVault)
+          : await api.savePlayerVault(soulmateSettlement.playerVault);
+      if (savedVault !== playerVault) onPlayerVaultChange?.(savedVault);
+      const soulmateNotice = soulmateSettlement.alreadySettled ? "" : formatSoulmateSettlementNotice(soulmateSettlement.summary);
+      if (soulmateNotice) onSoulmateSettlementNotice?.(soulmateNotice);
+      const saved = await api.saveFormalGameRun(soulmateSettlement.run);
       if (cancelled) return;
       if (result.destination === "settlement") {
         onSettlementReady(saved, result.reason || "loss");
@@ -52,7 +65,7 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, se
     return () => {
       cancelled = true;
     };
-  }, [api, formalGameBridge, onRestReady, onSettlementReady, reason, run, sessionId, transitionReady]);
+  }, [api, formalGameBridge, onPlayerVaultChange, onRestReady, onSavePlayerVault, onSettlementReady, onSoulmateSettlementNotice, playerVault, reason, run, sessionId, transitionReady]);
 
   return (
     <section className="formal-game-transition-wrap">
@@ -64,6 +77,14 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, se
       />
     </section>
   );
+}
+
+function formatSoulmateSettlementNotice(summary: FormalSoulmateFriendshipSettlementRecordV4 | null): string {
+  const deltas = summary?.deltas?.filter(delta => delta.delta !== 0) || [];
+  if (!deltas.length) return "";
+  return deltas
+    .map(delta => `${delta.displayName}亲密度 ${delta.delta > 0 ? "+" : ""}${delta.delta}`)
+    .join("、");
 }
 
 async function loadFormalBattlePlaybackTimeline(api: ChangeBattleV2Api, sessionId: string): Promise<ShowdownPlaybackTimelineV4 | null> {

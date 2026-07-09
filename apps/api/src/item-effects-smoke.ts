@@ -322,6 +322,15 @@ const protectedMedicineResult = applyTrainingItemToPokemonV4({
 });
 assert.equal(protectedMedicineResult.ok, false);
 assert.match(protectedMedicineResult.ok ? "" : protectedMedicineResult.reason, /灵魂伴侣不能使用特效药/);
+const protectedRecoveryResult = applyRecoveryItemToPokemonV4({
+  item: potion,
+  pokemon: {...protectedSoulmate, entryHp: 10},
+  bag: bagWith(potion),
+});
+assert.equal(protectedRecoveryResult.ok, true);
+if (protectedRecoveryResult.ok) {
+  assert(protectedRecoveryResult.pokemon.entryHp > 10, "protected soulmate should still be able to use recovery items");
+}
 
 const duplicateTm = item("tm:thunderbolt", "技能机器：十万伏特", {type: "tm", canBattleUse: false, canTake: false});
 assert.match(tmUseFailureReasonV4({

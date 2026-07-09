@@ -1272,8 +1272,60 @@ assert(trainingLesson && trainingLesson.lessonId === trainingLessonAgain?.lesson
 assert(!trainingLesson || trainingLesson.fee === expectedTrainingGroundLessonFee(trainingLesson.kind), "formal training ground lesson should use balanced fee table");
 const soulmateVaultRestRun = {...api.prepareFormalRoundPlan(soulmateSelectedRun), money: 500};
 const protectedSoulmatePokemon = soulmateVaultRestRun.restRunSnapshot!.players.p1!.localTeam.pokemon.find(pokemon => pokemon.formalSourceKind === "soulmate-vault")!;
+const protectedSoulmateHeldItem = soulmateVaultRestRun.restRunSnapshot!.players.p1!.bag.items.find(item => item.id === protectedSoulmatePokemon.heldItemInstanceId);
+assert(protectedSoulmatePokemon.heldItemInstanceId && protectedSoulmateHeldItem?.itemID === "leftovers", "selected soulmate held item should be copied into formal rest bag");
+assert(protectedSoulmateHeldItem?.sourceKind === "soulmate-vault-held" && protectedSoulmateHeldItem.canSale === false, "soulmate held item copy should be marked as run-local and unsellable");
 const soulmateTrainingBlocked = api.applyFormalTrainingGroundLesson(soulmateVaultRestRun, {pokemonId: protectedSoulmatePokemon.localPokemonId, lessonKind: "self-study"});
 assert(!soulmateTrainingBlocked.ok && soulmateTrainingBlocked.run.money === soulmateVaultRestRun.money, "formal training should reject soulmate vault pokemon without changing money");
+const soulmateFriendshipBattleLogRun = {
+  ...soulmateVaultRestRun,
+  restRunSnapshot: {
+    ...soulmateVaultRestRun.restRunSnapshot!,
+    gameMap: soulmateVaultRestRun.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "won" as const} : node),
+    battleLog: [
+      {
+        id: "formal-smoke:soulmate-damage",
+        key: "formal-smoke:soulmate-damage",
+        at: new Date(0).toISOString(),
+        sessionId: "formal-smoke-soulmate-session",
+        nodeId: soulmateVaultRestRun.roundPlan[0]!.id,
+        turn: 1,
+        rawLogIndex: 1,
+        eventType: "damage" as const,
+        damage: 40,
+        sourcePlayerId: "p1" as const,
+        sourcePokemonKey: `p1a: ${protectedSoulmatePokemon.nickname}`,
+        sourcePokemonName: protectedSoulmatePokemon.nickname,
+        targetPlayerId: "p2" as const,
+        targetPokemonKey: "p2a: target",
+        targetPokemonName: "target",
+        directness: "direct" as const,
+        rawLine: `|-damage|p2a: target|60/100|[from] move: Surf|[of] p1a: ${protectedSoulmatePokemon.nickname}`,
+      },
+      {
+        id: "formal-smoke:soulmate-faint",
+        key: "formal-smoke:soulmate-faint",
+        at: new Date(0).toISOString(),
+        sessionId: "formal-smoke-soulmate-session",
+        nodeId: soulmateVaultRestRun.roundPlan[0]!.id,
+        turn: 2,
+        rawLogIndex: 2,
+        eventType: "faint" as const,
+        targetPlayerId: "p1" as const,
+        targetPokemonKey: `p1a: ${protectedSoulmatePokemon.nickname}`,
+        targetPokemonName: protectedSoulmatePokemon.nickname,
+        rawLine: `|faint|p1a: ${protectedSoulmatePokemon.nickname}`,
+      },
+    ],
+  },
+};
+const soulmateFriendshipSettlement = api.applyFormalSoulmateBattleFriendshipSettlement(soulmateFriendshipBattleLogRun, soulmateVault);
+const settledSoulmate = soulmateFriendshipSettlement.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1");
+assert(settledSoulmate?.friendship === 222, "soulmate battle settlement should add win participation and faint penalty");
+assert(soulmateFriendshipSettlement.summary?.deltas[0]?.delta === 12, "soulmate battle settlement should report net delta");
+const soulmateFriendshipSettlementAgain = api.applyFormalSoulmateBattleFriendshipSettlement(soulmateFriendshipSettlement.run, soulmateFriendshipSettlement.playerVault);
+assert(soulmateFriendshipSettlementAgain.alreadySettled, "soulmate battle settlement should be idempotent per node");
+assert(soulmateFriendshipSettlementAgain.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1")?.friendship === 222, "soulmate battle settlement should not apply twice");
 const selectableLessons = api.getFormalTrainingGroundLessons(roundPlanned);
 assert(selectableLessons.length === 4, "formal training ground should expose all selectable lessons");
 assert(new Set(selectableLessons.map(lesson => lesson.kind)).size === 4, "formal training ground selectable lessons should cover every lesson kind");

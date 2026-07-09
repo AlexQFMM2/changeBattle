@@ -33,9 +33,10 @@ export type RentalSelectPageProps = {
   onClearSelected?: () => void;
   showOriginLabel?: boolean;
   showScoutControls?: boolean;
+  soulmateSlotCount?: number;
 };
 
-export function RentalSelectPage({api, candidates, selected, focusIndex, setFocusIndex, onToggle, onStart, onBack, onReroll, onSingleReroll, onInspect, runSeed, wholeRerollsRemaining = 0, singleRerollsRemaining = 0, inspectRemaining = 0, revealTraining = false, inspected = false, requiredCount = 3, onRandomSelect, onClearSelected, showOriginLabel = true, showScoutControls = true}: RentalSelectPageProps) {
+export function RentalSelectPage({api, candidates, selected, focusIndex, setFocusIndex, onToggle, onStart, onBack, onReroll, onSingleReroll, onInspect, runSeed, wholeRerollsRemaining = 0, singleRerollsRemaining = 0, inspectRemaining = 0, revealTraining = false, inspected = false, requiredCount = 3, onRandomSelect, onClearSelected, showOriginLabel = true, showScoutControls = true, soulmateSlotCount = 0}: RentalSelectPageProps) {
   const safeFocusIndex = candidates[focusIndex] ? focusIndex : 0;
   const focusedPokemon = candidates[safeFocusIndex] || null;
   const selectedEntries = selected.map(index => ({index, pokemon: candidates[index]})).filter((entry): entry is {index: number; pokemon: RentalPokemon} => Boolean(entry.pokemon)).slice(0, requiredCount);
@@ -66,7 +67,7 @@ export function RentalSelectPage({api, candidates, selected, focusIndex, setFocu
             ) : null}
           </aside>
         </main>
-        <RentalCandidateList candidates={candidates} selected={selected} focusIndex={safeFocusIndex} onFocus={setFocusIndex} onToggle={onToggle} variant="thumbnail" />
+        <RentalCandidateList candidates={candidates} selected={selected} focusIndex={safeFocusIndex} onFocus={setFocusIndex} onToggle={onToggle} variant="thumbnail" soulmateSlotCount={soulmateSlotCount} />
       </LayoutGroup>
     </div>
   );

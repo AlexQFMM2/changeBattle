@@ -7,10 +7,11 @@ import "./RentalCandidateCard.css";
 export function RentalCandidateCard({pokemon, index, focused, selected, onFocus, onToggle, variant = "list"}: {pokemon: RentalPokemon; index: number; focused: boolean; selected: boolean; onFocus: () => void; onToggle?: () => void; variant?: "list" | "thumbnail"}) {
   const badges = rentalSpecialBadges(pokemon);
   const typeLabels = pokemon.types_zh?.length ? pokemon.types_zh : pokemon.types || [];
+  const isSoulmate = pokemon.starter_source_kind === "soulmate-vault";
   if (variant === "thumbnail") {
     return (
       <motion.button
-        className={`rental-candidate-card rental-candidate-card-thumbnail ${focused ? "focused" : ""} ${selected ? "selected" : ""} ${badges.length ? "special" : ""}`}
+        className={`rental-candidate-card rental-candidate-card-thumbnail ${focused ? "focused" : ""} ${selected ? "selected" : ""} ${badges.length ? "special" : ""} ${isSoulmate ? "soulmate" : ""}`}
         type="button"
         onClick={() => {
           if (!focused) {
@@ -31,6 +32,7 @@ export function RentalCandidateCard({pokemon, index, focused, selected, onFocus,
         transition={{type: "spring", stiffness: 420, damping: 32, mass: 0.72}}
       >
         <PokemonIcon className="rental-candidate-thumbnail-icon" pokemon={pokemon} alt={displayName(pokemon)} />
+        {isSoulmate && pokemon.item_id ? <span className="rental-candidate-held-badge" title={pokemon.item_zh || pokemon.item || pokemon.item_id}>{(pokemon.item_zh || pokemon.item || pokemon.item_id).slice(0, 1)}</span> : null}
       </motion.button>
     );
   }

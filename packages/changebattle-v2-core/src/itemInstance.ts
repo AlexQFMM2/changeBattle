@@ -23,6 +23,7 @@ export type PlayerItemInstanceV4 = {
   mappedTeraType?: string;
   mappedTeraTypeZh?: string;
   systemReforgeKind?: "mega" | "z-crystal" | "tera";
+  sourceKind?: "soulmate-vault-held";
 };
 
 export const PLAYER_ITEM_TYPES_V4: PlayerItemTypeV4[] = ["system", "system-battle", "held", "medicine", "berry", "training", "evolution", "battle", "tm", "key", "misc"];
@@ -82,6 +83,7 @@ export function normalizePlayerItemInstanceV4(item: unknown, fallback: Partial<P
     mappedTeraType: normalizeOptionalText(raw.mappedTeraType ?? fallback.mappedTeraType),
     mappedTeraTypeZh: normalizeOptionalText(raw.mappedTeraTypeZh ?? fallback.mappedTeraTypeZh),
     systemReforgeKind: normalizeSystemReforgeKindV4(raw.systemReforgeKind ?? fallback.systemReforgeKind),
+    sourceKind: raw.sourceKind === "soulmate-vault-held" || fallback.sourceKind === "soulmate-vault-held" ? "soulmate-vault-held" : undefined,
   };
 }
 

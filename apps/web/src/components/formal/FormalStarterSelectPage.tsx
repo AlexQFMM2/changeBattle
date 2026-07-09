@@ -15,6 +15,7 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}:
   const [focusIndex, setFocusIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const requiredCount = api.selectedCountForFormalMode(run.mode);
+  const soulmateSlotCount = api.soulmateVaultStarterSlotCountForStarChartV4(run.starChartSnapshot);
   const candidates = useMemo(() => run.starterCandidates.map(candidate => {
     const pokemon = formalStarterCandidateToRentalPokemonV4(candidate, api.dex);
     try {
@@ -73,6 +74,7 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}:
         onBack={onBack}
         runSeed={seedNumber(run.seed)}
         requiredCount={requiredCount}
+        soulmateSlotCount={soulmateSlotCount}
         revealTraining
         onRandomSelect={randomSelect}
         onClearSelected={() => setSelected([])}
