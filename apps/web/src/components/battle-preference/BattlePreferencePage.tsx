@@ -4,8 +4,8 @@ import {
   BATTLE_GENERATION_OPTIONS_V4,
   BATTLE_RULE_PRESET_OPTIONS_V4,
   BATTLE_SYSTEM_OPTIONS_V4,
-  normalizeBattlePreferenceV4,
 } from "@changebattle-v2/api";
+import {releaseGuardBattlePreferenceV4} from "../../lib/battlePreferenceReleaseGuard";
 import "./BattlePreferencePage.css";
 
 type BattlePreferenceTab = "regions" | "systems" | "competition" | "legendary" | "bag";
@@ -39,14 +39,14 @@ export function BattlePreferencePage({api, profile, debugFeatureEnabled = false,
   onProfileChange: (profile: UserProfileV2) => void;
   onBack: () => void;
 }) {
-  const [preference, setPreference] = useState<BattlePreferenceV4>(() => normalizeBattlePreferenceV4(profile.battlePreference));
+  const [preference, setPreference] = useState<BattlePreferenceV4>(() => releaseGuardBattlePreferenceV4(profile.battlePreference, debugFeatureEnabled));
   const [activeTab, setActiveTab] = useState<BattlePreferenceTab>("regions");
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [notice, setNotice] = useState("修改后点击保存并返回，对下一局新挑战生效。");
   const selectedRule = useMemo(() => BATTLE_RULE_PRESET_OPTIONS_V4.find(option => option.id === preference.ruleSet) || BATTLE_RULE_PRESET_OPTIONS_V4[0]!, [preference.ruleSet]);
 
   function apply(next: Partial<BattlePreferenceV4>) {
-    setPreference(current => normalizeBattlePreferenceV4({...current, ...next}));
+    setPreference(current => releaseGuardBattlePreferenceV4({...current, ...next}, debugFeatureEnabled));
     setStatus("idle");
     setNotice("修改后点击保存并返回，对下一局新挑战生效。");
   }
@@ -69,7 +69,7 @@ export function BattlePreferencePage({api, profile, debugFeatureEnabled = false,
     setStatus("saving");
     setNotice("正在保存，对下一局新挑战生效。");
     try {
-      const saved = await api.updateBattlePreference(profile, preference);
+      const saved = await api.updateBattlePreference(profile, releaseGuardBattlePreferenceV4(preference, debugFeatureEnabled));
       onProfileChange(saved);
       setStatus("saved");
       onBack();

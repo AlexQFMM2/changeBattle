@@ -65,6 +65,7 @@ import {TrainingRestNewPage} from "./components/training/TrainingRestNewPage";
 import {TrainingRestPage} from "./components/training/TrainingRestPage";
 import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransitionPage";
 import {showdownAssetPrefix} from "./lib/assetUrl";
+import {releaseGuardProfileBattlePreferenceV4} from "./lib/battlePreferenceReleaseGuard";
 import {CHANGE_BATTLE_DEBUG_FEATURES_ENABLED, CHANGE_BATTLE_RELEASE_CHANNEL} from "./lib/debugFeatures";
 
 type AppProps = {
@@ -757,7 +758,7 @@ function RoutedApp({runtime}: AppProps) {
     <FormalGameTransitionPage
       api={api}
       formalGameBridge={formalGameBridge}
-      profile={profile}
+      profile={releaseGuardProfileBattlePreferenceV4(profile, DEBUG_FEATURE_ENABLED)}
       playerVault={playerVault}
       mode={formalMode}
       onRunReady={run => {
