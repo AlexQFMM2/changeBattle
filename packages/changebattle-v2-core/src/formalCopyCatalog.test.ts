@@ -12,16 +12,22 @@ import {
   formalShopItemPoolForCategoryV4,
   FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY,
   FORMAL_SHOP_SLOTS_PER_CATEGORY,
+  CHAMPION_FUND_NODE_ID,
+  ELITE_FUND_NODE_ID,
+  MAX_BP_V4,
   FORMAL_SHOP_PENDING_TRAINING_ITEM_POOL,
   FORMAL_SHOP_PARENTING_ITEM_POOL,
   FORMAL_SHOP_EVOLUTION_ITEM_POOL,
   FORMAL_SHOP_ITEM_POOL,
   FORMAL_SHOP_SPECIAL_MEDICINE_ITEM_POOL,
+  TRAVEL_FUND_NODE_ID,
+  clearStarChartUnlocksForProfileV4,
   formalTrainingGroundLessonTableV4,
   soulmateEvolutionFriendshipRequirementV4,
   soulmateEvolutionFriendshipRequirementForChainV4,
   createPlayerVaultEggPokemonRecordV4,
   evaluateFormalSoulmateBattleEvolutionV4,
+  calculateFormalSoulmateFriendshipSettlementV4,
   applyPlayerVaultEvolutionV4,
   previewPlayerVaultEvolutionCandidatesV4,
   type PlayerPokemonRecordV4,
@@ -44,6 +50,20 @@ assert.equal(soulmateEvolutionFriendshipRequirementV4(2), null);
 assert.equal(soulmateEvolutionFriendshipRequirementForChainV4(0, 1), 150);
 assert.equal(soulmateEvolutionFriendshipRequirementForChainV4(0, 2), 100);
 assert.equal(soulmateEvolutionFriendshipRequirementForChainV4(1, 2), 200);
+
+const clearedStarProfile = clearStarChartUnlocksForProfileV4({
+  battlePoints: 10,
+  starChart: {nodes: {root_trainer_star: 1, [TRAVEL_FUND_NODE_ID]: 1, [ELITE_FUND_NODE_ID]: 1, [CHAMPION_FUND_NODE_ID]: 1}},
+  updatedAt: "2026-01-01T00:00:00.000Z",
+}, new Date("2026-01-02T00:00:00.000Z"));
+assert.equal(clearedStarProfile.battlePoints, 19);
+assert.equal(clearedStarProfile.starChart.nodes.root_trainer_star, 1);
+assert.equal(clearedStarProfile.starChart.nodes[TRAVEL_FUND_NODE_ID], 0);
+assert.equal(clearedStarProfile.starChart.nodes[ELITE_FUND_NODE_ID], 0);
+assert.equal(clearedStarProfile.starChart.nodes[CHAMPION_FUND_NODE_ID], 0);
+assert.equal(clearedStarProfile.updatedAt, "2026-01-02T00:00:00.000Z");
+const cappedClearProfile = clearStarChartUnlocksForProfileV4({battlePoints: MAX_BP_V4, starChart: {nodes: {root_trainer_star: 1, [TRAVEL_FUND_NODE_ID]: 1}}});
+assert.equal(cappedClearProfile.battlePoints, MAX_BP_V4);
 
 const evolutionEdges = [
   {fromSpeciesId: "charmander", toSpeciesId: "charmeleon", evoType: "levelExtra"},
@@ -190,6 +210,62 @@ const battleEvolutionMultiTarget = evaluateFormalSoulmateBattleEvolutionV4({
 assert.equal(battleEvolutionMultiTarget.ok, false);
 assert.equal(battleEvolutionMultiTarget.ok ? "" : battleEvolutionMultiTarget.reason, "multi-target");
 
+const soulmateFriendshipSettlement = calculateFormalSoulmateFriendshipSettlementV4({
+  nodeId: "node-1",
+  won: true,
+  createdAt: "2026-01-02T00:00:00.000Z",
+  team: [
+    {...localPokemonForBattleEvolutionTest({
+      localPokemonId: "formal-p1-1-charmander",
+      formalSourceKind: "soulmate-vault",
+      sourcePlayerPokemonId: "vault-charmander",
+      speciesId: "charmander",
+    }), friendship: 120},
+  ],
+  battleLog: [
+    {
+      id: "soulmate-damage",
+      key: "soulmate-damage",
+      at: "2026-01-02T00:00:00.000Z",
+      sessionId: "session-1",
+      nodeId: "node-1",
+      turn: 1,
+      rawLogIndex: 1,
+      eventType: "damage",
+      sourcePlayerId: "p1",
+      sourcePokemonKey: "p1a: 小火",
+      sourcePokemonName: "小火",
+      targetPlayerId: "p2",
+      targetPokemonKey: "p2a: target",
+      targetPokemonName: "target",
+      damage: 20,
+      directness: "direct",
+      rawLine: "",
+    },
+    {
+      id: "soulmate-faint",
+      key: "soulmate-faint",
+      at: "2026-01-02T00:00:00.000Z",
+      sessionId: "session-1",
+      nodeId: "node-1",
+      turn: 2,
+      rawLogIndex: 2,
+      eventType: "faint",
+      targetPlayerId: "p1",
+      targetPokemonKey: "p1a: 小火",
+      targetPokemonName: "小火",
+      rawLine: "",
+    },
+  ],
+  resolvePokemonKey: (_entry, role) => role === "source" || role === "target" ? "formal-p1-1-charmander" : undefined,
+});
+assert.equal(soulmateFriendshipSettlement.nodeId, "node-1");
+assert.equal(soulmateFriendshipSettlement.deltas[0]?.before, 120);
+assert.equal(soulmateFriendshipSettlement.deltas[0]?.after, 132);
+assert.equal(soulmateFriendshipSettlement.deltas[0]?.delta, 12);
+assert.equal(soulmateFriendshipSettlement.deltas[0]?.participated, true);
+assert.equal(soulmateFriendshipSettlement.deltas[0]?.fainted, true);
+
 assert.deepEqual(FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY, {
   recovery: 0,
   berry: 0,
@@ -249,8 +325,21 @@ assert.equal(eggPokemon?.nature, "Hardy");
 assert.equal(eggPokemon?.gender, "N");
 assert.equal(eggPokemon?.abilityId, "blaze");
 assert.deepEqual(eggPokemon?.evs, {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0});
-assert.deepEqual(eggPokemon?.ivs, {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31});
+assert.ok(Object.values(eggPokemon?.ivs || {}).every(value => value >= 0 && value <= 31));
+assert.notDeepEqual(eggPokemon?.ivs, {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31});
 assert.deepEqual(eggPokemon?.moves.map(move => move.moveId), ["scratch", "growl"]);
+const eggPokemonAgain = createPlayerVaultEggPokemonRecordV4({
+  dex: {
+    getPokemonDetail: id => ({id, abilities: [{id: "blaze"}]}),
+    getPokemonEvolutionRoot: id => id === "charizard" ? {id: "charmander"} : {id},
+    getPokemonSelfLearnSkills: id => id === "charmander" ? [{id: "scratch", pp: 35}, {id: "growl", pp: 40}] : [],
+    getMoveDetail: id => ({id, pp: id === "scratch" ? 35 : 40}),
+  },
+  speciesId: "charizard",
+  originKind: "debug-custom",
+  seed: "debug-charizard",
+});
+assert.deepEqual(eggPokemonAgain?.ivs, eggPokemon?.ivs);
 
 const fallbackEggPokemon = createPlayerVaultEggPokemonRecordV4({
   dex: {

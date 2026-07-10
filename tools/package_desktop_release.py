@@ -17,8 +17,8 @@ RELEASE_DIR = PROJECT_ROOT / "release"
 ELECTRON_PLATFORM = "win32"
 ELECTRON_ARCH = "x64"
 DEFAULT_UPDATE_BASE_URLS = {
-    "stable": "http://119.45.240.157/changebattle/",
-    "beta": "http://119.45.240.157/changebattle-beta/",
+    "stable": "https://65h26i.top/changebattle/",
+    "beta": "https://65h26i.top/changebattle-beta/",
 }
 
 PROJECT_PATHS = [

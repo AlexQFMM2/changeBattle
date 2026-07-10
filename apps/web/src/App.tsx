@@ -628,7 +628,12 @@ function RoutedApp({runtime}: AppProps) {
     <TalentConfigPage
       api={api}
       profile={profile}
-      onProfileChange={setProfile}
+      onSaveAndBack={async nextProfile => {
+        const savedProfile = await userProfileAdapter.saveUserProfile(nextProfile);
+        setProfile(savedProfile);
+        setMessage("星图已保存。");
+        navigate("/main", {replace: true});
+      }}
       onBack={() => navigate("/main", {replace: true})}
     />
   ) : <Navigate to="/" replace />;
@@ -973,6 +978,7 @@ function RoutedApp({runtime}: AppProps) {
         run={formalRun.restRunSnapshot}
         sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || ""}
         debugConfig={APP_DEBUG_CONFIG_V4}
+        diagnosticsContext={{formalRun, playerVault}}
         playerProfile={profile}
         endFlow="auto-exit"
         onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
@@ -984,6 +990,7 @@ function RoutedApp({runtime}: AppProps) {
             playerVault,
             sessionId: activeSessionId,
             snapshot,
+            chanceOverride: DEBUG_FEATURE_ENABLED ? 1 : undefined,
           });
           if (!result.evolved) return snapshot;
           const savedVault = await api.savePlayerVault(result.playerVault);
@@ -1162,7 +1169,7 @@ function bgmSceneForRoute(pathname: string, formalRun: FormalGameRunV4 | null): 
 }
 
 function desktopVersionBadgeLabel(): string {
-  const version = String(import.meta.env.VITE_CHANGEBATTLE_DESKTOP_VERSION || "0.1.0").trim() || "0.1.0";
+  const version = String(import.meta.env.VITE_CHANGEBATTLE_DESKTOP_VERSION || "").trim() || "unknown";
   if (IS_DEV_BUILD) return `dev ${version}`;
   return `${CHANGE_BATTLE_RELEASE_CHANNEL === "beta" ? "debug" : "release"} ${version}`;
 }

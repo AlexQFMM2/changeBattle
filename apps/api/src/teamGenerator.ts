@@ -95,6 +95,7 @@ export function convertShowdownSetToLocalPokemonV4(
     nameZh: detail.nameZh || detail.name || set.species || set.name,
     nickname: set.name && set.name !== set.species ? set.name : undefined,
     level,
+    friendship: normalizeOptionalFriendship(set.happiness),
     gender: normalizeGender(set.gender),
     shiny: Boolean(set.shiny),
     itemId,
@@ -185,4 +186,9 @@ function normalizeGender(gender: string | undefined): TrainingGenderV4 {
 
 function clampInt(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.floor(Number(value) || 0)));
+}
+
+function normalizeOptionalFriendship(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  return clampInt(Number(value), 0, 255);
 }

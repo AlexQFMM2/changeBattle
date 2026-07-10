@@ -811,6 +811,9 @@ assert(soulmatePrepare.pokemon?.level === 50, "soulmate egg should hatch at leve
 assert(soulmatePrepare.pokemon?.friendship === 120, "soulmate egg should use star chart friendship bonus");
 assert(soulmatePrepare.pokemon?.originKind === "soulmate", "soulmate egg should mark origin kind");
 assert(Object.values(soulmatePrepare.pokemon?.evs || {}).every(value => value === 0), "soulmate egg should reset EVs");
+assert(Object.values(soulmatePrepare.pokemon?.ivs || {}).every(value => value >= 0 && value <= 31), "soulmate egg IVs should stay within legal range");
+assert(JSON.stringify(soulmatePrepare.pokemon?.ivs) !== JSON.stringify({hp: 31, atk: 30, def: 29, spa: 28, spd: 27, spe: 26}), "soulmate egg should not inherit rental pokemon IVs");
+assert(JSON.stringify(soulmatePrepare.pokemon?.ivs) !== JSON.stringify({hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31}), "soulmate egg should not default to perfect IVs");
 const soulmateClaim = api.claimFormalSoulmateEgg(soulmatePendingRun, normalizePlayerVaultV4(), "soulmate-candidate-formal-p1-1-charizard", "小焰");
 assert(soulmateClaim.ok, `soulmate egg claim should succeed: ${soulmateClaim.message}`);
 assert(soulmateClaim.playerVault.pokemon.length === 1, "soulmate egg claim should deposit one pokemon");
@@ -1378,12 +1381,20 @@ const soulmateFriendshipBattleLogRun = {
   },
 };
 const soulmateFriendshipSettlement = api.applyFormalSoulmateBattleFriendshipSettlement(soulmateFriendshipBattleLogRun, soulmateVault);
-const settledSoulmate = soulmateFriendshipSettlement.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1");
-assert(settledSoulmate?.friendship === 222, "soulmate battle settlement should add win participation and faint penalty");
+const settledLocalSoulmate = soulmateFriendshipSettlement.run.restRunSnapshot!.players.p1!.localTeam.pokemon.find(pokemon => pokemon.sourcePlayerPokemonId === "vault-starmie-1");
+const unsettledVaultSoulmate = soulmateFriendshipSettlement.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1");
+assert(settledLocalSoulmate?.friendship === 222, "soulmate battle settlement should add win participation and faint penalty to the local run pokemon");
+assert(unsettledVaultSoulmate?.friendship === 210, "soulmate battle settlement should not write friendship back to vault before final sync");
 assert(soulmateFriendshipSettlement.summary?.deltas[0]?.delta === 12, "soulmate battle settlement should report net delta");
 const soulmateFriendshipSettlementAgain = api.applyFormalSoulmateBattleFriendshipSettlement(soulmateFriendshipSettlement.run, soulmateFriendshipSettlement.playerVault);
 assert(soulmateFriendshipSettlementAgain.alreadySettled, "soulmate battle settlement should be idempotent per node");
-assert(soulmateFriendshipSettlementAgain.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1")?.friendship === 222, "soulmate battle settlement should not apply twice");
+assert(soulmateFriendshipSettlementAgain.run.restRunSnapshot!.players.p1!.localTeam.pokemon.find(pokemon => pokemon.sourcePlayerPokemonId === "vault-starmie-1")?.friendship === 222, "soulmate battle settlement should not apply twice to local run pokemon");
+assert(soulmateFriendshipSettlementAgain.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1")?.friendship === 210, "soulmate battle settlement should still leave vault unchanged when already settled");
+const syncedSoulmateVault = api.syncFormalSoulmateLocalTeamToVault(soulmateFriendshipSettlement.run, soulmateFriendshipSettlement.playerVault);
+assert(syncedSoulmateVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1")?.friendship === 222, "final soulmate vault sync should persist local friendship");
+assert(syncedSoulmateVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1")?.heldItemId === "leftovers", "final soulmate vault sync should persist only the soulmate held item");
+assert(syncedSoulmateVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-pikachu-1")?.friendship === 210, "final soulmate vault sync should not touch unrelated vault pokemon friendship");
+assert(syncedSoulmateVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-pikachu-1")?.heldItemId === "lifeorb", "final soulmate vault sync should not touch unrelated vault pokemon held item");
 const soulmateHonorSettlement = api.applyFormalSoulmateHonorSettlement(soulmateFriendshipBattleLogRun, soulmateVault);
 const honoredSoulmate = soulmateHonorSettlement.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1");
 const unhonoredPokemon = soulmateHonorSettlement.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-pikachu-1");

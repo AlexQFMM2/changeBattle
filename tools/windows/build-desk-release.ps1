@@ -21,9 +21,9 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
 }
 
 $DefaultUpdateManifestUrl = if ($Channel -eq "beta") {
-  "http://119.45.240.157/changebattle-beta/latest.json"
+  "https://65h26i.top/changebattle-beta/latest.json"
 } else {
-  "http://119.45.240.157/changebattle/latest.json"
+  "https://65h26i.top/changebattle/latest.json"
 }
 
 if (-not (Test-Path $SourceRoot)) {

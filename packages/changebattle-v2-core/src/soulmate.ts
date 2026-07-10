@@ -1,4 +1,4 @@
-import {getPokemonDisplayNameV4, normalizeLocalPokemonV4, type LocalPokemonV4, type LocalTeamV4} from "./pokemonInstance.js";
+import {getPokemonDisplayNameV4, normalizeLocalPokemonV4, TRAINING_STAT_IDS_V4, type LocalPokemonV4, type LocalTeamV4, type StatTableV4} from "./pokemonInstance.js";
 import {getPokemonEligibleForSoulmateV4, getPokemonParticipantsForSoulmateV4, type BattleLogPokemonSummaryV4, type TrainingBattleLogEntryV4} from "./battleLog.js";
 import {normalizePlayerPokemonRecordV4, type PlayerPokemonMoveRecordV4, type PlayerPokemonRecordV4} from "./playerVault.js";
 
@@ -88,7 +88,6 @@ export type PlayerVaultEggPokemonRecordInputV4 = {
   inherited?: {
     gender?: LocalPokemonV4["gender"];
     nature?: string;
-    ivs?: LocalPokemonV4["ivs"];
     fallbackMoveIds?: string[];
   };
   level?: number;
@@ -148,7 +147,7 @@ export function createPlayerVaultEggPokemonRecordV4(input: PlayerVaultEggPokemon
     nature: normalizeOptionalText(input.inherited?.nature) || "Hardy",
     abilityId,
     evs: zeroSoulmateStatsV4(),
-    ivs: input.inherited?.ivs || maxSoulmateStatsV4(),
+    ivs: randomSoulmateIvStatsV4(`${seed}:ivs`),
     moves,
     friendship: clampSoulmateInt(input.friendship, 0, 255, 100),
     shiny: seededFractionV4(`${seed}:shiny`) < Math.max(0, Math.min(1, Number(input.shinyRate || 0))),
@@ -360,12 +359,12 @@ function playerVaultEggMoveRecordsV4(dex: PlayerVaultEggPokemonDexV4, moveIds: s
   });
 }
 
-function zeroSoulmateStatsV4() {
+function zeroSoulmateStatsV4(): StatTableV4 {
   return {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0};
 }
 
-function maxSoulmateStatsV4() {
-  return {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31};
+function randomSoulmateIvStatsV4(seed: string): StatTableV4 {
+  return Object.fromEntries(TRAINING_STAT_IDS_V4.map(stat => [stat, Math.floor(seededFractionV4(`${seed}:${stat}`) * 32)])) as StatTableV4;
 }
 
 function clampSoulmateInt(value: unknown, min: number, max: number, fallback: number): number {

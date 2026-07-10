@@ -151,8 +151,8 @@ CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/publish_desktop_update_manifest.sh 0
 默认地址：
 
 ```text
-stable latest: http://119.45.240.157/changebattle/latest.json
-beta latest:   http://119.45.240.157/changebattle-beta/latest.json
+stable latest: https://65h26i.top/changebattle/latest.json
+beta latest:   https://65h26i.top/changebattle-beta/latest.json
 ```
 
 ## Current Baseline
@@ -170,8 +170,8 @@ update
 ```text
 current working branch: v2
 stable latest:          0.1.3
-stable site:            http://119.45.240.157/changebattle/
-beta site:              http://119.45.240.157/changebattle-beta/
+stable site:            https://65h26i.top/changebattle/
+beta site:              https://65h26i.top/changebattle-beta/
 ```
 
 `0.1.1` 是桌面端文件级增量更新的初始化版本。`0.1.2` 和 `0.1.3` 已验证普通游戏代码和资源更新可以走增量；Electron runtime、launcher、updater 等变化仍要求完整包。

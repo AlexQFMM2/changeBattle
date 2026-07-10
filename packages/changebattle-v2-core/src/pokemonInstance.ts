@@ -27,6 +27,7 @@ export type LocalPokemonV4 = {
   nameZh: string;
   nickname?: string;
   level: number;
+  friendship?: number;
   gender: TrainingGenderV4;
   shiny: boolean;
   itemId: string;
@@ -148,6 +149,7 @@ export function normalizeLocalPokemonV4(pokemon: unknown, options: {
     nameZh,
     nickname: normalizeOptionalText(raw.nickname),
     level: clampInt(raw.level, 1, 100, 50),
+    friendship: normalizeOptionalFriendship(raw.friendship ?? raw.happiness),
     gender: normalizeTrainingGenderV4(raw.gender),
     shiny: Boolean(raw.shiny),
     itemId: normalizeText(raw.itemId),
@@ -232,6 +234,11 @@ function normalizeOptionalPositiveNumber(value: unknown): number | undefined {
   if (value === undefined || value === null || value === "") return undefined;
   const next = Math.max(0, Math.round(Number(value)));
   return Number.isFinite(next) ? next : undefined;
+}
+
+function normalizeOptionalFriendship(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  return clampInt(value, 0, 255, 0);
 }
 
 function normalizeNullableNumber(value: unknown, fallback: number | null): number | null {

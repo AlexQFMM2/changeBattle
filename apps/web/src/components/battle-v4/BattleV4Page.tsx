@@ -1,5 +1,5 @@
 import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
-import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleTeamPokemonStateV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, LocalPokemonV4, PlayerItemInstanceV4, RequestSidePokemonV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleTeamPokemonStateV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, FormalGameRunV4, LocalPokemonV4, PlayerItemInstanceV4, PlayerVaultV4, RequestSidePokemonV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, formalRoundStageLabelV4, isBattleCommandDraftDoneV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, translateDexLabel, undoBattleCommandChoiceV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
@@ -21,12 +21,18 @@ export type BattleV4PageProps = {
   run: TrainingRunGameV4;
   sessionId: string;
   debugConfig?: AppDebugConfigV4;
+  diagnosticsContext?: BattleV4DiagnosticsContext;
   onRunChange: (run: TrainingRunGameV4) => void;
   onBackToRest: () => void;
   onBattleComplete?: (result: {sessionId: string; reason?: "surrender"}) => void;
   onAfterSubmitSnapshot?: (snapshot: BattleSessionSnapshotV4) => Promise<BattleSessionSnapshotV4> | BattleSessionSnapshotV4;
   playerProfile?: Pick<UserProfileV2, "name" | "frontAsset" | "frontGifAsset" | "backAsset" | "avatarAsset">;
   endFlow?: "auto-exit" | "result-panel";
+};
+
+type BattleV4DiagnosticsContext = {
+  formalRun?: FormalGameRunV4 | null;
+  playerVault?: PlayerVaultV4 | null;
 };
 
 type SwitchActionV4 = Extract<BattleCommandActionV4, {kind: "switch"}>;
@@ -199,7 +205,7 @@ type BattleSubmitErrorV4 = {
   error?: string;
 };
 
-export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onBackToRest, onBattleComplete, onAfterSubmitSnapshot, playerProfile, endFlow = "result-panel"}: BattleV4PageProps) {
+export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsContext, onRunChange, onBackToRest, onBattleComplete, onAfterSubmitSnapshot, playerProfile, endFlow = "result-panel"}: BattleV4PageProps) {
   const [snapshot, setSnapshot] = useState<BattleSessionSnapshotV4 | null>(null);
   const [message, setMessage] = useState("正在连接 Battle Service...");
   const [busy, setBusy] = useState(false);
@@ -834,7 +840,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
       />
       <header className="battle-v4-hud">
         <button type="button" onClick={() => setBattleStatusOpen(true)} disabled={!snapshot}>场地状态</button>
-        <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft, playback.debug, lastSubmitError)} disabled={!snapshot}>导出诊断</button>
+        <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft, playback.debug, lastSubmitError, diagnosticsContext)} disabled={!snapshot}>导出诊断</button>
         {canSurrender ? <button className="danger" type="button" onClick={openSurrenderDialog} disabled={!snapshot || surrenderOpen || narrativeActive}>投降</button> : null}
       </header>
       {!commandsLocked ? (
@@ -2957,12 +2963,16 @@ function battleV4StallDiagnosis(snapshot: BattleSessionSnapshotV4 | null): strin
   return diagnosis.length ? diagnosis : ["no-obvious-stall-signal"];
 }
 
-function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draft: BattleCommandDraftV4 | null, playbackDebug?: BattlePlaybackDebugV4 | null, lastSubmitError?: BattleSubmitErrorV4 | null) {
+function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draft: BattleCommandDraftV4 | null, playbackDebug?: BattlePlaybackDebugV4 | null, lastSubmitError?: BattleSubmitErrorV4 | null, diagnosticsContext?: BattleV4DiagnosticsContext | null) {
   const command = snapshot ? projectBattleViewModelV4(snapshot, "p1", draft).command : null;
   return {
     exportedAt: new Date().toISOString(),
     diagnosis: battleV4StallDiagnosis(snapshot),
     lastSubmitError: lastSubmitError || null,
+    context: {
+      formalRun: diagnosticsContext?.formalRun || null,
+      playerVault: diagnosticsContext?.playerVault || null,
+    },
     snapshotSummary: snapshot ? snapshotDebugSummary(snapshot) : null,
     draft,
     p1RawRequest: command?.request || null,
@@ -3045,9 +3055,9 @@ function buildBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draf
   };
 }
 
-function exportBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draft: BattleCommandDraftV4 | null, playbackDebug?: BattlePlaybackDebugV4 | null, lastSubmitError?: BattleSubmitErrorV4 | null) {
+function exportBattleV4Diagnostics(snapshot: BattleSessionSnapshotV4 | null, draft: BattleCommandDraftV4 | null, playbackDebug?: BattlePlaybackDebugV4 | null, lastSubmitError?: BattleSubmitErrorV4 | null, diagnosticsContext?: BattleV4DiagnosticsContext | null) {
   if (!snapshot) return;
-  const diagnostics = buildBattleV4Diagnostics(snapshot, draft, playbackDebug, lastSubmitError);
+  const diagnostics = buildBattleV4Diagnostics(snapshot, draft, playbackDebug, lastSubmitError, diagnosticsContext);
   const blob = new Blob([JSON.stringify(diagnostics, null, 2)], {type: "application/json"});
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -3377,18 +3387,18 @@ function defaultSideConditionTurns(id: string): number | null {
   return null;
 }
 
-function BattleV4DebugModal({snapshot, draft, playbackDebug, onClose}: {snapshot: BattleSessionSnapshotV4 | null; draft: BattleCommandDraftV4 | null; playbackDebug?: BattlePlaybackDebugV4 | null; onClose: () => void}) {
+function BattleV4DebugModal({snapshot, draft, playbackDebug, diagnosticsContext, onClose}: {snapshot: BattleSessionSnapshotV4 | null; draft: BattleCommandDraftV4 | null; playbackDebug?: BattlePlaybackDebugV4 | null; diagnosticsContext?: BattleV4DiagnosticsContext | null; onClose: () => void}) {
   const [tab, setTab] = useState<"request" | "raw" | "protocol" | "message" | "animation">("request");
   const command = snapshot ? projectBattleViewModelV4(snapshot, "p1", draft).command : null;
   const rawRequest = command?.request || null;
   const normalizedRequest = command ? requestDebugSummary(command) : null;
-  const diagnostics = buildBattleV4Diagnostics(snapshot, draft, playbackDebug);
+  const diagnostics = buildBattleV4Diagnostics(snapshot, draft, playbackDebug, null, diagnosticsContext);
   return (
     <div className="battle-v4-debug-modal">
       <section>
         <header>
           <strong>BattleStream Debug</strong>
-          <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, draft, playbackDebug)} disabled={!snapshot}>导出诊断</button>
+          <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, draft, playbackDebug, null, diagnosticsContext)} disabled={!snapshot}>导出诊断</button>
           <button type="button" onClick={onClose}>关闭</button>
         </header>
         <nav className="battle-v4-debug-tabs" aria-label="debug 视图">

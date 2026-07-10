@@ -30,6 +30,7 @@ export {
   TRAVEL_FUND_NODE_ID,
   VICTORY_DIVIDEND_NODE_ID,
   cloneStarChartV4,
+  clearStarChartUnlocksForProfileV4,
   enableTestModeForProfileV4,
   formalCarryPrepItemCountForStarChartV4,
   formalShopRowsForStarChartV4,

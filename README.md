@@ -1,6 +1,6 @@
 # ChangeBattle V2
 
-一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、Windows Desktop portable release 和桌面端文件级增量更新都已经接入。
+一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证 + 第二轮灵魂伴侣回归测试期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、灵魂伴侣蛋孵化/仓库养成/同行许可/战后成长/战斗内进化、Windows Desktop portable release 和桌面端文件级增量更新都已经接入。下一轮核心开发点是双人局域网 PvE 合作模式。
 
 ## Repository / Branch
 
@@ -25,6 +25,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 权威开发和发布流程见 `docs/gitAbout.md`。
 
 - `packages/showdown-dex-core`：Web/Desktop 共用的 Dex 数据、搜索、详情聚合、图片解析、中文翻译、能力计算、学习面反查。
+- `packages/changebattle-v2-core`：V2 运行时结构、玩家仓库、星图天赋、灵魂伴侣、桌面更新等共享纯规则和 catalog。
 - `apps/api`：Web/Desktop 共用的应用层 API facade，后续公共函数都放这里。
 - `packages/showdown-battle-core`：Node-side BattleStream service。真实战斗逻辑在这里运行，Web/Desktop 只通过 HTTP adapter 读 snapshot / 提交 choice。
 - `apps/web`：Web 端适配器、V1 风格首屏/首页、QuickDex 图鉴弹窗。
@@ -88,6 +89,8 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - 训练家仓库荣誉奖章：宝可梦详情页已接入 10 个个人奖章，按这只宝可梦自己的 `honors` 进度从下往上点亮；点击任意奖章可查看说明和待攻克目标，目标来自 Dex 训练师数据，不是物种或玩家全局成就。
 - 训练家仓库宝可梦操作：宝可梦详情抽屉支持卸下道具和危险操作“放生”；放生会二次确认，携带道具优先放回道具箱，道具箱满时阻止放生。
 - 训练家仓库 debug 入口：beta/dev 下可通过简单搜索弹窗添加 debug 道具和 debug 宝可梦；debug 宝可梦复用 core 蛋生成规则 helper，来源标记为 `debug-custom`，debug 道具来源标记为 `debug`；stable/release 隐藏入口但不隐藏已有数据。
+- 灵魂伴侣蛋孵化：最终胜利后的待结算休整页已接入“就决定是你了”入口，按本局战斗记录筛选候选，使用 `packages/changebattle-v2-core` 的蛋生成 helper 生成进化根宝可梦并写入长期仓库；孵化动画使用 `assets/runtime/soulmate/egg-hatch-sheet.png`。
+- 灵魂伴侣星图线：`灵魂伴侣`、`同行许可 I / II`、`爱不释手`、`欧洲父母`、`一眼万年`、待结算商店带出和育儿基金等节点已静态化到 star chart catalog，业务侧按 `runtimeEffects` 读取。
 - 真实对局灵魂伴侣：通过“同行许可”进入正式流程的仓库宝可梦已接入选人页专属槽位、休整页浅绿色队伍标记、战斗昵称展示、战后亲密度回写和战后荣誉授章；点亮“爱不释手”时会把仓库携带物复制为 run-local 背包实例，不扣仓库资产。
 - 灵魂伴侣战斗进化：正式战斗中，达到亲密度门槛且下一段进化目标唯一的灵魂伴侣会在下一次行动请求前按 3% 概率触发羁绊进化；后端通过 Showdown `formeChange(..., evolutionEffect, true)` 写入 `detailschange`/提示协议，Web 只按 rawLog playback 顺序播放白光 transform 动画并同步 run-local 与来源仓库形态。
 - 灵魂伴侣边界：仓库中的灵魂伴侣是局外长期资产，可以在训练家仓库使用局外养成道具、技能学习和进化；被“同行许可”带入正式流程的是 run-local 副本，保留养成数值和昵称，但不写回仓库，也不能参与正式局内训练、交换、TM 或特效药改造，普通恢复/治疗仍可使用。
@@ -103,25 +106,30 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - app 端。
 - 完整 roguelike 奖励扩展、长期循环平衡和安装器/签名。
 - 旧 `dexSearch` 兼容。
+- 局域网合作第一版不做中心服务器、公网匹配、账号系统、NAT 穿透、PvP、观战和 host migration。
 
-当前 Battle V4 / Rest V4 进度：
+当前第二轮 / Battle V4 / Rest V4 进度：
 
+- 第二轮灵魂伴侣主体已经落地，当前重点是回归测试：最终胜利带走蛋、仓库养成/技能学习/进化、同行许可带入正式流程、正式休整页禁用态、战后亲密度回写、个人荣誉授章和战斗内低概率进化。
 - 训练场休整页可以进入真实 Battle V4 中转页。
 - Battle service 使用 Showdown `BattleStream` 创建 session，保留 raw protocol/request/debug。
 - 战斗页使用 V2 风格战斗壳展示场景、HP、模型、指令、日志/解说和裁判对话。
 - 单打、双打、合作使用同一 session API 和合法随机 AI 推进；特殊系统 gate 和 AI 选择已有 core smoke 覆盖。
 - Battle V4 AI 特殊系统目标选择已修复：Z/Max/Mega/Tera 等特殊后缀会基于实际执行招式重新判定目标需求，避免 gen7 双打中 `move 1 zmove` 缺目标导致 Showdown 拒绝并 blocked。遇到 release 旧包卡死时，可按 `debug/README.md` 用 diagnostics 里的 `allRequests` 直接复现当前 V2 AI 出招。
 - 天气/场地持久层会按资源 key 重建 video/image 层，避免沙暴、雨天、晴天、雪天切换时继续播放旧资源。
-- 当前主要工作点已经从“打通流程”转到正式游戏内容打磨、战斗演出稳定性、NPC 队伍质量和 Windows portable 体验。
+- 第三轮联机已进入设计落地准备：计划见 `plan/formal-game/formal-lan-coop-host-mode-plan.md`，第一版目标是 Desktop 双人局域网 PvE，沿用 Showdown coop 的 `p1 + p3` 对 `p2 + p4` 编排，战斗阶段由房主权威计算。
+- 当前主要工作点已经从“打通流程”转到灵魂伴侣回归、正式游戏内容打磨、战斗演出稳定性、NPC 队伍质量、第三轮联机拆分和 Windows portable 体验。
 
 下一步：
 
-- 继续回归 Battle V4：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择和双打 seat 映射。
-- 继续打磨正式 GameRun：NPC 配队、特殊系统、商店/训练经济、赛程叙事、结算体验和长期仓库整理体验。
+- 优先测试灵魂伴侣完整闭环：最终待结算领取蛋、重复领取幂等、仓库容量满失败、局外道具/技能/进化、同行许可候选、`爱不释手` 携带物复制、正式局内养成 guard、战后亲密度/荣誉幂等、战斗内进化 rawLog 顺序和 request 刷新。
+- 启动第三轮局域网合作开发：先落 core 协议类型和 Desktop host service 骨架；第一版用 HTTP + SSE，不引入 WebSocket；非战斗阶段双方各自本地计算草稿，中转页收集/校验/同步，战斗页由房主统一推进 Showdown session 并分发 snapshot / playbackTimeline。
+- 继续回归 Battle V4：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择、双打/合作 seat 映射，以及灵魂伴侣战斗进化在 singles/doubles/coop 下的播放顺序。
+- 继续打磨正式 GameRun：NPC 配队、特殊系统、商店/训练经济、赛程叙事、最终休整公告栏、结算体验和长期仓库整理体验。
 - 训练家仓库下一步主要是性能/体验回归、组件预览补齐、解锁箱页与 profile BP 扣除的 draft 边界收口；背包手动移动已从新布局中移除，后续不要再按旧格子移动体验扩展。
 - Windows release 后续可做 `ChangeBattle-V2-Desk.exe` launcher，替代当前 `.cmd` 启动入口；安装器、签名仍不在当前范围。
 
-详细路线见 `docs/training-and-battle-roadmap.md`。
+详细路线见 `docs/training-and-battle-roadmap.md`、`plan/formal-game/README.md` 和 `plan/formal-game/formal-lan-coop-host-mode-plan.md`。
 
 ## UI Rules
 
@@ -166,10 +174,10 @@ release/ChangeBattle-V2-Desk-portable-v0.1.3.zip
 source: v2@1c8bd4e6
 generated: 2026-07-06 Asia/Shanghai
 size: 约 598 MiB
-stable latest: http://119.45.240.157/changebattle/latest.json
-stable site:   http://119.45.240.157/changebattle/
-beta latest:   http://119.45.240.157/changebattle-beta/latest.json
-beta site:     http://119.45.240.157/changebattle-beta/
+stable latest: https://65h26i.top/changebattle/latest.json
+stable site:   https://65h26i.top/changebattle/
+beta latest:   https://65h26i.top/changebattle-beta/latest.json
+beta site:     https://65h26i.top/changebattle-beta/
 ```
 
 玩家解压后运行：
@@ -190,8 +198,8 @@ ChangeBattle-V2-Desk.cmd
 正式/测试通道：
 
 ```txt
-release 分支 -> stable -> http://119.45.240.157/changebattle/
-v2 分支      -> beta   -> http://119.45.240.157/changebattle-beta/
+release 分支 -> stable -> https://65h26i.top/changebattle/
+v2 分支      -> beta   -> https://65h26i.top/changebattle-beta/
 ```
 
 只生成 release 按：
@@ -211,9 +219,9 @@ CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_and_publish_update.sh 
 更新服务器只托管小文件和增量文件：
 
 ```txt
-http://119.45.240.157/changebattle/latest.json
-http://119.45.240.157/changebattle/manifests/vX.Y.Z/files.json
-http://119.45.240.157/changebattle/files/vX.Y.Z/...
+https://65h26i.top/changebattle/latest.json
+https://65h26i.top/changebattle/manifests/vX.Y.Z/files.json
+https://65h26i.top/changebattle/files/vX.Y.Z/...
 ```
 
 `latest.json`、版本比较、channel URL、文件清单对比和增量路径校验的纯规则在 `packages/changebattle-v2-core/src/desktopUpdateCatalog.ts`；Electron 主进程负责拉取清单、下载增量、校验和替换文件。脚本只发布 manifest/download page/incremental files，不上传约 600 MiB 的 portable zip；完整包下载镜像通过 `CHANGEBATTLE_RELEASE_MIRRORS` 写入 `latest.json` 和游戏官网。

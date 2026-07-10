@@ -225,6 +225,24 @@ export function unlockStarChartNodeForProfileV4<T extends StarChartProfileV4>(pr
   };
 }
 
+export function clearStarChartUnlocksForProfileV4<T extends StarChartProfileV4>(profile: T, now = new Date()): T {
+  const starChart = normalizeStarChartV4(profile.starChart);
+  let refunded = 0;
+  for (const node of STAR_CHART_NODES_V4) {
+    if (node.kind === "root" || node.id === "root_trainer_star") continue;
+    const level = starChartNodeLevelV4(starChart, node.id);
+    for (let index = 0; index < level; index += 1) {
+      refunded += Math.max(0, Math.floor(Number(node.costs?.[index] ?? node.cost ?? 0)));
+    }
+  }
+  return {
+    ...profile,
+    battlePoints: normalizeBattlePointsV4(normalizeBattlePointsV4(profile.battlePoints) + refunded),
+    starChart: normalizeStarChartV4({nodes: {root_trainer_star: 1}}),
+    updatedAt: now.toISOString(),
+  };
+}
+
 export function enableTestModeForProfileV4<T extends StarChartProfileV4>(profile: T, now = new Date()): T {
   return {
     ...profile,

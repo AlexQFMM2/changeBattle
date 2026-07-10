@@ -19,7 +19,7 @@ if (!/^\d+\.\d+\.\d+$/.test(version)) {
 }
 
 const zipPath = path.join(releaseDir, `${portablePackageName(version, channel)}.zip`);
-const sha256 = existsSync(zipPath) ? sha256File(zipPath) : "";
+const packagedSha256 = existsSync(zipPath) ? sha256File(zipPath) : "";
 const zipSize = existsSync(zipPath) ? statSync(zipPath).size : undefined;
 const commit = git(["rev-parse", "--short", "HEAD"]) || "";
 const date = formatLocalDate(new Date());
@@ -28,6 +28,7 @@ const downloadPageUrl = officialSiteUrl;
 const downloadPageTemplatePath = options.template || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_TEMPLATE || path.join(rootDir, "tools", "release", "download-page-template.html");
 const downloadPageImageDir = process.env.CHANGEBATTLE_DOWNLOAD_PAGE_IMAGE_DIR || path.join(rootDir, "tools", "release", "download-page-images");
 const previousManifest = readPreviousManifest(options.previousLatestJson || process.env.CHANGEBATTLE_PREVIOUS_LATEST_JSON || path.join(changebattleReleaseDir, "latest.json"), channel);
+const sha256 = packagedSha256 || (previousManifest?.version === version ? previousManifest.sha256 || "" : "");
 const envMirrors = parseMirrors(process.env.CHANGEBATTLE_RELEASE_MIRRORS || "");
 const explicitMirrors = options.mirrors.length ? options.mirrors : envMirrors;
 const mirrors = explicitMirrors.length ? explicitMirrors : previousManifest?.mirrors || [];
@@ -71,6 +72,7 @@ syncDownloadPageImages(downloadPageImageDir, path.join(changebattleReleaseDir, "
 
 console.info(`Generated ${path.relative(rootDir, path.join(changebattleReleaseDir, "latest.json"))}`);
 console.info(`Generated ${path.relative(rootDir, path.join(changebattleReleaseDir, "index.html"))}`);
+if (!packagedSha256 && sha256) console.info(`Release zip not found; preserved same-version sha256 from the previous manifest: ${path.relative(rootDir, zipPath)}`);
 if (!sha256) console.warn(`Release zip not found, sha256 left empty: ${path.relative(rootDir, zipPath)}`);
 
 function parseArgs(argv) {
@@ -196,8 +198,8 @@ function withTrailingSlash(url) {
 
 function defaultOfficialSiteUrlForChannel(channel) {
   return channel === "beta"
-    ? "http://119.45.240.157/changebattle-beta/"
-    : "http://119.45.240.157/changebattle/";
+    ? "https://65h26i.top/changebattle-beta/"
+    : "https://65h26i.top/changebattle/";
 }
 
 function portablePackageName(version, channel) {

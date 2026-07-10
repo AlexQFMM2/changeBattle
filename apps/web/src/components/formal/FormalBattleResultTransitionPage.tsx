@@ -44,7 +44,7 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
         ? await formalGameBridge.finalizeFormalBattleResult(run, sessionId, reason, {playbackTimeline: timeline})
         : api.finalizeFormalBattleResultV4(run, await api.battleService.getSnapshot(sessionId), reason, {playbackTimeline: timeline});
       const soulmateSettlement = api.applyFormalSoulmateBattleFriendshipSettlement(result.run, playerVault);
-      const honorSettlement = api.applyFormalSoulmateHonorSettlement(soulmateSettlement.run, soulmateSettlement.playerVault);
+      const honorSettlement = api.applyFormalSoulmateHonorSettlement(soulmateSettlement.run, playerVault);
       const savedVault = honorSettlement.playerVault === playerVault
         ? playerVault
         : onSavePlayerVault

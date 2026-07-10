@@ -52,7 +52,8 @@ export function evaluateFormalSoulmateBattleEvolutionV4(input: {
   const edge = nextEdges[0]!;
   const friendshipRequirement = soulmateEvolutionFriendshipRequirementForChainV4(evolutionIndexForEdge(input.evolutionEdges, edge), input.evolutionStageCount);
   if (friendshipRequirement === null) return {ok: false, reason: "missing-friendship-requirement"};
-  if (clampFriendship(record.friendship) < friendshipRequirement) return {ok: false, reason: "friendship-too-low"};
+  const friendship = Number.isFinite(Number(local.friendship)) ? local.friendship : record.friendship;
+  if (clampFriendship(friendship) < friendshipRequirement) return {ok: false, reason: "friendship-too-low"};
   const chance = clampChance(input.chance ?? FORMAL_SOULMATE_BATTLE_EVOLUTION_CHANCE_V4);
   const roll = seededFractionV4(input.seed);
   if (roll >= chance) return {ok: false, reason: "roll-failed"};

@@ -294,6 +294,7 @@ export type BattlePokemonSetV4 = {
   ivs: Record<string, number>;
   gender?: string;
   shiny?: boolean;
+  happiness?: number;
   level: number;
   teraType?: string;
 };
@@ -675,11 +676,13 @@ function syncLocalTeamsFromBattleSnapshot(players: TrainingRunGameV4["players"],
         moves,
         itemId: snapshotPokemon.itemId,
         heldItemInstanceId: snapshotPokemon.heldItemInstanceId,
+        friendship: snapshotPokemon.friendship ?? pokemon.friendship,
       };
       if (
         nextPokemon.moves !== pokemon.moves ||
         nextPokemon.itemId !== pokemon.itemId ||
-        nextPokemon.heldItemInstanceId !== pokemon.heldItemInstanceId
+        nextPokemon.heldItemInstanceId !== pokemon.heldItemInstanceId ||
+        nextPokemon.friendship !== pokemon.friendship
       ) changed = true;
       return nextPokemon;
     });
@@ -1695,6 +1698,7 @@ function compilePokemon(pokemon: LocalPokemonV4, bagItems: TrainingPlayerDraftV4
     ivs: pokemon.ivs,
     gender: pokemon.gender === "N" ? undefined : pokemon.gender,
     shiny: pokemon.shiny,
+    happiness: pokemon.friendship,
     level: pokemon.level,
     teraType: teraType || undefined,
   };

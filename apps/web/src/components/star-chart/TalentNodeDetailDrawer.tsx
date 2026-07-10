@@ -3,7 +3,7 @@ import {motion} from "motion/react";
 import {talentDetailModel, talentNodeLevel, talentRequirementText} from "./talentGraph";
 import "./TalentNodeDetailDrawer.css";
 
-export function TalentNodeDetailDrawer({node, catalog, bp, onClose, onUpgrade}: {node: StarChartNodeViewV4; catalog: StarChartNodeViewV4[]; bp: number; onClose: () => void; onUpgrade: () => void}) {
+export function TalentNodeDetailDrawer({node, catalog, bp, busy = false, onClose, onUpgrade}: {node: StarChartNodeViewV4; catalog: StarChartNodeViewV4[]; bp: number; busy?: boolean; onClose: () => void; onUpgrade: () => void}) {
   const nodeById = new Map(catalog.map(entry => [entry.id, entry]));
   const detail = talentDetailModel(nodeById, node, bp);
   const requirements = node.requires || [];
@@ -42,7 +42,7 @@ export function TalentNodeDetailDrawer({node, catalog, bp, onClose, onUpgrade}: 
         </small>
       </div>
       <div className="talent-node-detail-actions">
-        <button disabled={!detail.canUpgrade} onClick={onUpgrade}>{detail.level > 0 ? "升级" : "点亮"}</button>
+        <button disabled={busy || !detail.canUpgrade} onClick={onUpgrade}>{detail.level > 0 ? "升级" : "点亮"}</button>
         <span>{detail.cost === null ? "MAX" : bpCostLabel(Number(detail.cost || 0))}</span>
       </div>
     </motion.section>

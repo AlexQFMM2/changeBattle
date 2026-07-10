@@ -14,10 +14,10 @@ fi
 
 if [[ "$CHANNEL" == "beta" ]]; then
   DEFAULT_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle-beta"
-  DEFAULT_OFFICIAL_SITE_URL="http://119.45.240.157/changebattle-beta/"
+  DEFAULT_OFFICIAL_SITE_URL="https://65h26i.top/changebattle-beta/"
 else
   DEFAULT_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle"
-  DEFAULT_OFFICIAL_SITE_URL="http://119.45.240.157/changebattle/"
+  DEFAULT_OFFICIAL_SITE_URL="https://65h26i.top/changebattle/"
 fi
 
 UPDATE_WEB_ROOT="${CHANGEBATTLE_UPDATE_WEB_ROOT:-$DEFAULT_UPDATE_WEB_ROOT}"

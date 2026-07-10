@@ -48,6 +48,7 @@ import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type Bos
 import {applyPlayerVaultEvolutionItemV4, applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultEvolutionItemUseV4, previewPlayerVaultNumericItemUseV4, unequipPlayerVaultHeldItemV4, type PlayerVaultEvolutionApplyResultV4, type PlayerVaultEvolutionPreviewResultV4, type PlayerVaultFriendshipItemApplyResultV4, type PlayerVaultHeldItemApplyResultV4, type PlayerVaultHeldItemUnequipResultV4, type PlayerVaultMoveTeachingApplyResultV4 as PlayerVaultMoveTeachingApplyResultFromItemEffectsV4, type PlayerVaultMoveTeachingViewResultV4, type PlayerVaultNumericItemApplyResultV4, type PlayerVaultNumericItemPreviewResultV4} from "./itemEffects.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
 import {
+  clearStarChartUnlocksForProfileV4,
   enableTestModeForProfileV4,
   getStarChartCatalogV4,
   normalizeBattlePointsV4,
@@ -416,6 +417,8 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       return userProfiles.saveUserProfile(next);
     },
     getStarChartCatalog: (profile: UserProfileV2) => getStarChartCatalogV4(profile),
+    draftUnlockStarChartNode: (profile: UserProfileV2, nodeId: string) => normalizeProfile(unlockStarChartNodeForProfileV4(profile, nodeId)),
+    clearStarChartUnlocks: (profile: UserProfileV2) => normalizeProfile(clearStarChartUnlocksForProfileV4(profile)),
     unlockStarChartNode: async (profile: UserProfileV2, nodeId: string) => userProfiles.saveUserProfile(normalizeProfile(unlockStarChartNodeForProfileV4(profile, nodeId))),
     enableTestMode: async (profile: UserProfileV2) => userProfiles.saveUserProfile(normalizeProfile(enableTestModeForProfileV4(profile))),
     starterCandidateCountForStarChart,
@@ -440,6 +443,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     finalizeFormalBattleResultV4: formalRuns.finalizeFormalBattleResultV4,
     applyFormalSoulmateBattleFriendshipSettlement: formalRuns.applyFormalSoulmateBattleFriendshipSettlement,
     applyFormalSoulmateHonorSettlement: formalRuns.applyFormalSoulmateHonorSettlement,
+    syncFormalSoulmateLocalTeamToVault: formalRuns.syncFormalSoulmateLocalTeamToVault,
     tryApplyFormalSoulmateBattleEvolution,
     prepareFormalSettlement: formalRuns.prepareFormalSettlement,
     getFormalMedicalInsuranceOffer: formalRuns.getFormalMedicalInsuranceOffer,

@@ -1,5 +1,4 @@
 import {summarizeBattleLogByPokemonV4, type BattleLogPokemonSummaryV4, type TrainingBattleLogEntryV4} from "./battleLog.js";
-import {normalizePlayerVaultV4, type PlayerPokemonRecordV4, type PlayerVaultV4} from "./playerVault.js";
 import type {LocalPokemonV4} from "./pokemonInstance.js";
 
 export type FormalSoulmateBattleFriendshipDeltaV4 = {
@@ -26,30 +25,28 @@ export function isFormalSoulmateLocalPokemonV4(pokemon: Pick<LocalPokemonV4, "fo
   return pokemon?.formalSourceKind === "soulmate-vault" || pokemon?.originKind === "soulmate";
 }
 
-export function applyFormalSoulmateFriendshipSettlementToVaultV4(input: {
-  vault: PlayerVaultV4 | undefined | null;
+export function calculateFormalSoulmateFriendshipSettlementV4(input: {
   nodeId: string;
   team: LocalPokemonV4[];
   battleLog: TrainingBattleLogEntryV4[];
   won: boolean;
   createdAt?: string;
   resolvePokemonKey?: (entry: TrainingBattleLogEntryV4, role: "source" | "target") => string | null | undefined;
-}): {vault: PlayerVaultV4; summary: FormalSoulmateBattleFriendshipSummaryV4} {
-  const vault = normalizePlayerVaultV4(input.vault);
+}): FormalSoulmateBattleFriendshipSummaryV4 {
   const nodeId = normalizeText(input.nodeId);
   const createdAt = normalizeText(input.createdAt) || new Date().toISOString();
   const soulmatePokemon = input.team.filter(pokemon => isFormalSoulmateLocalPokemonV4(pokemon) && normalizeText(pokemon.sourcePlayerPokemonId));
   if (!nodeId || !soulmatePokemon.length) {
-    return {vault, summary: {nodeId, won: Boolean(input.won), createdAt, deltas: []}};
+    return {nodeId, won: Boolean(input.won), createdAt, deltas: []};
   }
   const summaryByKey = battleSummaryByKey(input.battleLog, {
     resolvePokemonKey: input.resolvePokemonKey,
   });
-  const vaultById = new Map(vault.pokemon.map(pokemon => [pokemon.playerPokemonId, pokemon]));
+  const localById = new Map(soulmatePokemon.map(pokemon => [normalizeText(pokemon.sourcePlayerPokemonId), pokemon]));
   const deltas: FormalSoulmateBattleFriendshipDeltaV4[] = [];
-  const nextPokemon = vault.pokemon.map(record => {
-    const local = soulmatePokemon.find(pokemon => pokemon.sourcePlayerPokemonId === record.playerPokemonId);
-    if (!local || vaultById.get(record.playerPokemonId) !== record) return record;
+  for (const local of input.team) {
+    const sourcePlayerPokemonId = normalizeText(local.sourcePlayerPokemonId);
+    if (!sourcePlayerPokemonId || localById.get(sourcePlayerPokemonId) !== local) continue;
     const summary = summaryForLocalPokemon(summaryByKey, local);
     const participated = Boolean(summary && (
       summary.usedRounds.length > 0
@@ -63,12 +60,12 @@ export function applyFormalSoulmateFriendshipSettlementToVaultV4(input: {
     const winDelta = input.won ? (participated ? 15 : 10) : 0;
     const faintDelta = fainted ? -3 : 0;
     const delta = winDelta + faintDelta;
-    const before = clampFriendship(record.friendship);
+    const before = clampFriendship(local.friendship);
     const after = clampFriendship(before + delta);
     deltas.push({
       localPokemonId: local.localPokemonId,
-      sourcePlayerPokemonId: record.playerPokemonId,
-      displayName: formalSoulmateDisplayNameV4(local, record),
+      sourcePlayerPokemonId,
+      displayName: formalSoulmateDisplayNameV4(local),
       before,
       after,
       delta: after - before,
@@ -77,16 +74,12 @@ export function applyFormalSoulmateFriendshipSettlementToVaultV4(input: {
       participated,
       fainted,
     });
-    return {...record, friendship: after};
-  });
+  }
   return {
-    vault: normalizePlayerVaultV4({...vault, pokemon: nextPokemon}),
-    summary: {
-      nodeId,
-      won: Boolean(input.won),
-      createdAt,
-      deltas,
-    },
+    nodeId,
+    won: Boolean(input.won),
+    createdAt,
+    deltas,
   };
 }
 
@@ -120,8 +113,8 @@ function summaryForLocalPokemon(summaryByKey: Map<string, BattleLogPokemonSummar
   return null;
 }
 
-function formalSoulmateDisplayNameV4(local: LocalPokemonV4, record: PlayerPokemonRecordV4): string {
-  return local.nickname || record.nickname || local.nameZh || local.name || record.speciesId || local.speciesId;
+function formalSoulmateDisplayNameV4(local: LocalPokemonV4): string {
+  return local.nickname || local.nameZh || local.name || local.speciesId;
 }
 
 function clampFriendship(value: unknown): number {
