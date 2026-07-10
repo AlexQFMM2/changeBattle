@@ -1398,7 +1398,13 @@ function stepsForAnimation(
   }
   if (context.kind === "weather") return [...environmentSteps(animationKey, actor), {type: "resultAnim", actor, text: context.resultText, tone: "weather"}, checkpoint];
   if (context.kind === "ability") return [{type: "backgroundEffect", color: "#b7ff27", durationMs: 560, opacity: .42}, {type: "resultAnim", actor, text: context.resultText, tone: "good"}, checkpoint];
-  if (context.kind === "transform") return [showEffectStep("shine", actor, actor, 560, {fade: "both"}), actorAnimStep(actor, {scale: 1.18, opacity: .72}, 420, "easeInOut"), checkpoint];
+  if (context.kind === "transform") return [
+    {type: "backgroundEffect", color: "#ffffff", durationMs: 520, opacity: .34},
+    showEffectStep("shine", actor, actor, 640, {fade: "both"}),
+    actorAnimStep(actor, {scale: 1.18, opacity: .18}, 360, "easeInOut"),
+    actorAnimStep(actor, {scale: 1, opacity: 1}, 360, "easeOut"),
+    checkpoint,
+  ];
   return [waitStep(Math.max(180, context.durationMs)), checkpoint];
 }
 

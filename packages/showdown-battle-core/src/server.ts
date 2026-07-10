@@ -29,6 +29,7 @@ const server = http.createServer(async (request, response) => {
     const playbackTimelineMatch = /^\/sessions\/([^/]+)\/playback-timeline$/.exec(url.pathname);
     const choiceMatch = /^\/sessions\/([^/]+)\/choice$/.exec(url.pathname);
     const trainerItemMatch = /^\/sessions\/([^/]+)\/trainer-item$/.exec(url.pathname);
+    const formeChangeMatch = /^\/sessions\/([^/]+)\/forme-change$/.exec(url.pathname);
     if (request.method === "GET" && sessionMatch) {
       sendJson(response, 200, await service.getSnapshot(decodeURIComponent(sessionMatch[1]!)));
       return;
@@ -58,6 +59,17 @@ const server = http.createServer(async (request, response) => {
         playerId: body.playerId,
         choice: body.choice,
         trainerItems: body.trainerItems || [],
+      }));
+      return;
+    }
+    if (request.method === "POST" && formeChangeMatch) {
+      const body = await readJson(request);
+      sendJson(response, 200, await service.applyPermanentFormeChange({
+        sessionId: decodeURIComponent(formeChangeMatch[1]!),
+        playerId: body.playerId,
+        activeIndex: body.activeIndex,
+        toSpeciesId: body.toSpeciesId,
+        message: body.message,
       }));
       return;
     }

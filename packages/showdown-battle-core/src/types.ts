@@ -352,10 +352,27 @@ export type BattleServiceSubmitTrainerItemInputV4 = {
   }>;
 };
 
+export type BattleServicePermanentFormeChangeInputV4 = {
+  sessionId: string;
+  playerId: ShowdownPlayerIdV4;
+  activeIndex: number;
+  toSpeciesId: string;
+  message?: string;
+};
+
+export type BattleServicePermanentFormeChangeResultV4 = {
+  ok: boolean;
+  message: string;
+  snapshot: BattleServiceSnapshotV4;
+  fromDetails?: string;
+  toDetails?: string;
+};
+
 export type BattleServiceApiV4 = {
   createBattleSession(input: BattleServiceCreateInputV4 | BattleServiceSessionInputV4): Promise<BattleServiceSnapshotV4>;
   submitChoice(input: BattleServiceSubmitChoiceInputV4): Promise<BattleServiceSnapshotV4>;
   submitTrainerItem(input: BattleServiceSubmitTrainerItemInputV4): Promise<BattleServiceSnapshotV4>;
+  applyPermanentFormeChange(input: BattleServicePermanentFormeChangeInputV4): Promise<BattleServicePermanentFormeChangeResultV4>;
   getSnapshot(sessionId: string): Promise<BattleServiceSnapshotV4>;
   getPlaybackTimeline(sessionId: string, previousIndex?: number): Promise<ShowdownPlaybackTimelineV4>;
   closeSession(sessionId: string): Promise<void>;

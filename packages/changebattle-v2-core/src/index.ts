@@ -10,6 +10,7 @@ export * from "./formalPowerProfileRules.js";
 export * from "./formalSoulmateSettlement.js";
 export * from "./formalSettlement.js";
 export * from "./formalShopCatalog.js";
+export * from "./formalSoulmateBattleEvolution.js";
 export * from "./formalSpecialMedicineRules.js";
 export * from "./formalSpeciesRanks.js";
 export * from "./formalSpeciesRules.js";

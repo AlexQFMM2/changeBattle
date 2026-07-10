@@ -5,6 +5,8 @@ import type {
   BattleServicePlayerIdV4,
   BattleServicePlayerInputV4,
   BattleServicePokemonSetV4,
+  BattleServicePermanentFormeChangeInputV4,
+  BattleServicePermanentFormeChangeResultV4,
   BattleServiceRequestV4,
   BattleServiceSessionInputV4,
   BattleServiceSnapshotV4,
@@ -219,6 +221,9 @@ export function createInMemoryBattleService(): BattleServiceApiV4 {
     async submitTrainerItem(input) {
       return submitTrainerItem(input);
     },
+    async applyPermanentFormeChange(input) {
+      return applyPermanentFormeChange(input);
+    },
     async getSnapshot(sessionId) {
       return getSnapshot(sessionId);
     },
@@ -360,6 +365,49 @@ export async function submitTrainerItem(input: BattleServiceSubmitTrainerItemInp
   await submitAiChoices(session);
   await waitForRequests(session, 700);
   return clone(session.snapshot);
+}
+
+export async function applyPermanentFormeChange(input: BattleServicePermanentFormeChangeInputV4): Promise<BattleServicePermanentFormeChangeResultV4> {
+  const session = getSession(input.sessionId);
+  const battle = (session.stream as any).battle;
+  const side = battleSide(session, input.playerId);
+  if (!battle || !side) {
+    return {ok: false, message: "当前对战尚未开始。", snapshot: clone(session.snapshot)};
+  }
+  if (session.snapshot.status !== "running" || battle.ended) {
+    return {ok: false, message: "当前对战已经结束。", snapshot: clone(session.snapshot)};
+  }
+  const activeIndex = Math.max(0, Math.floor(Number(input.activeIndex || 0)));
+  const pokemon = side.active?.[activeIndex];
+  if (!pokemon || pokemon.fainted) {
+    return {ok: false, message: "目标宝可梦不在场。", snapshot: clone(session.snapshot)};
+  }
+  const toSpeciesId = normalizeIdentityToken(input.toSpeciesId);
+  if (!toSpeciesId) {
+    return {ok: false, message: "目标形态无效。", snapshot: clone(session.snapshot)};
+  }
+  const request = session.snapshot.requests[input.playerId];
+  if (!request || request.wait || request.teamPreview || request.forceSwitch?.some(Boolean) || !request.active?.length) {
+    return {ok: false, message: "当前不是可行动回合。", snapshot: clone(session.snapshot)};
+  }
+  const fromDetails = String(pokemon.details || pokemon.species?.name || "");
+  const evolutionEffect = battle.dex.conditions.get("evolution");
+  const changed = pokemon.formeChange(toSpeciesId, evolutionEffect, true);
+  if (!changed) {
+    return {ok: false, message: "形态变化失败。", snapshot: clone(session.snapshot), fromDetails};
+  }
+  if (input.message) battle.add("-message", String(input.message));
+  battle.makeRequest();
+  battle.sendUpdates();
+  touch(session);
+  await waitForRequests(session, 700);
+  return {
+    ok: true,
+    message: "形态变化完成。",
+    snapshot: clone(session.snapshot),
+    fromDetails,
+    toDetails: String(pokemon.details || pokemon.species?.name || ""),
+  };
 }
 
 function trainerItemPlaceholderChoice(request: BattleServiceRequestV4, activeIndex: number): string {
@@ -1768,6 +1816,8 @@ export type {
   BattleServiceCreateInputV4,
   BattleServicePlayerInputV4,
   BattleServicePokemonSetV4,
+  BattleServicePermanentFormeChangeInputV4,
+  BattleServicePermanentFormeChangeResultV4,
   BattleServiceRequestV4,
   BattleServiceSessionInputV4,
   BattleServiceSnapshotV4,

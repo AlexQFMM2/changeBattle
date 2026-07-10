@@ -975,6 +975,23 @@ function RoutedApp({runtime}: AppProps) {
         playerProfile={profile}
         endFlow="auto-exit"
         onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
+        onAfterSubmitSnapshot={async snapshot => {
+          if (!formalRun || !battleSessionId && !window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`)) return snapshot;
+          const activeSessionId = battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || "";
+          const result = await api.tryApplyFormalSoulmateBattleEvolution({
+            run: formalRun,
+            playerVault,
+            sessionId: activeSessionId,
+            snapshot,
+          });
+          if (!result.evolved) return snapshot;
+          const savedVault = await api.savePlayerVault(result.playerVault);
+          const savedRun = await api.saveFormalGameRun(result.run);
+          setPlayerVault(savedVault);
+          setPlayerVaultDirty(false);
+          setFormalRun(savedRun);
+          return result.snapshot || snapshot;
+        }}
         onBackToRest={() => {
           navigate("/formal/battle-result-transition", {replace: true});
         }}

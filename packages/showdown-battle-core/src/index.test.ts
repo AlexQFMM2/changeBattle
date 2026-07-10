@@ -9,6 +9,7 @@ import {
   resolveBattleWinnerPlayerIdV4,
   resolveShowdownRandomTeamFormatV4,
   showdownMoveNeedsExplicitTargetV4,
+  applyPermanentFormeChange,
   submitTrainerItem,
   submitChoice,
   validateShowdownChoiceCommandV4,
@@ -469,6 +470,44 @@ async function residualDamageSmoke(status: "brn" | "psn") {
   }
   if (!next.rawLog.some(line => line.includes("|-damage|p1a: Bulbasaur|") && line.includes(`[from] ${status === "brn" ? "brn" : "psn"}`))) {
     throw new Error(`${status} residual damage raw log missing`);
+  }
+}
+
+async function permanentFormeChangeSmoke() {
+  const input: BattleServiceSessionInputV4 = {
+    runId: "test-run",
+    nodeId: "test-node-forme-change",
+    mode: "singles",
+    ruleSet: "gen9",
+    seed: "test-seed-forme-change",
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: [{...pikachu, species: "Bulbasaur", name: "Seed", ability: "Overgrow", moves: ["Tackle"]}], draft: null as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu], draft: null as any},
+    ],
+  };
+  const snapshot = await createBattleSession(input);
+  const next = await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: randomLegalChoice(snapshot.requests.p1)});
+  const changed = await applyPermanentFormeChange({
+    sessionId: snapshot.id,
+    playerId: "p1",
+    activeIndex: 0,
+    toSpeciesId: "venusaur",
+    message: "Seed进化了！",
+  });
+  if (!changed.ok) throw new Error(`forme change should succeed: ${changed.message}`);
+  const p1Row = changed.snapshot.requests.p1?.side?.pokemon.find(row => row.active);
+  if (!p1Row?.details.includes("Venusaur")) {
+    throw new Error(`forme change should refresh request details: ${JSON.stringify(changed.snapshot.requests.p1)}`);
+  }
+  if (!changed.snapshot.rawLog.some(line => line.includes("|detailschange|") && line.includes("Venusaur"))) {
+    throw new Error(`forme change rawLog should include detailschange: ${changed.snapshot.rawLog.join("\n")}`);
+  }
+  if (!changed.snapshot.rawLog.some(line => line.includes("|-message|Seed进化了！"))) {
+    throw new Error(`forme change rawLog should include evolution message: ${changed.snapshot.rawLog.join("\n")}`);
+  }
+  const timeline = compileShowdownPlaybackTimelineFromRawLog(changed.snapshot.rawLog, {sessionId: snapshot.id, previousIndex: next.rawLog.length});
+  if (!timeline.groups.some(group => group.calls.some(call => call.kind === "transform"))) {
+    throw new Error(`forme change should compile to transform group: ${JSON.stringify(timeline.groups)}`);
   }
 }
 
@@ -1329,6 +1368,7 @@ function showdownPlaybackTimelineSmoke() {
 
 void smoke()
   .then(doublesSmoke)
+  .then(permanentFormeChangeSmoke)
   .then(gen7CoopFormatSmoke)
   .then(rechargeChoiceSmoke)
   .then(faintedDoublesActiveChoiceSmoke)

@@ -239,6 +239,10 @@ ipcMain.handle("battleService:submitTrainerItem", async (_event: IpcMainInvokeEv
   return ensureBattleService().submitTrainerItem(input);
 });
 
+ipcMain.handle("battleService:applyPermanentFormeChange", async (_event: IpcMainInvokeEvent, input: Parameters<BattleServiceApiV4["applyPermanentFormeChange"]>[0]) => {
+  return ensureBattleService().applyPermanentFormeChange(input);
+});
+
 ipcMain.handle("battleService:getSnapshot", async (_event: IpcMainInvokeEvent, sessionId: string) => {
   return ensureBattleService().getSnapshot(sessionId);
 });

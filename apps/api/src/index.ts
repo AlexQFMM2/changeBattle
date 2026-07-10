@@ -19,6 +19,8 @@ import {
   releasePlayerVaultPokemonV4,
   setPlayerVaultPokemonBattleMarkedV4,
   createSoulmateCandidateListV4,
+  applyFormalSoulmateBattleEvolutionToVaultV4,
+  evaluateFormalSoulmateBattleEvolutionV4,
   formalShopSlotsForCategoryV4,
   FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY,
   type PlayerPokemonHonorBadgeStateV4,
@@ -29,6 +31,7 @@ import {
   type PlayerVaultMergeResultV4,
   type PlayerVaultPokemonReleaseResultV4,
   type PlayerVaultV4,
+  type FormalSoulmateBattleEvolutionCandidateV4,
   type RestCenterActionEntryV4,
   type SoulmateCandidateV4,
   type TrainerVaultV2,
@@ -38,7 +41,8 @@ import {
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
 import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalSoulmateBattleFriendshipSettlementResultV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalSoulmateFriendshipSettlementRecordV4, FormalSoulmateHonorSettlementRecordV4, FormalSoulmateHonorSettlementResultV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
-import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
+import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type BattleSessionSnapshotV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
+import type {LocalPokemonV4} from "./training.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
 import {applyPlayerVaultEvolutionItemV4, applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultEvolutionItemUseV4, previewPlayerVaultNumericItemUseV4, unequipPlayerVaultHeldItemV4, type PlayerVaultEvolutionApplyResultV4, type PlayerVaultEvolutionPreviewResultV4, type PlayerVaultFriendshipItemApplyResultV4, type PlayerVaultHeldItemApplyResultV4, type PlayerVaultHeldItemUnequipResultV4, type PlayerVaultMoveTeachingApplyResultV4 as PlayerVaultMoveTeachingApplyResultFromItemEffectsV4, type PlayerVaultMoveTeachingViewResultV4, type PlayerVaultNumericItemApplyResultV4, type PlayerVaultNumericItemPreviewResultV4} from "./itemEffects.js";
@@ -115,6 +119,19 @@ export type FormalCarryPrepItemsResultV4 = {
   run: FormalGameRunV4;
   playerVault: PlayerVaultV4;
   carriedItemIds: string[];
+};
+
+export type FormalSoulmateBattleEvolutionApplyResultV4 = {
+  run: FormalGameRunV4;
+  playerVault: PlayerVaultV4;
+  snapshot: BattleSessionSnapshotV4 | null;
+  evolved: boolean;
+  evolution?: FormalSoulmateBattleEvolutionCandidateV4 & {
+    battleNodeId: string;
+    battleSessionId: string;
+    turn: number;
+  };
+  message?: string;
 };
 
 export type PlayerVaultPokemonDetailViewV4 = {
@@ -423,6 +440,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     finalizeFormalBattleResultV4: formalRuns.finalizeFormalBattleResultV4,
     applyFormalSoulmateBattleFriendshipSettlement: formalRuns.applyFormalSoulmateBattleFriendshipSettlement,
     applyFormalSoulmateHonorSettlement: formalRuns.applyFormalSoulmateHonorSettlement,
+    tryApplyFormalSoulmateBattleEvolution,
     prepareFormalSettlement: formalRuns.prepareFormalSettlement,
     getFormalMedicalInsuranceOffer: formalRuns.getFormalMedicalInsuranceOffer,
     chooseFormalMedicalInsurance: formalRuns.chooseFormalMedicalInsurance,
@@ -467,6 +485,91 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
   function applyFormalCarryPrepItems(run: FormalGameRunV4, playerVault: PlayerVaultV4 | undefined | null): FormalCarryPrepItemsResultV4 {
     const normalizedVault = normalizePlayerVault(playerVault);
     return {run, playerVault: normalizedVault, carriedItemIds: []};
+  }
+
+  async function tryApplyFormalSoulmateBattleEvolution(input: {
+    run: FormalGameRunV4;
+    playerVault: PlayerVaultV4 | undefined | null;
+    sessionId: string;
+    snapshot?: BattleSessionSnapshotV4 | null;
+    chanceOverride?: number;
+  }): Promise<FormalSoulmateBattleEvolutionApplyResultV4> {
+    const vault = normalizePlayerVault(input.playerVault);
+    const sessionId = String(input.sessionId || "").trim();
+    const snapshot = input.snapshot || (sessionId ? await battleService.getSnapshot(sessionId) : null);
+    if (!sessionId || !snapshot || snapshot.status !== "running" || !input.run.restRunSnapshot) {
+      return {run: input.run, playerVault: vault, snapshot, evolved: false, message: "当前没有可进化的战斗会话。"};
+    }
+    const request = snapshot.requests?.p1;
+    if (!request || request.wait || request.teamPreview || request.forceSwitch?.some(Boolean) || !request.active?.length) {
+      return {run: input.run, playerVault: vault, snapshot, evolved: false, message: "当前不是行动请求。"};
+    }
+    const player = input.run.restRunSnapshot.players.p1;
+    const team = player?.localTeam.pokemon || [];
+    const nodeId = snapshot.nodeId || input.run.restRunSnapshot.currentNodeId || "";
+    const records = input.run.soulmateBattleEvolutionByNodeId?.[nodeId] || [];
+    const alreadyEvolved = records.map(record => record.sourcePlayerPokemonId);
+    for (let activeIndex = 0; activeIndex < request.active.length; activeIndex += 1) {
+      if (!request.active[activeIndex]) continue;
+      const row = request.side?.pokemon?.filter(pokemon => pokemon.active)[activeIndex] || request.side?.pokemon?.find(pokemon => pokemon.active);
+      const local = localPokemonForBattleRequestRow(team, row);
+      if (!local) continue;
+      const tree = dex.getPokemonEvolutionTree(local.speciesId);
+      const seed = `${input.run.seed}:${nodeId}:${snapshot.turn}:${local.sourcePlayerPokemonId || local.localPokemonId}:soulmate-battle-evolution`;
+      const evaluated = evaluateFormalSoulmateBattleEvolutionV4({
+        localPokemon: local,
+        vault,
+        evolutionEdges: tree.edges,
+        evolutionStageCount: vaultEvolutionStageCount(tree.edges),
+        seed,
+        chance: input.chanceOverride,
+        alreadyEvolvedSourcePlayerPokemonIds: alreadyEvolved,
+      });
+      if (!evaluated.ok) continue;
+      const message = `${evaluated.candidate.displayName}进化了！`;
+      const formeResult = await battleService.applyPermanentFormeChange({
+        sessionId,
+        playerId: "p1",
+        activeIndex,
+        toSpeciesId: evaluated.candidate.toSpeciesId,
+        message,
+      });
+      if (!formeResult.ok) {
+        return {run: input.run, playerVault: vault, snapshot: formeResult.snapshot as BattleSessionSnapshotV4, evolved: false, message: formeResult.message};
+      }
+      const now = new Date().toISOString();
+      const evolution = {
+        ...evaluated.candidate,
+        battleNodeId: nodeId,
+        battleSessionId: sessionId,
+        turn: snapshot.turn,
+        createdAt: now,
+      };
+      const nextRest = syncFormalRestSoulmateEvolution(input.run.restRunSnapshot, evolution);
+      const nextRun = {
+        ...input.run,
+        restRunSnapshot: nextRest,
+        soulmateBattleEvolutionByNodeId: {
+          ...(input.run.soulmateBattleEvolutionByNodeId || {}),
+          [nodeId]: [...records, evolution],
+        },
+        updatedAt: now,
+      };
+      const nextVault = applyFormalSoulmateBattleEvolutionToVaultV4({
+        vault,
+        sourcePlayerPokemonId: evaluated.candidate.sourcePlayerPokemonId,
+        toSpeciesId: evaluated.candidate.toSpeciesId,
+      });
+      return {
+        run: nextRun,
+        playerVault: nextVault,
+        snapshot: formeResult.snapshot as BattleSessionSnapshotV4,
+        evolved: true,
+        evolution,
+        message,
+      };
+    }
+    return {run: input.run, playerVault: vault, snapshot, evolved: false};
   }
 
   function getItemDetailSafe(itemId: string) {
@@ -955,6 +1058,51 @@ function vaultEvolutionStageCount(edges: Array<{fromSpeciesId: string; toSpecies
     for (const next of nextSpecies) stack.push({speciesId: next, depth: current.depth + 1, visited});
   }
   return maxDepth;
+}
+
+function localPokemonForBattleRequestRow(team: LocalPokemonV4[], row: {ident?: string; pokeball?: string; details?: string} | undefined): LocalPokemonV4 | null {
+  if (!row) return null;
+  const keys = [
+    row.pokeball,
+    row.ident?.split(":").slice(1).join(":"),
+    row.details?.split(",")[0],
+  ].map(normalizeBattleIdentityKey).filter(Boolean);
+  return team.find(pokemon => {
+    const pokemonKeys = [
+      pokemon.showdownIdentityToken,
+      pokemon.showdownId,
+      pokemon.pokeballId,
+      pokemon.localPokemonId,
+      pokemon.nickname,
+      pokemon.name,
+      pokemon.nameZh,
+      pokemon.speciesId,
+    ].map(normalizeBattleIdentityKey).filter(Boolean);
+    return keys.some(key => pokemonKeys.includes(key));
+  }) || null;
+}
+
+function syncFormalRestSoulmateEvolution(restRun: FormalGameRunV4["restRunSnapshot"], evolution: FormalSoulmateBattleEvolutionApplyResultV4["evolution"]): FormalGameRunV4["restRunSnapshot"] {
+  if (!restRun || !evolution) return restRun;
+  return {
+    ...restRun,
+    players: Object.fromEntries(Object.entries(restRun.players).map(([playerId, player]) => [playerId, player ? {
+      ...player,
+      localTeam: {
+        ...player.localTeam,
+        pokemon: player.localTeam.pokemon.map(pokemon => (
+          pokemon.localPokemonId === evolution.localPokemonId || pokemon.sourcePlayerPokemonId === evolution.sourcePlayerPokemonId
+            ? {...pokemon, speciesId: evolution.toSpeciesId}
+            : pokemon
+        )),
+      },
+    } : player])) as typeof restRun.players,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeBattleIdentityKey(value: unknown): string {
+  return String(value || "").trim().toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g, "");
 }
 
 function formatVaultDate(value: unknown): string {

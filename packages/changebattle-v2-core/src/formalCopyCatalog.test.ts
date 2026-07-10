@@ -21,6 +21,7 @@ import {
   soulmateEvolutionFriendshipRequirementV4,
   soulmateEvolutionFriendshipRequirementForChainV4,
   createPlayerVaultEggPokemonRecordV4,
+  evaluateFormalSoulmateBattleEvolutionV4,
   applyPlayerVaultEvolutionV4,
   previewPlayerVaultEvolutionCandidatesV4,
   type PlayerPokemonRecordV4,
@@ -156,6 +157,39 @@ const linkingCordResult = applyPlayerVaultEvolutionV4({
 });
 assert.equal(linkingCordResult.ok, true);
 assert.equal(linkingCordResult.ok ? linkingCordResult.vault.items.length : -1, 0);
+
+const battleEvolution = evaluateFormalSoulmateBattleEvolutionV4({
+  localPokemon: localPokemonForBattleEvolutionTest({
+    localPokemonId: "local-charmander",
+    speciesId: "charmander",
+    formalSourceKind: "soulmate-vault",
+    sourcePlayerPokemonId: "vault-charmander",
+  }),
+  vault: {...evolutionVault, pokemon: [{...vaultPokemon, friendship: 100}]},
+  evolutionEdges,
+  evolutionStageCount: 2,
+  seed: "battle-evolution-force",
+  chance: 1,
+});
+assert.equal(battleEvolution.ok, true);
+assert.equal(battleEvolution.ok ? battleEvolution.candidate.toSpeciesId : "", "charmeleon");
+assert.equal(battleEvolution.ok ? battleEvolution.candidate.friendshipRequirement : 0, 100);
+const battleEvolutionMultiTarget = evaluateFormalSoulmateBattleEvolutionV4({
+  localPokemon: localPokemonForBattleEvolutionTest({
+    localPokemonId: "local-eevee",
+    speciesId: "eevee",
+    formalSourceKind: "soulmate-vault",
+    sourcePlayerPokemonId: "vault-eevee",
+  }),
+  vault: {...evolutionVault, pokemon: [{...vaultPokemon, playerPokemonId: "vault-eevee", speciesId: "eevee", friendship: 150}]},
+  evolutionEdges: [...evolutionEdges, {fromSpeciesId: "eevee", toSpeciesId: "vaporeon", evoType: "useItem", evoItem: "Water Stone"}],
+  evolutionStageCount: 1,
+  seed: "battle-evolution-force",
+  chance: 1,
+});
+assert.equal(battleEvolutionMultiTarget.ok, false);
+assert.equal(battleEvolutionMultiTarget.ok ? "" : battleEvolutionMultiTarget.reason, "multi-target");
+
 assert.deepEqual(FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY, {
   recovery: 0,
   berry: 0,
@@ -249,3 +283,45 @@ for (const lesson of lessons) {
 
 assert.equal(lessons.find(lesson => lesson.kind === "egg")?.title, "遗传学");
 assert.equal(lessons.find(lesson => lesson.kind === "self-study")?.summary, "由宝可梦自主学习，根据课堂状态调整个体值和努力值。");
+
+function localPokemonForBattleEvolutionTest(input: {
+  localPokemonId: string;
+  speciesId: string;
+  formalSourceKind: "soulmate-vault";
+  sourcePlayerPokemonId: string;
+}) {
+  return {
+    localPokemonId: input.localPokemonId,
+    formalSourceKind: input.formalSourceKind,
+    sourcePlayerPokemonId: input.sourcePlayerPokemonId,
+    speciesId: input.speciesId,
+    name: input.speciesId,
+    nameZh: input.speciesId,
+    nickname: "小火",
+    level: 50,
+    gender: "M" as const,
+    shiny: false,
+    itemId: "",
+    abilityId: "blaze",
+    abilityName: "Blaze",
+    abilityNameZh: "猛火",
+    nature: "Adamant",
+    moves: vaultPokemon.moves.map(move => ({
+      moveId: move.moveId,
+      name: move.moveId,
+      nameZh: move.moveId,
+      type: "normal",
+      category: "physical",
+      power: 40,
+      accuracy: 100,
+      pp: move.maxPp ?? 35,
+      maxPp: move.maxPp ?? 35,
+      remainingPp: move.remainingPp ?? move.maxPp ?? 35,
+    })),
+    evs: vaultPokemon.evs,
+    ivs: vaultPokemon.ivs,
+    entryHp: 100,
+    entryStatus: "" as const,
+    maxHp: 100,
+  };
+}

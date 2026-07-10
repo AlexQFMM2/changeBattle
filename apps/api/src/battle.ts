@@ -3,7 +3,7 @@ import type {
   ShowdownSpecialSystemV4,
   ShowdownParsedChoiceV4,
 } from "@changebattle-v2/showdown-battle-core/showdownCommand";
-import type {ShowdownPlaybackTimelineV4} from "@changebattle-v2/showdown-battle-core/types";
+import type {BattleServicePermanentFormeChangeInputV4, BattleServicePermanentFormeChangeResultV4, ShowdownPlaybackTimelineV4} from "@changebattle-v2/showdown-battle-core/types";
 import {
   appendShowdownSpecialChoiceSuffixV4,
   parseShowdownChoiceCommandV4,
@@ -484,6 +484,7 @@ export type BattleServiceClientV4 = {
   createBattleSession(input: BattleSessionCreateInputV4): Promise<BattleSessionSnapshotV4>;
   submitChoice(sessionId: string, playerId: ShowdownPlayerIdV4, choice: string): Promise<BattleSessionSnapshotV4>;
   submitTrainerItem(input: BattleTrainerItemSubmitV4): Promise<BattleSessionSnapshotV4>;
+  applyPermanentFormeChange(input: BattleServicePermanentFormeChangeInputV4): Promise<BattleServicePermanentFormeChangeResultV4>;
   getSnapshot(sessionId: string): Promise<BattleSessionSnapshotV4>;
   getPlaybackTimeline(sessionId: string, previousIndex?: number): Promise<ShowdownPlaybackTimelineV4>;
   closeSession(sessionId: string): Promise<void>;
@@ -534,6 +535,14 @@ export function createBattleServiceClient(baseUrl = DEFAULT_BATTLE_SERVICE_URL):
         playerId: input.playerId,
         choice: input.choice,
         trainerItems: input.trainerItems,
+      })});
+    },
+    async applyPermanentFormeChange(input) {
+      return requestJson(`${root}/sessions/${encodeURIComponent(input.sessionId)}/forme-change`, {method: "POST", body: JSON.stringify({
+        playerId: input.playerId,
+        activeIndex: input.activeIndex,
+        toSpeciesId: input.toSpeciesId,
+        message: input.message,
       })});
     },
     async getSnapshot(sessionId) {

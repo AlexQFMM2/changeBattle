@@ -584,9 +584,24 @@ export type FormalGameRunV4 = {
   soulmatePlayerPokemonId?: string;
   soulmateFriendshipSettlementByNodeId?: Record<string, FormalSoulmateFriendshipSettlementRecordV4>;
   soulmateHonorSettlementByNodeId?: Record<string, FormalSoulmateHonorSettlementRecordV4>;
+  soulmateBattleEvolutionByNodeId?: Record<string, FormalSoulmateBattleEvolutionRecordV4[]>;
   settlement: FormalGameSettlementV4 | null;
   settled: boolean;
   settledAt?: string;
+};
+
+export type FormalSoulmateBattleEvolutionRecordV4 = {
+  battleNodeId: string;
+  battleSessionId?: string;
+  turn: number;
+  localPokemonId: string;
+  sourcePlayerPokemonId: string;
+  fromSpeciesId: string;
+  toSpeciesId: string;
+  displayName: string;
+  friendshipRequirement: number;
+  roll: number;
+  createdAt: string;
 };
 
 export type FormalBattleResultFinalizeReasonV4 = Extract<FormalSettlementReasonV4, "loss" | "surrender" | "complete">;
@@ -2317,6 +2332,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       soulmatePlayerPokemonId: normalizeOptionalText(run.soulmatePlayerPokemonId),
       soulmateFriendshipSettlementByNodeId: normalizeSoulmateFriendshipSettlementByNodeId(run.soulmateFriendshipSettlementByNodeId),
       soulmateHonorSettlementByNodeId: normalizeSoulmateHonorSettlementByNodeId(run.soulmateHonorSettlementByNodeId),
+      soulmateBattleEvolutionByNodeId: normalizeSoulmateBattleEvolutionByNodeId(run.soulmateBattleEvolutionByNodeId),
       settlement,
       settled,
       settledAt: settled ? run.settledAt || settlement?.createdAt || undefined : undefined,
@@ -4649,6 +4665,29 @@ function normalizeSoulmateHonorSettlement(settlement: Partial<FormalSoulmateHono
       trainerName: normalizeOptionalText(award.trainerName) || "目标",
       medalEarned: Boolean(award.medalEarned),
     })).filter(award => award.sourcePlayerPokemonId && award.badgeId && award.trainerId) : [],
+  };
+}
+
+function normalizeSoulmateBattleEvolutionByNodeId(value: unknown): Record<string, FormalSoulmateBattleEvolutionRecordV4[]> {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(Object.entries(value as Record<string, Partial<FormalSoulmateBattleEvolutionRecordV4>[]>)
+    .filter(([nodeId]) => Boolean(nodeId))
+    .map(([nodeId, records]) => [nodeId, Array.isArray(records) ? records.map(record => normalizeSoulmateBattleEvolutionRecord(record, nodeId)).filter(record => record.sourcePlayerPokemonId && record.toSpeciesId) : []]));
+}
+
+function normalizeSoulmateBattleEvolutionRecord(record: Partial<FormalSoulmateBattleEvolutionRecordV4> | undefined, nodeId: string): FormalSoulmateBattleEvolutionRecordV4 {
+  return {
+    battleNodeId: normalizeOptionalText(record?.battleNodeId) || nodeId,
+    battleSessionId: normalizeOptionalText(record?.battleSessionId),
+    turn: clampInt(record?.turn, 0, 999, 0),
+    localPokemonId: normalizeOptionalText(record?.localPokemonId) || "",
+    sourcePlayerPokemonId: normalizeOptionalText(record?.sourcePlayerPokemonId) || "",
+    fromSpeciesId: normalizeOptionalText(record?.fromSpeciesId) || "",
+    toSpeciesId: normalizeOptionalText(record?.toSpeciesId) || "",
+    displayName: normalizeOptionalText(record?.displayName) || "灵魂伴侣",
+    friendshipRequirement: clampInt(record?.friendshipRequirement, 0, 255, 0),
+    roll: Math.max(0, Math.min(1, Number(record?.roll ?? 0) || 0)),
+    createdAt: normalizeOptionalText(record?.createdAt) || new Date(0).toISOString(),
   };
 }
 

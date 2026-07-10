@@ -99,6 +99,7 @@ apps/desktop
 - 正式局内的灵魂伴侣副本不参与任何养成系统：训练场和交换面板要隐藏，后端训练/交换 guard 要拒绝，TM 和特效药也要拒绝；普通恢复、PP、异常和复活类治疗仍允许。这个限制只针对正式 run-local 副本，不针对训练家仓库里的长期资产。
 - 每场正式战斗结束后按 run 上的 node marker 幂等回写来源仓库宝可梦亲密度：胜利且有效参与 `+15`，胜利但无有效参与 `+10`，阵亡 `-3`，范围限制在 `0..255`。
 - 每场正式战斗胜利后还会按击败的馆主/四天王/冠军/反派目标幂等写入来源仓库宝可梦自己的 `honors`：地区制霸奖章和反派肃清奖章都是单只宝可梦个人荣誉，不是物种成就，也不是玩家全局成就。
+- 正式战斗中的灵魂伴侣进化由后端计算并修改 Showdown 会话：core 负责 3% 概率、亲密度门槛、唯一下一段目标和幂等 marker；battle service 使用 `formeChange(..., evolutionEffect, true)` 产生 `detailschange` 并刷新 request；Web 只按 `rawLog -> playbackTimeline -> scheduler` 播放 transform，不本地插队动画。
 
 ### Battle V4
 

@@ -24,6 +24,7 @@ export type BattleV4PageProps = {
   onRunChange: (run: TrainingRunGameV4) => void;
   onBackToRest: () => void;
   onBattleComplete?: (result: {sessionId: string; reason?: "surrender"}) => void;
+  onAfterSubmitSnapshot?: (snapshot: BattleSessionSnapshotV4) => Promise<BattleSessionSnapshotV4> | BattleSessionSnapshotV4;
   playerProfile?: Pick<UserProfileV2, "name" | "frontAsset" | "frontGifAsset" | "backAsset" | "avatarAsset">;
   endFlow?: "auto-exit" | "result-panel";
 };
@@ -198,7 +199,7 @@ type BattleSubmitErrorV4 = {
   error?: string;
 };
 
-export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onBackToRest, onBattleComplete, playerProfile, endFlow = "result-panel"}: BattleV4PageProps) {
+export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onBackToRest, onBattleComplete, onAfterSubmitSnapshot, playerProfile, endFlow = "result-panel"}: BattleV4PageProps) {
   const [snapshot, setSnapshot] = useState<BattleSessionSnapshotV4 | null>(null);
   const [message, setMessage] = useState("正在连接 Battle Service...");
   const [busy, setBusy] = useState(false);
@@ -626,9 +627,10 @@ export function BattleV4Page({api, run, sessionId, debugConfig, onRunChange, onB
     setChoiceStatus(`提交中：${choice}`);
     setMessage(`提交指令：${choice}`);
     try {
-      const next = trainerItems.length
+      const submitted = trainerItems.length
         ? await api.battleService.submitTrainerItem({sessionId, playerId: "p1", choice, trainerItems})
         : await api.battleService.submitChoice(sessionId, "p1", choice);
+      const next = onAfterSubmitSnapshot ? await onAfterSubmitSnapshot(submitted) : submitted;
       setSnapshot(next);
       setCommandDraft(null);
       setSwitchPanelOpen(false);

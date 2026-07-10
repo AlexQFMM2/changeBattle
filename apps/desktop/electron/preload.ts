@@ -78,6 +78,8 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
       ipcRenderer.invoke("battleService:submitChoice", sessionId, playerId, choice) as ReturnType<DesktopBattleServiceBridge["submitChoice"]>,
     submitTrainerItem: (input: BattleTrainerItemSubmitV4) =>
       ipcRenderer.invoke("battleService:submitTrainerItem", input) as ReturnType<DesktopBattleServiceBridge["submitTrainerItem"]>,
+    applyPermanentFormeChange: (input: Parameters<DesktopBattleServiceBridge["applyPermanentFormeChange"]>[0]) =>
+      ipcRenderer.invoke("battleService:applyPermanentFormeChange", input) as ReturnType<DesktopBattleServiceBridge["applyPermanentFormeChange"]>,
     getSnapshot: (sessionId: string) =>
       ipcRenderer.invoke("battleService:getSnapshot", sessionId) as ReturnType<DesktopBattleServiceBridge["getSnapshot"]>,
     getPlaybackTimeline: (sessionId: string, previousIndex?: number) =>
