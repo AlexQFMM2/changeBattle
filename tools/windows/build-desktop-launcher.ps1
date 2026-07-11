@@ -82,6 +82,9 @@ try {
   & $Gxx `
     -std=c++17 `
     -O2 `
+    -static `
+    -static-libgcc `
+    -static-libstdc++ `
     -municode `
     -mwindows `
     (Join-Path $LauncherRoot "launcher.cpp") `
