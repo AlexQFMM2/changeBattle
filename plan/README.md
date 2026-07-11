@@ -15,6 +15,7 @@
 - 正式游戏当前主线：[`formal-game/README.md`](formal-game/README.md)
 - 灵魂伴侣蛋孵化施工计划：[`formal-game/formal-soulmate-egg-hatch-and-growth-plan.md`](formal-game/formal-soulmate-egg-hatch-and-growth-plan.md)
 - 灵魂伴侣下版本：[`formal-game/formal-soulmate-next-version-plan.md`](formal-game/formal-soulmate-next-version-plan.md)
+- Desktop EXE 无黑框启动改造：[`desktop-exe-launcher-plan.md`](desktop-exe-launcher-plan.md)
 - Battle diagnostics / AI 出招复现：[`../debug/README.md`](../debug/README.md)
 
 ## 当前进度

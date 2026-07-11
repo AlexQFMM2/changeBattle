@@ -72,8 +72,8 @@ export const CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_MANIFEST_URLS_V4 = [
 export const CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_DOWNLOAD_PAGE_URL_V4 = "https://65h26i.top/changebattle/";
 export const CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4 = CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_DOWNLOAD_PAGE_URL_V4;
 
-export const DESKTOP_UPDATE_ALLOWED_PATH_PREFIXES_V4 = ["apps/", "assets/", "vendor/"] as const;
-export const DESKTOP_UPDATE_ALLOWED_ROOT_FILES_V4 = ["package.json", "update-manifest.json"] as const;
+export const DESKTOP_UPDATE_ALLOWED_PATH_PREFIXES_V4 = ["apps/", "assets/", "resources/", "vendor/"] as const;
+export const DESKTOP_UPDATE_ALLOWED_ROOT_FILES_V4 = ["ChangeBattle V2.exe", "ChangeBattle-V2-Desk.cmd", "ChangeBattle-V2-Desk.launcher.env", "package.json", "update-manifest.json"] as const;
 
 export function changeBattleDesktopUpdateManifestUrlsV4(raw?: string): string[] {
   const parsed = (raw || "")

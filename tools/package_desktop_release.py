@@ -20,6 +20,9 @@ DEFAULT_UPDATE_BASE_URLS = {
     "stable": "https://65h26i.top/changebattle/",
     "beta": "https://65h26i.top/changebattle-beta/",
 }
+PORTABLE_EXE_NAME = "ChangeBattle V2.exe"
+PORTABLE_CMD_NAME = "ChangeBattle-V2-Desk.cmd"
+PORTABLE_ENV_NAME = "ChangeBattle-V2-Desk.launcher.env"
 
 PROJECT_PATHS = [
     "apps/desktop/out",
@@ -207,16 +210,43 @@ def copy_electron_runtime(runtime_root: Path, dst_root: Path) -> None:
         copy_path(child, dst_root / child.name)
 
 
+def write_launcher_env(stage_dir: Path) -> None:
+    text = f"""# ChangeBattle V2 portable launcher environment.
+CHANGEBATTLE_DESKTOP_VERSION={package_version()}
+CHANGEBATTLE_RELEASE_CHANNEL={release_channel()}
+CHANGEBATTLE_UPDATE_MANIFEST_URLS={desktop_update_manifest_urls()}
+"""
+    write_text(stage_dir / PORTABLE_ENV_NAME, text)
+
+
+def copy_launcher_outputs(launcher_output_root: Path, stage_dir: Path) -> None:
+    required = {
+        PORTABLE_EXE_NAME: stage_dir / PORTABLE_EXE_NAME,
+        "app-icon.ico": stage_dir / "resources" / "app-icon.ico",
+        "app-icon.png": stage_dir / "resources" / "app-icon.png",
+    }
+    missing = [str(launcher_output_root / name) for name in required if not (launcher_output_root / name).exists()]
+    if missing:
+        raise RuntimeError("Desktop launcher output is incomplete; missing:\n" + "\n".join(missing))
+    for name, dst in required.items():
+        copy_path(launcher_output_root / name, dst)
+
+
 def write_windows_scripts(stage_dir: Path) -> None:
-    update_manifest_urls = desktop_update_manifest_urls()
     cmd = rf"""@echo off
 setlocal
 set "APP_DIR=%~dp0"
 set "APP_ROOT=%APP_DIR:~0,-1%"
+set "LAUNCHER_ENV=%APP_ROOT%\{PORTABLE_ENV_NAME}"
 set "ELECTRON_EXE=%APP_ROOT%\runtime\electron\electron.exe"
 set "DESKTOP_APP=%APP_ROOT%\apps\desktop"
 set "SHOWDOWN_VENDOR=%APP_ROOT%\vendor\pokemon-showdown"
 set "SHOWDOWN_CLIENT_VENDOR=%APP_ROOT%\vendor\showdown-client\js"
+if exist "%LAUNCHER_ENV%" (
+  for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%LAUNCHER_ENV%") do (
+    if not "%%A"=="" set "%%A=%%B"
+  )
+)
 if not exist "%ELECTRON_EXE%" (
   echo Electron runtime is missing: %ELECTRON_EXE%
   echo Please use the complete ChangeBattle V2 Desk portable package.
@@ -242,16 +272,16 @@ if not exist "%SHOWDOWN_CLIENT_VENDOR%\battle.js" (
   exit /b 1
 )
 set "CHANGEBATTLE_PROJECT_ROOT=%APP_ROOT%"
-set "CHANGEBATTLE_DESKTOP_VERSION={package_version()}"
+if "%CHANGEBATTLE_DESKTOP_VERSION%"=="" set "CHANGEBATTLE_DESKTOP_VERSION={package_version()}"
 set "CHANGEBATTLE_PORTABLE_ROOT=%APP_ROOT%"
 set "CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1"
-set "CHANGEBATTLE_RELEASE_CHANNEL={release_channel()}"
-set "CHANGEBATTLE_UPDATE_MANIFEST_URLS={update_manifest_urls}"
+if "%CHANGEBATTLE_RELEASE_CHANNEL%"=="" set "CHANGEBATTLE_RELEASE_CHANNEL={release_channel()}"
+if "%CHANGEBATTLE_UPDATE_MANIFEST_URLS%"=="" set "CHANGEBATTLE_UPDATE_MANIFEST_URLS={desktop_update_manifest_urls()}"
 set "CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=%SHOWDOWN_VENDOR%"
 set "CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=%SHOWDOWN_CLIENT_VENDOR%"
 start "ChangeBattle V2 Desk" /D "%APP_ROOT%" "%ELECTRON_EXE%" "%DESKTOP_APP%"
 """
-    write_text(stage_dir / "ChangeBattle-V2-Desk.cmd", cmd, newline="\r\n")
+    write_text(stage_dir / PORTABLE_CMD_NAME, cmd, newline="\r\n")
 
 
 def write_release_notes(stage_dir: Path, showdown_root: Path, electron_runtime_version: str) -> None:
@@ -264,7 +294,9 @@ Update manifest: {desktop_update_manifest_urls()}
 ## Start
 
 1. Unzip this package.
-2. Double-click `ChangeBattle-V2-Desk.cmd`.
+2. Double-click `{PORTABLE_EXE_NAME}`.
+
+If the launcher fails, use `{PORTABLE_CMD_NAME}` as a fallback/debug entry.
 
 ## Runtime Requirements
 
@@ -303,8 +335,12 @@ def zip_dir(src_dir: Path, zip_path: Path) -> None:
 def validate_zip(zip_path: Path, package_name: str) -> None:
     prefix = package_name
     required = [
-        f"{prefix}/ChangeBattle-V2-Desk.cmd",
+        f"{prefix}/{PORTABLE_EXE_NAME}",
+        f"{prefix}/{PORTABLE_CMD_NAME}",
+        f"{prefix}/{PORTABLE_ENV_NAME}",
         f"{prefix}/RELEASE-README.md",
+        f"{prefix}/resources/app-icon.ico",
+        f"{prefix}/resources/app-icon.png",
         f"{prefix}/update-manifest.json",
         f"{prefix}/apps/desktop/out/main/main.js",
         f"{prefix}/apps/desktop/out/main/formalComputeWorker.js",
@@ -329,6 +365,7 @@ def validate_zip(zip_path: Path, package_name: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--electron-runtime-path", default=os.environ.get("ELECTRON_RUNTIME_PATH", r"D:\changeBattleV2\electron-runtime\electron"))
+    parser.add_argument("--launcher-output-path", default=os.environ.get("CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT") or str(PROJECT_ROOT / "release" / "desktop-launcher"))
     parser.add_argument("--showdown-path", default=os.environ.get("CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT") or os.environ.get("SHOWDOWN_PATH") or str(PROJECT_ROOT / "packages" / "showdown-battle-core" / "vendor" / "showdown"))
     parser.add_argument("--showdown-client-path", default=os.environ.get("CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT") or str(PROJECT_ROOT / "packages" / "showdown-battle-core" / "vendor" / "showdown-client"))
     parser.add_argument("--keep-stage", action="store_true")
@@ -337,6 +374,7 @@ def main() -> int:
     version = package_version()
     runtime_version = electron_version()
     electron_runtime_root = Path(args.electron_runtime_path).expanduser().resolve()
+    launcher_output_root = Path(args.launcher_output_path).expanduser().resolve()
     showdown_root = Path(args.showdown_path).expanduser().resolve()
     showdown_client_root = normalize_showdown_client_root(args.showdown_client_path)
 
@@ -354,6 +392,8 @@ def main() -> int:
     copy_showdown_vendor(showdown_root, stage_dir / "vendor" / "pokemon-showdown")
     copy_showdown_client_vendor(showdown_client_root, stage_dir / "vendor" / "showdown-client")
     copy_electron_runtime(electron_runtime_root, stage_dir / "runtime" / "electron")
+    write_launcher_env(stage_dir)
+    copy_launcher_outputs(launcher_output_root, stage_dir)
     write_windows_scripts(stage_dir)
     write_release_notes(stage_dir, showdown_root, runtime_version)
     subprocess.check_call(

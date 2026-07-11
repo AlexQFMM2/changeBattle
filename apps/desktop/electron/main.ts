@@ -1,5 +1,5 @@
 import {createHash} from "node:crypto";
-import {readFileSync, promises as fs} from "node:fs";
+import {existsSync, readFileSync, promises as fs} from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
@@ -21,8 +21,10 @@ const rendererReadyRetryMs = 180;
 const rendererReadyTimeoutMs = 90_000;
 const desktopUpdateCheckDelayMs = 1_200;
 const desktopUpdateFetchTimeoutMs = 6_000;
+const desktopAppUserModelId = "com.changebattle.v2";
 
 app.setName("ChangeBattle V2 Dex Desktop");
+app.setAppUserModelId(desktopAppUserModelId);
 app.setPath("userData", path.join(app.getPath("appData"), "@changebattle-v2", "desktop"));
 
 let desktopUpdateStatus: DesktopUpdateStatusV4 = {
@@ -51,6 +53,7 @@ type FormalComputeMethodMap = {
 };
 
 async function createWindow() {
+  const icon = desktopWindowIconPath();
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -58,6 +61,7 @@ async function createWindow() {
     minHeight: 640,
     backgroundColor: "#f4f0e8",
     title: "ChangeBattle V2 Dex",
+    ...(icon ? {icon} : {}),
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -73,6 +77,17 @@ async function createWindow() {
   } else {
     await mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
   }
+}
+
+function desktopWindowIconPath(): string | undefined {
+  const candidates = [
+    path.join(desktopPortableRoot(), "resources", "app-icon.png"),
+    path.resolve(__dirname, "../../../../assets/runtime/soulmate-badges/kanto-medal.png"),
+  ];
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return undefined;
 }
 
 async function loadBootPage(window: BrowserWindow) {

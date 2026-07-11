@@ -7,8 +7,8 @@ import {fileURLToPath} from "node:url";
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const releaseDir = path.join(rootDir, "release");
 const changebattleReleaseDir = path.join(releaseDir, "changebattle");
-const allowedPrefixes = ["apps/", "assets/", "vendor/"];
-const allowedRootFiles = new Set(["package.json"]);
+const allowedPrefixes = ["apps/", "assets/", "resources/", "vendor/"];
+const allowedRootFiles = new Set(["ChangeBattle V2.exe", "ChangeBattle-V2-Desk.cmd", "ChangeBattle-V2-Desk.launcher.env", "package.json"]);
 const generatedLocalManifestName = "update-manifest.json";
 
 const options = parseArgs(process.argv.slice(2));

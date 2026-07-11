@@ -94,8 +94,13 @@ pnpm --filter @changebattle-v2/desktop test:ipc-bundle
 pnpm --filter @changebattle-v2/desktop test:renderer-assets
 pnpm --filter @changebattle-v2/desktop test:formal-worker
 
+Write-Host "Building desktop launcher..."
+$LauncherOutput = Join-Path $SourceRoot "release\desktop-launcher"
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\windows\build-desktop-launcher.ps1 -SourceRoot $SourceRoot -OutputDir $LauncherOutput
+
 Write-Host "Packaging desktop release..."
 $env:ELECTRON_RUNTIME_PATH = $ElectronRuntimePath
+$env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT = $LauncherOutput
 $env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT = $ShowdownPath
 $env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = $ShowdownClientPath
 $env:CHANGEBATTLE_COMMIT = $Commit
@@ -129,8 +134,12 @@ try {
   }
   $Prefix = $PackageName
   $Wanted = @(
+    "$Prefix/ChangeBattle V2.exe",
     "$Prefix/ChangeBattle-V2-Desk.cmd",
+    "$Prefix/ChangeBattle-V2-Desk.launcher.env",
     "$Prefix/RELEASE-README.md",
+    "$Prefix/resources/app-icon.ico",
+    "$Prefix/resources/app-icon.png",
     "$Prefix/update-manifest.json",
     "$Prefix/apps/desktop/out/main/main.js",
     "$Prefix/apps/desktop/out/main/formalComputeWorker.js",
