@@ -14,7 +14,7 @@ export const STAT_ROWS = [
 ] as const;
 
 export function displayName(pokemon: RentalPokemon): string {
-  return pokemon.name || pokemon.species_zh || pokemon.species || pokemon.species_id;
+  return pokemon.species_zh || pokemon.name || pokemon.species || pokemon.species_id;
 }
 
 export function statLine(pokemon: RentalPokemon, stat: string, revealTraining: boolean): string {
@@ -38,7 +38,7 @@ export function PokemonSprite({pokemon, alt, badge = false, className}: {pokemon
     <span className={["pokemon-sprite", badge === "full" ? "pokemon-sprite-full" : "", className || ""].filter(Boolean).join(" ")}>
       {spriteUrl ? <img src={spriteUrl} alt={alt} draggable={false} onError={() => {
         console.error("[formalUi] pokemon sprite failed", {speciesId, src: spriteUrl, alt});
-      }} /> : <span>{pokemon.species_zh?.slice(0, 1) || "?"}</span>}
+      }} /> : <span>{displayName(pokemon).slice(0, 1) || "?"}</span>}
       {badge ? <i>{pokemon.level}</i> : null}
     </span>
   );
@@ -64,7 +64,7 @@ export function PokemonIcon({pokemon, alt, className}: {pokemon: RentalPokemon; 
   }
   return (
     <span className={[classes, "empty"].join(" ")} aria-label={alt}>
-      {pokemon.species_zh?.slice(0, 1) || "?"}
+      {displayName(pokemon).slice(0, 1) || "?"}
       {pokemon.shiny ? <i aria-hidden="true">★</i> : null}
     </span>
   );

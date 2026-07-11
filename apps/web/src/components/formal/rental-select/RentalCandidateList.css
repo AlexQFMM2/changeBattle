@@ -36,10 +36,12 @@
 
 .rental-candidate-list.thumbnail {
   --rental-candidate-list-card-height: 42px;
+  --rental-candidate-list-card-width: 40px;
+  display: grid;
   grid-auto-rows: auto;
-  grid-template-columns: repeat(var(--rental-candidate-list-columns), minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  align-content: center;
+  justify-content: start;
   gap: 4px;
   border: 8px solid transparent;
   border-image-source: url('/board/rest-panel-frame.png');
@@ -56,50 +58,12 @@
 .rental-candidate-list.thumbnail .rental-candidate-list-regular {
   min-width: 0;
   min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(var(--rental-candidate-list-columns), minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
-  align-content: center;
+  justify-content: space-between;
   gap: 4px;
-}
-
-.rental-candidate-list.thumbnail.with-soulmate-slots {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: stretch;
-  gap: 6px;
-}
-
-.rental-candidate-list.thumbnail.with-soulmate-slots .rental-candidate-list-regular {
-  grid-template-columns: repeat(auto-fit, minmax(38px, 1fr));
-}
-
-.rental-candidate-soulmate-rail {
-  width: 88px;
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: repeat(2, 40px);
-  align-content: center;
-  gap: 4px;
-  padding-left: 5px;
-  border-left: 1px solid rgb(255 232 150 / 32%);
-}
-
-.rental-candidate-soulmate-empty {
-  width: 40px;
-  height: var(--rental-candidate-list-card-height, 42px);
-  display: grid;
-  place-items: center;
-  border: 1px dashed rgb(194 239 177 / 70%);
-  border-radius: 4px;
-  background: linear-gradient(180deg, rgb(227 255 218 / 22%), rgb(78 121 76 / 18%));
-  color: #dff7dd;
-  font-size: 6px;
-  font-weight: 950;
-}
-
-.rental-candidate-soulmate-empty span {
-  transform: rotate(-10deg);
+  overflow: hidden;
 }
 
 .rental-candidate-list.thumbnail.columns-6 {

@@ -138,7 +138,10 @@
 
 .rental-candidate-card-thumbnail {
   --rental-candidate-card-sprite-size: 34px;
-  width: 100%;
+  flex: 0 0 var(--rental-candidate-list-card-width, 40px);
+  width: var(--rental-candidate-list-card-width, 40px);
+  min-width: var(--rental-candidate-list-card-width, 40px);
+  max-width: var(--rental-candidate-list-card-width, 40px);
   height: var(--rental-candidate-list-card-height, 42px);
   display: grid;
   grid-template-columns: 1fr;
