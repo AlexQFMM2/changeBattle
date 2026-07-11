@@ -194,6 +194,37 @@ const battleEvolution = evaluateFormalSoulmateBattleEvolutionV4({
 assert.equal(battleEvolution.ok, true);
 assert.equal(battleEvolution.ok ? battleEvolution.candidate.toSpeciesId : "", "charmeleon");
 assert.equal(battleEvolution.ok ? battleEvolution.candidate.friendshipRequirement : 0, 100);
+const battleEvolutionFriendshipTooLow = evaluateFormalSoulmateBattleEvolutionV4({
+  localPokemon: localPokemonForBattleEvolutionTest({
+    localPokemonId: "local-charmander-low-friendship",
+    speciesId: "charmander",
+    formalSourceKind: "soulmate-vault",
+    sourcePlayerPokemonId: "vault-charmander",
+  }),
+  vault: {...evolutionVault, pokemon: [{...vaultPokemon, friendship: 0}]},
+  evolutionEdges,
+  evolutionStageCount: 2,
+  seed: "battle-evolution-force",
+  chance: 1,
+});
+assert.equal(battleEvolutionFriendshipTooLow.ok, false);
+assert.equal(battleEvolutionFriendshipTooLow.ok ? "" : battleEvolutionFriendshipTooLow.reason, "friendship-too-low");
+const debugBattleEvolutionFriendshipOverride = evaluateFormalSoulmateBattleEvolutionV4({
+  localPokemon: localPokemonForBattleEvolutionTest({
+    localPokemonId: "local-charmander-debug-friendship",
+    speciesId: "charmander",
+    formalSourceKind: "soulmate-vault",
+    sourcePlayerPokemonId: "vault-charmander",
+  }),
+  vault: {...evolutionVault, pokemon: [{...vaultPokemon, friendship: 0}]},
+  evolutionEdges,
+  evolutionStageCount: 2,
+  seed: "battle-evolution-force",
+  chance: 1,
+  friendshipOverride: 255,
+});
+assert.equal(debugBattleEvolutionFriendshipOverride.ok, true);
+assert.equal(debugBattleEvolutionFriendshipOverride.ok ? debugBattleEvolutionFriendshipOverride.candidate.toSpeciesId : "", "charmeleon");
 const battleEvolutionMultiTarget = evaluateFormalSoulmateBattleEvolutionV4({
   localPokemon: localPokemonForBattleEvolutionTest({
     localPokemonId: "local-eevee",

@@ -146,6 +146,55 @@ function smoke() {
   assertIncludes(transforms, "老翁龙的形态改变了！", "detailschange should not leak level and gender details");
   assertIncludes(transforms, "小陨星变成了流星形态！", "formechange should describe the target form");
 
+  const soulmateEvolution = commentaryTexts(step([
+    semantic("message", 29, "|-message|小火龙进化了！", {
+      text: "小火龙进化了！",
+      protocolEvent: protocol(29, "|-message|小火龙进化了！", "-message", ["-message", "小火龙进化了！"]),
+    }),
+    semantic("transform", 30, "|detailschange|p1a: Charmeleon|Charizard, L50, M|100/100", {
+      seat: "p1A",
+      slot: {playerId: "p1", formalSourceKind: "soulmate-vault", name: "Charmeleon", nameZh: "火恐龙"} as any,
+      label: "Charizard, L50, M",
+      protocolEvent: protocol(30, "|detailschange|p1a: Charmeleon|Charizard, L50, M|100/100", "detailschange", ["detailschange", "p1a: Charmeleon", "Charizard, L50, M", "100/100"]),
+    }),
+  ]), api);
+  assertEqual(soulmateEvolution.some(text => text.includes("火恐龙") && (text.includes("羁绊") || text.includes("呼唤") || text.includes("耀眼"))), true, "soulmate battle evolution should use bond commentary");
+  assertEqual(soulmateEvolution.some(text => text.includes("形态改变")), false, "evolution detailschange should not use normal forme commentary");
+
+  const soulmateLowHp = commentaryTexts(step([
+    semantic("damage", 31, "|-damage|p1a: Pikachu|22/100", {
+      seat: "p1A",
+      slot: {playerId: "p1", formalSourceKind: "soulmate-vault", name: "Pikachu", nameZh: "皮卡丘"} as any,
+      oldHp: 82,
+      newHp: 22,
+      maxHp: 100,
+      delta: 60,
+      status: "",
+      fainted: false,
+      source: "move",
+      label: "60/100",
+      protocolEvent: protocol(31, "|-damage|p1a: Pikachu|22/100", "-damage", ["-damage", "p1a: Pikachu", "22/100"]),
+    }),
+  ]), api);
+  assertEqual(soulmateLowHp.some(text => text.includes("皮卡丘") && (text.includes("撑住") || text.includes("没有倒下") || text.includes("打起精神"))), true, "low-hp soulmate damage should use affection-style commentary");
+
+  const normalLowHp = commentaryTexts(step([
+    semantic("damage", 32, "|-damage|p1a: Pikachu|22/100", {
+      seat: "p1A",
+      slot: {playerId: "p1", formalSourceKind: "starter-random", name: "Pikachu", nameZh: "皮卡丘"} as any,
+      oldHp: 82,
+      newHp: 22,
+      maxHp: 100,
+      delta: 60,
+      status: "",
+      fainted: false,
+      source: "move",
+      label: "60/100",
+      protocolEvent: protocol(32, "|-damage|p1a: Pikachu|22/100", "-damage", ["-damage", "p1a: Pikachu", "22/100"]),
+    }),
+  ]), api);
+  assertIncludes(normalLowHp, "皮卡丘受到了伤害。", "non-soulmate low-hp damage should keep normal commentary");
+
   const contrary = commentaryTexts(step([
     semantic("move", 13, "|move|p1a: Serperior|Leaf Storm|p2a: Empoleon", {
       actorSeat: "p1A",
@@ -401,6 +450,7 @@ function createTestApi() {
     raichu: "雷丘",
     gengar: "耿鬼",
     drampa: "老翁龙",
+    charmeleon: "火恐龙",
     minior: "小陨星",
     miniormeteor: "小陨星",
     serperior: "君主蛇",
@@ -429,7 +479,34 @@ function createTestApi() {
     getMoveDetail: (id: string) => ({id, name: id, nameZh: moves[toId(id)] || id}),
     getAbilityDetail: (id: string) => ({id, name: id, nameZh: abilities[toId(id)] || id}),
     getItemDetail: (id: string) => ({id, name: id, nameZh: items[toId(id)] || id}),
+    translateDexLabel: (table: string, value: string) => testTranslateDexLabel(table, value),
   };
+}
+
+function testTranslateDexLabel(table: string, value: string): string {
+  const labels: Record<string, Record<string, string>> = {
+    weather: {
+      sunnyday: "晴天",
+      raindance: "雨天",
+    },
+    field: {
+      trickroom: "戏法空间",
+    },
+    sideConditions: {
+      auroraveil: "极光幕",
+      tailwind: "顺风",
+      stealthrock: "隐形岩",
+    },
+    status: {
+      brn: "灼伤",
+      par: "麻痹",
+      psn: "中毒",
+      tox: "剧毒",
+      slp: "睡眠",
+      frz: "冰冻",
+    },
+  };
+  return labels[table]?.[toId(value)] || value;
 }
 
 function toId(value: unknown): string {

@@ -144,6 +144,7 @@ export type BattleAnimationEventV4 = {
   message: string;
   resultText: string;
   resultTone: "good" | "bad" | "neutral" | "status" | "weather" | "";
+  transformVariant?: "evolution" | "";
   weatherId: string;
   hpLabel: string;
 };
@@ -528,8 +529,10 @@ export function projectBattleAnimationEventsV4(events: BattleProtocolEventV4[]):
       return [animationEvent(event, "result", 820, message)];
     case "detailschange":
     case "-formechange":
-    case "-transform":
-      return [animationEvent(event, "transform", 1100, message)];
+    case "-transform": {
+      const evolution = isEvolutionTransformEvent(events, index);
+      return [animationEvent(event, "transform", evolution ? 1500 : 1100, message, evolution ? "evolution" : "")];
+    }
     case "-zpower":
       return [animationEvent(event, "transform", 1050, message)];
     case "-mega":
@@ -1509,7 +1512,7 @@ function moveNameForProtocolEvent(eventType: string, args: BattleProtocolArgsV4,
   return kwArgs.move || args[3] || "";
 }
 
-function animationEvent(event: BattleProtocolEventV4, kind: BattleAnimationKindV4, durationMs: number, message: string): BattleAnimationEventV4 {
+function animationEvent(event: BattleProtocolEventV4, kind: BattleAnimationKindV4, durationMs: number, message: string, transformVariant: BattleAnimationEventV4["transformVariant"] = ""): BattleAnimationEventV4 {
   const result = resultForProtocolEvent(event);
   const selection = selectShowdownAnimationKeyV4(event, kind);
   const effectSprite = effectSpriteForShowdownAnimationV4(selection.animationKey, kind, event);
@@ -1555,9 +1558,17 @@ function animationEvent(event: BattleProtocolEventV4, kind: BattleAnimationKindV
     message,
     resultText: result.text,
     resultTone: result.tone,
+    transformVariant,
     weatherId: event.eventType === "-weather" ? toId(event.args[1]) : event.eventType === "-fieldstart" || event.eventType === "-fieldend" ? toId(cleanEffect(event.args[1])) : "",
     hpLabel: "",
   };
+}
+
+function isEvolutionTransformEvent(events: BattleProtocolEventV4[], index: number): boolean {
+  const event = events[index];
+  if (event?.eventType !== "detailschange") return false;
+  const nearby = [events[index - 1], event, events[index + 1], events[index + 2]].filter(Boolean);
+  return nearby.some(item => item.eventType === "-message" && /进化了/.test(item.args[1] || item.rawLine));
 }
 
 function applyAnimationCheckpoint(

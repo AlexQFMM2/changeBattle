@@ -1395,6 +1395,26 @@ assert(syncedSoulmateVault.pokemon.find(pokemon => pokemon.playerPokemonId === "
 assert(syncedSoulmateVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1")?.heldItemId === "leftovers", "final soulmate vault sync should persist only the soulmate held item");
 assert(syncedSoulmateVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-pikachu-1")?.friendship === 210, "final soulmate vault sync should not touch unrelated vault pokemon friendship");
 assert(syncedSoulmateVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-pikachu-1")?.heldItemId === "lifeorb", "final soulmate vault sync should not touch unrelated vault pokemon held item");
+const lowLocalFriendshipRun = {
+  ...soulmateFriendshipSettlement.run,
+  restRunSnapshot: {
+    ...soulmateFriendshipSettlement.run.restRunSnapshot!,
+    players: {
+      ...soulmateFriendshipSettlement.run.restRunSnapshot!.players,
+      p1: {
+        ...soulmateFriendshipSettlement.run.restRunSnapshot!.players.p1!,
+        localTeam: {
+          ...soulmateFriendshipSettlement.run.restRunSnapshot!.players.p1!.localTeam,
+          pokemon: soulmateFriendshipSettlement.run.restRunSnapshot!.players.p1!.localTeam.pokemon.map(pokemon => (
+            pokemon.sourcePlayerPokemonId === "vault-starmie-1" ? {...pokemon, friendship: 0} : pokemon
+          )),
+        },
+      },
+    },
+  },
+};
+const guardedSoulmateVault = api.syncFormalSoulmateLocalTeamToVault(lowLocalFriendshipRun, soulmateVault);
+assert(guardedSoulmateVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1")?.friendship === 210, "final soulmate vault sync should not clear vault friendship with a lower local value");
 const soulmateHonorSettlement = api.applyFormalSoulmateHonorSettlement(soulmateFriendshipBattleLogRun, soulmateVault);
 const honoredSoulmate = soulmateHonorSettlement.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-starmie-1");
 const unhonoredPokemon = soulmateHonorSettlement.playerVault.pokemon.find(pokemon => pokemon.playerPokemonId === "vault-pikachu-1");

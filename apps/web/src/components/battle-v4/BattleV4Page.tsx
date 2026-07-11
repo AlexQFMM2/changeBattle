@@ -1383,7 +1383,7 @@ function battlePokemonAnimationClass(seat: BattleProtocolSeatV4, animation: Batt
   if (animation.kind === "moveEffect" && animation.actorSeat === seat) return "anim-move-cast";
   if (animation.kind === "ability" && animation.actorSeat === seat) return "anim-ability";
   if (animation.kind === "weather" && animation.actorSeat === seat) return "anim-ability";
-  if (animation.kind === "transform" && animation.actorSeat === seat) return "anim-transform";
+  if (animation.kind === "transform" && animation.actorSeat === seat) return animation.transformVariant === "evolution" ? "anim-evolution" : "anim-transform";
   if ((animation.kind === "moveEffect" || animation.kind === "damage" || animation.kind === "status") && animation.targetSeat === seat) return `anim-target-${animation.kind}`;
   if (animation.kind === "statChange" && animation.targetSeat === seat) return animation.resultTone === "bad" ? "anim-stat-down" : animation.resultTone === "good" ? "anim-stat-up" : "anim-stat-neutral";
   if (animation.kind === "heal" && animation.actorSeat === seat) return "anim-heal";

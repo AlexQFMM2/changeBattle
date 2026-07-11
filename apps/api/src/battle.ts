@@ -448,6 +448,10 @@ export type BattleViewSlotV4 = {
   nameZh: string;
   speciesId: string;
   level: number;
+  nature?: string;
+  friendship?: number;
+  formalSourceKind?: LocalPokemonV4["formalSourceKind"];
+  sourcePlayerPokemonId?: string;
   hp: number;
   maxHp: number;
   status: string;
@@ -1535,6 +1539,10 @@ function pokemonToSlot(snapshot: BattleSessionSnapshotV4, player: BattleServiceP
     nameZh: pokemon.nameZh,
     speciesId: pokemon.speciesId,
     level: pokemon.level,
+    nature: pokemon.nature,
+    friendship: pokemon.friendship,
+    formalSourceKind: pokemon.formalSourceKind,
+    sourcePlayerPokemonId: pokemon.sourcePlayerPokemonId,
     hp,
     maxHp,
     status,

@@ -991,6 +991,7 @@ function RoutedApp({runtime}: AppProps) {
             sessionId: activeSessionId,
             snapshot,
             chanceOverride: DEBUG_FEATURE_ENABLED ? 1 : undefined,
+            friendshipOverride: DEBUG_FEATURE_ENABLED ? 255 : undefined,
           });
           if (!result.evolved) return snapshot;
           const savedVault = await api.savePlayerVault(result.playerVault);

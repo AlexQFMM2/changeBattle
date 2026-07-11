@@ -1,4 +1,4 @@
-import {createShowdownDexService, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
+import {createShowdownDexService, type DexPokemonDetail, type DexSearchRequest, type ShowdownDexLike} from "@changebattle-v2/showdown-dex-core";
 import {getPokemonBattleProfileV4} from "@changebattle-v2/showdown-battle-core/battleProfiles";
 import {
   firstOpenPlayerVaultStorageSlotV4,
@@ -42,7 +42,7 @@ import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePr
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
 import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalSoulmateBattleFriendshipSettlementResultV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalSoulmateFriendshipSettlementRecordV4, FormalSoulmateHonorSettlementRecordV4, FormalSoulmateHonorSettlementResultV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type BattleSessionSnapshotV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
-import type {LocalPokemonV4} from "./training.js";
+import type {LocalPokemonV4, LocalTeamV4, ShowdownPlayerIdV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4} from "./training.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
 import {applyPlayerVaultEvolutionItemV4, applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultEvolutionItemUseV4, previewPlayerVaultNumericItemUseV4, unequipPlayerVaultHeldItemV4, type PlayerVaultEvolutionApplyResultV4, type PlayerVaultEvolutionPreviewResultV4, type PlayerVaultFriendshipItemApplyResultV4, type PlayerVaultHeldItemApplyResultV4, type PlayerVaultHeldItemUnequipResultV4, type PlayerVaultMoveTeachingApplyResultV4 as PlayerVaultMoveTeachingApplyResultFromItemEffectsV4, type PlayerVaultMoveTeachingViewResultV4, type PlayerVaultNumericItemApplyResultV4, type PlayerVaultNumericItemPreviewResultV4} from "./itemEffects.js";
@@ -497,6 +497,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     sessionId: string;
     snapshot?: BattleSessionSnapshotV4 | null;
     chanceOverride?: number;
+    friendshipOverride?: number;
   }): Promise<FormalSoulmateBattleEvolutionApplyResultV4> {
     const vault = normalizePlayerVault(input.playerVault);
     const sessionId = String(input.sessionId || "").trim();
@@ -527,6 +528,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
         evolutionStageCount: vaultEvolutionStageCount(tree.edges),
         seed,
         chance: input.chanceOverride,
+        friendshipOverride: input.friendshipOverride,
         alreadyEvolvedSourcePlayerPokemonIds: alreadyEvolved,
       });
       if (!evaluated.ok) continue;
@@ -549,10 +551,9 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
         turn: snapshot.turn,
         createdAt: now,
       };
-      const nextRest = syncFormalRestSoulmateEvolution(input.run.restRunSnapshot, evolution);
+      const displaySyncedRun = syncFormalRunSoulmateEvolutionDisplay(input.run, evolution, dex);
       const nextRun = {
-        ...input.run,
-        restRunSnapshot: nextRest,
+        ...displaySyncedRun,
         soulmateBattleEvolutionByNodeId: {
           ...(input.run.soulmateBattleEvolutionByNodeId || {}),
           [nodeId]: [...records, evolution],
@@ -1086,23 +1087,105 @@ function localPokemonForBattleRequestRow(team: LocalPokemonV4[], row: {ident?: s
   }) || null;
 }
 
-function syncFormalRestSoulmateEvolution(restRun: FormalGameRunV4["restRunSnapshot"], evolution: FormalSoulmateBattleEvolutionApplyResultV4["evolution"]): FormalGameRunV4["restRunSnapshot"] {
-  if (!restRun || !evolution) return restRun;
-  return {
-    ...restRun,
-    players: Object.fromEntries(Object.entries(restRun.players).map(([playerId, player]) => [playerId, player ? {
-      ...player,
-      localTeam: {
-        ...player.localTeam,
-        pokemon: player.localTeam.pokemon.map(pokemon => (
-          pokemon.localPokemonId === evolution.localPokemonId || pokemon.sourcePlayerPokemonId === evolution.sourcePlayerPokemonId
-            ? {...pokemon, speciesId: evolution.toSpeciesId}
-            : pokemon
-        )),
-      },
-    } : player])) as typeof restRun.players,
-    updatedAt: new Date().toISOString(),
+function syncFormalRunSoulmateEvolutionDisplay(
+  run: FormalGameRunV4,
+  evolution: FormalSoulmateBattleEvolutionApplyResultV4["evolution"],
+  dex: ReturnType<typeof createShowdownDexService>,
+): FormalGameRunV4 {
+  if (!evolution) return run;
+  const detail = safePokemonDetailForEvolutionDisplay(dex, evolution.toSpeciesId);
+  const patchTeam = (team: LocalTeamV4 | null | undefined): LocalTeamV4 | null | undefined => {
+    if (!team) return team;
+    return {
+      ...team,
+      pokemon: team.pokemon.map(pokemon => patchSoulmateEvolutionPokemonDisplay(pokemon, evolution, detail, dex)),
+    };
   };
+  const patchPlayer = (player: TrainingPlayerDraftV4 | null | undefined): TrainingPlayerDraftV4 | null | undefined => {
+    if (!player) return player;
+    return {...player, localTeam: patchTeam(player.localTeam) || player.localTeam};
+  };
+  const patchPlayers = <T extends Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>>(players: T): T => {
+    const next = {...players};
+    if (next.p1) next.p1 = patchPlayer(next.p1) as TrainingPlayerDraftV4;
+    return next;
+  };
+  const patchScenarioPlayers = (players: TrainingPlayerDraftV4[]): TrainingPlayerDraftV4[] => (
+    players.map(player => player.playerId === "p1" ? patchPlayer(player) || player : player)
+  );
+  const patchNode = (node: TrainingRunGameNodeV4): TrainingRunGameNodeV4 => ({
+    ...node,
+    participants: patchPlayers(node.participants),
+  });
+  const patchRestRun = (restRun: TrainingRunGameV4 | null): TrainingRunGameV4 | null => restRun ? {
+    ...restRun,
+    players: patchPlayers(restRun.players),
+    scenario: {
+      ...restRun.scenario,
+      players: patchScenarioPlayers(restRun.scenario.players),
+    },
+    gameMap: restRun.gameMap.map(patchNode),
+    updatedAt: new Date().toISOString(),
+  } : restRun;
+  return {
+    ...run,
+    playerTeam: patchTeam(run.playerTeam) || run.playerTeam,
+    roundPlan: run.roundPlan.map(round => ({
+      ...round,
+      participants: patchPlayers(round.participants),
+    })),
+    restRunSnapshot: patchRestRun(run.restRunSnapshot),
+  };
+}
+
+function patchSoulmateEvolutionPokemonDisplay(
+  pokemon: LocalPokemonV4,
+  evolution: NonNullable<FormalSoulmateBattleEvolutionApplyResultV4["evolution"]>,
+  detail: DexPokemonDetail,
+  dex: ReturnType<typeof createShowdownDexService>,
+): LocalPokemonV4 {
+  if (pokemon.localPokemonId !== evolution.localPokemonId && pokemon.sourcePlayerPokemonId !== evolution.sourcePlayerPokemonId) return pokemon;
+  const level = Math.max(1, Math.min(100, Math.trunc(Number(pokemon.level) || 50)));
+  const maxHp = Math.max(1, dex.calculatePokemonStats({
+    speciesId: detail.id,
+    level,
+    nature: pokemon.nature || "Serious",
+    evs: pokemon.evs,
+    ivs: pokemon.ivs,
+  }).stats.hp);
+  const oldMaxHp = Math.max(1, Number(pokemon.maxHp) || maxHp);
+  const oldEntryHp = Math.max(0, Math.min(oldMaxHp, Number(pokemon.entryHp) || 0));
+  const hpRatio = oldMaxHp > 0 ? oldEntryHp / oldMaxHp : 1;
+  const entryHp = Math.max(0, Math.min(maxHp, Math.round(maxHp * hpRatio)));
+  const frontSpriteUrl = detail.sprites.frontUrl || detail.sprites.fallbackFrontUrl || detail.sprites.iconUrl;
+  const backSpriteUrl = detail.sprites.backUrl || detail.sprites.fallbackBackUrl || frontSpriteUrl;
+  const frontShinySpriteUrl = detail.sprites.frontShinyUrl || detail.sprites.fallbackFrontShinyUrl || frontSpriteUrl;
+  const backShinySpriteUrl = detail.sprites.backShinyUrl || detail.sprites.fallbackBackShinyUrl || backSpriteUrl || frontShinySpriteUrl;
+  return {
+    ...pokemon,
+    speciesId: detail.id,
+    showdownId: detail.id,
+    name: pokemon.nickname || detail.name,
+    nameZh: pokemon.nickname || detail.nameZh || detail.name,
+    maxHp,
+    entryHp,
+    spriteUrl: frontSpriteUrl,
+    shinySpriteUrl: frontShinySpriteUrl,
+    frontSpriteUrl,
+    backSpriteUrl,
+    frontShinySpriteUrl,
+    backShinySpriteUrl,
+    iconUrl: detail.sprites.iconUrl,
+    iconStyle: detail.sprites.iconStyle,
+  };
+}
+
+function safePokemonDetailForEvolutionDisplay(dex: ReturnType<typeof createShowdownDexService>, speciesId: string): DexPokemonDetail {
+  try {
+    return dex.getPokemonDetail(speciesId);
+  } catch {
+    return dex.getPokemonDetail("pikachu");
+  }
 }
 
 function normalizeBattleIdentityKey(value: unknown): string {

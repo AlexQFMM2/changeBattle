@@ -1,4 +1,4 @@
-import {translateDexLabel, type BattleSessionSnapshotV4, type BattleViewModelV4, type BattleViewSlotV4, type LocalPokemonV4, type ShowdownPlayerIdV4} from "@changebattle-v2/api";
+import type {BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4, LocalPokemonV4, ShowdownPlayerIdV4} from "@changebattle-v2/api";
 import {localPokemonSpriteUrls} from "../../lib/showdownPokemonSpriteAdapter.js";
 import type {BattleProtocolArgsV4, BattleProtocolEventV4, BattleProtocolKwArgsV4, BattleProtocolSeatV4, BattleV4TwoTurnMoveState} from "./battleV4Playback";
 
@@ -25,6 +25,65 @@ const RAW_NO_DEFAULT_COMMANDS = new Set([
 
 const THREE_PART_COMMANDS = new Set(["c", "chat", "uhtml", "uhtmlchange", "queryresponse", "showteam"]);
 const FOUR_PART_COMMANDS = new Set(["c:", "pm"]);
+const BATTLE_V4_PROTOCOL_LABELS: Record<string, Record<string, string>> = {
+  stats: {
+    hp: "HP",
+    atk: "攻击",
+    def: "防御",
+    spa: "特攻",
+    spd: "特防",
+    spe: "速度",
+    accuracy: "命中",
+    evasion: "闪避",
+  },
+  status: {
+    brn: "灼伤",
+    par: "麻痹",
+    psn: "中毒",
+    tox: "剧毒",
+    slp: "睡眠",
+    frz: "冰冻",
+    fnt: "濒死",
+    confusion: "混乱",
+  },
+  weather: {
+    sunnyday: "晴天",
+    desolateland: "大日照",
+    raindance: "雨天",
+    primordialsea: "大雨",
+    sandstorm: "沙暴",
+    hail: "冰雹",
+    snow: "雪景",
+    snowscape: "雪景",
+    deltastream: "乱流",
+  },
+  field: {
+    electricterrain: "电气场地",
+    grassyterrain: "青草场地",
+    mistyterrain: "薄雾场地",
+    psychicterrain: "精神场地",
+    trickroom: "戏法空间",
+    magicroom: "魔法空间",
+    wonderroom: "奇妙空间",
+    gravity: "重力",
+  },
+  sideConditions: {
+    auroraveil: "极光幕",
+    reflect: "反射壁",
+    lightscreen: "光墙",
+    safeguard: "神秘守护",
+    mist: "白雾",
+    tailwind: "顺风",
+    stealthrock: "隐形岩",
+    spikes: "撒菱",
+    toxicspikes: "毒菱",
+    stickyweb: "黏黏网",
+    luckychant: "幸运咒语",
+    firepledge: "火之誓约",
+    waterpledge: "水之誓约",
+    grasspledge: "草之誓约",
+  },
+};
 
 export type BattleRuntimeSlotV4 = BattleViewSlotV4 & {
   lastKnownHp: number;
@@ -46,6 +105,7 @@ export type BattleRuntimeStateV4 = {
     moveName: string;
     rawLine: string;
   } | null;
+  lastEvolutionMessageSequence: number;
   winner: string;
 };
 
@@ -54,14 +114,14 @@ export type BattleV4BoostStat = "atk" | "def" | "spa" | "spd" | "spe" | "accurac
 export type BattleSemanticEventV4 =
   | {kind: "switchIn" | "dragIn"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot: BattleViewSlotV4}
   | {kind: "switchOut"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4}
-  | {kind: "move"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; actorSeat: BattleProtocolSeatV4; targetSeat: BattleProtocolSeatV4; moveId: string; moveName: string; actorName: string; targetName: string}
+  | {kind: "move"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; actorSeat: BattleProtocolSeatV4; targetSeat: BattleProtocolSeatV4; slot?: BattleViewSlotV4; moveId: string; moveName: string; actorName: string; targetName: string}
   | {kind: "twoTurnMove"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; state: BattleV4TwoTurnMoveState}
   | {kind: "volatileMarker"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; marker: "substitute"; active: boolean; label: string}
-  | {kind: "damage" | "heal"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; oldHp: number; newHp: number; maxHp: number; delta: number; status: string; fainted: boolean; source: "move" | "status" | "item" | "ability" | "field" | "unknown"; label: string}
+  | {kind: "damage" | "heal"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4; oldHp: number; newHp: number; maxHp: number; delta: number; status: string; fainted: boolean; source: "move" | "status" | "item" | "ability" | "field" | "unknown"; label: string}
   | {kind: "faint"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4}
   | {kind: "status" | "cureStatus"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; oldStatus: string; newStatus: string; label: string}
   | {kind: "statChange"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; stat: BattleV4BoostStat; statLabel: string; amount: number; direction: "up" | "down" | "neutral"; finalStage?: number; sourceKind: "ability" | "move" | "item" | "unknown"; sourceName: string; sourcePokemonName: string; label: string}
-  | {kind: "transform"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; label: string}
+  | {kind: "transform"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; slot?: BattleViewSlotV4; label: string; transformVariant?: "evolution" | ""}
   | {kind: "result"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; seat: BattleProtocolSeatV4; text: string; tone: "good" | "bad" | "neutral" | "status" | "weather" | ""}
   | {kind: "field" | "sideCondition"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; id: string; active: boolean; label: string}
   | {kind: "weather"; sequence: number; rawLine: string; protocolEvent: BattleProtocolEventV4; id: string; active: boolean; label: string; phase: "start" | "upkeep" | "end"}
@@ -140,6 +200,7 @@ function createInitialRuntimeState(): BattleRuntimeStateV4 {
     gravityActive: false,
     sideConditions: [],
     lastMove: null,
+    lastEvolutionMessageSequence: -1,
     winner: "",
   };
 }
@@ -178,6 +239,7 @@ function applyProtocolEvent(
       protocolEvent: event,
       actorSeat: event.seat,
       targetSeat: event.targetSeat,
+      slot: runtime.slots[event.seat],
       moveId: event.moveId,
       moveName: event.moveName,
       actorName: event.actorName,
@@ -216,7 +278,9 @@ function applyProtocolEvent(
       rawLine: event.rawLine,
       protocolEvent: event,
       seat: event.seat || event.targetSeat,
+      slot: runtime.slots[event.seat || event.targetSeat],
       label: transformLabelForEvent(event),
+      transformVariant: transformVariantForEvent(event, runtime),
     }];
   }
   case "-damage":
@@ -245,6 +309,7 @@ function applyProtocolEvent(
       rawLine: event.rawLine,
       protocolEvent: event,
       seat: event.seat,
+      slot: nextSlot,
       oldHp,
       newHp,
       maxHp,
@@ -304,7 +369,9 @@ function applyProtocolEvent(
       rawLine: event.rawLine,
       protocolEvent: event,
       seat: event.seat || event.targetSeat,
+      slot: runtime.slots[event.seat || event.targetSeat],
       label: transformLabelForEvent(event),
+      transformVariant: transformVariantForEvent(event, runtime),
     }];
   }
   case "-supereffective":
@@ -357,6 +424,7 @@ function applyProtocolEvent(
     runtime.lastMove = null;
     return [{kind: "turn", sequence: event.sequence, rawLine: event.rawLine, protocolEvent: event, turn: runtime.turn}];
   case "-message":
+    if (/进化了/.test(event.args[1] || "")) runtime.lastEvolutionMessageSequence = event.sequence;
     return [{kind: "message", sequence: event.sequence, rawLine: event.rawLine, protocolEvent: event, text: event.args[1] || ""}];
   case "win":
     runtime.winner = event.args[1] || "";
@@ -709,6 +777,11 @@ function transformLabelForEvent(event: BattleProtocolEventV4): string {
   return "形态变化";
 }
 
+function transformVariantForEvent(event: BattleProtocolEventV4, runtime: BattleRuntimeStateV4): "evolution" | "" {
+  if (event.eventType !== "detailschange") return "";
+  return runtime.lastEvolutionMessageSequence >= 0 && event.sequence - runtime.lastEvolutionMessageSequence <= 2 ? "evolution" : "";
+}
+
 function resultToneForEvent(event: BattleProtocolEventV4): "good" | "bad" | "neutral" | "status" | "weather" | "" {
   if (event.eventType === "-supereffective" || event.eventType === "-crit") return "bad";
   if (event.eventType === "-resisted" || event.eventType === "-immune" || event.eventType === "-miss" || event.eventType === "-fail") return "neutral";
@@ -734,6 +807,12 @@ function fieldLabel(id: string): string {
 function sideConditionLabel(id: string): string {
   const normalized = toId(id);
   return normalized ? translateDexLabel("sideConditions", normalized) : "场地状态";
+}
+
+function translateDexLabel(table: string, value: string): string {
+  const raw = String(value || "").trim();
+  const id = toId(raw);
+  return BATTLE_V4_PROTOCOL_LABELS[table]?.[id] || raw;
 }
 
 function cleanEffect(value: string): string {

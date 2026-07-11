@@ -313,7 +313,7 @@ function animationEventForSemanticEvent(event: BattleSemanticEventV4, kind: Batt
     message: "",
     resultText: result.text,
     resultTone: result.tone,
-    durationMs: durationForKind(kind),
+    durationMs: durationForEvent(event, kind),
   });
   return {
     checkpointId,
@@ -332,7 +332,7 @@ function animationEventForSemanticEvent(event: BattleSemanticEventV4, kind: Batt
     moveName: protocolEvent.moveName,
     condition: protocolEvent.condition,
     status: protocolEvent.status,
-    durationMs: durationForKind(kind),
+    durationMs: durationForEvent(event, kind),
     effectSprite,
     selectedAnimationKey: selection.animationKey,
     animationSource: selection.source,
@@ -347,6 +347,7 @@ function animationEventForSemanticEvent(event: BattleSemanticEventV4, kind: Batt
     message: "",
     resultText: result.text,
     resultTone: result.tone,
+    transformVariant: event.kind === "transform" ? event.transformVariant || "" : "",
     weatherId: event.kind === "weather" ? event.id : "",
     hpLabel: event.kind === "damage" || event.kind === "heal" ? event.label : "",
   };
@@ -373,6 +374,11 @@ function durationForKind(kind: BattleAnimationKindV4): number {
   if (kind === "moveEffect") return 720;
   if (kind === "weather") return 900;
   return 520;
+}
+
+function durationForEvent(event: BattleSemanticEventV4, kind: BattleAnimationKindV4): number {
+  if (event.kind === "transform" && event.transformVariant === "evolution") return 1500;
+  return durationForKind(kind);
 }
 
 function replaceSeat(slots: BattleViewSlotV4[], nextSlot: BattleViewSlotV4): BattleViewSlotV4[] {

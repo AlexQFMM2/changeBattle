@@ -768,6 +768,10 @@
   animation: battle-v4-pokemon-transform .9s ease-in-out both;
 }
 
+.battle-v4-pokemon.anim-evolution img {
+  animation: battle-v4-pokemon-evolution 1.3s ease-in-out both;
+}
+
 .battle-v4-pokemon.anim-heal img {
   animation: battle-v4-pokemon-heal .52s ease-out both;
 }
@@ -875,7 +879,8 @@
 .battle-v4-pokemon.anim-target-status::after,
 .battle-v4-pokemon.anim-target-result::after,
 .battle-v4-pokemon.anim-ability::after,
-.battle-v4-pokemon.anim-transform::after {
+.battle-v4-pokemon.anim-transform::after,
+.battle-v4-pokemon.anim-evolution::after {
   content: "";
   position: absolute;
   left: 50%;
@@ -890,6 +895,21 @@
     0 0 28px rgb(255 203 45 / 45%);
   transform: translateX(-50%);
   animation: battle-v4-pokemon-action-ring .46s ease-out both;
+}
+
+.battle-v4-pokemon.anim-evolution::after {
+  bottom: 18px;
+  z-index: 4;
+  width: 138px;
+  height: 112px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgb(255 255 255 / 96%) 0 18%, rgb(255 255 255 / 76%) 32%, rgb(255 236 150 / 34%) 54%, transparent 72%);
+  box-shadow:
+    0 0 22px rgb(255 255 255 / 92%),
+    0 0 42px rgb(255 246 184 / 72%),
+    0 0 68px rgb(120 210 255 / 34%);
+  animation: battle-v4-pokemon-evolution-flash 1.3s ease-in-out both;
 }
 
 .battle-v4-pokemon.commanding::before {
@@ -1256,6 +1276,22 @@
   28% { transform: translateX(-50%) scale(.86) rotate(-2deg); filter: brightness(2.1) saturate(1.35) drop-shadow(0 0 14px rgb(255 246 142 / 82%)); opacity: .72; }
   56% { transform: translateX(-50%) scale(1.12) rotate(2deg); filter: brightness(1.9) saturate(1.2) drop-shadow(0 0 18px rgb(184 255 109 / 78%)); opacity: 1; }
   100% { transform: translateX(-50%) scale(1); filter: brightness(1); opacity: 1; }
+}
+
+@keyframes battle-v4-pokemon-evolution {
+  0% { transform: translateX(-50%) scale(1); filter: brightness(1); opacity: 1; }
+  18% { transform: translateX(-50%) scale(.9); filter: brightness(2.2) saturate(.6) drop-shadow(0 0 18px rgb(255 255 255 / 86%)); opacity: .82; }
+  42% { transform: translateX(-50%) scale(.78); filter: brightness(4.8) saturate(.25) drop-shadow(0 0 34px rgb(255 255 255 / 96%)); opacity: .22; }
+  66% { transform: translateX(-50%) scale(1.18); filter: brightness(3.1) saturate(1.15) drop-shadow(0 0 26px rgb(255 255 255 / 92%)); opacity: .92; }
+  100% { transform: translateX(-50%) scale(1); filter: brightness(1); opacity: 1; }
+}
+
+@keyframes battle-v4-pokemon-evolution-flash {
+  0% { transform: translateX(-50%) scale(.42); opacity: 0; }
+  22% { transform: translateX(-50%) scale(.8); opacity: .88; }
+  48% { transform: translateX(-50%) scale(1.22); opacity: 1; }
+  76% { transform: translateX(-50%) scale(1.44); opacity: .48; }
+  100% { transform: translateX(-50%) scale(1.7); opacity: 0; }
 }
 
 @keyframes battle-v4-pokemon-faint {

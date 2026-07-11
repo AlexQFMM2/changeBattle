@@ -84,7 +84,7 @@ export function commentaryForBattleV4Command(
   if (event.kind === "status" || event.kind === "cureStatus") return baseEntry(step, command, statusCommentary(event, api), "status");
   if (event.kind === "statChange") return baseEntry(step, command, statChangeCommentary(event, api), statChangeTone(event));
   if (event.kind === "faint") return baseEntry(step, command, faintCommentary(event, api), "bad", "裁判");
-  if (event.kind === "transform") return baseEntry(step, command, transformCommentary(event, api), "good");
+  if (event.kind === "transform") return baseEntry(step, command, transformCommentary(step, event, api), "good");
   if (event.kind === "result") return baseEntry(step, command, resultCommentary(event, api), toneForResult(event));
   return null;
 }
@@ -96,7 +96,10 @@ function moveCommentary(step: BattlePlaybackStepV4, command: BattleVisualCommand
   const move = localizeMoveName(event.moveName || event.moveId, api) || "招式";
   const followups = moveFollowupCommands(step, command);
   const resultPhrases = compactMoveResultPhrases(event, followups, api);
-  const text = resultPhrases.length
+  const bondPrelude = soulmateHighHpMovePrelude(event, actor);
+  const text = bondPrelude
+    ? `${bondPrelude}随后，${actor}使用了${move}${resultPhrases.length ? `，${resultPhrases.join("，")}` : ""}！`
+    : resultPhrases.length
     ? `${actor}使用了${move}，${resultPhrases.join("，")}！`
     : `${actor}使用了${move}！`;
   return baseEntry(
@@ -292,6 +295,8 @@ function healCommentary(event: SemanticEventByKind<"heal">, api: ChangeBattleV2A
 
 function damageCommentary(event: SemanticEventByKind<"damage">, api: ChangeBattleV2Api): string {
   const target = targetNameForEvent(event, null, api) || "场上的宝可梦";
+  const soulmateText = soulmateBondDamageCommentary(event, target);
+  if (soulmateText) return soulmateText;
   const from = cleanEffect(event.protocolEvent.kwArgs.from || "");
   if (event.source === "status" && from) return `${target}受到了${statusOrEffectLabel(from, api)}的伤害。`;
   if (event.source === "field" && from) return `${target}受到了${sideConditionLabel(toId(from), api)}的伤害。`;
@@ -347,9 +352,12 @@ function faintCommentary(event: SemanticEventByKind<"faint">, api: ChangeBattleV
   return `${localizePokemonName(name, api) || "宝可梦"}失去战斗能力！`;
 }
 
-function transformCommentary(event: SemanticEventByKind<"transform">, api: ChangeBattleV2Api): string {
+function transformCommentary(step: BattlePlaybackStepV4, event: SemanticEventByKind<"transform">, api: ChangeBattleV2Api): string {
   const actor = localizePokemonName(event.protocolEvent.actorName || event.protocolEvent.targetName, api) || "场上的宝可梦";
   const eventType = event.protocolEvent.eventType;
+  if (isEvolutionDetailsChangeEvent(step, event)) {
+    return soulmateEvolutionBondLine(event, actor) || `${actor}回应了你的心意，进化了！`;
+  }
   if (eventType === "-mega") return `${actor}Mega进化了！`;
   if (eventType === "-primal") return `${actor}原始回归了！`;
   if (eventType === "-burst") return `${actor}究极爆发了！`;
@@ -367,6 +375,84 @@ function transformCommentary(event: SemanticEventByKind<"transform">, api: Chang
     return form ? `${actor}变成了${formNamePhrase(form)}！` : `${actor}的形态改变了！`;
   }
   return `${actor}的形态改变了！`;
+}
+
+function soulmateBondDamageCommentary(event: SemanticEventByKind<"damage">, name: string): string {
+  if (!isPlayerSoulmateSlot(event.slot)) return "";
+  if (event.fainted || event.newHp <= 0 || event.maxHp <= 0) return "";
+  const ratio = event.newHp / event.maxHp;
+  if (ratio > 0.35) return "";
+  const lines = [
+    `为了不让你伤心，${name}咬牙撑住了！`,
+    `${name}看了你一眼，硬是没有倒下！`,
+    `${name}听见你的声音后，重新打起精神。`,
+  ];
+  return deterministicPick(lines, `${event.sequence}:${event.seat}:low-hp`);
+}
+
+function soulmateEvolutionBondLine(event: SemanticEventByKind<"transform">, name: string): string {
+  if (!isPlayerSoulmateSlot(event.slot)) return "";
+  const lines = [
+    `${name}回应了你的心意，沐浴在耀眼的光芒中！`,
+    `你们一路积累的羁绊，让${name}进化了！`,
+    `${name}像是听见了你的呼唤，跨过了新的界限！`,
+  ];
+  return deterministicPick(lines, `${event.sequence}:${event.seat}:evolution`);
+}
+
+function soulmateHighHpMovePrelude(event: SemanticEventByKind<"move">, name: string): string {
+  if (!isPlayerSoulmateSlot(event.slot)) return "";
+  if (!event.slot?.maxHp || event.slot.hp / event.slot.maxHp < 0.85) return "";
+  const seed = `${event.sequence}:${event.actorSeat}:high-hp`;
+  if (deterministicPercent(seed) >= 22) return "";
+  return deterministicPick(soulmateHighHpLinesForNature(event.slot.nature, name), seed);
+}
+
+function soulmateHighHpLinesForNature(nature: string | undefined, name: string): string[] {
+  const id = toId(nature);
+  if (id === "brave" || id === "adamant") return [
+    `${name}挺起胸膛，像是在说“交给我吧！”`,
+    `${name}斗志很足，毫不犹豫地站到了前面。`,
+  ];
+  if (id === "careful" || id === "gentle" || id === "calm") return [
+    `${name}小心地调整呼吸，努力保持冷静。`,
+    `${name}确认了你的指示，沉稳地点了点头。`,
+  ];
+  if (id === "naughty" || id === "jolly") return [
+    `${name}明明很兴奋，却还装作一副没事的样子。`,
+    `${name}眨了眨眼，像是已经等不及要行动了。`,
+  ];
+  return [
+    `${name}状态绝佳，向你投来期待的目光。`,
+    `${name}精神很好，正等待着你的指示。`,
+  ];
+}
+
+function isEvolutionDetailsChangeEvent(step: BattlePlaybackStepV4, event: SemanticEventByKind<"transform">): boolean {
+  if (event.protocolEvent.eventType !== "detailschange") return false;
+  return step.messages.some(message => /进化了/.test(message.message))
+    || step.commands.some(command => command.semanticEvent.kind === "message" && /进化了/.test(command.semanticEvent.text));
+}
+
+function isPlayerSoulmateSlot(slot: {playerId?: string; formalSourceKind?: string} | null | undefined): boolean {
+  return slot?.playerId === "p1" && slot.formalSourceKind === "soulmate-vault";
+}
+
+function deterministicPick(lines: string[], seed: string): string {
+  if (!lines.length) return "";
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+  }
+  return lines[hash % lines.length] || lines[0] || "";
+}
+
+function deterministicPercent(seed: string): number {
+  let hash = 0;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash = (hash * 33 + seed.charCodeAt(index)) >>> 0;
+  }
+  return hash % 100;
 }
 
 function resultCommentary(event: SemanticEventByKind<"result">, api: ChangeBattleV2Api): string {

@@ -5017,11 +5017,17 @@ function syncFormalSoulmateRunTeamToVault(run: FormalGameRunV4, playerVault: Pla
       if (!local) return record;
       return {
         ...record,
-        friendship: Number.isFinite(Number(local.friendship)) ? clampInt(local.friendship, 0, 255, record.friendship) : record.friendship,
+        friendship: syncedSoulmateFriendship(record.friendship, local.friendship),
         heldItemId: normalizeOptionalText(local.itemId),
       };
     }),
   });
+}
+
+function syncedSoulmateFriendship(vaultFriendship: unknown, localFriendship: unknown): number {
+  const current = clampInt(vaultFriendship, 0, 255, 0);
+  if (!Number.isFinite(Number(localFriendship))) return current;
+  return Math.max(current, clampInt(localFriendship, 0, 255, current));
 }
 
 function patchFormalRestP1(restRunSnapshot: TrainingRunGameV4, p1: TrainingPlayerDraftV4, updatedAt: string): TrainingRunGameV4 {
