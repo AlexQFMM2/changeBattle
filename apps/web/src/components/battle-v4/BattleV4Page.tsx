@@ -891,6 +891,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
         <BattleV4SwitchPanel
           api={api}
           snapshot={snapshot}
+          request={viewModel.command.normalizedRequest}
           switchActions={viewModel.command.switchActions}
           forceSwitch={viewModel.command.requestType === "switch"}
           busy={busy}
@@ -1567,7 +1568,7 @@ function BattleV4BagPanel({api, bag, snapshot, request, commandDraft, onClose, o
   onUnavailable: (message: string) => void;
   onSubmitItemChoice: (choice: string) => void;
 }) {
-  const targets = useMemo(() => snapshot ? buildBattleBagTargets(api, bag.items, snapshot) : [], [api, bag.items, snapshot]);
+  const targets = useMemo(() => snapshot ? buildBattleBagTargets(api, bag.items, snapshot, request) : [], [api, bag.items, request, snapshot]);
   const [selection, setSelection] = useState<{item: PlayerItemInstanceV4 | null; target: PlayerBagPokemonTarget | null}>({item: null, target: null});
   const selectedDetail = useMemo(() => selection.item ? safeItemDetail(api, selection.item.itemID) : null, [api, selection.item]);
   const canUse = Boolean(request && selection.item && selection.target && canUseRecoveryItemV4(selection.item, selectedDetail));
@@ -1648,30 +1649,35 @@ function lockedSpecialSystemsForCommand(choices: unknown[]): Set<BattleSpecialSy
   return locked;
 }
 
-function buildBattleBagTargets(api: ChangeBattleV2Api, bagItems: PlayerItemInstanceV4[], snapshot: BattleSessionSnapshotV4): PlayerBagPokemonTarget[] {
+function buildBattleBagTargets(api: ChangeBattleV2Api, bagItems: PlayerItemInstanceV4[], snapshot: BattleSessionSnapshotV4, request: BattleNormalizedRequestV4 | null): PlayerBagPokemonTarget[] {
   const player = snapshot.players.find(entry => entry.playerId === "p1");
   const localTeam = player?.draft.localTeam.pokemon || [];
   const mapping = player?.teamMapping || [];
-  const rows = snapshot.requests.p1?.side?.pokemon || snapshot.debug.latestSidePokemon?.p1 || [];
-  return rows.slice(0, 4).map((row, index) => {
+  const rows = request?.sidePokemon || snapshot.requests.p1?.side?.pokemon || snapshot.debug.latestSidePokemon?.p1 || [];
+  const activeRowsByIndex = new Map((request?.activeTeamIndexes || []).map((teamIndex, activeIndex) => [teamIndex, request?.activeSidePokemon[activeIndex] || null]));
+  const count = Math.max(localTeam.length, rows.length);
+  return Array.from({length: count}, (_, index) => {
+    const row = activeRowsByIndex.get(index) || rows[index] || null;
     const resolved = resolveLocalPokemonFromRequestRow(row, mapping, localTeam, index);
     const pokemon = resolved.localPokemon || localTeam[index] || null;
-    const hp = hpFromCondition(row.condition, pokemon?.entryHp || 0);
-    const maxHp = maxHpFromCondition(row.condition, pokemon?.maxHp || 0);
-    const name = pokemon?.name || row.details.split(",")[0] || row.ident;
+    const teamState = battleTeamStateForSwitchCandidate(snapshot, "p1", pokemon, row);
+    const maxHp = teamState ? Math.max(1, teamState.maxHp || pokemon?.maxHp || 0) : maxHpFromCondition(row?.condition, pokemon?.maxHp || 0);
+    const hp = teamState ? scaleSwitchTeamStateHp(teamState, maxHp) : hpFromCondition(row?.condition, pokemon?.entryHp || 0);
+    const status = teamState ? normalizeSwitchTeamStateStatus(teamState.status) : rowStatus(row);
+    const name = pokemon?.name || row?.details.split(",")[0] || row?.ident || `宝可梦 ${index + 1}`;
     return {
-      key: row.pokeball || resolved.token || pokemon?.showdownIdentityToken || pokemon?.showdownId || pokemon?.pokeballId || `battle-target-${index}`,
+      key: resolved.token || pokemon?.showdownIdentityToken || pokemon?.showdownId || pokemon?.pokeballId || row?.pokeball || pokemon?.localPokemonId || `battle-target-${index}`,
       name,
       nameZh: pokemon?.nameZh || name,
-      level: pokemon?.level || levelFromDetails(row.details),
+      level: pokemon?.level || levelFromDetails(row?.details),
       hp,
       maxHp,
-      status: rowStatus(row),
+      status,
       iconUrl: pokemon?.iconUrl,
       spriteUrl: pokemon?.spriteUrl || pokemon?.frontSpriteUrl || "",
       iconStyle: pokemon?.iconStyle,
-      heldItem: heldItemForBattleTarget(api, bagItems, pokemon, row.item),
-      battleIdLabel: row.pokeball || resolved.token || "",
+      heldItem: heldItemForBattleTarget(api, bagItems, pokemon, row?.item),
+      battleIdLabel: resolved.token || row?.pokeball || "",
     };
   });
 }
@@ -2222,9 +2228,10 @@ type SwitchPanelTeamV4 = {
   candidates: SwitchCandidateV4[];
 };
 
-function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, debugConfig, onOpenStatus, onClose, onConfirm}: {
+function BattleV4SwitchPanel({api, snapshot, request, switchActions, forceSwitch, busy, debugConfig, onOpenStatus, onClose, onConfirm}: {
   api: ChangeBattleV2Api;
   snapshot: BattleSessionSnapshotV4;
+  request: BattleNormalizedRequestV4 | null;
   switchActions: SwitchActionV4[];
   forceSwitch: boolean;
   busy: boolean;
@@ -2233,7 +2240,7 @@ function BattleV4SwitchPanel({api, snapshot, switchActions, forceSwitch, busy, d
   onClose: () => void;
   onConfirm: (choice: string) => void;
 }) {
-  const candidates = useMemo(() => buildSwitchCandidates(snapshot, switchActions, debugConfig), [snapshot, switchActions, debugConfig]);
+  const candidates = useMemo(() => buildSwitchCandidates(snapshot, request, switchActions, debugConfig), [snapshot, request, switchActions, debugConfig]);
   const panelTeams = useMemo(() => buildSwitchPanelTeams(snapshot, candidates), [snapshot, candidates]);
   const enemies = useMemo(() => buildNonCoopEnemySwitchCandidates(snapshot), [snapshot]);
   const isCoop = snapshot.mode === "coop";
@@ -2478,15 +2485,14 @@ function BattleV4SwitchMove({move}: {move: TrainingMoveSlotV4}) {
   );
 }
 
-function buildSwitchCandidates(snapshot: BattleSessionSnapshotV4, switchActions: SwitchActionV4[], debugConfig?: AppDebugConfigV4): SwitchCandidateV4[] {
+function buildSwitchCandidates(snapshot: BattleSessionSnapshotV4, normalizedRequest: BattleNormalizedRequestV4 | null, switchActions: SwitchActionV4[], debugConfig?: AppDebugConfigV4): SwitchCandidateV4[] {
   const request = snapshot.requests.p1;
   const rows = request?.side?.pokemon || [];
   const player = snapshot.players.find(entry => entry.playerId === "p1");
   const localTeam = player?.draft.localTeam.pokemon || [];
   const mapping = player?.teamMapping || [];
   const actionByIndex = new Map(switchActions.map(action => [action.pokemonIndex, action]));
-  const requestLength = request?.forceSwitch?.length || request?.active?.length || 1;
-  const hasActiveFlags = rows.some(row => row.active);
+  const activeTeamIndexes = new Set(normalizedRequest?.activeTeamIndexes || []);
   const count = Math.max(6, rows.length, localTeam.length);
   return Array.from({length: count}, (_, index) => {
     const row = rows[index] || null;
@@ -2507,7 +2513,7 @@ function buildSwitchCandidates(snapshot: BattleSessionSnapshotV4, switchActions:
     const maxHp = teamState ? Math.max(1, teamState.maxHp || localPokemon?.maxHp || 0) : maxHpFromCondition(row?.condition, localPokemon?.maxHp || 0);
     const hp = teamState ? scaleSwitchTeamStateHp(teamState, maxHp) : hpFromCondition(row?.condition, localPokemon?.entryHp || 0);
     const status = teamState ? normalizeSwitchTeamStateStatus(teamState.status) : rowStatus(row) || localPokemon?.entryStatus || "";
-    const active = Boolean(hasActiveFlags ? row?.active : index < requestLength);
+    const active = Boolean(activeTeamIndexes.has(index) || row?.active);
     const fainted = Boolean(teamState?.fainted || hp <= 0 || row?.fainted || row?.condition?.includes("fnt") || localPokemon && localPokemon.entryHp <= 0);
     let reason = "";
     if (!row && !localPokemon) reason = "空位";

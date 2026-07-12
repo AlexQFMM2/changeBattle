@@ -143,6 +143,8 @@ export type BattleNormalizedRequestV4 = {
   requestLength: number;
   activeIndex: number;
   activeRequests: Array<BattleActiveRequestV4 | null>;
+  activeSidePokemon: Array<RequestSidePokemonV4 | null>;
+  activeTeamIndexes: number[];
   forceSwitch: boolean[];
   sidePokemon: RequestSidePokemonV4[];
   readonlyAlly: BattleRequestV4["ally"] | null;
@@ -643,7 +645,7 @@ export function projectBattleViewModelV4(snapshot: BattleSessionSnapshotV4, loca
     slots,
     nearTeam: slots.filter(slot => slot.side === "near"),
     farTeam: slots.filter(slot => slot.side === "far"),
-    command: buildCommandState(snapshot.requests[localPlayerId] || null, localPlayerId, snapshot.mode, snapshot.ruleSet, draft),
+    command: buildCommandState(snapshot, localPlayerId, draft),
     rawLog: snapshot.rawLog.slice(-120),
     error: snapshot.error,
   };
@@ -960,9 +962,10 @@ function normalizeBattleStatus(status: string): LocalPokemonV4["entryStatus"] {
   return "";
 }
 
-function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4, ruleSet: TrainingRuleSetV4, draft?: BattleCommandDraftV4 | null): BattleCommandStateV4 {
+function buildCommandState(snapshot: BattleSessionSnapshotV4, playerId: ShowdownPlayerIdV4, draft?: BattleCommandDraftV4 | null): BattleCommandStateV4 {
+  const request = snapshot.requests[playerId] || null;
   if (!request) return emptyCommandState(playerId);
-  const normalizedRequest = normalizeBattleRequestV4(request, playerId, mode, ruleSet);
+  const normalizedRequest = normalizeBattleRequestV4(request, playerId, snapshot.mode, snapshot.ruleSet, {activePokemon: activePokemonForPlayer(snapshot, playerId)});
   const commandDraft = draft && draftMatchesRequest(draft, normalizedRequest) ? fillBattleCommandPassesV4(draft, normalizedRequest) : createBattleCommandDraftV4(normalizedRequest);
   const {requestType, requestLength} = normalizedRequest;
   const activeIndex = commandDraft.activeIndex;
@@ -977,7 +980,7 @@ function buildCommandState(request: BattleRequestV4 | null, playerId: ShowdownPl
     rqid: normalizedRequest.rqid,
     activeIndex,
     requestLength,
-    activePokemon: activePokemonForRequest(request, activeIndex),
+    activePokemon: activePokemonForRequest(normalizedRequest, activeIndex),
     choices: commandDraft.choices,
     isDone: commandDraft.isDone,
     currentMove: commandDraft.currentMove,
@@ -1352,10 +1355,17 @@ function buildTargetActions(request: BattleNormalizedRequestV4): BattleTargetAct
   return [...farTargets, ...nearTargets];
 }
 
-export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: ShowdownPlayerIdV4, mode: TrainingModeV4, ruleSet: TrainingRuleSetV4): BattleNormalizedRequestV4 {
+export function normalizeBattleRequestV4(
+  request: BattleRequestV4,
+  playerId: ShowdownPlayerIdV4,
+  mode: TrainingModeV4,
+  ruleSet: TrainingRuleSetV4,
+  context: {activePokemon?: BattleActivePokemonV4[]} = {},
+): BattleNormalizedRequestV4 {
   const requestType = requestTypeFor(request);
   const sidePokemon = request.side?.pokemon || [];
-  const activeRequests = fixedActiveRequestsForNormalizedRequest(request, sidePokemon);
+  const activeMapping = resolveActiveSidePokemonForRequest(request, sidePokemon, context.activePokemon || []);
+  const activeRequests = fixedActiveRequestsForNormalizedRequest(request, activeMapping.activeSidePokemon);
   const forceSwitch = request.forceSwitch || [];
   const requestLength = requestLengthForNormalizedRequest(request, requestType);
   return {
@@ -1369,6 +1379,8 @@ export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: Sho
     requestLength,
     activeIndex: firstActionableActiveIndex(request, requestType, activeRequests),
     activeRequests,
+    activeSidePokemon: activeMapping.activeSidePokemon,
+    activeTeamIndexes: activeMapping.activeTeamIndexes,
     forceSwitch,
     sidePokemon,
     readonlyAlly: request.ally || null,
@@ -1377,8 +1389,38 @@ export function normalizeBattleRequestV4(request: BattleRequestV4, playerId: Sho
   };
 }
 
-function fixedActiveRequestsForNormalizedRequest(request: BattleRequestV4, sidePokemon: RequestSidePokemonV4[]): Array<BattleActiveRequestV4 | null> {
-  return (request.active || []).map((active, index) => sidePokemonCanCommand(sidePokemon[index]) ? normalizeActiveRequestSpecials(active) : null);
+function resolveActiveSidePokemonForRequest(
+  request: BattleRequestV4,
+  sidePokemon: RequestSidePokemonV4[],
+  actives: BattleActivePokemonV4[],
+): {activeSidePokemon: Array<RequestSidePokemonV4 | null>; activeTeamIndexes: number[]} {
+  const used = new Set<number>();
+  const sortedActives = actives.slice().sort((a, b) => activeIndexFromSlot(a.slot) - activeIndexFromSlot(b.slot));
+  const requestLength = request.active?.length || request.forceSwitch?.length || 0;
+  const activeSidePokemon = Array.from({length: requestLength}, (_, activeIndex) => {
+    const active = sortedActives[activeIndex] || null;
+    const rowIndex = active
+      ? findRequestRowIndexForActive(sidePokemon, active, activeIndex, used)
+      : findActiveRequestRowIndexByOrder(sidePokemon, activeIndex, used);
+    if (rowIndex < 0) return null;
+    used.add(rowIndex);
+    return sidePokemon[rowIndex] || null;
+  });
+  const activeTeamIndexes = activeSidePokemon.map(row => row ? sidePokemon.indexOf(row) : -1);
+  return {activeSidePokemon, activeTeamIndexes};
+}
+
+function findActiveRequestRowIndexByOrder(sidePokemon: RequestSidePokemonV4[], activeIndex: number, used: Set<number>): number {
+  const activeRows = sidePokemon
+    .map((row, index) => ({row, index}))
+    .filter(entry => entry.row.active);
+  const orderedRow = activeRows[activeIndex];
+  if (orderedRow && !used.has(orderedRow.index)) return orderedRow.index;
+  return activeRows.find(entry => !used.has(entry.index))?.index ?? -1;
+}
+
+function fixedActiveRequestsForNormalizedRequest(request: BattleRequestV4, activeSidePokemon: Array<RequestSidePokemonV4 | null>): Array<BattleActiveRequestV4 | null> {
+  return (request.active || []).map((active, index) => sidePokemonCanCommand(activeSidePokemon[index] || undefined) ? normalizeActiveRequestSpecials(active) : null);
 }
 
 function normalizeActiveRequestSpecials(active: BattleActiveRequestV4 | null | undefined): BattleActiveRequestV4 | null {
@@ -1440,8 +1482,8 @@ function firstActionableActiveIndex(request: BattleRequestV4, requestType: Battl
   return index && index > 0 ? index : 0;
 }
 
-function activePokemonForRequest(request: BattleRequestV4, index: number): BattleCommandStateV4["activePokemon"] {
-  const pokemon = request.side?.pokemon?.[index];
+function activePokemonForRequest(request: BattleNormalizedRequestV4, index: number): BattleCommandStateV4["activePokemon"] {
+  const pokemon = request.activeSidePokemon[index];
   if (!pokemon) return null;
   return {
     ident: pokemon.ident,
@@ -1500,7 +1542,7 @@ function switchDisabledReason(request: BattleNormalizedRequestV4, teamIndex: num
 }
 
 function activeSlotNeedsReplacement(request: BattleNormalizedRequestV4, activeIndex: number): boolean {
-  const pokemon = request.sidePokemon[activeIndex];
+  const pokemon = request.activeSidePokemon[activeIndex] || request.sidePokemon[request.activeTeamIndexes[activeIndex]];
   return Boolean(request.forceSwitch[activeIndex] && pokemon);
 }
 
@@ -1519,8 +1561,7 @@ function selectedSwitchIndexes(choices: string[]): Set<number> {
 }
 
 function pokemonIsActiveForSwitch(request: BattleNormalizedRequestV4, teamIndex: number): boolean {
-  const activeSlotCount = Math.max(1, request.rawRequest.forceSwitch?.length || request.rawRequest.active?.length || request.activeRequests.length || request.requestLength || 1);
-  return teamIndex < activeSlotCount;
+  return request.activeTeamIndexes.includes(teamIndex) || Boolean(request.sidePokemon[teamIndex]?.active);
 }
 
 function buildViewSlots(snapshot: BattleSessionSnapshotV4): BattleViewSlotV4[] {
@@ -1922,16 +1963,17 @@ function findRequestRowIndexForActive(requestRows: RequestSidePokemonV4[], activ
   if (activeRowIndex >= 0) return activeRowIndex;
   const activeRows = requestRows
     .map((row, index) => ({row, index}))
-    .filter(entry => entry.row.active && !usedIndices.has(entry.index));
+    .filter(entry => entry.row.active);
   const speciesTokens = speciesTokensForActive(active);
   const ordered = activeRows[fallbackIndex];
-  if (ordered && (!speciesTokens.size || protocolSpeciesTokensMatch(speciesTokens, [ordered.row.details.split(",")[0] || "", ordered.row.name, ordered.row.ident.split(":").pop() || ""]))) return ordered.index;
+  if (ordered && !usedIndices.has(ordered.index) && (!speciesTokens.size || protocolSpeciesTokensMatch(speciesTokens, [ordered.row.details.split(",")[0] || "", ordered.row.name, ordered.row.ident.split(":").pop() || ""]))) return ordered.index;
   const speciesRow = activeRows.find(entry =>
+    !usedIndices.has(entry.index) &&
     protocolSpeciesTokensMatch(speciesTokens, [entry.row.details.split(",")[0] || "", entry.row.name, entry.row.ident.split(":").pop() || ""])
   );
   if (speciesRow) return speciesRow.index;
   if (activeIdentityTokens.size) return -1;
-  return ordered?.index ?? -1;
+  return activeRows.find(entry => !usedIndices.has(entry.index))?.index ?? -1;
 }
 
 function speciesTokensForActive(active: BattleActivePokemonV4): Set<string> {

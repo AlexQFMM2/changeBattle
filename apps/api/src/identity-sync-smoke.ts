@@ -660,6 +660,48 @@ assert(doublesMove.requestLength === 2, "doubles move requestLength mismatch");
 assert(doublesMove.activeIndex === 0, "doubles move activeIndex mismatch");
 assert(doublesMove.targetable, "doubles move should be targetable like Showdown client fixRequest");
 
+const outOfOrderActiveRequest: BattleRequestV4 = {
+  ...moveRequest(2),
+  active: [
+    {moves: [{move: "Electro Ball", id: "electroball", pp: 10, maxpp: 10, target: "normal"}]},
+    {moves: [{move: "Volt Switch", id: "voltswitch", pp: 20, maxpp: 20, target: "normal"}]},
+  ],
+  side: {
+    id: "p1",
+    name: "P1",
+    pokemon: [
+      {...sidePokemon(mapping[0]!.showdownIdentityToken, "100/100", false), ident: "p1: Charizard", details: "Charizard, L50, M", name: "Charizard"},
+      {...sidePokemon(mapping[1]!.showdownIdentityToken, "80/100", false), ident: "p1: Dragonite", details: "Dragonite, L50, M", name: "Dragonite"},
+      {...sidePokemon(mapping[2]!.showdownIdentityToken, "66/100", true), ident: "p1: Pikachu", details: "Pikachu, L50", name: "Pikachu"},
+      {...sidePokemon("masterball", "44/100", true), ident: "p1: Raichu", details: "Raichu, L50", name: "Raichu"},
+    ],
+  },
+};
+const outOfOrderNormalized = normalizeBattleRequestV4(outOfOrderActiveRequest, "p1", "doubles", "standard");
+assert(outOfOrderNormalized.activeTeamIndexes.join(",") === "2,3", `active rows should come from row.active flags, got ${outOfOrderNormalized.activeTeamIndexes.join(",")}`);
+assert(outOfOrderNormalized.activeSidePokemon[0]?.name === "Pikachu", "first active request should map to active team row 3, not side row 1");
+assert(outOfOrderNormalized.activeSidePokemon[1]?.name === "Raichu", "second active request should map to active team row 4, not side row 2");
+const outOfOrderFirstRequest = outOfOrderNormalized.activeRequests[0];
+assert(outOfOrderFirstRequest, "first active request should be actionable");
+const outOfOrderFirstMove = (outOfOrderFirstRequest.moves || [])[0];
+assert(outOfOrderFirstMove?.id === "electroball", "first active move request should remain aligned with first active slot");
+const outOfOrderView = projectBattleViewModelV4({
+  ...protocolActiveSnapshot,
+  requests: {p1: outOfOrderActiveRequest},
+}, "p1");
+assert(outOfOrderView.command.normalizedRequest?.activeTeamIndexes.join(",") === "2,3", `command projection should preserve real active team indexes, got ${outOfOrderView.command.normalizedRequest?.activeTeamIndexes.join(",")}`);
+assert(outOfOrderView.command.activePokemon?.name === "Pikachu", `command active title should use real active side row, got ${JSON.stringify(outOfOrderView.command.activePokemon)}`);
+const outOfOrderMoveActions = outOfOrderView.command.actions.filter(action => action.kind === "move");
+assert(outOfOrderMoveActions[0]?.move.id === "electroball", "move panel should show current active slot moves instead of stale side row moves");
+const outOfOrderBenchOne = outOfOrderView.command.switchActions.find(action => action.pokemonIndex === 0);
+const outOfOrderBenchTwo = outOfOrderView.command.switchActions.find(action => action.pokemonIndex === 1);
+const outOfOrderActiveOne = outOfOrderView.command.switchActions.find(action => action.pokemonIndex === 2);
+const outOfOrderActiveTwo = outOfOrderView.command.switchActions.find(action => action.pokemonIndex === 3);
+assert(outOfOrderBenchOne?.choice === "switch 1" && outOfOrderBenchOne.disabledReason !== "当前出战", "switch row 1 should keep original choice index and stay bench");
+assert(outOfOrderBenchTwo?.choice === "switch 2" && outOfOrderBenchTwo.disabledReason !== "当前出战", "switch row 2 should keep original choice index and stay bench");
+assert(outOfOrderActiveOne?.disabledReason === "当前出战", `team row 3 should be marked active, got ${outOfOrderActiveOne?.disabledReason}`);
+assert(outOfOrderActiveTwo?.disabledReason === "当前出战", `team row 4 should be marked active, got ${outOfOrderActiveTwo?.disabledReason}`);
+
 const faintedDoublesMove = normalizeBattleRequestV4({
   ...moveRequest(2),
   active: [
