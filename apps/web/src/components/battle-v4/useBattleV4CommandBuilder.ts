@@ -62,7 +62,7 @@ export function useBattleV4CommandBuilder(options: UseBattleV4CommandBuilderOpti
     if (battleStatus !== "running" || (normalizedRequest?.requestType !== "move" && normalizedRequest?.requestType !== "switch")) {
       onSwitchPanelOpenChange?.(false);
     }
-  }, [battleStatus, normalizedRequest, onCommandModeChange, onSwitchPanelOpenChange, requestResetKey]);
+  }, [battleStatus, requestResetKey]);
 
   const resetTransientChoice = useCallback(() => {
     setPendingMoveAction(null);
