@@ -1549,7 +1549,6 @@ function switchDisabledReason(request: BattleNormalizedRequestV4, teamIndex: num
   if (pokemon.fainted || conditionIsFainted(pokemon.condition)) return "已经倒下";
   const active = request.activeRequests[activeIndex];
   if (request.requestType !== "switch" && active?.trapped) return "被束缚，无法换下";
-  if (request.requestType !== "switch" && active?.maybeTrapped) return "可能被束缚，暂不能换人";
   return "";
 }
 

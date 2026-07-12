@@ -845,6 +845,19 @@ secondSlotSwitchDraft = addBattleCommandChoiceV4(secondSlotSwitchDraft, firstSlo
 assert(isBattleCommandDraftDoneV4(secondSlotSwitchDraft), "second slot switch should complete draft");
 assert(stringifyBattleCommandDraftV4(secondSlotSwitchDraft) === "move 1 +1, switch 3", "second slot switch final choice mismatch");
 
+const maybeTrappedMove = normalizeBattleRequestV4({
+  ...moveRequest(1),
+  active: [
+    {maybeTrapped: true, moves: [{move: "Shadow Punch", id: "shadowpunch", pp: 20, maxpp: 20, target: "normal"}]},
+  ],
+}, "p1", "singles", "standard");
+const maybeTrappedView = projectBattleViewModelV4({
+  ...protocolActiveSnapshot,
+  requests: {p1: maybeTrappedMove.rawRequest},
+}, "p1");
+const maybeTrappedBench = maybeTrappedView.command.switchActions.find(action => action.pokemonIndex === 2);
+assert(maybeTrappedBench && !maybeTrappedBench.disabled, "maybeTrapped should follow Showdown Client and keep switch action available");
+
 const waitDraft = createBattleCommandDraftV4(waitRequest);
 assert(isBattleCommandDraftDoneV4(waitDraft), "wait draft should be done");
 assert(stringifyBattleCommandDraftV4(waitDraft) === "", "wait draft should stringify empty");

@@ -362,6 +362,35 @@ function showdownChoiceValidationSmoke() {
   if (reorderedFaintedSwitch.ok || (!reorderedFaintedSwitch.ok && reorderedFaintedSwitch.reason !== "invalid-switch")) {
     throw new Error(`reordered side should reject fainted bench switch: ${JSON.stringify(reorderedFaintedSwitch)}`);
   }
+  const maybeTrappedRequest: BattleServiceRequestV4 = {
+    targetable: false,
+    active: [{maybeTrapped: true, moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35, target: "normal"}]}],
+    side: {id: "p1", name: "A", pokemon: [
+      {ident: "p1: Eevee", details: "Eevee, L50", condition: "100/100", active: true},
+      {ident: "p1: Pikachu", details: "Pikachu, L50", condition: "100/100", active: false},
+    ]},
+  };
+  const maybeTrappedSwitch = validateShowdownChoiceCommandV4({request: maybeTrappedRequest, choice: "switch 2"});
+  if (!maybeTrappedSwitch.ok) throw new Error(`maybeTrapped should match Showdown Client and allow tentative switch: ${JSON.stringify(maybeTrappedSwitch)}`);
+  const teamPreviewRequest: BattleServiceRequestV4 = {
+    teamPreview: true,
+    chosenTeamSize: 2,
+    side: {id: "p1", name: "A", pokemon: [
+      {ident: "p1: A", details: "A, L50", condition: "100/100"},
+      {ident: "p1: B", details: "B, L50", condition: "100/100"},
+      {ident: "p1: C", details: "C, L50", condition: "100/100"},
+    ]},
+  };
+  const teamOk = validateShowdownChoiceCommandV4({request: teamPreviewRequest, choice: "team 1, 2"});
+  const teamWrongCount = validateShowdownChoiceCommandV4({request: teamPreviewRequest, choice: "team 1, 2, 3"});
+  const teamDuplicate = validateShowdownChoiceCommandV4({request: teamPreviewRequest, choice: "team 1, 1"});
+  if (!teamOk.ok) throw new Error(`team preview expected size should validate: ${JSON.stringify(teamOk)}`);
+  if (teamWrongCount.ok || (!teamWrongCount.ok && teamWrongCount.reason !== "wrong-choice-count")) {
+    throw new Error(`team preview should reject wrong count: ${JSON.stringify(teamWrongCount)}`);
+  }
+  if (teamDuplicate.ok || (!teamDuplicate.ok && teamDuplicate.reason !== "duplicate-switch")) {
+    throw new Error(`team preview should reject duplicate slots: ${JSON.stringify(teamDuplicate)}`);
+  }
   const rawFixRequest: BattleServiceRequestV4 = {
     active: [
       {moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35}]},
@@ -430,6 +459,186 @@ function activeMaxMoveTargetValidationSmoke() {
     throw new Error(`active max fallback should include legal target: ${fallback}; ${JSON.stringify(fallbackValidation)}`);
   }
   console.log("showdown-battle-core active max move target validation smoke ok");
+}
+
+function showdownChoicePressureMatrixSmoke() {
+  const doublesBaseSide: BattleServiceRequestV4["side"] = {
+    id: "p1",
+    name: "A",
+    pokemon: [
+      {ident: "p1: Alpha", details: "Alpha, L50", condition: "100/100", active: true},
+      {ident: "p1: Beta", details: "Beta, L50", condition: "100/100", active: true},
+      {ident: "p1: Gamma", details: "Gamma, L50", condition: "100/100", active: false},
+      {ident: "p1: Fainted", details: "Fainted, L50", condition: "0 fnt", active: false, fainted: true},
+    ],
+  };
+  const targetMatrixRequest: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {moves: [
+        {move: "Tackle", id: "tackle", pp: 35, maxpp: 35, target: "normal"},
+        {move: "Heal Pulse", id: "healpulse", pp: 10, maxpp: 16, target: "adjacentAlly"},
+        {move: "Acupressure", id: "acupressure", pp: 20, maxpp: 30, target: "adjacentAllyOrSelf"},
+        {move: "Protect", id: "protect", pp: 10, maxpp: 16, target: "self"},
+      ]},
+      {moves: [
+        {move: "Aura Sphere", id: "aurasphere", pp: 14, maxpp: 24, target: "any"},
+        {move: "Heat Wave", id: "heatwave", pp: 10, maxpp: 16, target: "allAdjacentFoes"},
+        {move: "Earthquake", id: "earthquake", pp: 10, maxpp: 16, target: "allAdjacent"},
+        {move: "Rain Dance", id: "raindance", pp: 5, maxpp: 8, target: "all"},
+      ]},
+    ],
+    side: doublesBaseSide,
+  };
+  const targetCases: Array<{choice: string; ok: boolean; reason?: string}> = [
+    {choice: "move 1 +1, move 4", ok: true},
+    {choice: "move 1 +2, move 4", ok: true},
+    {choice: "move 1 -2, move 4", ok: true},
+    {choice: "move 1 -1, move 4", ok: false, reason: "invalid-target"},
+    {choice: "move 2 -2, move 4", ok: true},
+    {choice: "move 2 -1, move 4", ok: false, reason: "invalid-target"},
+    {choice: "move 3 -1, move 4", ok: true},
+    {choice: "move 3 -2, move 4", ok: true},
+    {choice: "move 4 +1, move 4", ok: false, reason: "forbidden-target"},
+    {choice: "move 1 +1, move 1 +2", ok: true},
+    {choice: "move 1 +1, move 1 -1", ok: true},
+    {choice: "move 1 +1, move 1 -2", ok: false, reason: "invalid-target"},
+    {choice: "move 1 +1, move 2 +1", ok: false, reason: "forbidden-target"},
+    {choice: "move 1 +1, move 3 +1", ok: false, reason: "forbidden-target"},
+  ];
+  for (const entry of targetCases) {
+    expectChoiceValidation("target-matrix", targetMatrixRequest, entry.choice, entry.ok, entry.reason);
+  }
+  expectGeneratedChoiceValid("target-matrix-fallback", targetMatrixRequest, randomLegalChoice(targetMatrixRequest));
+  const targetAi = chooseAiBattleChoiceV4({playerId: "p2", request: targetMatrixRequest, snapshot: aiSnapshot("gen9", "doubles", targetMatrixRequest), rngSeed: "pressure-target-matrix"});
+  expectGeneratedChoiceValid("target-matrix-ai", targetMatrixRequest, targetAi.choice);
+
+  const specialRequest: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {
+        moves: [
+          {move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 15, target: "normal"},
+          {move: "Protect", id: "protect", pp: 10, maxpp: 10, target: "self"},
+        ],
+        canZMove: [
+          {move: "Gigavolt Havoc", id: "gigavolthavoc", target: "normal"},
+          null,
+        ],
+        maxMoves: {
+          maxMoves: [
+            {move: "Max Lightning", id: "maxlightning", target: "adjacentFoe"},
+            {move: "Max Guard", id: "maxguard", target: "self"},
+          ],
+        },
+        canDynamax: true,
+      },
+      {moves: [{move: "Recharge", id: "recharge"}]},
+    ],
+    side: doublesBaseSide,
+  };
+  const specialCases: Array<{choice: string; ok: boolean; reason?: string}> = [
+    {choice: "move 1 zmove +1, move 1", ok: true},
+    {choice: "move 1 zmove, move 1", ok: false, reason: "missing-target"},
+    {choice: "move 2 max, move 1", ok: true},
+    {choice: "move 2 max +1, move 1", ok: false, reason: "forbidden-target"},
+    {choice: "move 1 max +2, move 1", ok: true},
+  ];
+  for (const entry of specialCases) {
+    expectChoiceValidation("special-matrix", specialRequest, entry.choice, entry.ok, entry.reason);
+  }
+  expectGeneratedChoiceValid("special-matrix-fallback", specialRequest, randomLegalChoice(specialRequest));
+
+  const forcedAndDisabledRequest: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {moves: [{move: "Bounce", id: "bounce"}]},
+      {moves: [
+        {move: "Tackle", id: "tackle", pp: 0, maxpp: 35, target: "normal"},
+        {move: "Protect", id: "protect", pp: 10, maxpp: 16, target: "self"},
+      ]},
+    ],
+    side: doublesBaseSide,
+  };
+  expectChoiceValidation("forced-no-target", forcedAndDisabledRequest, "move 1, move 2", true);
+  expectChoiceValidation("forced-target-forbidden", forcedAndDisabledRequest, "move 1 +1, move 2", false, "forbidden-target");
+  expectChoiceValidation("disabled-pp", forcedAndDisabledRequest, "move 1, move 1 +1", false, "disabled-move");
+  expectGeneratedChoiceValid("forced-disabled-fallback", forcedAndDisabledRequest, randomLegalChoice(forcedAndDisabledRequest));
+
+  const reorderedSwitchRequest: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35}]},
+      {moves: [{move: "Recharge", id: "recharge"}]},
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: BenchA", details: "BenchA, L50", condition: "100/100", active: false},
+        {ident: "p1: ActiveA", details: "ActiveA, L50", condition: "100/100", active: true},
+        {ident: "p1: BenchB", details: "BenchB, L50", condition: "100/100", active: false},
+        {ident: "p1: ActiveB", details: "ActiveB, L50", condition: "100/100", active: true},
+      ],
+    },
+  };
+  expectChoiceValidation("reordered-switch-bench-a", reorderedSwitchRequest, "switch 1, move 1", true);
+  expectChoiceValidation("reordered-switch-active-a", reorderedSwitchRequest, "switch 2, move 1", false, "invalid-switch");
+  expectChoiceValidation("reordered-switch-bench-b", reorderedSwitchRequest, "switch 3, move 1", true);
+  expectChoiceValidation("reordered-switch-active-b", reorderedSwitchRequest, "switch 4, move 1", false, "invalid-switch");
+  expectGeneratedChoiceValid("reordered-switch-fallback", reorderedSwitchRequest, randomLegalChoice(reorderedSwitchRequest));
+
+  const forceSwitchRequest: BattleServiceRequestV4 = {
+    forceSwitch: [true, true],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: ActiveA", details: "ActiveA, L50", condition: "0 fnt", active: true, fainted: true},
+        {ident: "p1: ActiveB", details: "ActiveB, L50", condition: "0 fnt", active: true, fainted: true},
+        {ident: "p1: BenchA", details: "BenchA, L50", condition: "100/100", active: false},
+        {ident: "p1: BenchB", details: "BenchB, L50", condition: "100/100", active: false},
+        {ident: "p1: BenchFainted", details: "BenchFainted, L50", condition: "0 fnt", active: false, fainted: true},
+      ],
+    },
+  };
+  expectChoiceValidation("force-switch-unique", forceSwitchRequest, "switch 3, switch 4", true);
+  expectChoiceValidation("force-switch-duplicate", forceSwitchRequest, "switch 3, switch 3", false, "duplicate-switch");
+  expectChoiceValidation("force-switch-fainted", forceSwitchRequest, "switch 5, switch 4", false, "invalid-switch");
+  expectGeneratedChoiceValid("force-switch-fallback", forceSwitchRequest, randomLegalChoice(forceSwitchRequest));
+
+  const teamPreviewRequest: BattleServiceRequestV4 = {
+    teamPreview: true,
+    chosenTeamSize: 3,
+    side: {id: "p1", name: "A", pokemon: [
+      {ident: "p1: A", details: "A, L50", condition: "100/100"},
+      {ident: "p1: B", details: "B, L50", condition: "100/100"},
+      {ident: "p1: C", details: "C, L50", condition: "100/100"},
+      {ident: "p1: D", details: "D, L50", condition: "100/100"},
+    ]},
+  };
+  expectChoiceValidation("team-preview-ok", teamPreviewRequest, "team 4, 2, 1", true);
+  expectChoiceValidation("team-preview-short", teamPreviewRequest, "team 1, 2", false, "wrong-choice-count");
+  expectChoiceValidation("team-preview-duplicate", teamPreviewRequest, "team 1, 2, 1", false, "duplicate-switch");
+  expectGeneratedChoiceValid("team-preview-fallback", teamPreviewRequest, randomLegalChoice(teamPreviewRequest));
+
+  const trainerItemPlaceholderChoice = "pass, move 1";
+  expectChoiceValidation("trainer-item-placeholder", forcedAndDisabledRequest, trainerItemPlaceholderChoice, false, "parse-error");
+  console.log("showdown-battle-core choice pressure matrix smoke ok");
+}
+
+function expectChoiceValidation(label: string, request: BattleServiceRequestV4, choice: string, ok: boolean, reason?: string): void {
+  const result = validateShowdownChoiceCommandV4({request, choice});
+  if (result.ok !== ok || (!result.ok && reason && result.reason !== reason)) {
+    throw new Error(`${label} choice validation mismatch for ${choice}: ${JSON.stringify(result)}`);
+  }
+}
+
+function expectGeneratedChoiceValid(label: string, request: BattleServiceRequestV4, choice: string): void {
+  const result = validateShowdownChoiceCommandV4({request, choice});
+  if (!choice || !result.ok) {
+    throw new Error(`${label} generated invalid choice: ${choice}; ${JSON.stringify(result)}`);
+  }
 }
 
 function duplicateForceSwitchChoiceSmoke() {
@@ -1558,7 +1767,7 @@ function aiLockedMoveMissingTargetSmoke() {
       {
         trapped: true,
         moves: [
-          {move: "Bounce", id: "bounce"},
+          {id: "dig"},
         ],
       },
     ],
@@ -1582,8 +1791,16 @@ function aiLockedMoveMissingTargetSmoke() {
   });
   const validation = validateShowdownChoiceCommandV4({request, choice: result.choice});
   if (!validation.ok) throw new Error(`AI locked missing-target choice should validate: ${result.choice}; ${JSON.stringify(validation)}; ${JSON.stringify(result.debug)}`);
-  if (result.choice === "move 1 +1, move 1" || /,\s*move 1$/.test(result.choice)) {
-    throw new Error(`AI should not submit a bare locked Bounce choice in doubles: ${result.choice}`);
+  const forcedWithTarget = validateShowdownChoiceCommandV4({request, choice: "move 1 +1, move 1 +1"});
+  if (forcedWithTarget.ok) {
+    throw new Error("server-forced Dig should reject manual target suffix");
+  }
+  const forcedWithoutTarget = validateShowdownChoiceCommandV4({request, choice: "move 1 +1, move 1"});
+  if (!forcedWithoutTarget.ok) {
+    throw new Error(`server-forced Dig should accept bare move: ${JSON.stringify(forcedWithoutTarget)}`);
+  }
+  if (/,\s*move 1\s+[+-]\d/.test(result.choice)) {
+    throw new Error(`AI should not append a target to server-forced Dig: ${result.choice}`);
   }
   console.log("showdown-battle-core ai locked missing-target smoke ok");
 }
@@ -1895,6 +2112,7 @@ void smoke()
   .then(showdownCommandReferenceSmoke)
   .then(showdownChoiceValidationSmoke)
   .then(activeMaxMoveTargetValidationSmoke)
+  .then(showdownChoicePressureMatrixSmoke)
   .then(humanInvalidChoicePreflightSmoke)
   .then(aiPureChoiceSmoke)
   .then(aiSpecialSystemSmoke)

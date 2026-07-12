@@ -244,7 +244,8 @@ export function fallbackLegalChoiceV4(request: BattleServiceRequestV4 | undefine
   if (normalized.wait) return "";
   if (normalized.teamPreview) {
     const count = normalized.side?.pokemon?.length || 1;
-    return firstValidChoice(normalized, [`team ${Array.from({length: count}, (_, index) => index + 1).join(",")}`]) || "";
+    const chosenCount = Math.max(1, Math.min(count, Math.floor(Number(normalized.chosenTeamSize || normalized.maxChosenTeamSize || count) || count)));
+    return firstValidChoice(normalized, [`team ${Array.from({length: chosenCount}, (_, index) => index + 1).join(",")}`]) || "";
   }
   if (normalized.forceSwitch?.some(Boolean)) {
     const reservedSwitches = new Set<number>();
@@ -271,7 +272,7 @@ function fallbackChoicesForActiveSlot(
       choices.push(`move ${entry.index + 1}${target ? ` ${target}` : ""}`);
     }
   }
-  if (!active.trapped && !active.maybeTrapped) {
+  if (!active.trapped) {
     const reservedSwitches = new Set<number>();
     const switchChoice = legalSwitchChoice(request, reservedSwitches);
     if (switchChoice !== "pass") choices.push(switchChoice);
@@ -371,7 +372,7 @@ function generateMoveTurnCandidates(
         }
       }
     }
-    if (!active.trapped && !active.maybeTrapped) {
+    if (!active.trapped) {
       actions.push(...switchCandidatesForSlot(request, activeIndex, context, profile, rng));
     }
     if (!actions.length) actions.push(scoreCandidate({choice: "move 1", kind: "move", activeIndex, features: {...emptyFeatures(), damage: 5}}, context, profile, rng));

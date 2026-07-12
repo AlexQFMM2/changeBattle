@@ -135,12 +135,13 @@ export type BattleServiceSessionInputV4 = {
 };
 
 export type BattleServiceMoveRequestV4 = {
-  move: string;
-  id: string;
+  move?: string;
+  id?: string;
   pp?: number;
   maxpp?: number;
   target?: string;
   disabled?: boolean;
+  serverForced?: boolean;
 };
 
 export type BattleServiceSidePokemonV4 = {
@@ -163,6 +164,8 @@ export type BattleServiceRequestV4 = {
   rqid?: number;
   wait?: boolean;
   teamPreview?: boolean;
+  chosenTeamSize?: number;
+  maxChosenTeamSize?: number;
   targetable?: boolean;
   active?: Array<{
     moves?: BattleServiceMoveRequestV4[];

@@ -339,19 +339,17 @@ export async function submitTrainerItem(input: BattleServiceSubmitTrainerItemInp
   if (!request.active?.length) throw new Error("当前不是出招阶段，不能使用战斗道具。");
   installTrainerItemRunAction(session);
   const actions = trainerItems.map(action => buildTrainerItemAction(session, input.playerId, action));
-  side.clearChoice();
-  let accepted = side.choose(choice);
-  if (!accepted && choice.split(",").some(part => part.trim() === "pass")) {
-    const fallbackChoice = choice.split(",").map((part, index) =>
+  const fallbackChoice = choice.split(",").some(part => part.trim() === "pass")
+    ? choice.split(",").map((part, index) =>
       part.trim() === "pass" && actions.some(action => action.requestActiveIndex === index)
         ? trainerItemPlaceholderChoice(request, index)
         : part.trim()
-    ).join(", ");
-    assertChoiceValidForSession(session, input.playerId, fallbackChoice, "human");
-    side.clearChoice();
-    accepted = side.choose(fallbackChoice);
-    if (accepted) session.snapshot.debug.inputLog.push(`[BattleV4][trainer-item-placeholder] ${choice} -> ${fallbackChoice}`);
-  }
+    ).join(", ")
+    : choice;
+  assertChoiceValidForSession(session, input.playerId, fallbackChoice, "human");
+  side.clearChoice();
+  const accepted = side.choose(fallbackChoice);
+  if (accepted && fallbackChoice !== choice) session.snapshot.debug.inputLog.push(`[BattleV4][trainer-item-placeholder] ${choice} -> ${fallbackChoice}`);
   if (!accepted) throw new Error(side.choice?.error || "战斗道具占位指令无效。");
   const sideActions = side.choice.actions || [];
   for (const trainerAction of actions) {
@@ -360,8 +358,8 @@ export async function submitTrainerItem(input: BattleServiceSubmitTrainerItemInp
     else sideActions.splice(Math.min(trainerAction.requestActiveIndex, sideActions.length), 0, trainerAction);
   }
   side.choice.actions = sideActions;
-  session.snapshot.debug.lastChoices.push({playerId: input.playerId, choice: `[trainer-item] ${choice}`, at: new Date().toISOString()});
-  session.snapshot.debug.inputLog.push(`>${input.playerId} ${choice} [trainer-item]`);
+  session.snapshot.debug.lastChoices.push({playerId: input.playerId, choice: `[trainer-item] ${fallbackChoice}`, at: new Date().toISOString()});
+  session.snapshot.debug.inputLog.push(`>${input.playerId} ${fallbackChoice} [trainer-item]`);
   if (battle.allChoicesDone()) {
     battle.commitChoices();
     battle.sendUpdates();

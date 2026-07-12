@@ -4,7 +4,7 @@
 // 严禁随意修改；只有确认 Showdown Client 对应实现来源与差异后，才允许调整这里的战斗行为。
 import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
 import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleTeamPokemonStateV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, FormalGameRunV4, LocalPokemonV4, PlayerItemInstanceV4, PlayerVaultV4, RequestSidePokemonV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
-import {addBattleCommandChoiceV4, appendBattleSpecialChoiceSuffixV4, battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, formalRoundStageLabelV4, isBattleCommandDraftDoneV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, setBattleCommandCurrentMoveV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, splitBattleTrainerItemChoicesV4, stringifyBattleCommandDraftV4, stringifyBattleTrainerItemChoiceV4, translateDexLabel, undoBattleCommandChoiceV4, validShowdownTargetLocV4, withBattleMoveTargetSuffixV4} from "@changebattle-v2/api";
+import {battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, formalRoundStageLabelV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, resolveLocalPokemonFromRequestRow, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, splitBattleTrainerItemChoicesV4, stringifyBattleTrainerItemChoiceV4, translateDexLabel, validShowdownTargetLocV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
@@ -17,6 +17,7 @@ import {getBattleV4ActiveTimelineActorVisuals, getBattleV4ActiveTimelineFxVisual
 import {visualSeatClassForSeat} from "./battleV4VisualSeats";
 import type {ShowdownAnimationStepV4} from "./battleV4ShowdownAnimationAdapter";
 import type {BattleV4ScheduledTimelineStep} from "./useBattleV4ShowdownTimelineRunner";
+import {useBattleV4CommandBuilder} from "./useBattleV4CommandBuilder";
 import {PlayerBagPanel, type PlayerBagAction, type PlayerBagPokemonTarget} from "../training/PlayerBagPanel";
 import "./BattleV4Page.css";
 
@@ -229,9 +230,6 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
   const [switchPanelOpen, setSwitchPanelOpen] = useState(false);
   const [battleBagOpen, setBattleBagOpen] = useState(false);
   const [commandMode, setCommandMode] = useState<"command" | "moves">("command");
-  const [pendingMoveAction, setPendingMoveAction] = useState<MoveActionV4 | null>(null);
-  const [commandDraft, setCommandDraft] = useState<BattleCommandDraftV4 | null>(null);
-  const [choiceStatus, setChoiceStatus] = useState("");
   const [lastSubmitError, setLastSubmitError] = useState<BattleSubmitErrorV4 | null>(null);
   const skipAnimations = false;
   const [previewMove, setPreviewMove] = useState<DexMoveDetail | null>(null);
@@ -256,6 +254,40 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
   const trainerItemAutoSubmitKeyRef = useRef("");
   const narrativeSessionKey = useMemo(() => battleV4NarrativeSessionKey(sessionId), [sessionId]);
   const rawViewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
+  const requestResetKey = useMemo(() => requestKeyForCommand(rawViewModel?.command.request || null, rawViewModel?.command.requestType || "none"), [rawViewModel?.command.request, rawViewModel?.command.requestType]);
+  const {
+    commandDraft,
+    pendingMoveAction,
+    choiceStatus,
+    setChoiceStatus,
+    setPendingMoveAction,
+    clearDraft: clearCommandDraft,
+    applyChoice: applyDraftChoice,
+    draftMoveAction: draftCommandMoveAction,
+    applyMoveTarget,
+    undoChoice: undoCommandChoice,
+    moveNeedsSubmittedTarget,
+  } = useBattleV4CommandBuilder({
+    normalizedRequest: rawViewModel?.command.normalizedRequest || null,
+    requestResetKey,
+    battleStatus: rawViewModel?.status || null,
+    debugConfig,
+    onCommandModeChange: setCommandMode,
+    onSwitchPanelOpenChange: setSwitchPanelOpen,
+    onFinalChoice: ({input, choice, trainerItems, draft}) => {
+      logSubmitInfo("p1 指令草稿完成，准备提交", {
+        input,
+        finalChoice: choice,
+        trainerItems,
+        requestType: draft.requestType,
+        progress: `${draft.choices.filter(Boolean).length}/${draft.requestLength}`,
+      });
+      void submitChoice(choice, trainerItems);
+    },
+    onIncompleteChoice: payload => {
+      reportSubmitError(payload);
+    },
+  });
   const viewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1", commandDraft) : null, [snapshot, commandDraft]);
   const narrativeDisplayPhase = narrativeState?.phase || "";
   const narrativeActive = Boolean(narrativeState);
@@ -283,7 +315,6 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
   const shouldShowSwitchPanel = Boolean(!commandsLocked && snapshot && viewModel && (
     viewModel.command.requestType === "switch" || (switchPanelOpen && viewModel.command.requestType === "move")
   ));
-  const requestResetKey = useMemo(() => requestKeyForCommand(rawViewModel?.command.request || null, rawViewModel?.command.requestType || "none"), [rawViewModel?.command.request, rawViewModel?.command.requestType]);
   const visualNearTeam = playbackHasRuntimeState ? playback.nearTeam : viewModel?.nearTeam || [];
   const visualFarTeam = playbackHasRuntimeState ? playback.farTeam : viewModel?.farTeam || [];
   const battleError = useMemo(() => battleV4BlockingError(snapshot, lastSubmitError), [snapshot, lastSubmitError]);
@@ -382,21 +413,8 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
   }, [debugConfig, requestResetKey, viewModel?.command.request, viewModel?.command.requestType]);
 
   useEffect(() => {
-    if (!rawViewModel) return;
-    const requestType = rawViewModel.command.requestType;
-    setCommandDraft(rawViewModel.command.normalizedRequest ? createBattleCommandDraftV4(rawViewModel.command.normalizedRequest) : null);
-    setCommandMode("command");
-    setPendingMoveAction(null);
     setBattleBagOpen(false);
-    setChoiceStatus("");
-    if (rawViewModel.command.requestType === "switch" && rawViewModel.status === "running") {
-      setSwitchPanelOpen(true);
-      return;
-    }
-    if (rawViewModel.status !== "running" || (requestType !== "move" && requestType !== "switch")) {
-      setSwitchPanelOpen(false);
-    }
-  }, [requestResetKey, rawViewModel?.status]);
+  }, [requestResetKey]);
 
   useEffect(() => {
     if (!playbackBlockingCommands) return;
@@ -669,7 +687,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
         : await api.battleService.submitChoice(sessionId, "p1", choice);
       const next = onAfterSubmitSnapshot ? await onAfterSubmitSnapshot(submitted) : submitted;
       setSnapshot(next);
-      setCommandDraft(null);
+      clearCommandDraft();
       setSwitchPanelOpen(false);
       const blocking = battleV4BlockingError(next, null);
       if (blocking) {
@@ -758,108 +776,22 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
     }
   }
 
-  function applyDraftChoice(input: string) {
-    const normalizedRequest = viewModel?.command.normalizedRequest;
-    if (!normalizedRequest) return;
-    const inputKind = input.trim().split(/\s+/)[0] || "";
-    const before = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(normalizedRequest), normalizedRequest);
-    const after = addBattleCommandChoiceV4(before, normalizedRequest, input);
-    const finalChoice = stringifyBattleCommandDraftV4(after);
-    battleDebugLog(debugConfig, "draft", "add-choice", {
-      before,
-      input,
-      after,
-      isDone: isBattleCommandDraftDoneV4(after),
-      finalChoice,
-    });
-    setPendingMoveAction(null);
-    setCommandDraft(after);
-    if (inputKind === "switch") setSwitchPanelOpen(false);
-    if (isBattleCommandDraftDoneV4(after)) {
-      setCommandMode("command");
-      const split = splitBattleTrainerItemChoicesV4(after);
-      logSubmitInfo("p1 指令草稿完成，准备提交", {
-        input,
-        finalChoice,
-        trainerItems: split.trainerItems,
-        requestType: after.requestType,
-        progress: `${after.choices.filter(Boolean).length}/${after.requestLength}`,
-      });
-      void submitChoice(split.choice, split.trainerItems);
-      return;
-    }
-    if (before.currentMove && after.currentMove) {
-      reportSubmitError({
-        reason: "draft-choice-incomplete-after-submit",
-        choice: input,
-        trainerItems: [],
-        draftBefore: before,
-        draftAfter: after,
-        finalChoice,
-      });
-    } else {
-      logSubmitInfo("p1 指令等待补全", {
-        input,
-        finalChoice,
-        requestType: after.requestType,
-        progress: `${after.choices.filter(Boolean).length}/${after.requestLength}`,
-        currentMove: after.currentMove,
-      });
-    }
-    setChoiceStatus(`选择 ${after.choices.filter(Boolean).length}/${after.requestLength} 完成`);
-    setCommandMode(after.requestType === "move" ? "moves" : "command");
-    if (after.requestType === "switch") setSwitchPanelOpen(true);
-  }
-
   function draftMoveAction(action: MoveActionV4, selectedSpecial?: BattleSpecialChoiceV4 | null) {
-    const normalizedRequest = viewModel?.command.normalizedRequest;
-    if (!normalizedRequest) return;
+    if (!viewModel) return;
     const visualNearTeamForAction = playbackHasRuntimeState ? playback.nearTeam : viewModel.nearTeam;
     const displaySpecial = selectedSpecial || activeMaxDisplaySpecialForAction(action, visualNearTeamForAction, viewModel.nearTeam);
     const commandSpecial = displaySpecial === "active-max" ? null : selectedSpecial || null;
-    const choice = appendBattleSpecialChoiceSuffixV4(action.choice, commandSpecial);
-    const draftedAction = {...action, choice};
-    if (isUntargetedLockedMove(action.move)) {
-      applyDraftChoice(choice);
-      return;
-    }
-    const before = fillBattleCommandPassesV4(commandDraft || createBattleCommandDraftV4(normalizedRequest), normalizedRequest);
     const displayedMove = displayedMoveForSpecial(action.move, displaySpecial);
-    const shouldOpenTargetPanel = moveShouldOpenBattleV4TargetPanel(displayedMove, normalizedRequest);
-    if (!shouldOpenTargetPanel) {
-      applyDraftChoice(choice);
-      return;
-    }
-    const requiresTarget = moveNeedsBattleV4SubmittedTarget(displayedMove, normalizedRequest);
-    const after = setBattleCommandCurrentMoveV4(before, normalizedRequest, action.moveIndex, requiresTarget, commandSpecial);
-    battleDebugLog(debugConfig, "draft", "current-move", {
-      before,
-      input: choice,
-      after,
-      requiresTarget,
-      shouldOpenTargetPanel,
+    draftCommandMoveAction(action, {
       selectedSpecial,
-      displaySpecial,
+      commandSpecial,
+      displayedMove,
     });
-    setCommandDraft(after);
-    setPendingMoveAction(draftedAction);
   }
 
   function undoDraftChoice() {
-    const normalizedRequest = viewModel?.command.normalizedRequest;
-    if (!normalizedRequest || !commandDraft) return;
-    const before = fillBattleCommandPassesV4(commandDraft, normalizedRequest);
-    const after = undoBattleCommandChoiceV4(before, normalizedRequest);
-    battleDebugLog(debugConfig, "draft", "undo-choice", {
-      before,
-      after,
-    });
-    setPendingMoveAction(null);
+    undoCommandChoice();
     setBattleBagOpen(false);
-    setSwitchPanelOpen(false);
-    setCommandMode("command");
-    setCommandDraft(after);
-    setChoiceStatus(`已返回：选择 ${after.choices.filter(Boolean).length}/${after.requestLength} 完成`);
   }
 
   return (
@@ -923,9 +855,9 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
           visualNearTeam={visualNearTeam}
           visualFarTeam={visualFarTeam}
           action={pendingMoveAction}
-          request={viewModel.command.request}
           onClose={() => setPendingMoveAction(null)}
-          onSubmit={applyDraftChoice}
+          moveNeedsSubmittedTarget={moveNeedsSubmittedTarget}
+          onSelectTarget={(action, choiceSuffix, shouldUseTargetSuffix) => applyMoveTarget(action, choiceSuffix, shouldUseTargetSuffix)}
         />
       ) : null}
       {battleError ? (
@@ -1812,23 +1744,22 @@ function sameBattleViewSlotIdentity(a: BattleViewSlotV4, b: BattleViewSlotV4): b
   return a.playerId === b.playerId && a.position === b.position && toId(a.speciesId || a.name) === toId(b.speciesId || b.name);
 }
 
-function BattleV4TargetPanel({api, viewModel, visualNearTeam, visualFarTeam, action, request, onClose, onSubmit}: {
+function BattleV4TargetPanel({api, viewModel, visualNearTeam, visualFarTeam, action, onClose, moveNeedsSubmittedTarget, onSelectTarget}: {
   api: ChangeBattleV2Api;
   viewModel: BattleViewModelV4;
   visualNearTeam: BattleViewSlotV4[];
   visualFarTeam: BattleViewSlotV4[];
   action: MoveActionV4;
-  request: BattleRequestV4 | null;
   onClose: () => void;
-  onSubmit: (choice: string) => void;
+  moveNeedsSubmittedTarget: (move: BattleMoveRequestV4) => boolean;
+  onSelectTarget: (action: MoveActionV4, choiceSuffix: string, shouldUseTargetSuffix: boolean) => void;
 }) {
   const moveCard = useMemo(() => {
     const selectedSpecial = specialChoiceFromChoiceString(action.choice);
     const displaySpecial = selectedSpecial || activeMaxDisplaySpecialForAction(action, visualNearTeam, viewModel.nearTeam);
     return buildBattleV4MoveCard(action, api, visualFarTeam, displaySpecial, selectedSpecial);
   }, [action, api, viewModel.nearTeam, visualFarTeam, visualNearTeam]);
-  const normalizedRequest = viewModel.command.normalizedRequest;
-  const shouldSubmitTargetSuffix = normalizedRequest ? moveNeedsBattleV4SubmittedTarget(moveCard.displayedMove, normalizedRequest) : false;
+  const shouldSubmitTargetSuffix = moveNeedsSubmittedTarget(moveCard.displayedMove);
   const targets = useMemo(
     () => buildBattleV4TargetCards(visualNearTeam, visualFarTeam, action, moveCard.displayedMove, moveCard.detail, shouldSubmitTargetSuffix, api),
     [visualNearTeam, visualFarTeam, action, moveCard.displayedMove, moveCard.detail, shouldSubmitTargetSuffix, api],
@@ -1846,8 +1777,7 @@ function BattleV4TargetPanel({api, viewModel, visualNearTeam, visualFarTeam, act
             key={target.key}
             onSelect={next => {
               const shouldUseTargetSuffix = Boolean(next.choiceSuffix && shouldSubmitTargetSuffix);
-              const choice = shouldUseTargetSuffix ? withBattleMoveTargetSuffixV4(action.choice, next.choiceSuffix) : action.choice;
-              onSubmit(choice);
+              onSelectTarget(action, next.choiceSuffix, shouldUseTargetSuffix);
             }}
           />
         ))}
@@ -2128,15 +2058,6 @@ function displayedMoveForSpecial(move: BattleMoveRequestV4, selectedSpecial: Bat
   return move;
 }
 
-function moveNeedsBattleV4SubmittedTarget(move: BattleMoveRequestV4, request: BattleNormalizedRequestV4): boolean {
-  const target = showdownNormalizeMoveTargetV4(move.target);
-  return request.activeRequests.length > 1 && showdownTargetTypeAllowsChoiceV4(target);
-}
-
-function moveShouldOpenBattleV4TargetPanel(move: BattleMoveRequestV4, request: BattleNormalizedRequestV4): boolean {
-  return moveNeedsBattleV4SubmittedTarget(move, request);
-}
-
 function specialDisplayedMoveDisabled(card: BattleV4MoveCardView): boolean {
   return Boolean(card.selectedSpecial && card.displayedMove.disabled);
 }
@@ -2250,12 +2171,9 @@ function targetChoiceSuffix(active: BattleViewSlotV4 | null, target: BattleViewS
   if (!active) return target.side === "far" ? "+1" : "-1";
   const sideSlots = target.side === "far" ? visualFarTeam : visualNearTeam;
   const activeTargets = sideSlots.filter(slot => slot.active);
-  const position = Math.max(1, activeTargets.findIndex(slot => slot.seat === target.seat) + 1 || (target.position === "B" ? 2 : 1));
+  const protocolIndex = target.position === "B" ? 2 : 1;
+  const position = activeTargets.some(slot => slot.seat === target.seat) ? protocolIndex : Math.max(1, protocolIndex);
   return target.side === active.side ? `-${position}` : `+${position}`;
-}
-
-function isUntargetedLockedMove(move: BattleMoveRequestV4): boolean {
-  return toId(move.id || move.move) === "recharge";
 }
 
 function typeIdFor(value: string | undefined): string {
