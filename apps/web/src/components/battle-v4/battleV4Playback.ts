@@ -2329,6 +2329,9 @@ function messageForProtocolEvent(event: BattleProtocolEventV4, previousWeatherId
     return `${name}没有受到影响。`;
   case "-miss":
     return "可惜没有命中！";
+  case "-activate":
+    if (toId(cleanEffect(event.args[2])) === "protect") return `${name}防住了攻击！`;
+    return name ? `${name}的${cleanEffect(event.args[2] || "效果")}发动了！` : `${cleanEffect(event.args[2] || "效果")}发动了！`;
   case "win":
     return `${event.args[1] || "训练师"}获得了胜利！`;
   case "error":
@@ -2437,6 +2440,7 @@ function resultForProtocolEvent(event: BattleProtocolEventV4): {text: string; to
   case "-fail":
     return {text: "失败", tone: "neutral"};
   case "-activate":
+    if (toId(cleanEffect(event.args[2])) === "protect") return {text: "防住攻击", tone: "good"};
     return {text: cleanEffect(event.args[2] || "发动"), tone: "neutral"};
   case "-enditem":
     return {text: `吃掉${cleanEffect(event.args[2] || "道具")}`, tone: "good"};

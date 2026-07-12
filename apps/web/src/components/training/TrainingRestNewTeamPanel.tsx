@@ -1,6 +1,6 @@
 import {useEffect, useMemo, useState, type CSSProperties} from "react";
 import {motion} from "motion/react";
-import type {ChangeBattleV2Api, DexStatId, LocalPokemonV4, TrainingMoveSlotV4, TrainingPlayerDraftV4} from "@changebattle-v2/api";
+import {dexLabelToId, type ChangeBattleV2Api, type DexStatId, type LocalPokemonV4, type TrainingMoveSlotV4, type TrainingPlayerDraftV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {styleUrlAssetPath} from "../../lib/assetUrl";
 import {localPokemonFrontSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
@@ -506,10 +506,7 @@ function toId(value: unknown): string {
 }
 
 function moveTypeId(value: unknown): string {
-  const raw = String(value || "").trim();
-  const normalized = toId(raw);
-  if (normalized) return normalized;
-  return toId(raw);
+  return dexLabelToId("types", String(value || "")) || toId(value);
 }
 
 function styleFromCss(css: string): CSSProperties {
