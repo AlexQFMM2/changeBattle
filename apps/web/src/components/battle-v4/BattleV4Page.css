@@ -2624,6 +2624,54 @@ button.battle-v4-switch-card:hover {
   color: #ffe0e0;
 }
 
+.battle-v4-error-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 132px;
+  z-index: 68;
+  width: min(680px, calc(100% - 32px));
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid rgb(255 93 93 / 72%);
+  border-radius: 8px;
+  background: rgb(44 12 18 / 94%);
+  box-shadow: 0 18px 40px rgb(0 0 0 / 38%), 0 0 0 1px rgb(255 255 255 / 10%) inset;
+  color: #fff4f4;
+  transform: translateX(-50%);
+}
+
+.battle-v4-error-panel strong {
+  font-size: 16px;
+}
+
+.battle-v4-error-panel span {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.battle-v4-error-panel code {
+  max-height: 72px;
+  overflow: auto;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 32%);
+  color: #ffd7d7;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.battle-v4-error-panel button {
+  justify-self: start;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgb(255 255 255 / 34%);
+  border-radius: 6px;
+  background: rgb(255 255 255 / 12%);
+  color: #fff;
+  font-weight: 800;
+}
+
 .battle-v4-status-badge,
 .battle-v4-switch-mark.status,
 .battle-v4-target-meta .battle-v4-status-badge {

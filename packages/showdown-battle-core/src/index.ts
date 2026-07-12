@@ -1,3 +1,7 @@
+// Battle V4 是本项目的底层战斗逻辑；active 身份连续性、switch/detailschange 和 choice 闭环
+// 全面参考 Pokemon Showdown Client 的 battle.ts / battle-choices.ts，并翻译为本项目的 snapshot/projection 架构。
+// 后续修改或排查战斗页 bug 时，优先横向对比本实现与 Showdown Client 的差异，再决定如何落到本项目架构。
+// 严禁随意修改；只有确认 Showdown Client 对应实现来源与差异后，才允许调整这里的战斗行为。
 import type {
   BattleServiceApiV4,
   BattleServiceCreateInputV4,
@@ -1048,6 +1052,9 @@ function applyRawChunk(session: RuntimeSession, chunk: string): void {
     if (parts[1] === "turn") {
       session.snapshot.turn = Number(parts[2]) || session.snapshot.turn;
     }
+    if (parts[1] === "upkeep") {
+      clearRosterLastPokemonKeys(session);
+    }
     if (parts[1] === "switch" || parts[1] === "drag" || parts[1] === "replace") {
       upsertActive(session, parts[2] || "", parts[3] || "", parts[4] || "");
     }
@@ -1482,19 +1489,42 @@ function battleRosterKeyForSwitch(
   details: string,
   identity: {localPokemonId?: string; showdownIdentityToken?: string; showdownId?: string; pokeballId?: string; pokeball?: string},
 ): string {
-  const stableKey = battleRosterStableKey(session, parsed.playerId, identity);
   const roster = session.snapshot.battleRosterByPlayer?.[parsed.playerId];
-  if (stableKey && roster?.pokemonByKey?.[stableKey]) return stableKey;
-
   const searchId = battleRosterSearchId(parsed.ident, details);
+  const stableKey = battleRosterStableKey(session, parsed.playerId, identity);
   const activeKeys = new Set(Object.values(roster?.activeKeyBySlot || {}));
-  const searchMatch = Object.values(roster?.pokemonByKey || {}).find(pokemon =>
-    pokemon.searchId === searchId && !activeKeys.has(pokemon.key)
+  const lastKeyForSlot = roster?.lastPokemonKeyBySlot?.[parsed.slot] || "";
+  const switchableRoster = Object.values(roster?.pokemonByKey || {}).filter(pokemon =>
+    !pokemon.fainted &&
+    !activeKeys.has(pokemon.key) &&
+    pokemon.key !== lastKeyForSlot
   );
+  const searchMatch = switchableRoster.find(pokemon => pokemon.searchId === searchId);
   if (searchMatch) return searchMatch.key;
 
-  if (stableKey) return stableKey;
+  const stableMatch = stableKey ? roster?.pokemonByKey?.[stableKey] : null;
+  if (stableMatch && battleRosterPokemonMatchesDetails(stableMatch, details, parsed.name)) return stableKey;
+
+  const previewMatch = switchableRoster.find(pokemon =>
+    !pokemon.searchId &&
+    battleRosterPokemonMatchesDetails(pokemon, details, parsed.name)
+  );
+  if (previewMatch) return previewMatch.key;
+
+  const speciesMatches = switchableRoster.filter(pokemon => battleRosterPokemonMatchesDetails(pokemon, details, parsed.name));
+  if (speciesMatches.length === 1) return speciesMatches[0]!.key;
+
+  if (stableKey && !stableMatch) return stableKey;
   return protocolBattleRosterKey(parsed.playerId, parsed.slot, searchId);
+}
+
+function battleRosterPokemonMatchesDetails(pokemon: BattleRosterPokemonV4, details: string, name = ""): boolean {
+  const tokens = speciesTokensForProtocolPokemon(details.split(",")[0] || "", details, name);
+  if (!tokens.size) return false;
+  return speciesTokensForProtocolPokemon(pokemon.species, pokemon.details, pokemon.ident, pokemon.canonicalIdent)
+    .size
+    ? protocolRowSpeciesMatches({details: pokemon.details, ident: pokemon.ident, condition: pokemon.condition}, tokens)
+    : false;
 }
 
 function activeIdentityFromRequest(session: RuntimeSession, playerId: ShowdownPlayerIdV4, slot: string, existing?: BattleServiceActivePokemonV4, details = "", name = ""): {
@@ -1535,11 +1565,14 @@ function identityFromActive(active: BattleServiceActivePokemonV4): {
 
 function upsertRosterPokemon(session: RuntimeSession, playerId: ShowdownPlayerIdV4, pokemon: BattleRosterPokemonV4, activeSlot?: string): void {
   const previousByPlayer = session.snapshot.battleRosterByPlayer || {};
-  const previous = previousByPlayer[playerId] || {pokemonByKey: {}, activeKeyBySlot: {}, updatedAt: ""};
+  const previous = previousByPlayer[playerId] || {pokemonByKey: {}, activeKeyBySlot: {}, lastPokemonKeyBySlot: {}, updatedAt: ""};
   const current = previous.pokemonByKey[pokemon.key];
   const nextPokemon = {...current, ...pokemon};
   const activeKeyBySlot = {...previous.activeKeyBySlot};
+  const lastPokemonKeyBySlot = {...previous.lastPokemonKeyBySlot};
   if (activeSlot) {
+    const previousActiveKey = activeKeyBySlot[activeSlot];
+    if (previousActiveKey && previousActiveKey !== pokemon.key) lastPokemonKeyBySlot[activeSlot] = previousActiveKey;
     for (const [slot, key] of Object.entries(activeKeyBySlot)) {
       if (key === pokemon.key && slot !== activeSlot) delete activeKeyBySlot[slot];
     }
@@ -1553,9 +1586,22 @@ function upsertRosterPokemon(session: RuntimeSession, playerId: ShowdownPlayerId
         [pokemon.key]: nextPokemon,
       },
       activeKeyBySlot,
+      lastPokemonKeyBySlot,
       updatedAt: new Date().toISOString(),
     },
   };
+}
+
+function clearRosterLastPokemonKeys(session: RuntimeSession): void {
+  const previousByPlayer = session.snapshot.battleRosterByPlayer || {};
+  session.snapshot.battleRosterByPlayer = Object.fromEntries(Object.entries(previousByPlayer).map(([playerId, roster]) => [
+    playerId,
+    {
+      ...roster,
+      lastPokemonKeyBySlot: {},
+      updatedAt: new Date().toISOString(),
+    },
+  ])) as Record<ShowdownPlayerIdV4, BattleRosterStateV4>;
 }
 
 function activeRosterPokemon(session: RuntimeSession, playerId: ShowdownPlayerIdV4, slot: string): BattleRosterPokemonV4 | null {

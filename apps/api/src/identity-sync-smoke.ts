@@ -685,6 +685,7 @@ const outOfOrderFirstRequest = outOfOrderNormalized.activeRequests[0];
 assert(outOfOrderFirstRequest, "first active request should be actionable");
 const outOfOrderFirstMove = (outOfOrderFirstRequest.moves || [])[0];
 assert(outOfOrderFirstMove?.id === "electroball", "first active move request should remain aligned with first active slot");
+assert(outOfOrderFirstMove?.target === "normal", `API normalize should use shared Showdown choice fix target default, got ${outOfOrderFirstMove?.target}`);
 const outOfOrderView = projectBattleViewModelV4({
   ...protocolActiveSnapshot,
   requests: {p1: outOfOrderActiveRequest},

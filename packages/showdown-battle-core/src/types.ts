@@ -255,6 +255,7 @@ export type BattleRosterPokemonV4 = {
 export type BattleRosterStateV4 = {
   pokemonByKey: Record<string, BattleRosterPokemonV4>;
   activeKeyBySlot: Record<string, string>;
+  lastPokemonKeyBySlot?: Record<string, string>;
   updatedAt: string;
 };
 

@@ -1,3 +1,7 @@
+// Battle V4 是本项目的底层战斗逻辑；active 身份连续性、switch/detailschange 和 choice 闭环
+// 全面参考 Pokemon Showdown Client 的 battle.ts / battle-choices.ts，并翻译为本项目的 snapshot/projection 架构。
+// 后续修改或排查战斗页 bug 时，优先横向对比本实现与 Showdown Client 的差异，再决定如何落到本项目架构。
+// 严禁随意修改；只有确认 Showdown Client 对应实现来源与差异后，才允许调整这里的战斗行为。
 import type {
   BattleAiDecisionDebugV4,
   BattleAiFeatureVectorV4,
@@ -18,6 +22,8 @@ import {
   stringifyShowdownChoiceCommandV4,
   showdownMoveNeedsExplicitTargetV4,
   showdownNormalizeMoveTargetV4,
+  validShowdownTargetLocV4,
+  normalizeShowdownChoiceRequestV4,
   validateShowdownChoiceCommandV4,
   type ShowdownParsedChoiceV4,
   type ShowdownSpecialChoiceV4,
@@ -179,7 +185,7 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
   const startedAt = Date.now();
   const profile = normalizeBattleAiProfileV4(context.aiProfile);
   const levelConfig = AI_LEVEL_CONFIG[profile.level];
-  const request = context.request || undefined;
+  const request = normalizeShowdownChoiceRequestV4(context.request) as BattleServiceRequestV4 | undefined;
   const requestKey = battleAiRequestKeyV4(context.playerId, request);
   const rng = createSeededRng(`${context.rngSeed || context.snapshot.id}:${context.playerId}:${requestKey}:${profile.level}:${profile.preference}`);
   const candidates = generateTurnCandidates(request, context, profile, rng);
@@ -188,12 +194,19 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
     choice: sanitizeAiChoice(candidate.choice, context.snapshot.ruleSet, context.snapshot.mode, allowedSpecialSystemsForPlayer(context)),
   })).filter(candidate => candidate.choice && choiceLooksParseable(candidate.choice) && validateShowdownChoiceCommandV4({request, choice: candidate.choice}).ok);
   const fallback = fallbackLegalChoiceV4(request);
-  const selected = selectCandidate(legalCandidates, profile, levelConfig, rng) || {
+  const picked = selectCandidate(legalCandidates, profile, levelConfig, rng) || {
     choice: fallback,
     score: 0,
     features: emptyFeatures(),
     kind: "pass" as const,
   };
+  const pickedValidation = validateShowdownChoiceCommandV4({request, choice: picked.choice});
+  const fallbackValidation = validateShowdownChoiceCommandV4({request, choice: fallback});
+  const selected = pickedValidation.ok
+    ? picked
+    : fallbackValidation.ok
+      ? {...picked, choice: fallback, score: 0, features: emptyFeatures(), kind: "pass" as const}
+      : {...picked, choice: "", score: 0, features: emptyFeatures(), kind: "pass" as const};
   const elapsedMs = Date.now() - startedAt;
   const timedOut = elapsedMs > (context.timeBudgetMs ?? 10_000);
   const topCandidates = legalCandidates
@@ -226,26 +239,73 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
 }
 
 export function fallbackLegalChoiceV4(request: BattleServiceRequestV4 | undefined): string {
-  if (!request) return "pass";
-  if (request.wait) return "";
-  if (request.teamPreview) {
-    const count = request.side?.pokemon?.length || 1;
-    return `team ${Array.from({length: count}, (_, index) => index + 1).join(",")}`;
+  const normalized = normalizeShowdownChoiceRequestV4(request) as BattleServiceRequestV4 | undefined;
+  if (!normalized) return "pass";
+  if (normalized.wait) return "";
+  if (normalized.teamPreview) {
+    const count = normalized.side?.pokemon?.length || 1;
+    return firstValidChoice(normalized, [`team ${Array.from({length: count}, (_, index) => index + 1).join(",")}`]) || "";
   }
-  if (request.forceSwitch?.some(Boolean)) {
+  if (normalized.forceSwitch?.some(Boolean)) {
     const reservedSwitches = new Set<number>();
-    return request.forceSwitch.map(mustSwitch => mustSwitch ? legalSwitchChoice(request, reservedSwitches) : "pass").join(", ");
+    return firstValidChoice(normalized, [normalized.forceSwitch.map(mustSwitch => mustSwitch ? legalSwitchChoice(normalized, reservedSwitches) : "pass").join(", ")]) || "";
   }
-  if (request.active?.length) {
-    return fixedActiveRequests(request).map((active, activeIndex) => {
-      if (!active) return "pass";
-      const move = firstUsableMove(active.moves || []);
-      if (!move) return "move 1";
-      const targetMove = moveRequestForSpecialChoice(active, move.index, move.move, null);
-      return `move ${move.index + 1}${defaultTargetSuffix(request, activeIndex, targetMove, Boolean(request.targetable || (request.active || []).length > 1))}`;
-    }).join(", ");
+  if (normalized.active?.length) {
+    const candidatesBySlot = fixedActiveRequests(normalized).map((active, activeIndex) => fallbackChoicesForActiveSlot(normalized, active, activeIndex));
+    return firstValidComposedChoice(normalized, candidatesBySlot) || "";
   }
   return "pass";
+}
+
+function fallbackChoicesForActiveSlot(
+  request: BattleServiceRequestV4,
+  active: NonNullable<BattleServiceRequestV4["active"]>[number] | null,
+  activeIndex: number,
+): string[] {
+  if (!active) return ["pass"];
+  const choices: string[] = [];
+  for (const entry of (active.moves || []).map((move, index) => ({move, index}))) {
+    if (entry.move.disabled || (entry.move.pp ?? 1) <= 0) continue;
+    const targetMove = moveRequestForSpecialChoice(active, entry.index, entry.move, null);
+    for (const target of targetSuffixesForMove(request, activeIndex, targetMove)) {
+      choices.push(`move ${entry.index + 1}${target ? ` ${target}` : ""}`);
+    }
+  }
+  if (!active.trapped && !active.maybeTrapped) {
+    const reservedSwitches = new Set<number>();
+    const switchChoice = legalSwitchChoice(request, reservedSwitches);
+    if (switchChoice !== "pass") choices.push(switchChoice);
+  }
+  return choices.length ? choices : ["pass"];
+}
+
+function firstValidComposedChoice(request: BattleServiceRequestV4, candidatesBySlot: string[][]): string | null {
+  const results: string[] = [];
+  const walk = (slotIndex: number, parts: string[], usedSwitches: Set<number>) => {
+    if (results.length >= 80) return;
+    if (slotIndex >= candidatesBySlot.length) {
+      results.push(parts.join(", "));
+      return;
+    }
+    for (const candidate of candidatesBySlot[slotIndex] || ["pass"]) {
+      const switchIndex = parseSwitchIndex(candidate);
+      if (switchIndex && usedSwitches.has(switchIndex)) continue;
+      const nextSwitches = new Set(usedSwitches);
+      if (switchIndex) nextSwitches.add(switchIndex);
+      walk(slotIndex + 1, [...parts, candidate], nextSwitches);
+    }
+  };
+  walk(0, [], new Set<number>());
+  return firstValidChoice(request, results);
+}
+
+function firstValidChoice(request: BattleServiceRequestV4, choices: string[]): string | null {
+  for (const choice of choices) {
+    const trimmed = choice.trim();
+    if (!trimmed) continue;
+    if (validateShowdownChoiceCommandV4({request, choice: trimmed}).ok) return trimmed;
+  }
+  return null;
 }
 
 function generateTurnCandidates(
@@ -327,10 +387,9 @@ function switchCandidatesForSlot(
   profile: Required<BattleAiProfileV4>,
   rng: () => number,
 ): AiCandidate[] {
-  const reservedActiveSlots = request.forceSwitch?.length || request.active?.length || 0;
   return (request.side?.pokemon || [])
     .map((pokemon, index) => ({pokemon, index}))
-    .filter(entry => indexIsSwitchableBench(entry.index, reservedActiveSlots, entry.pokemon))
+    .filter(entry => indexIsSwitchableBench(entry.pokemon))
     .map(entry => {
       const features = emptyFeatures();
       features.switch = 45;
@@ -469,7 +528,7 @@ function passCandidate(context: BattleAiChoiceContextV4, profile: Required<Battl
 }
 
 function fixedActiveRequests(request: BattleServiceRequestV4): NonNullable<BattleServiceRequestV4["active"]> {
-  return (request.active || []).map((active, index) => sidePokemonCanCommand(request.side?.pokemon?.[index]) ? active : null);
+  return (request.active || []).map((active, index) => sidePokemonCanCommand(activeSidePokemonRow(request, index)) ? active : null);
 }
 
 function sidePokemonCanCommand(pokemon: NonNullable<BattleServiceRequestV4["side"]>["pokemon"][number] | undefined): boolean {
@@ -481,22 +540,17 @@ function conditionIsFainted(condition: string | undefined): boolean {
   return Boolean(condition?.includes("fnt") || /^\s*0(?:\D|$)/.test(condition || ""));
 }
 
-function firstUsableMove(moves: BattleServiceMoveRequestV4[]): {move: BattleServiceMoveRequestV4; index: number} | null {
-  return moves.map((move, index) => ({move, index})).find(entry => !entry.move.disabled && (entry.move.pp ?? 1) > 0) || null;
-}
-
 function legalSwitchChoice(request: BattleServiceRequestV4, reservedSwitches = new Set<number>()): string {
-  const reservedActiveSlots = request.forceSwitch?.length || request.active?.length || 0;
   const candidates = (request.side?.pokemon || [])
     .map((pokemon, index) => ({pokemon, index}))
-    .filter(entry => indexIsSwitchableBench(entry.index, reservedActiveSlots, entry.pokemon) && !reservedSwitches.has(entry.index + 1));
+    .filter(entry => indexIsSwitchableBench(entry.pokemon) && !reservedSwitches.has(entry.index + 1));
   const picked = candidates[0];
   if (picked) reservedSwitches.add(picked.index + 1);
   return picked ? `switch ${picked.index + 1}` : "pass";
 }
 
-function indexIsSwitchableBench(index: number, reservedActiveSlots: number, pokemon: NonNullable<BattleServiceRequestV4["side"]>["pokemon"][number]): boolean {
-  return index >= reservedActiveSlots && !pokemon.active && !pokemon.condition.includes("fnt");
+function indexIsSwitchableBench(pokemon: NonNullable<BattleServiceRequestV4["side"]>["pokemon"][number]): boolean {
+  return !pokemon.active && !pokemon.condition.includes("fnt");
 }
 
 function targetSuffixesForMove(request: BattleServiceRequestV4, activeIndex: number, move: BattleServiceMoveRequestV4): string[] {
@@ -504,27 +558,33 @@ function targetSuffixesForMove(request: BattleServiceRequestV4, activeIndex: num
   if (!showdownMoveNeedsExplicitTargetV4(move, targetable)) return [""];
   const target = showdownNormalizeMoveTargetV4(move.target);
   const activeCount = Math.max(1, request.active?.length || 1);
+  const orderedFoeLocs = orderedUniqueNumbers([
+    activeIndex + 1,
+    ...Array.from({length: activeCount}, (_, index) => index + 1),
+  ]).filter(loc => validShowdownTargetLocV4(loc, activeIndex, activeCount, target));
+  const orderedAllyLocs = orderedUniqueNumbers([
+    -(activeIndex + 1),
+    ...Array.from({length: activeCount}, (_, index) => -(index + 1)),
+  ]).filter(loc => loc !== -(activeIndex + 1) && request.active?.[Math.abs(loc) - 1] && validShowdownTargetLocV4(loc, activeIndex, activeCount, target));
   if (target === "adjacentally" || target === "adjacentallyorself") {
-    const allies = Array.from({length: activeCount}, (_, index) => index).filter(index => index !== activeIndex && request.active?.[index]);
-    return allies.length ? allies.map(index => `-${index + 1}`) : [""];
+    const allies = target === "adjacentallyorself" ? orderedUniqueNumbers([-(activeIndex + 1), ...orderedAllyLocs]) : orderedAllyLocs;
+    return allies.length ? allies.map(loc => String(loc)) : [""];
   }
   if (target === "any") {
-    const foes = Array.from({length: activeCount}, (_, index) => `+${index + 1}`);
-    const allies = Array.from({length: activeCount}, (_, index) => index).filter(index => index !== activeIndex && request.active?.[index]).map(index => `-${index + 1}`);
-    return [...foes, ...allies];
+    return [...orderedFoeLocs, ...orderedAllyLocs].map(loc => loc > 0 ? `+${loc}` : String(loc));
   }
-  return Array.from({length: activeCount}, (_, index) => `+${index + 1}`);
+  return orderedFoeLocs.length ? orderedFoeLocs.map(loc => `+${loc}`) : [""];
 }
 
-function defaultTargetSuffix(request: BattleServiceRequestV4, activeIndex: number, move: {id?: string; target?: string}, targetable: boolean): string {
-  if (!showdownMoveNeedsExplicitTargetV4(move, targetable)) return "";
-  const target = showdownNormalizeMoveTargetV4(move.target);
-  if (target === "adjacentally" || target === "adjacentallyorself") {
-    const allyIndex = request.active?.findIndex((active, index) => index !== activeIndex && Boolean(active)) ?? -1;
-    return allyIndex >= 0 ? ` -${allyIndex + 1}` : "";
+function orderedUniqueNumbers(values: number[]): number[] {
+  const seen = new Set<number>();
+  const result: number[] = [];
+  for (const value of values) {
+    if (!Number.isFinite(value) || seen.has(value)) continue;
+    seen.add(value);
+    result.push(value);
   }
-  const foeCount = Math.max(1, request.active?.length || 1);
-  return ` +${Math.min(activeIndex + 1, foeCount)}`;
+  return result;
 }
 
 function specialChoicesForMove(
@@ -588,7 +648,16 @@ function choiceLooksParseable(choice: string): boolean {
 }
 
 function activeRow(request: BattleServiceRequestV4, activeIndex: number): NonNullable<BattleServiceRequestV4["side"]>["pokemon"][number] | undefined {
-  return request.side?.pokemon?.[activeIndex];
+  return activeSidePokemonRow(request, activeIndex);
+}
+
+function activeSidePokemonRow(request: BattleServiceRequestV4, activeIndex: number): NonNullable<BattleServiceRequestV4["side"]>["pokemon"][number] | undefined {
+  const normalizedRow = (request as BattleServiceRequestV4 & {
+    activeSidePokemon?: Array<NonNullable<BattleServiceRequestV4["side"]>["pokemon"][number] | null>;
+  }).activeSidePokemon?.[activeIndex];
+  if (normalizedRow) return normalizedRow;
+  const activeRows = request.side?.pokemon?.filter(row => row.active) || [];
+  return activeRows[activeIndex] || request.side?.pokemon?.[activeIndex];
 }
 
 function activeHpRatio(request: BattleServiceRequestV4, activeIndex: number): number {

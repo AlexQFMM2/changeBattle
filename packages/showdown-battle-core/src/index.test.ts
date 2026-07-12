@@ -9,6 +9,7 @@ import {
   resolveBattleWinnerPlayerIdV4,
   resolveShowdownRandomTeamFormatV4,
   showdownMoveNeedsExplicitTargetV4,
+  normalizeShowdownChoiceRequestV4,
   applyPermanentFormeChange,
   __testApplyBattleProtocolLinesV4,
   submitTrainerItem,
@@ -17,7 +18,7 @@ import {
   withShowdownMoveTargetSuffixV4,
 } from "./index.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
-import type {BattleAiLevelV4, BattleAiPreferenceV4, BattleServiceRequestV4, BattleServiceSessionInputV4, BattleServiceSnapshotV4} from "./types.js";
+import type {BattleAiLevelV4, BattleAiPreferenceV4, BattleServiceRequestV4, BattleServiceSessionInputV4, BattleServiceSidePokemonV4, BattleServiceSnapshotV4} from "./types.js";
 
 const pikachu = {
   species: "Pikachu",
@@ -307,6 +308,83 @@ function showdownChoiceValidationSmoke() {
   const maxWithTarget = validateShowdownChoiceCommandV4({request: maxRequest, choice: "move 1 max +1, pass"});
   if (!maxNoTarget.ok || maxWithTarget.ok || (!maxWithTarget.ok && maxWithTarget.reason !== "forbidden-target")) {
     throw new Error(`max guard target validation mismatch: ${JSON.stringify({maxNoTarget, maxWithTarget})}`);
+  }
+  const singlesMissingTargetRequest: BattleServiceRequestV4 = {
+    targetable: false,
+    active: [{moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35}]}],
+    side: {id: "p1", name: "A", pokemon: [{ident: "p1: Eevee", details: "Eevee, L50", condition: "100/100", active: true}]},
+  };
+  const doublesMissingTargetRequest: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35}]},
+      {moves: [{move: "Recharge", id: "recharge"}]},
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Eevee", details: "Eevee, L50", condition: "100/100", active: true},
+        {ident: "p1: Snorlax", details: "Snorlax, L50", condition: "100/100", active: true},
+      ],
+    },
+  };
+  const singlesMissingTarget = validateShowdownChoiceCommandV4({request: singlesMissingTargetRequest, choice: "move 1"});
+  const doublesMissingTarget = validateShowdownChoiceCommandV4({request: doublesMissingTargetRequest, choice: "move 1, move 1"});
+  const doublesWithTarget = validateShowdownChoiceCommandV4({request: doublesMissingTargetRequest, choice: "move 1 +1, move 1"});
+  if (!singlesMissingTarget.ok) throw new Error(`singles missing target should use Showdown default target: ${JSON.stringify(singlesMissingTarget)}`);
+  if (doublesMissingTarget.ok || (!doublesMissingTarget.ok && doublesMissingTarget.reason !== "missing-target")) {
+    throw new Error(`doubles missing target should require explicit target: ${JSON.stringify(doublesMissingTarget)}`);
+  }
+  if (!doublesWithTarget.ok) throw new Error(`doubles missing target with explicit loc should pass: ${JSON.stringify(doublesWithTarget)}`);
+  const reorderedSideRequest: BattleServiceRequestV4 = {
+    targetable: true,
+    active: [
+      {moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35}]},
+      {moves: [{move: "Recharge", id: "recharge"}]},
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Bench", details: "Bench, L50", condition: "100/100", active: false},
+        {ident: "p1: Fainted", details: "Fainted, L50", condition: "0 fnt", active: false, fainted: true},
+        {ident: "p1: Eevee", details: "Eevee, L50", condition: "100/100", active: true},
+        {ident: "p1: Snorlax", details: "Snorlax, L50", condition: "100/100", active: true},
+      ],
+    },
+  };
+  const reorderedMove = validateShowdownChoiceCommandV4({request: reorderedSideRequest, choice: "move 1 +1, move 1"});
+  const reorderedSwitch = validateShowdownChoiceCommandV4({request: reorderedSideRequest, choice: "switch 1, move 1"});
+  const reorderedFaintedSwitch = validateShowdownChoiceCommandV4({request: reorderedSideRequest, choice: "switch 2, move 1"});
+  if (!reorderedMove.ok) throw new Error(`reordered side active rows should still validate move request: ${JSON.stringify(reorderedMove)}`);
+  if (!reorderedSwitch.ok) throw new Error(`reordered side should allow switch to bench row 1: ${JSON.stringify(reorderedSwitch)}`);
+  if (reorderedFaintedSwitch.ok || (!reorderedFaintedSwitch.ok && reorderedFaintedSwitch.reason !== "invalid-switch")) {
+    throw new Error(`reordered side should reject fainted bench switch: ${JSON.stringify(reorderedFaintedSwitch)}`);
+  }
+  const rawFixRequest: BattleServiceRequestV4 = {
+    active: [
+      {moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35}]},
+      {moves: [{move: "Recharge", id: "recharge"}]},
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Bench", details: "Bench, L50", condition: "100/100", active: false},
+        {ident: "p1: Fainted", details: "Fainted, L50", condition: "0 fnt", active: false, fainted: true},
+        {ident: "p1: Eevee", details: "Eevee, L50", condition: "100/100", active: true},
+        {ident: "p1: Snorlax", details: "Snorlax, L50", condition: "100/100", active: true},
+      ],
+    },
+  };
+  const fixed = normalizeShowdownChoiceRequestV4(rawFixRequest);
+  if (!fixed?.targetable || fixed.requestType !== "move") throw new Error(`fixRequest should infer move targetable: ${JSON.stringify(fixed)}`);
+  if (fixed.activeSidePokemon?.[0]?.ident !== "p1: Eevee" || fixed.activeTeamIndexes?.join(",") !== "2,3") {
+    throw new Error(`fixRequest should align active rows by row.active: ${JSON.stringify(fixed)}`);
+  }
+  if (fixed.active?.[0]?.moves?.[0]?.target !== "normal") {
+    throw new Error(`fixRequest should default missing move target to normal: ${JSON.stringify(fixed.active?.[0])}`);
   }
   console.log("showdown-battle-core choice validation smoke ok");
 }
@@ -790,6 +868,105 @@ async function activeIdentityStressMatrixSmoke() {
   }
 
   console.log("showdown-battle-core active identity stress matrix smoke ok");
+}
+
+async function showdownLikeSwitchResolverSmoke() {
+  const baseSnapshot: BattleServiceSnapshotV4 = {
+    id: "switch-resolver-session",
+    runId: "test-run",
+    nodeId: "test-node-switch-resolver",
+    status: "running",
+    mode: "doubles",
+    ruleSet: "gen9",
+    turn: 4,
+    winner: null,
+    error: null,
+    players: [{
+      playerId: "p2",
+      name: "B",
+      controller: "ai",
+      alliance: "far",
+      team: [],
+      draft: trainerItemDraft("p2", []) as any,
+      teamMapping: [
+        {playerId: "p2", teamIndex: 0, choiceIndex: 1, localPokemonId: "p2-npc-1-throh", showdownIdentityToken: "duskball", showdownId: "duskball", pokeballId: "duskball", speciesId: "throh", displayName: "Throh"},
+        {playerId: "p2", teamIndex: 1, choiceIndex: 2, localPokemonId: "p2-npc-2-chatot", showdownIdentityToken: "luxuryball", showdownId: "luxuryball", pokeballId: "luxuryball", speciesId: "chatot", displayName: "Chatot"},
+        {playerId: "p2", teamIndex: 2, choiceIndex: 3, localPokemonId: "p2-npc-3-aerodactyl", showdownIdentityToken: "premierball", showdownId: "premierball", pokeballId: "premierball", speciesId: "aerodactyl", displayName: "Aerodactyl"},
+        {playerId: "p2", teamIndex: 3, choiceIndex: 4, localPokemonId: "p2-npc-4-stunfisk", showdownIdentityToken: "healball", showdownId: "healball", pokeballId: "healball", speciesId: "stunfisk", displayName: "Stunfisk"},
+      ],
+    }],
+    requests: {},
+    active: [],
+    battleRosterByPlayer: {},
+    rawLog: [],
+    debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, latestRequests: {}, latestMovePpByPokemon: {}, aiDecisions: []},
+    createdAt: "2026-07-12T00:00:00.000Z",
+    updatedAt: "2026-07-12T00:00:00.000Z",
+  };
+  const withLatestRows = (snapshot: BattleServiceSnapshotV4, rows: BattleServiceSidePokemonV4[]): BattleServiceSnapshotV4 => ({
+    ...snapshot,
+    requests: {
+      ...snapshot.requests,
+      p2: {
+        active: [
+          {moves: [{move: "Poison Jab", id: "poisonjab", target: "normal"}]},
+          {moves: [{move: "Bounce", id: "bounce"}]},
+        ],
+        side: {id: "p2", name: "B", pokemon: rows},
+      },
+    },
+    debug: {...snapshot.debug, latestSidePokemon: {...snapshot.debug.latestSidePokemon, p2: rows}},
+  });
+  const chatotRows: BattleServiceSidePokemonV4[] = [
+    {ident: "p2: Throh", details: "Throh, L49, M", condition: "192/192", active: true, pokeball: "duskball"},
+    {ident: "p2: Chatot", details: "Chatot, L49, F", condition: "99/99", active: true, pokeball: "luxuryball"},
+    {ident: "p2: Aerodactyl", details: "Aerodactyl, L49, M", condition: "0 fnt", active: false, fainted: true, pokeball: "premierball"},
+    {ident: "p2: Stunfisk", details: "Stunfisk, L49, M", condition: "183/183", active: false, pokeball: "healball"},
+  ];
+  let current = withLatestRows(baseSnapshot, chatotRows);
+  current = __testApplyBattleProtocolLinesV4(current, [
+    "|switch|p2a: Throh|Throh, L49, M|192/192",
+    "|switch|p2b: Chatot|Chatot, L49, F|99/99",
+    "|faint|p2b: Chatot",
+  ]);
+  const chatotKey = current.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2b;
+  const stunfiskRows = chatotRows.map(row => row.ident.includes("Chatot")
+    ? {...row, active: false, condition: "0 fnt", fainted: true}
+    : row.ident.includes("Stunfisk")
+      ? {...row, active: true}
+      : row);
+  current = withLatestRows(current, stunfiskRows);
+  current = __testApplyBattleProtocolLinesV4(current, ["|switch|p2b: Stunfisk|Stunfisk, L49, M|183/183"]);
+  const p2b = current.active.find(active => active.slot === "p2b");
+  if (p2b?.localPokemonId !== "p2-npc-4-stunfisk" || p2b.showdownIdentityToken !== "healball") {
+    throw new Error(`stunfisk should not inherit chatot identity: ${JSON.stringify(p2b)}`);
+  }
+  if (current.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2b === chatotKey) {
+    throw new Error(`stunfisk should not reuse chatot roster key: ${JSON.stringify(current.battleRosterByPlayer?.p2)}`);
+  }
+  if (!current.battleRosterByPlayer?.p2?.lastPokemonKeyBySlot?.p2b) {
+    throw new Error(`switch should remember last pokemon until upkeep: ${JSON.stringify(current.battleRosterByPlayer?.p2)}`);
+  }
+  current = __testApplyBattleProtocolLinesV4(current, ["|upkeep"]);
+  if (Object.keys(current.battleRosterByPlayer?.p2?.lastPokemonKeyBySlot || {}).length) {
+    throw new Error(`upkeep should clear last pokemon protection like Showdown Client: ${JSON.stringify(current.battleRosterByPlayer?.p2)}`);
+  }
+
+  const duplicateSnapshot = __testApplyBattleProtocolLinesV4({
+    ...baseSnapshot,
+    players: [{...baseSnapshot.players[0]!, teamMapping: []}],
+    debug: {...baseSnapshot.debug, latestSidePokemon: {}},
+  }, [
+    "|switch|p2a: Rotom|Rotom, L50|100/100",
+    "|switch|p2b: Rotom|Rotom, L50|100/100",
+    "|switch|p2a: Rotom|Rotom, L50|100/100",
+  ]);
+  const p2aKey = duplicateSnapshot.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2a || "";
+  const p2bKey = duplicateSnapshot.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2b || "";
+  if (!p2aKey.startsWith("protocol-") || !p2bKey.startsWith("protocol-") || p2aKey === p2bKey) {
+    throw new Error(`duplicate unresolved pokemon should use distinct protocol keys: ${JSON.stringify(duplicateSnapshot.battleRosterByPlayer?.p2)}`);
+  }
+  console.log("showdown-battle-core showdown-like switch resolver smoke ok");
 }
 
 async function sleepCantMoveSmoke() {
@@ -1365,6 +1542,52 @@ function aiMaxGuardTargetSmoke() {
   console.log("showdown-battle-core ai max guard target smoke ok");
 }
 
+function aiLockedMoveMissingTargetSmoke() {
+  const request: BattleServiceRequestV4 = {
+    rqid: 33,
+    targetable: true,
+    active: [
+      {
+        moves: [
+          {move: "Poison Jab", id: "poisonjab", pp: 20, maxpp: 20, target: "normal"},
+          {move: "Dig", id: "dig", pp: 10, maxpp: 10, target: "normal"},
+          {move: "Helping Hand", id: "helpinghand", pp: 20, maxpp: 20, target: "adjacentAlly"},
+          {move: "Focus Punch", id: "focuspunch", pp: 20, maxpp: 20, target: "normal"},
+        ],
+      },
+      {
+        trapped: true,
+        moves: [
+          {move: "Bounce", id: "bounce"},
+        ],
+      },
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Throh", details: "Throh, L50", condition: "83/180", active: true},
+        {ident: "p2: Stunfisk", details: "Stunfisk, L50", condition: "183/183", active: true, pokeball: "healball"},
+        {ident: "p2: Aerodactyl", details: "Aerodactyl, L50", condition: "0 fnt", active: false, fainted: true},
+        {ident: "p2: Chatot", details: "Chatot, L50", condition: "0 fnt", active: false, fainted: true, pokeball: "luxuryball"},
+      ],
+    },
+  };
+  const result = chooseAiBattleChoiceV4({
+    request,
+    snapshot: aiSnapshot("gen9", "doubles", request),
+    playerId: "p2",
+    aiProfile: {level: "elite", preference: "balanced"},
+    rngSeed: "locked-bounce-missing-target",
+  });
+  const validation = validateShowdownChoiceCommandV4({request, choice: result.choice});
+  if (!validation.ok) throw new Error(`AI locked missing-target choice should validate: ${result.choice}; ${JSON.stringify(validation)}; ${JSON.stringify(result.debug)}`);
+  if (result.choice === "move 1 +1, move 1" || /,\s*move 1$/.test(result.choice)) {
+    throw new Error(`AI should not submit a bare locked Bounce choice in doubles: ${result.choice}`);
+  }
+  console.log("showdown-battle-core ai locked missing-target smoke ok");
+}
+
 function aiForceSwitchSmoke() {
   const request: BattleServiceRequestV4 = {
     forceSwitch: [true, true],
@@ -1652,6 +1875,7 @@ void smoke()
   .then(permanentFormeChangeSmoke)
   .then(activeIdentityContinuitySmoke)
   .then(activeIdentityStressMatrixSmoke)
+  .then(showdownLikeSwitchResolverSmoke)
   .then(gen7CoopFormatSmoke)
   .then(rechargeChoiceSmoke)
   .then(faintedDoublesActiveChoiceSmoke)
@@ -1675,6 +1899,7 @@ void smoke()
   .then(aiPureChoiceSmoke)
   .then(aiSpecialSystemSmoke)
   .then(aiMaxGuardTargetSmoke)
+  .then(aiLockedMoveMissingTargetSmoke)
   .then(aiForceSwitchSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);

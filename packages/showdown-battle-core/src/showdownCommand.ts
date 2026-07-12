@@ -1,3 +1,7 @@
+// Battle V4 是本项目的底层战斗逻辑；active 身份连续性、switch/detailschange 和 choice 闭环
+// 全面参考 Pokemon Showdown Client 的 battle.ts / battle-choices.ts，并翻译为本项目的 snapshot/projection 架构。
+// 后续修改或排查战斗页 bug 时，优先横向对比本实现与 Showdown Client 的差异，再决定如何落到本项目架构。
+// 严禁随意修改；只有确认 Showdown Client 对应实现来源与差异后，才允许调整这里的战斗行为。
 export type ShowdownSpecialChoiceV4 = "mega" | "megax" | "megay" | "ultra" | "zmove" | "max" | "terastallize";
 export type ShowdownSpecialSystemV4 = "mega" | "zmove" | "max" | "terastallize";
 export type ShowdownAllowedSpecialSystemsV4 = Partial<Record<ShowdownSpecialSystemV4, boolean>> | readonly ShowdownSpecialSystemV4[];
@@ -60,6 +64,8 @@ export type ShowdownChoiceValidationRequestV4 = {
   forceSwitch?: boolean[];
   side?: {
     pokemon?: Array<{
+      ident?: string;
+      details?: string;
       condition?: string;
       active?: boolean;
       fainted?: boolean;
@@ -67,10 +73,18 @@ export type ShowdownChoiceValidationRequestV4 = {
     }>;
   };
 };
+type ShowdownChoiceValidationSidePokemonRowV4 = NonNullable<NonNullable<ShowdownChoiceValidationRequestV4["side"]>["pokemon"]>[number];
 
 export type ShowdownChoiceValidationInputV4 = {
   request?: ShowdownChoiceValidationRequestV4 | null;
   choice: string;
+};
+
+export type ShowdownChoiceNormalizedRequestV4 = ShowdownChoiceValidationRequestV4 & {
+  requestType: "move" | "switch" | "team" | "wait";
+  noCancel?: boolean;
+  activeSidePokemon?: Array<ShowdownChoiceValidationSidePokemonRowV4 | null>;
+  activeTeamIndexes?: number[];
 };
 
 export const SHOWDOWN_SPECIAL_CHOICES_V4: readonly ShowdownSpecialChoiceV4[] = [
@@ -192,7 +206,7 @@ export function filterShowdownChoiceForRuleSetV4(choice: string, ruleSet: string
 }
 
 export function showdownMoveNeedsExplicitTargetV4(move: {id?: string; target?: string} | undefined | null, targetable = true): boolean {
-  if (!targetable || !move?.target) return false;
+  if (!targetable || !move) return false;
   if (showdownNormalizeMoveTargetV4(move.id) === "recharge") return false;
   const target = showdownNormalizeMoveTargetV4(move.target);
   return showdownTargetTypeAllowsChoiceV4(target);
@@ -207,8 +221,71 @@ export function showdownTargetTypeAllowsChoiceV4(targetType: string | undefined)
   return SHOWDOWN_CHOOSABLE_TARGETS_V4.includes(target);
 }
 
+export function normalizeShowdownChoiceRequestV4(request: ShowdownChoiceValidationRequestV4 | undefined | null): ShowdownChoiceNormalizedRequestV4 | undefined {
+  if (!request) return undefined;
+  const requestType = request.wait
+    ? "wait"
+    : request.teamPreview
+      ? "team"
+      : request.forceSwitch
+        ? "switch"
+        : "move";
+  const sidePokemon = request.side?.pokemon || [];
+  const activeSidePokemon = resolveShowdownChoiceActiveRows(request, sidePokemon);
+  const active = request.active?.map((entry, index) => {
+    if (!entry) return null;
+    const row = activeSidePokemon[index];
+    if (row && (row.fainted || row.commanding || conditionIsFainted(row.condition))) return null;
+    return normalizeShowdownChoiceActiveRequest(entry);
+  });
+  const forceSwitch = request.forceSwitch?.slice();
+  return {
+    ...request,
+    noCancel: Boolean((request as {noCancel?: boolean}).noCancel || request.wait),
+    requestType,
+    targetable: Boolean(request.targetable || requestType === "move" && (active?.length || 0) > 1),
+    active,
+    forceSwitch,
+    activeSidePokemon,
+    activeTeamIndexes: activeSidePokemon.map(row => row ? sidePokemon.indexOf(row) : -1),
+  };
+}
+
+function normalizeShowdownChoiceActiveRequest(active: NonNullable<ShowdownChoiceValidationRequestV4["active"]>[number]): NonNullable<ShowdownChoiceValidationRequestV4["active"]>[number] {
+  if (!active) return active;
+  const rawMaxMoves = active.maxMoves;
+  const maxMoves = Array.isArray(rawMaxMoves) ? rawMaxMoves : rawMaxMoves?.maxMoves || [];
+  const zMoves = active.zMoves || active.canZMove || [];
+  const moves = (active.moves || []).map((move, index) => ({
+    ...move,
+    target: showdownNormalizeMoveTargetV4(move.target),
+    maxMove: maxMoves[index] ? {...maxMoves[index]!, target: showdownNormalizeMoveTargetV4(maxMoves[index]!.target)} : (move as {maxMove?: ShowdownChoiceValidationMoveRequestV4}).maxMove,
+    zMove: zMoves[index] ? {...zMoves[index]!, target: showdownNormalizeMoveTargetV4(zMoves[index]!.target)} : (move as {zMove?: ShowdownChoiceValidationMoveRequestV4}).zMove,
+  }));
+  return {...active, moves, maxMoves, zMoves};
+}
+
+function resolveShowdownChoiceActiveRows(request: ShowdownChoiceValidationRequestV4, sidePokemon: ShowdownChoiceValidationSidePokemonRowV4[]): Array<ShowdownChoiceValidationSidePokemonRowV4 | null> {
+  const used = new Set<number>();
+  const count = request.active?.length || request.forceSwitch?.length || 0;
+  const activeRows = sidePokemon.map((row, index) => ({row, index})).filter(entry => entry.row.active);
+  return Array.from({length: count}, (_, activeIndex) => {
+    const ordered = activeRows[activeIndex];
+    const picked = ordered && !used.has(ordered.index)
+      ? ordered
+      : activeRows.find(entry => !used.has(entry.index));
+    const fallback = !activeRows.length
+      ? sidePokemon.map((row, index) => ({row, index})).find(entry => entry.index >= activeIndex && !used.has(entry.index))
+      : null;
+    const next = picked || fallback;
+    if (!next) return null;
+    used.add(next.index);
+    return next.row;
+  });
+}
+
 export function validateShowdownChoiceCommandV4(input: ShowdownChoiceValidationInputV4): ShowdownChoiceValidationResultV4 {
-  const request = input.request || undefined;
+  const request = normalizeShowdownChoiceRequestV4(input.request);
   const choice = String(input.choice || "").trim();
   if (!request) return invalidChoice("missing-request", choice, "missing battle request", "当前没有可提交的战斗指令。");
   if (!choice) return invalidChoice("empty-choice", choice, "empty choice", "战斗指令不能为空。");
@@ -309,7 +386,7 @@ function splitShowdownChoiceListV4(choice: string): string[] {
 
 function activeSlotCanCommand(request: ShowdownChoiceValidationRequestV4, activeIndex: number): boolean {
   if (!request.active?.[activeIndex]) return false;
-  const row = request.side?.pokemon?.[activeIndex];
+  const row = activeSidePokemonRow(request, activeIndex);
   if (!row) return true;
   return !row.fainted && !row.commanding && !conditionIsFainted(row.condition);
 }
@@ -326,9 +403,8 @@ function validateSwitchIndex(
   if (usedSwitches.has(switchIndex)) {
     return {reason: "duplicate-switch", message: `duplicate switch ${switchIndex}`, playerMessage: "不能让多个位置换上同一只宝可梦。"};
   }
-  const activeCount = request.forceSwitch?.length || request.active?.length || 0;
   const row = request.side?.pokemon?.[switchIndex - 1];
-  if (!row || switchIndex <= activeCount || row.active || conditionIsFainted(row.condition)) {
+  if (!row || row.active || conditionIsFainted(row.condition)) {
     return {reason: "invalid-switch", message: `invalid switch ${switchIndex}`, playerMessage: "这个换人目标不可用。"};
   }
   usedSwitches.add(switchIndex);
@@ -336,11 +412,17 @@ function validateSwitchIndex(
 }
 
 function hasSwitchCandidate(request: ShowdownChoiceValidationRequestV4, usedSwitches: Set<number>): boolean {
-  const activeCount = request.forceSwitch?.length || request.active?.length || 0;
   return Boolean(request.side?.pokemon?.some((row, index) => {
     const switchIndex = index + 1;
-    return switchIndex > activeCount && !usedSwitches.has(switchIndex) && !row.active && !conditionIsFainted(row.condition);
+    return !usedSwitches.has(switchIndex) && !row.active && !conditionIsFainted(row.condition);
   }));
+}
+
+function activeSidePokemonRow(request: ShowdownChoiceValidationRequestV4, activeIndex: number): ShowdownChoiceValidationSidePokemonRowV4 | undefined {
+  const normalizedRow = (request as ShowdownChoiceNormalizedRequestV4).activeSidePokemon?.[activeIndex];
+  if (normalizedRow) return normalizedRow;
+  const activeRows = request.side?.pokemon?.filter(row => row.active) || [];
+  return activeRows[activeIndex] || request.side?.pokemon?.[activeIndex];
 }
 
 function moveForParsedChoice(

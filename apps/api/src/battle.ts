@@ -1,3 +1,7 @@
+// Battle V4 是本项目的底层战斗逻辑；active 身份连续性、switch/detailschange 和 choice 闭环
+// 全面参考 Pokemon Showdown Client 的 battle.ts / battle-choices.ts，并翻译为本项目的 snapshot/projection 架构。
+// 后续修改或排查战斗页 bug 时，优先横向对比本实现与 Showdown Client 的差异，再决定如何落到本项目架构。
+// 严禁随意修改；只有确认 Showdown Client 对应实现来源与差异后，才允许调整这里的战斗行为。
 import type {
   ShowdownSpecialChoiceV4,
   ShowdownSpecialSystemV4,
@@ -12,6 +16,7 @@ import {
   showdownSpecialSystemAllowedForRuleSetV4,
   showdownSpecialSystemForChoiceV4,
   showdownMoveNeedsExplicitTargetV4,
+  normalizeShowdownChoiceRequestV4,
   stringifyShowdownChoiceCommandV4,
   withShowdownMoveTargetSuffixV4,
 } from "@changebattle-v2/showdown-battle-core/showdownCommand";
@@ -1362,28 +1367,29 @@ export function normalizeBattleRequestV4(
   ruleSet: TrainingRuleSetV4,
   context: {activePokemon?: BattleActivePokemonV4[]} = {},
 ): BattleNormalizedRequestV4 {
-  const requestType = requestTypeFor(request);
-  const sidePokemon = request.side?.pokemon || [];
-  const activeMapping = resolveActiveSidePokemonForRequest(request, sidePokemon, context.activePokemon || []);
-  const activeRequests = fixedActiveRequestsForNormalizedRequest(request, activeMapping.activeSidePokemon);
-  const forceSwitch = request.forceSwitch || [];
-  const requestLength = requestLengthForNormalizedRequest(request, requestType);
+  const choiceRequest = (normalizeShowdownChoiceRequestV4(request) || request) as BattleRequestV4 & {requestType?: BattleRequestTypeV4};
+  const requestType = choiceRequest.requestType || requestTypeFor(choiceRequest);
+  const sidePokemon = choiceRequest.side?.pokemon || [];
+  const activeMapping = resolveActiveSidePokemonForRequest(choiceRequest, sidePokemon, context.activePokemon || []);
+  const activeRequests = fixedActiveRequestsForNormalizedRequest(choiceRequest, activeMapping.activeSidePokemon);
+  const forceSwitch = choiceRequest.forceSwitch || [];
+  const requestLength = requestLengthForNormalizedRequest(choiceRequest, requestType);
   return {
     playerId,
     mode,
     ruleSet,
     requestType,
-    rqid: request.rqid,
-    noCancel: Boolean(request.noCancel || request.wait),
-    targetable: Boolean(request.targetable || requestType === "move" && activeRequests.length > 1),
+    rqid: choiceRequest.rqid,
+    noCancel: Boolean(choiceRequest.noCancel || choiceRequest.wait),
+    targetable: Boolean(choiceRequest.targetable),
     requestLength,
-    activeIndex: firstActionableActiveIndex(request, requestType, activeRequests),
+    activeIndex: firstActionableActiveIndex(choiceRequest, requestType, activeRequests),
     activeRequests,
     activeSidePokemon: activeMapping.activeSidePokemon,
     activeTeamIndexes: activeMapping.activeTeamIndexes,
     forceSwitch,
     sidePokemon,
-    readonlyAlly: request.ally || null,
+    readonlyAlly: choiceRequest.ally || null,
     choiceIndexByTeamIndex: Object.fromEntries(sidePokemon.map((_, index) => [index, index + 1])),
     rawRequest: request,
   };
@@ -1394,6 +1400,12 @@ function resolveActiveSidePokemonForRequest(
   sidePokemon: RequestSidePokemonV4[],
   actives: BattleActivePokemonV4[],
 ): {activeSidePokemon: Array<RequestSidePokemonV4 | null>; activeTeamIndexes: number[]} {
+  const sharedRows = (request as BattleRequestV4 & {activeSidePokemon?: Array<RequestSidePokemonV4 | null>}).activeSidePokemon;
+  if (sharedRows?.length) {
+    const activeSidePokemon = sharedRows.map(row => row || null);
+    const activeTeamIndexes = activeSidePokemon.map(row => row ? sidePokemon.indexOf(row) : -1);
+    if (activeSidePokemon.some(Boolean)) return {activeSidePokemon, activeTeamIndexes};
+  }
   const used = new Set<number>();
   const sortedActives = actives.slice().sort((a, b) => activeIndexFromSlot(a.slot) - activeIndexFromSlot(b.slot));
   const requestLength = request.active?.length || request.forceSwitch?.length || 0;
