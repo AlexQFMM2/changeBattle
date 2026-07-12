@@ -359,6 +359,33 @@ export type BattleTeamStateV4 = {
   updatedAt: string;
 };
 
+export type BattleRosterPokemonV4 = {
+  key: string;
+  searchId: string;
+  ident: string;
+  canonicalIdent: string;
+  playerId: ShowdownPlayerIdV4;
+  slot?: string;
+  localPokemonId?: string;
+  showdownIdentityToken?: string;
+  showdownId?: string;
+  pokeballId?: string;
+  pokeball?: string;
+  species: string;
+  details: string;
+  condition: string;
+  hp: number;
+  maxHp: number;
+  status: string;
+  fainted: boolean;
+};
+
+export type BattleRosterStateV4 = {
+  pokemonByKey: Record<string, BattleRosterPokemonV4>;
+  activeKeyBySlot: Record<string, string>;
+  updatedAt: string;
+};
+
 type BattleMovePpPatchV4 = {
   moveId: string;
   remainingPp: number;
@@ -380,6 +407,7 @@ export type BattleSessionSnapshotV4 = {
   requests: Partial<Record<ShowdownPlayerIdV4, BattleRequestV4>>;
   active: BattleActivePokemonV4[];
   teamStateByPlayer?: Partial<Record<ShowdownPlayerIdV4, BattleTeamStateV4>>;
+  battleRosterByPlayer?: Partial<Record<ShowdownPlayerIdV4, BattleRosterStateV4>>;
   rawLog: string[];
   debug: {
     inputLog: string[];
@@ -800,27 +828,28 @@ function battleSyncRowsForPlayer(snapshot: BattleSessionSnapshotV4, snapshotPlay
   const sources: Array<"request" | "latestSidePokemon" | "team-state" | "active-overlay"> = rows.map(() => baseSource);
   const mapping = snapshotPlayer.teamMapping || [];
   const usedActiveRowIndices = new Set<number>();
-  for (const active of snapshot.active.filter(entry => entry.playerId === snapshotPlayer.playerId)) {
-    const activeName = active.ident.split(":").pop() || "";
-    const activeTokens = new Set([active.species, activeName].map(value => toId(value)).filter(Boolean));
-    const activeRowIndex = rows.findIndex((row, index) => !usedActiveRowIndices.has(index) && row.active && (
-      protocolSpeciesTokensMatch(activeTokens, [row.details.split(",")[0] || "", row.name, row.ident.split(":").pop() || ""])
-    ));
-    const mappingEntry = activeRowIndex >= 0
-      ? mapping.find(entry => entry.teamIndex === activeRowIndex || entry.choiceIndex === activeRowIndex + 1)
-      : findMappingEntryByProtocolSpecies(mapping, activeTokens);
+  const actives = activePokemonForPlayer(snapshot, snapshotPlayer.playerId).sort((a, b) => activeIndexFromSlot(a.slot) - activeIndexFromSlot(b.slot));
+  for (const active of actives) {
+    const activeRowIndex = findRequestRowIndexForActive(rows, active, activeIndexFromSlot(active.slot), usedActiveRowIndices);
+    const row = activeRowIndex >= 0 ? rows[activeRowIndex] : null;
+    const rowMappingEntry = activeRowIndex >= 0 ? mappingEntryForRequestRow(row, mapping, activeRowIndex) : null;
+    const activeMappingEntry = mappingEntryFromActiveIdentity(active, mapping);
+    const mappingEntry = row && requestRowMatchesActive(row, active)
+      ? rowMappingEntry || activeMappingEntry || findMappingEntryByProtocolSpecies(mapping, speciesTokensForActive(active))
+      : activeMappingEntry || rowMappingEntry || findMappingEntryByProtocolSpecies(mapping, speciesTokensForActive(active));
     if (!mappingEntry) continue;
-    const index = activeRowIndex >= 0 ? activeRowIndex : mappingEntry.teamIndex;
-    usedActiveRowIndices.add(index);
+    const index = mappingEntry.teamIndex;
+    usedActiveRowIndices.add(activeRowIndex >= 0 ? activeRowIndex : index);
     const currentRow = rows[index];
     if (currentRow) {
       rows[index] = {
         ...currentRow,
         ident: currentRow.ident || active.ident,
-        details: currentRow.details || active.details,
+        details: active.details || currentRow.details,
         condition: active.condition,
         active: !active.fainted,
         fainted: active.fainted,
+        pokeball: active.pokeball || active.pokeballId || active.showdownIdentityToken || active.showdownId || mappingEntry.showdownIdentityToken || currentRow.pokeball,
       };
       sources[index] = "active-overlay";
     } else {
@@ -1497,8 +1526,7 @@ function pokemonIsActiveForSwitch(request: BattleNormalizedRequestV4, teamIndex:
 function buildViewSlots(snapshot: BattleSessionSnapshotV4): BattleViewSlotV4[] {
   return snapshot.players.flatMap(player => {
     const side = player.alliance === "near" ? "near" as const : "far" as const;
-    const playerActives = snapshot.active
-      .filter(active => active.playerId === player.playerId)
+    const playerActives = activePokemonForPlayer(snapshot, player.playerId)
       .sort((a, b) => a.slot.localeCompare(b.slot));
     const team = player.draft.localTeam.pokemon;
     const requestRows = snapshot.requests[player.playerId]?.side?.pokemon || [];
@@ -1506,8 +1534,9 @@ function buildViewSlots(snapshot: BattleSessionSnapshotV4): BattleViewSlotV4[] {
       return playerActives.map((active, index) => {
         const rowIndex = findRequestRowIndexForActive(requestRows, active, index);
         const row = rowIndex >= 0 ? requestRows[rowIndex]! : null;
-        const resolved = row ? resolveLocalPokemonFromRequestRow(row, player.teamMapping, team, rowIndex) : null;
-        const activePokemon = resolved?.localPokemon || resolveLocalPokemonFromActive(active, player.teamMapping, team);
+        const activeResolved = resolveLocalPokemonFromActive(active, player.teamMapping, team);
+        const rowResolved = row ? resolveLocalPokemonFromRequestRow(row, player.teamMapping, team, rowIndex).localPokemon : null;
+        const activePokemon = row && requestRowMatchesActive(row, active) ? rowResolved || activeResolved : activeResolved || rowResolved;
         return activePokemon ? pokemonToSlot(snapshot, player, side, activePokemon, active, true, team, seatForActive(player.playerId, active, index), playerActives) : null;
       }).filter(Boolean) as BattleViewSlotV4[];
     }
@@ -1516,6 +1545,35 @@ function buildViewSlots(snapshot: BattleSessionSnapshotV4): BattleViewSlotV4[] {
       pokemonToSlot(snapshot, player, side, pokemon, undefined, index === 0, team, seatForActive(player.playerId, undefined, index), playerActives)
     ));
   });
+}
+
+function activePokemonForPlayer(snapshot: BattleSessionSnapshotV4, playerId: ShowdownPlayerIdV4): BattleActivePokemonV4[] {
+  const roster = snapshot.battleRosterByPlayer?.[playerId];
+  if (!roster) return snapshot.active.filter(active => active.playerId === playerId);
+  const rosterActives = Object.entries(roster.activeKeyBySlot || {})
+    .map(([slot, key]): BattleActivePokemonV4 | null => {
+      const pokemon = roster.pokemonByKey?.[key];
+      if (!pokemon) return null;
+      return {
+        ident: pokemon.ident,
+        playerId: pokemon.playerId,
+        slot,
+        localPokemonId: pokemon.localPokemonId,
+        showdownIdentityToken: pokemon.showdownIdentityToken,
+        showdownId: pokemon.showdownId,
+        pokeballId: pokemon.pokeballId,
+        pokeball: pokemon.pokeball,
+        species: pokemon.species,
+        details: pokemon.details,
+        condition: pokemon.condition,
+        hp: pokemon.hp,
+        maxHp: pokemon.maxHp,
+        status: pokemon.status,
+        fainted: pokemon.fainted,
+      };
+    })
+    .filter((entry): entry is BattleActivePokemonV4 => Boolean(entry));
+  return rosterActives.length ? rosterActives : snapshot.active.filter(active => active.playerId === playerId);
 }
 
 function pokemonToSlot(snapshot: BattleSessionSnapshotV4, player: BattleServicePlayerInputV4, side: "near" | "far", pokemon: LocalPokemonV4, active: BattleActivePokemonV4 | undefined, isActive: boolean, team: LocalPokemonV4[], seat: BattleViewSlotV4["seat"], actives: BattleActivePokemonV4[]): BattleViewSlotV4 {
@@ -1566,9 +1624,12 @@ function pokemonToSlot(snapshot: BattleSessionSnapshotV4, player: BattleServiceP
 
 function buildTeamBallStates(snapshot: BattleSessionSnapshotV4, player: BattleServicePlayerInputV4, team: LocalPokemonV4[], actives: BattleActivePokemonV4[]): BattleViewSlotV4["teamBallStates"] {
   const states: BattleViewSlotV4["teamBallStates"] = team.slice(0, 6).map(pokemon => {
-    const active = actives.find(entry =>
-      protocolSpeciesTokensMatch(new Set([entry.species].map(value => toId(value)).filter(Boolean)), [pokemon.speciesId, pokemon.name, pokemon.nameZh])
-    );
+    const pokemonTokens = identityTokensForLocalPokemon(player, pokemon);
+    const active = actives.find(entry => identityTokensIntersect(identityTokensForActive(entry), pokemonTokens))
+      || actives.find(entry =>
+        !identityTokensForActive(entry).size &&
+        protocolSpeciesTokensMatch(speciesTokensForActive(entry), [pokemon.speciesId, pokemon.name, pokemon.nameZh])
+      );
     const teamState = teamStateForLocalPokemon(snapshot, player, pokemon);
     const hp = teamState ? scaleBattleTeamHpToLocalMax(teamState, pokemon.maxHp) : active ? active.hp : pokemon.entryHp;
     const status = teamState ? normalizeBattleStatus(teamState.status) : active ? active.status : pokemon.entryStatus;
@@ -1601,6 +1662,69 @@ function teamStateForLocalPokemon(snapshot: BattleSessionSnapshotV4, player: Bat
 
 function firstLargeSprite(...values: Array<string | undefined>): string {
   return values.find(value => value && !value.includes("pokemonicons-sheet")) || "";
+}
+
+function identityTokensForLocalPokemon(player: BattleServicePlayerInputV4, pokemon: LocalPokemonV4): Set<string> {
+  const mapping = player.teamMapping?.find(entry => entry.localPokemonId === pokemon.localPokemonId);
+  return new Set([
+    mapping?.showdownIdentityToken,
+    mapping?.showdownId,
+    mapping?.pokeballId,
+    pokemon.showdownIdentityToken,
+    pokemon.showdownId,
+    pokemon.pokeballId,
+    pokemon.localPokemonId,
+  ].map(value => toId(value || "")).filter(Boolean));
+}
+
+function identityTokensForActive(active: BattleActivePokemonV4): Set<string> {
+  return new Set([
+    active.localPokemonId,
+    active.showdownIdentityToken,
+    active.showdownId,
+    active.pokeballId,
+    active.pokeball,
+  ].map(value => toId(value || "")).filter(Boolean));
+}
+
+function identityTokensForRequestRow(row: RequestSidePokemonV4 | null | undefined): Set<string> {
+  return new Set([row?.pokeball].map(value => toId(value || "")).filter(Boolean));
+}
+
+function mappingEntryForIdentityTokens(mapping: ShowdownTeamPokemonMappingV4[], tokens: Set<string>): ShowdownTeamPokemonMappingV4 | null {
+  if (!tokens.size) return null;
+  return mapping.find(entry => [
+    entry.localPokemonId,
+    entry.showdownIdentityToken,
+    entry.showdownId,
+    entry.pokeballId,
+  ].some(value => tokens.has(toId(value || "")))) || null;
+}
+
+function mappingEntryFromActiveIdentity(active: BattleActivePokemonV4, mapping: ShowdownTeamPokemonMappingV4[] | undefined): ShowdownTeamPokemonMappingV4 | null {
+  return mappingEntryForIdentityTokens(mapping || [], identityTokensForActive(active));
+}
+
+function mappingEntryForRequestRow(row: RequestSidePokemonV4 | null | undefined, mapping: ShowdownTeamPokemonMappingV4[] | undefined, index: number): ShowdownTeamPokemonMappingV4 | null {
+  const byToken = mappingEntryForIdentityTokens(mapping || [], identityTokensForRequestRow(row));
+  if (byToken) return byToken;
+  return (mapping || []).find(entry => entry.choiceIndex === index + 1 || entry.teamIndex === index) || null;
+}
+
+function identityTokensIntersect(left: Set<string>, right: Set<string>): boolean {
+  if (!left.size || !right.size) return false;
+  for (const token of left) {
+    if (right.has(token)) return true;
+  }
+  return false;
+}
+
+function requestRowMatchesActive(row: RequestSidePokemonV4, active: BattleActivePokemonV4): boolean {
+  return protocolSpeciesTokensMatch(speciesTokensForActive(active), [
+    row.details.split(",")[0] || "",
+    row.name,
+    row.ident.split(":").pop() || "",
+  ]);
 }
 
 function findTeamPokemon(team: LocalPokemonV4[], species: string): LocalPokemonV4 | undefined {
@@ -1651,15 +1775,11 @@ function baseSpeciesIdForProtocolMatch(value: string): string {
 }
 
 function resolveLocalPokemonFromActive(active: BattleActivePokemonV4, mapping: ShowdownTeamPokemonMappingV4[] | undefined, team: LocalPokemonV4[]): LocalPokemonV4 | null {
-  const activeSpecies = toId(active.species || active.details.split(",")[0] || active.ident.split(":").pop() || "");
-  const activeName = toId(active.ident.split(":").pop() || "");
-  const activeDetailSpecies = toId(active.details.split(",")[0] || "");
-  const activeTokens = new Set([activeSpecies, activeName, activeDetailSpecies].filter(Boolean));
-  const mappingEntry = findMappingEntryByProtocolSpecies(mapping || [], activeTokens);
+  const mappingEntry = mappingEntryFromActiveIdentity(active, mapping) || findMappingEntryByProtocolSpecies(mapping || [], speciesTokensForActive(active));
   if (mappingEntry) {
     return team.find(pokemon => pokemon.localPokemonId === mappingEntry.localPokemonId) || team[mappingEntry.teamIndex] || null;
   }
-  return findTeamPokemonByProtocolSpecies(team, activeTokens);
+  return findTeamPokemonByProtocolSpecies(team, speciesTokensForActive(active));
 }
 
 function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens: Set<string> = new Set(), showdownIdPool = createShowdownIdPoolState(), ruleSet: TrainingRuleSetV4 = "standard"): BattleServicePlayerInputV4 {
@@ -1794,15 +1914,37 @@ function takeShowdownIdentityToken(used: Set<string>, pool: ShowdownIdPoolStateV
   return token;
 }
 
-function findRequestRowIndexForActive(requestRows: RequestSidePokemonV4[], active: BattleActivePokemonV4, fallbackIndex: number): number {
-  const activeName = toId(active.species || active.ident.split(":").pop() || "");
-  const activeIdentName = toId(active.ident.split(":").pop() || "");
-  const activeTokens = new Set([activeName, activeIdentName].filter(Boolean));
-  const activeRowIndex = requestRows.findIndex(row => row.active && (
-    protocolSpeciesTokensMatch(activeTokens, [row.details.split(",")[0] || "", row.name, row.ident.split(":").pop() || ""])
-  ));
+function findRequestRowIndexForActive(requestRows: RequestSidePokemonV4[], active: BattleActivePokemonV4, fallbackIndex: number, usedIndices = new Set<number>()): number {
+  const activeIdentityTokens = identityTokensForActive(active);
+  const activeRowIndex = requestRows.findIndex((row, index) =>
+    !usedIndices.has(index) && row.active && identityTokensIntersect(identityTokensForRequestRow(row), activeIdentityTokens)
+  );
   if (activeRowIndex >= 0) return activeRowIndex;
-  return requestRows[fallbackIndex] ? fallbackIndex : -1;
+  const activeRows = requestRows
+    .map((row, index) => ({row, index}))
+    .filter(entry => entry.row.active && !usedIndices.has(entry.index));
+  const speciesTokens = speciesTokensForActive(active);
+  const ordered = activeRows[fallbackIndex];
+  if (ordered && (!speciesTokens.size || protocolSpeciesTokensMatch(speciesTokens, [ordered.row.details.split(",")[0] || "", ordered.row.name, ordered.row.ident.split(":").pop() || ""]))) return ordered.index;
+  const speciesRow = activeRows.find(entry =>
+    protocolSpeciesTokensMatch(speciesTokens, [entry.row.details.split(",")[0] || "", entry.row.name, entry.row.ident.split(":").pop() || ""])
+  );
+  if (speciesRow) return speciesRow.index;
+  if (activeIdentityTokens.size) return -1;
+  return ordered?.index ?? -1;
+}
+
+function speciesTokensForActive(active: BattleActivePokemonV4): Set<string> {
+  return new Set([
+    active.species,
+    active.details.split(",")[0] || "",
+    active.ident.split(":").pop() || "",
+  ].map(value => toId(value || "")).filter(Boolean));
+}
+
+function activeIndexFromSlot(slot: string): number {
+  const suffix = slot.replace(/^p[1-4]/i, "").toLowerCase();
+  return suffix ? Math.max(0, suffix.charCodeAt(0) - 97) : 0;
 }
 
 function playerIdsForNode(node: TrainingRunGameNodeV4): ShowdownPlayerIdV4[] {

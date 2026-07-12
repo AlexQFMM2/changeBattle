@@ -231,6 +231,33 @@ export type BattleTeamStateV4 = {
   updatedAt: string;
 };
 
+export type BattleRosterPokemonV4 = {
+  key: string;
+  searchId: string;
+  ident: string;
+  canonicalIdent: string;
+  playerId: ShowdownPlayerIdV4;
+  slot?: string;
+  localPokemonId?: string;
+  showdownIdentityToken?: string;
+  showdownId?: string;
+  pokeballId?: string;
+  pokeball?: string;
+  species: string;
+  details: string;
+  condition: string;
+  hp: number;
+  maxHp: number;
+  status: string;
+  fainted: boolean;
+};
+
+export type BattleRosterStateV4 = {
+  pokemonByKey: Record<string, BattleRosterPokemonV4>;
+  activeKeyBySlot: Record<string, string>;
+  updatedAt: string;
+};
+
 export type BattleServiceSnapshotV4 = {
   id: string;
   runId: string;
@@ -246,6 +273,7 @@ export type BattleServiceSnapshotV4 = {
   requests: Partial<Record<ShowdownPlayerIdV4, BattleServiceRequestV4>>;
   active: BattleServiceActivePokemonV4[];
   teamStateByPlayer?: Partial<Record<ShowdownPlayerIdV4, BattleTeamStateV4>>;
+  battleRosterByPlayer?: Partial<Record<ShowdownPlayerIdV4, BattleRosterStateV4>>;
   rawLog: string[];
   debug: {
     inputLog: string[];

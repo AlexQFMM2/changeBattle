@@ -10,6 +10,7 @@ import {
   resolveShowdownRandomTeamFormatV4,
   showdownMoveNeedsExplicitTargetV4,
   applyPermanentFormeChange,
+  __testApplyBattleProtocolLinesV4,
   submitTrainerItem,
   submitChoice,
   validateShowdownChoiceCommandV4,
@@ -403,10 +404,20 @@ async function duplicateSpeciesDoublesSmoke() {
     ],
   };
   const snapshot = await createBattleSession(input);
+  const initialP1Roster = snapshot.battleRosterByPlayer?.p1;
+  const initialP1Keys = [initialP1Roster?.activeKeyBySlot?.p1a, initialP1Roster?.activeKeyBySlot?.p1b].filter(Boolean);
+  if (new Set(initialP1Keys).size !== 2) {
+    throw new Error(`duplicate species should keep separate p1 roster keys: ${JSON.stringify(initialP1Roster)}`);
+  }
   const next = await submitChoice({sessionId: snapshot.id, playerId: "p1", choice: randomLegalChoice(snapshot.requests.p1)});
   const slots = next.active.map(active => active.slot).sort();
   for (const slot of ["p1a", "p1b", "p2a", "p2b"]) {
     if (!slots.includes(slot)) throw new Error(`missing duplicate doubles active slot ${slot}`);
+  }
+  const nextP1Roster = next.battleRosterByPlayer?.p1;
+  const nextP1Keys = [nextP1Roster?.activeKeyBySlot?.p1a, nextP1Roster?.activeKeyBySlot?.p1b].filter(Boolean);
+  if (new Set(nextP1Keys).size !== 2) {
+    throw new Error(`duplicate species should keep separate p1 roster keys after turn: ${JSON.stringify(nextP1Roster)}`);
   }
   console.log("showdown-battle-core duplicate doubles smoke ok");
 }
@@ -509,6 +520,276 @@ async function permanentFormeChangeSmoke() {
   if (!timeline.groups.some(group => group.calls.some(call => call.kind === "transform"))) {
     throw new Error(`forme change should compile to transform group: ${JSON.stringify(timeline.groups)}`);
   }
+}
+
+async function activeIdentityContinuitySmoke() {
+  const ninetales = {...pikachu, species: "Ninetales", name: "Ninetales", ability: "Flash Fire", moves: ["Flamethrower", "Protect"]};
+  const volcarona = {...pikachu, species: "Volcarona", name: "Volcarona", ability: "Flame Body", moves: ["Bug Buzz", "Protect"]};
+  const magnezone = {...pikachu, species: "Magnezone", name: "Magnezone", ability: "Sturdy", moves: ["Thunderbolt", "Protect"]};
+  const greninja = {...pikachu, species: "Greninja", name: "Greninja", ability: "Torrent", item: "Greninjite", moves: ["Water Shuriken", "U-turn", "Protect"]};
+  const localTeam = [
+    localPokemonFromSet(ninetales, {localPokemonId: "formal-p1-1-ninetales", showdownIdentityToken: "pokeball", showdownId: "pokeball", pokeballId: "pokeball"}),
+    localPokemonFromSet(volcarona, {localPokemonId: "formal-p1-2-volcarona", showdownIdentityToken: "greatball", showdownId: "greatball", pokeballId: "greatball"}),
+    localPokemonFromSet(magnezone, {localPokemonId: "formal-p1-3-magnezone", showdownIdentityToken: "ultraball", showdownId: "ultraball", pokeballId: "ultraball"}),
+    localPokemonFromSet(greninja, {localPokemonId: "formal-p1-4-greninja", showdownIdentityToken: "masterball", showdownId: "masterball", pokeballId: "masterball"}),
+  ];
+  const identityTokens = ["pokeball", "greatball", "ultraball", "masterball"];
+  const teamMapping = localTeam.map((pokemon, index) => ({
+    playerId: "p1" as const,
+    teamIndex: index,
+    choiceIndex: index + 1,
+    localPokemonId: pokemon.localPokemonId,
+    showdownIdentityToken: identityTokens[index]!,
+    showdownId: identityTokens[index]!,
+    pokeballId: identityTokens[index]!,
+    speciesId: pokemon.speciesId,
+    displayName: pokemon.nameZh,
+  }));
+  const ninetalesToken = "pokeball";
+  const volcaronaToken = "greatball";
+  const magnezoneToken = "ultraball";
+  const greninjaToken = "masterball";
+  const greninjaMapping = teamMapping[3]!;
+  const snapshot: BattleServiceSnapshotV4 = {
+    id: "active-identity-test-session",
+    runId: "test-run",
+    nodeId: "test-node-active-identity",
+    status: "running",
+    mode: "doubles",
+    ruleSet: "gen9",
+    turn: 3,
+    winner: null,
+    error: null,
+    players: [{
+      playerId: "p1",
+      name: "A",
+      controller: "local",
+      alliance: "near",
+      team: [],
+      draft: trainerItemDraft("p1", localTeam) as any,
+      teamMapping,
+    }],
+    requests: {},
+    active: [],
+    rawLog: [],
+    debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, latestRequests: {}, latestMovePpByPokemon: {}, aiDecisions: []},
+    createdAt: "2026-07-12T00:00:00.000Z",
+    updatedAt: "2026-07-12T00:00:00.000Z",
+  };
+  const reordered = {
+    ...snapshot,
+    requests: {
+      ...snapshot.requests,
+      p1: {
+        rqid: 99,
+        targetable: true,
+        active: [
+          {moves: [{move: "Flamethrower", id: "flamethrower", pp: 15, maxpp: 15, target: "normal"}]},
+          {moves: [{move: "Water Shuriken", id: "watershuriken", pp: 20, maxpp: 20, target: "normal"}]},
+        ],
+        side: {
+          id: "p1",
+          name: "A",
+          pokemon: [
+            {ident: "p1: Greninja", details: "Greninja-Mega, L50, M", condition: "151/151", active: true, pokeball: greninjaToken},
+            {ident: "p1: Ninetales", details: "Ninetales, L50, M", condition: "100/100", active: true, pokeball: ninetalesToken},
+            {ident: "p1: Magnezone", details: "Magnezone, L50", condition: "100/100", active: false, pokeball: magnezoneToken},
+            {ident: "p1: Volcarona", details: "Volcarona, L50, M", condition: "100/100", active: false, pokeball: volcaronaToken},
+          ],
+        },
+      },
+    },
+    debug: {
+      ...snapshot.debug,
+      latestSidePokemon: {
+        ...snapshot.debug.latestSidePokemon,
+        p1: [
+          {ident: "p1: Greninja", details: "Greninja-Mega, L50, M", condition: "151/151", active: true, pokeball: greninjaToken},
+          {ident: "p1: Ninetales", details: "Ninetales, L50, M", condition: "100/100", active: true, pokeball: ninetalesToken},
+          {ident: "p1: Magnezone", details: "Magnezone, L50", condition: "100/100", active: false, pokeball: magnezoneToken},
+          {ident: "p1: Volcarona", details: "Volcarona, L50, M", condition: "100/100", active: false, pokeball: volcaronaToken},
+        ],
+      },
+    },
+    active: [{
+      ident: "p1a: Greninja",
+      playerId: "p1",
+      slot: "p1a",
+      localPokemonId: greninjaMapping.localPokemonId,
+      showdownIdentityToken: greninjaToken,
+      showdownId: greninjaToken,
+      pokeballId: greninjaToken,
+      pokeball: greninjaToken,
+      species: "Greninja-Mega",
+      details: "Greninja-Mega, L50, M",
+      condition: "151/151",
+      hp: 151,
+      maxHp: 151,
+      status: "",
+      fainted: false,
+    }],
+  } satisfies BattleServiceSnapshotV4;
+  const afterOnlyDetailsChange = __testApplyBattleProtocolLinesV4(reordered, [
+    "|detailschange|p1a: Greninja|Greninja-Mega, L50, M",
+  ]);
+  const afterDetailsRoster = afterOnlyDetailsChange.battleRosterByPlayer?.p1;
+  const afterDetailsKey = afterDetailsRoster?.activeKeyBySlot?.p1a;
+  if (!afterDetailsKey) throw new Error(`detailschange should bind p1a to a roster key: ${JSON.stringify(afterOnlyDetailsChange.battleRosterByPlayer)}`);
+  const afterDetailsEntry = afterDetailsRoster?.pokemonByKey?.[afterDetailsKey];
+  if (afterDetailsEntry?.localPokemonId !== greninjaMapping.localPokemonId || afterDetailsEntry.details !== "Greninja-Mega, L50, M") {
+    throw new Error(`detailschange should mutate greninja roster entry only: ${JSON.stringify(afterDetailsEntry)}`);
+  }
+  const afterDetailsChange = __testApplyBattleProtocolLinesV4(afterOnlyDetailsChange, [
+    "|switch|p1a: Greninja|Greninja-Mega, L50, M|151/151",
+  ]);
+  const afterSwitchRoster = afterDetailsChange.battleRosterByPlayer?.p1;
+  const afterSwitchKey = afterSwitchRoster?.activeKeyBySlot?.p1a;
+  if (afterSwitchKey !== afterDetailsKey) {
+    throw new Error(`switch should keep same greninja roster key after detailschange: ${afterDetailsKey} -> ${afterSwitchKey}`);
+  }
+  const activeGreninja = afterDetailsChange.active.find(entry => entry.slot === "p1a");
+  if (activeGreninja?.localPokemonId !== greninjaMapping.localPokemonId) {
+    throw new Error(`mega active identity should remain greninja, got ${JSON.stringify(activeGreninja)}`);
+  }
+  if (activeGreninja?.localPokemonId?.includes("magnezone")) {
+    throw new Error(`mega active identity should not become magnezone: ${JSON.stringify(activeGreninja)}`);
+  }
+  console.log("showdown-battle-core active identity continuity smoke ok");
+}
+
+async function activeIdentityStressMatrixSmoke() {
+  const ninetales = {...pikachu, species: "Ninetales", name: "Ninetales", ability: "Flash Fire", moves: ["Flamethrower", "Protect"]};
+  const volcarona = {...pikachu, species: "Volcarona", name: "Volcarona", ability: "Flame Body", moves: ["Bug Buzz", "Protect"]};
+  const magnezone = {...pikachu, species: "Magnezone", name: "Magnezone", ability: "Sturdy", moves: ["Thunderbolt", "Protect"]};
+  const greninja = {...pikachu, species: "Greninja", name: "Greninja", ability: "Torrent", item: "Greninjite", moves: ["Water Shuriken", "U-turn", "Protect"]};
+  const localTeam = [
+    localPokemonFromSet(ninetales, {localPokemonId: "formal-p1-1-ninetales", showdownIdentityToken: "pokeball", showdownId: "pokeball", pokeballId: "pokeball"}),
+    localPokemonFromSet(volcarona, {localPokemonId: "formal-p1-2-volcarona", showdownIdentityToken: "greatball", showdownId: "greatball", pokeballId: "greatball"}),
+    localPokemonFromSet(magnezone, {localPokemonId: "formal-p1-3-magnezone", showdownIdentityToken: "ultraball", showdownId: "ultraball", pokeballId: "ultraball"}),
+    localPokemonFromSet(greninja, {localPokemonId: "formal-p1-4-greninja", showdownIdentityToken: "masterball", showdownId: "masterball", pokeballId: "masterball"}),
+  ];
+  const teamMapping = localTeam.map((pokemon, index) => {
+    const token = ["pokeball", "greatball", "ultraball", "masterball"][index]!;
+    return {
+      playerId: "p1" as const,
+      teamIndex: index,
+      choiceIndex: index + 1,
+      localPokemonId: pokemon.localPokemonId,
+      showdownIdentityToken: token,
+      showdownId: token,
+      pokeballId: token,
+      speciesId: pokemon.speciesId,
+      displayName: pokemon.nameZh,
+    };
+  });
+  const row = (ident: string, details: string, condition: string, active: boolean, pokeball: string) => ({ident, details, condition, active, pokeball});
+  const requestForRows = (rows: ReturnType<typeof row>[]): BattleServiceRequestV4 => ({
+    rqid: 100,
+    targetable: true,
+    active: rows.filter(entry => entry.active).map(() => ({moves: [{move: "Protect", id: "protect", pp: 16, maxpp: 16, target: "self"}]})),
+    side: {id: "p1", name: "A", pokemon: rows},
+  });
+  const withRows = (snapshot: BattleServiceSnapshotV4, rows: ReturnType<typeof row>[]): BattleServiceSnapshotV4 => ({
+    ...snapshot,
+    requests: {...snapshot.requests, p1: requestForRows(rows)},
+    debug: {
+      ...snapshot.debug,
+      latestSidePokemon: {...snapshot.debug.latestSidePokemon, p1: rows},
+    },
+  });
+  const activeRows = {
+    opening: [
+      row("p1: Ninetales", "Ninetales, L50, M", "100/100", true, "pokeball"),
+      row("p1: Greninja", "Greninja, L50, M", "151/151", true, "masterball"),
+      row("p1: Magnezone", "Magnezone, L50", "100/100", false, "ultraball"),
+      row("p1: Volcarona", "Volcarona, L50, M", "100/100", false, "greatball"),
+    ],
+    magnezoneIn: [
+      row("p1: Ninetales", "Ninetales, L50, M", "100/100", true, "pokeball"),
+      row("p1: Greninja", "Greninja-Mega, L50, M", "77/151", false, "masterball"),
+      row("p1: Magnezone", "Magnezone, L50", "100/100", true, "ultraball"),
+      row("p1: Volcarona", "Volcarona, L50, M", "100/100", false, "greatball"),
+    ],
+    reorderedReturn: [
+      row("p1: Greninja", "Greninja-Mega, L50, M", "77/151", true, "masterball"),
+      row("p1: Ninetales", "Ninetales, L50, M", "100/100", true, "pokeball"),
+      row("p1: Magnezone", "Magnezone, L50", "100/100", false, "ultraball"),
+      row("p1: Volcarona", "Volcarona, L50, M", "100/100", false, "greatball"),
+    ],
+  };
+  let current: BattleServiceSnapshotV4 = withRows({
+    id: "active-identity-stress-session",
+    runId: "test-run",
+    nodeId: "test-node-active-identity-stress",
+    status: "running",
+    mode: "doubles",
+    ruleSet: "gen9",
+    turn: 4,
+    winner: null,
+    error: null,
+    players: [{
+      playerId: "p1",
+      name: "A",
+      controller: "local",
+      alliance: "near",
+      team: [],
+      draft: trainerItemDraft("p1", localTeam) as any,
+      teamMapping,
+    }],
+    requests: {},
+    active: [],
+    battleRosterByPlayer: {},
+    rawLog: [],
+    debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, latestRequests: {}, latestMovePpByPokemon: {}, aiDecisions: []},
+    createdAt: "2026-07-12T00:00:00.000Z",
+    updatedAt: "2026-07-12T00:00:00.000Z",
+  }, activeRows.opening);
+
+  const activeLocalId = (snapshot: BattleServiceSnapshotV4, slot: string) => snapshot.active.find(entry => entry.slot === slot)?.localPokemonId;
+  const activeKey = (snapshot: BattleServiceSnapshotV4, slot: string) => snapshot.battleRosterByPlayer?.p1?.activeKeyBySlot?.[slot];
+  const rosterEntry = (snapshot: BattleServiceSnapshotV4, key: string | undefined) => key ? snapshot.battleRosterByPlayer?.p1?.pokemonByKey?.[key] : undefined;
+
+  current = __testApplyBattleProtocolLinesV4(current, [
+    "|switch|p1a: Ninetales|Ninetales, L50, M|100/100",
+    "|switch|p1b: Greninja|Greninja, L50, M|151/151",
+  ]);
+  if (activeLocalId(current, "p1a") !== "formal-p1-1-ninetales" || activeLocalId(current, "p1b") !== "formal-p1-4-greninja") {
+    throw new Error(`opening active identity mismatch: ${JSON.stringify(current.active)}`);
+  }
+  const greninjaKey = activeKey(current, "p1b");
+
+  current = __testApplyBattleProtocolLinesV4(current, ["|detailschange|p1b: Greninja|Greninja-Mega, L50, M"]);
+  if (activeKey(current, "p1b") !== greninjaKey || rosterEntry(current, greninjaKey)?.details !== "Greninja-Mega, L50, M") {
+    throw new Error(`detailschange should preserve greninja key and update details: ${JSON.stringify(current.battleRosterByPlayer?.p1)}`);
+  }
+
+  current = __testApplyBattleProtocolLinesV4(current, ["|-damage|p1b: Greninja|77/151"]);
+  if (rosterEntry(current, greninjaKey)?.hp !== 77) {
+    throw new Error(`damage should update greninja roster entry: ${JSON.stringify(rosterEntry(current, greninjaKey))}`);
+  }
+
+  current = withRows(current, activeRows.magnezoneIn);
+  current = __testApplyBattleProtocolLinesV4(current, ["|switch|p1b: Magnezone|Magnezone, L50|100/100"]);
+  if (activeLocalId(current, "p1b") !== "formal-p1-3-magnezone") {
+    throw new Error(`switch-in should resolve magnezone by current row token: ${JSON.stringify(current.active)}`);
+  }
+  if (rosterEntry(current, greninjaKey)?.localPokemonId !== "formal-p1-4-greninja" || rosterEntry(current, greninjaKey)?.hp !== 77) {
+    throw new Error(`greninja inactive roster entry should survive switch-out: ${JSON.stringify(current.battleRosterByPlayer?.p1)}`);
+  }
+
+  current = withRows(current, activeRows.reorderedReturn);
+  current = __testApplyBattleProtocolLinesV4(current, [
+    "|switch|p1b: Ninetales|Ninetales, L50, M|100/100",
+    "|switch|p1a: Greninja|Greninja-Mega, L50, M|77/151",
+  ]);
+  if (activeKey(current, "p1a") !== greninjaKey || activeLocalId(current, "p1a") !== "formal-p1-4-greninja") {
+    throw new Error(`greninja should return with same roster key after row reorder: ${JSON.stringify(current.battleRosterByPlayer?.p1)}`);
+  }
+  if (activeLocalId(current, "p1b") !== "formal-p1-1-ninetales" || activeLocalId(current, "p1b") === "formal-p1-3-magnezone") {
+    throw new Error(`slot move should not leave magnezone identity on p1b: ${JSON.stringify(current.active)}`);
+  }
+
+  console.log("showdown-battle-core active identity stress matrix smoke ok");
 }
 
 async function sleepCantMoveSmoke() {
@@ -1369,6 +1650,8 @@ function showdownPlaybackTimelineSmoke() {
 void smoke()
   .then(doublesSmoke)
   .then(permanentFormeChangeSmoke)
+  .then(activeIdentityContinuitySmoke)
+  .then(activeIdentityStressMatrixSmoke)
   .then(gen7CoopFormatSmoke)
   .then(rechargeChoiceSmoke)
   .then(faintedDoublesActiveChoiceSmoke)

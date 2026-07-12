@@ -462,6 +462,127 @@ const protocolActiveSnapshot: BattleSessionSnapshotV4 = {
 const activeNames = projectBattleViewModelV4(protocolActiveSnapshot, "p1").nearTeam.map(slot => slot.speciesId).join(",");
 assert(activeNames === "pikachu,raichu", `protocol active mapping should ignore empty requests, got ${activeNames}`);
 
+const megaIdentitySnapshot: BattleSessionSnapshotV4 = {
+  ...protocolActiveSnapshot,
+  active: [{
+    ident: "p1a: Greninja",
+    playerId: "p1",
+    slot: "p1a",
+    localPokemonId: "formal-p1-4-greninja",
+    showdownIdentityToken: "masterball",
+    showdownId: "masterball",
+    pokeballId: "masterball",
+    pokeball: "masterball",
+    species: "Greninja-Mega",
+    details: "Greninja-Mega, L50, M",
+    condition: "151/151",
+    hp: 151,
+    maxHp: 151,
+    status: "",
+    fainted: false,
+  }],
+  requests: {
+    p1: {
+      requestType: "move",
+      rqid: 10,
+      targetable: true,
+      active: [{moves: [{move: "Water Shuriken", id: "watershuriken", pp: 20, maxpp: 20, target: "normal"}]}],
+      side: {
+        id: "p1",
+        name: "P1",
+        pokemon: [
+          {ident: "p1: Greninja", details: "Greninja-Mega, L50, M", condition: "151/151", active: true, name: "Greninja", pokeball: "masterball"},
+          {ident: "p1: Ninetales", details: "Ninetales, L50, M", condition: "100/100", active: false, name: "Ninetales", pokeball: "pokeball"},
+          {ident: "p1: Magnezone", details: "Magnezone, L50", condition: "100/100", active: false, name: "Magnezone", pokeball: "ultraball"},
+          {ident: "p1: Volcarona", details: "Volcarona, L50, M", condition: "100/100", active: false, name: "Volcarona", pokeball: "greatball"},
+        ],
+      },
+    },
+  },
+  players: [{
+    ...sessionP1,
+    draft: {
+      ...sessionP1.draft,
+      localTeam: {
+        ...sessionP1.draft.localTeam,
+        pokemon: [
+          {...p1Team[0]!, localPokemonId: "formal-p1-1-ninetales", speciesId: "ninetales", name: "Ninetales", nameZh: "九尾"},
+          {...p1Team[1]!, localPokemonId: "formal-p1-2-volcarona", speciesId: "volcarona", name: "Volcarona", nameZh: "火神蛾"},
+          {...p1Team[2]!, localPokemonId: "formal-p1-3-magnezone", speciesId: "magnezone", name: "Magnezone", nameZh: "自爆磁怪"},
+          {...pikachu("formal-p1-4-greninja", 50, 151, 151, ""), speciesId: "greninja", name: "Greninja", nameZh: "甲贺忍蛙"},
+        ],
+      },
+    },
+    teamMapping: [
+      {playerId: "p1", teamIndex: 0, choiceIndex: 1, localPokemonId: "formal-p1-1-ninetales", showdownIdentityToken: "pokeball", showdownId: "pokeball", pokeballId: "pokeball", speciesId: "ninetales", displayName: "九尾"},
+      {playerId: "p1", teamIndex: 1, choiceIndex: 2, localPokemonId: "formal-p1-2-volcarona", showdownIdentityToken: "greatball", showdownId: "greatball", pokeballId: "greatball", speciesId: "volcarona", displayName: "火神蛾"},
+      {playerId: "p1", teamIndex: 2, choiceIndex: 3, localPokemonId: "formal-p1-3-magnezone", showdownIdentityToken: "ultraball", showdownId: "ultraball", pokeballId: "ultraball", speciesId: "magnezone", displayName: "自爆磁怪"},
+      {playerId: "p1", teamIndex: 3, choiceIndex: 4, localPokemonId: "formal-p1-4-greninja", showdownIdentityToken: "masterball", showdownId: "masterball", pokeballId: "masterball", speciesId: "greninja", displayName: "甲贺忍蛙"},
+    ],
+  }],
+};
+const megaSlot = projectBattleViewModelV4(megaIdentitySnapshot, "p1").nearTeam.find(slot => slot.seat === "p1A");
+assert(megaSlot?.localPokemonId === "formal-p1-4-greninja", `mega active should resolve by token/local id, got ${JSON.stringify(megaSlot)}`);
+assert(String(megaSlot?.localPokemonId || "") !== "formal-p1-3-magnezone", "mega active must not resolve to magnezone");
+
+const staleActiveIdentitySnapshot: BattleSessionSnapshotV4 = {
+  ...megaIdentitySnapshot,
+  active: [{
+    ident: "p1a: Greninja",
+    playerId: "p1",
+    slot: "p1a",
+    localPokemonId: "formal-p1-3-magnezone",
+    showdownIdentityToken: "ultraball",
+    showdownId: "ultraball",
+    pokeballId: "ultraball",
+    pokeball: "ultraball",
+    species: "Greninja-Mega",
+    details: "Greninja-Mega, L50, M",
+    condition: "151/151",
+    hp: 151,
+    maxHp: 151,
+    status: "",
+    fainted: false,
+  }],
+};
+const staleActiveMegaSlot = projectBattleViewModelV4(staleActiveIdentitySnapshot, "p1").nearTeam.find(slot => slot.seat === "p1A");
+assert(staleActiveMegaSlot?.localPokemonId === "formal-p1-4-greninja", `request row should repair stale active token, got ${JSON.stringify(staleActiveMegaSlot)}`);
+
+const rosterFirstMegaSnapshot: BattleSessionSnapshotV4 = {
+  ...staleActiveIdentitySnapshot,
+  battleRosterByPlayer: {
+    p1: {
+      activeKeyBySlot: {p1a: "formal-p1-4-greninja"},
+      pokemonByKey: {
+        "formal-p1-4-greninja": {
+          key: "formal-p1-4-greninja",
+          searchId: "p1: Greninja|Greninja-Mega, L50, M",
+          ident: "p1a: Greninja",
+          canonicalIdent: "p1: Greninja",
+          playerId: "p1",
+          slot: "p1a",
+          localPokemonId: "formal-p1-4-greninja",
+          showdownIdentityToken: "masterball",
+          showdownId: "masterball",
+          pokeballId: "masterball",
+          pokeball: "masterball",
+          species: "Greninja-Mega",
+          details: "Greninja-Mega, L50, M",
+          condition: "77/151",
+          hp: 77,
+          maxHp: 151,
+          status: "",
+          fainted: false,
+        },
+      },
+      updatedAt: "2026-07-12T00:00:00.000Z",
+    },
+  },
+};
+const rosterFirstMegaSlot = projectBattleViewModelV4(rosterFirstMegaSnapshot, "p1").nearTeam.find(slot => slot.seat === "p1A");
+assert(rosterFirstMegaSlot?.localPokemonId === "formal-p1-4-greninja", `roster should override stale active identity, got ${JSON.stringify(rosterFirstMegaSlot)}`);
+assert(rosterFirstMegaSlot?.hp === 77, `roster hp should project to view slot, got ${JSON.stringify(rosterFirstMegaSlot)}`);
+
 const formeProtocolSnapshot: BattleSessionSnapshotV4 = {
   ...protocolActiveSnapshot,
   mode: "singles",
