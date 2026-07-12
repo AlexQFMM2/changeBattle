@@ -1,7 +1,9 @@
 import {createBattleV4ShowdownSchedulerPlan} from "./useBattleV4ShowdownScheduler.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "../../../../../packages/showdown-battle-core/src/playbackCompiler.js";
+import {executeBattleV4Protocol} from "./battleV4ProtocolExecutor.js";
 import type {BattlePlaybackStepV4} from "./battleV4Playback.js";
 import type {BattleVisualCommandV4} from "./battleV4VisualScene.js";
+import type {BattleSessionSnapshotV4, BattleViewModelV4, BattleViewSlotV4} from "@changebattle-v2/api";
 
 const BASE_HP_TWEEN_MS = 350;
 const BATTLE_V4_MOVE_PLAYBACK_SPEED_SCALE = 1.5;
@@ -108,6 +110,179 @@ function smoke() {
     throw new Error(`scheduler should consume dynamax transform before heal and max move: ${dynamaxSignatures.join(" -> ")}`);
   }
   console.log("battle-v4 showdown scheduler parity smoke ok", signatures.join(" -> "));
+  protocolExecutorFormeParitySmoke();
+}
+
+function protocolExecutorFormeParitySmoke() {
+  const aerodactyl = slot("p2A", "Aerodactyl");
+  const snapshot = snapshotForRawLog([
+    "|switch|p2a: Aerodactyl|Aerodactyl, L49, F|158/158",
+    "|detailschange|p2a: Aerodactyl|Aerodactyl-Mega, L49, F",
+    "|-mega|p2a: Aerodactyl|Aerodactyl|Aerodactylite",
+    "|-formechange|p2a: Aerodactyl|Aerodactyl-Mega",
+    "|-end|p2a: Aerodactyl|formechange",
+  ]);
+  const viewModel = viewModelForSlot(aerodactyl, snapshot);
+  const execution = executeBattleV4Protocol(snapshot, viewModel, 0);
+  const p2a = execution.runtimeState.slots.p2A;
+  if (!p2a) throw new Error("protocol executor should keep p2A visible after Mega detailschange");
+  assertEqual(p2a.speciesId, "Aerodactyl-Mega", "detailschange should be permanent like Showdown pokemon.speciesForme");
+  assertEqual(p2a.active, true, "forme events should not deactivate or remove active slot");
+  const transformEvents = execution.semanticEvents.filter(event => event.kind === "transform");
+  if (transformEvents.length < 3) throw new Error(`expected detailschange/mega/formechange/end transform events, got ${transformEvents.length}`);
+  console.log("battle-v4 protocol executor forme parity smoke ok");
+}
+
+function snapshotForRawLog(rawLog: string[]): BattleSessionSnapshotV4 {
+  return {
+    id: "executor-forme-session",
+    runId: "run",
+    nodeId: "node",
+    status: "running",
+    mode: "doubles",
+    ruleSet: "standard",
+    turn: 1,
+    winner: null,
+    error: null,
+    players: [{
+      playerId: "p2",
+      name: "B",
+      controller: "ai",
+      alliance: "far",
+      team: [],
+      draft: {
+        playerId: "p2",
+        name: "B",
+        avatar: "",
+        controller: "ai",
+        alliance: "far",
+        localTeam: {id: "p2-team", name: "P2", pokemon: [localPokemon("formal-p2-aerodactyl", "Aerodactyl")]},
+        bag: {items: [], maxSize: 20},
+      },
+      teamMapping: [{
+        playerId: "p2",
+        teamIndex: 0,
+        choiceIndex: 1,
+        localPokemonId: "formal-p2-aerodactyl",
+        showdownIdentityToken: "premierball",
+        showdownId: "premierball",
+        pokeballId: "premierball",
+        speciesId: "Aerodactyl",
+        displayName: "Aerodactyl",
+      }],
+    }],
+    requests: {},
+    active: [],
+    battleRosterByPlayer: {},
+    rawLog,
+    debug: {inputLog: [], lastChoices: [], playerStreams: [], latestSidePokemon: {}, latestRequests: {}, latestMovePpByPokemon: {}},
+    createdAt: "2026-07-12T00:00:00.000Z",
+    updatedAt: "2026-07-12T00:00:00.000Z",
+  };
+}
+
+function viewModelForSlot(viewSlot: BattleViewSlotV4, snapshot: BattleSessionSnapshotV4): BattleViewModelV4 {
+  return {
+    sessionId: snapshot.id,
+    status: snapshot.status,
+    turn: snapshot.turn,
+    winner: snapshot.winner,
+    mode: snapshot.mode,
+    ruleSet: snapshot.ruleSet,
+    slots: [viewSlot],
+    nearTeam: [],
+    farTeam: [viewSlot],
+    command: {
+      playerId: "p1",
+      waiting: false,
+      teamPreview: false,
+      forceSwitch: false,
+      requestType: "none",
+      activeIndex: 0,
+      requestLength: 0,
+      activePokemon: null,
+      choices: [],
+      isDone: false,
+      currentMove: null,
+      waitingForTarget: false,
+      readonlyAllies: null,
+      actions: [],
+      switchActions: [],
+      targetActions: [],
+      request: null,
+      normalizedRequest: null,
+    },
+    rawLog: snapshot.rawLog,
+    error: null,
+  };
+}
+
+function slot(seat: BattleViewSlotV4["seat"], speciesId: string): BattleViewSlotV4 {
+  const playerId = seat.slice(0, 2) as BattleViewSlotV4["playerId"];
+  return {
+    seat,
+    playerId,
+    side: playerId === "p1" || playerId === "p3" ? "near" : "far",
+    position: seat.endsWith("B") ? "B" : "A",
+    localPokemonId: `formal-${playerId}-${speciesId.toLowerCase()}`,
+    showdownIdentityToken: "premierball",
+    showdownId: "premierball",
+    pokeballId: "premierball",
+    active: true,
+    fainted: false,
+    name: speciesId,
+    nameZh: speciesId,
+    speciesId,
+    level: 49,
+    hp: 158,
+    maxHp: 158,
+    status: "",
+    spriteUrl: `/sprites/${speciesId}.gif`,
+    frontSpriteUrl: `/sprites/${speciesId}.gif`,
+    backSpriteUrl: `/sprites/${speciesId}-back.gif`,
+    frontShinySpriteUrl: "",
+    backShinySpriteUrl: "",
+    shiny: false,
+    iconUrl: "",
+    teamBallStates: ["normal", "empty", "empty", "empty", "empty", "empty"],
+  };
+}
+
+function localPokemon(localPokemonId: string, speciesId: string) {
+  return {
+    localPokemonId,
+    speciesId,
+    name: speciesId,
+    nameZh: speciesId,
+    level: 49,
+    gender: "F" as const,
+    shiny: false,
+    itemId: "",
+    abilityId: "pressure",
+    abilityName: "Pressure",
+    abilityNameZh: "压迫感",
+    moves: [{
+      moveId: "rockslide",
+      name: "Rock Slide",
+      nameZh: "岩崩",
+      type: "Rock",
+      category: "Physical",
+      power: 75,
+      accuracy: 90,
+      pp: 10,
+      maxPp: 10,
+      remainingPp: 10,
+    }],
+    nature: "Serious",
+    evs: {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0},
+    ivs: {hp: 31, atk: 31, def: 31, spa: 31, spd: 31, spe: 31},
+    maxHp: 158,
+    entryHp: 158,
+    entryStatus: "" as const,
+    showdownIdentityToken: "premierball",
+    showdownId: "premierball",
+    pokeballId: "premierball",
+  };
 }
 
 function stepFromBackendGroup(group: ReturnType<typeof compileShowdownPlaybackTimelineFromRawLog>["groups"][number]): BattlePlaybackStepV4 {

@@ -104,8 +104,10 @@ export function buildPokemonBattleOBJState(input: UsePokemonBattleOBJHookInput):
   const partyByPlayer = byPlayer;
   const playbackNear = input.playback?.hasProtocolState ? input.playback.nearTeam || [] : [];
   const playbackFar = input.playback?.hasProtocolState ? input.playback.farTeam || [] : [];
-  const activeNear = mergePlaybackActiveObjects(sortActiveBattleObjects([...byPlayer.p1, ...byPlayer.p3].filter(obj => obj.active && !obj.fainted)), playbackNear);
-  const activeFar = mergePlaybackActiveObjects(sortActiveBattleObjects([...byPlayer.p2, ...byPlayer.p4].filter(obj => obj.active && !obj.fainted)), playbackFar);
+  const activeNear = mergePlaybackActiveObjects(sortActiveBattleObjects([...byPlayer.p1, ...byPlayer.p3].filter(obj => obj.active)), playbackNear)
+    .filter(obj => obj.active && !obj.fainted);
+  const activeFar = mergePlaybackActiveObjects(sortActiveBattleObjects([...byPlayer.p2, ...byPlayer.p4].filter(obj => obj.active)), playbackFar)
+    .filter(obj => obj.active && !obj.fainted);
   const nearSlots = activeNear.map(obj => toPokemonBattleViewSlot(input.api, obj));
   const farSlots = activeFar.map(obj => toPokemonBattleViewSlot(input.api, obj));
   return {
@@ -306,8 +308,8 @@ function sortActiveBattleObjects(objects: PokemonBattleOBJ[]): PokemonBattleOBJ[
 
 function mergePlaybackActiveObjects(objects: PokemonBattleOBJ[], playbackSlots: BattleViewSlotV4[]): PokemonBattleOBJ[] {
   if (!playbackSlots.length) return objects;
-  return objects.map(obj => {
-    const playback = playbackSlots.find(slot => sameIdentity(obj, slot)) || playbackSlots.find(slot => slot.seat === obj.seat);
+  const merged = objects.map(obj => {
+    const playback = playbackSlots.find(slot => sameIdentity(obj, slot));
     if (!playback) return obj;
     return {
       ...obj,
@@ -318,6 +320,26 @@ function mergePlaybackActiveObjects(objects: PokemonBattleOBJ[], playbackSlots: 
       active: playback.active,
     };
   });
+  const bySeat = new Set(merged.map(obj => obj.seat));
+  for (const playback of playbackSlots) {
+    if (!playback.active || playback.fainted || bySeat.has(playback.seat)) continue;
+    const base = objects.find(obj => obj.playerId === playback.playerId && battleViewSlotBattleKey(playback) && obj.battleKey === battleViewSlotBattleKey(playback)) ||
+      objects.find(obj => obj.playerId === playback.playerId && obj.localPokemonId === playback.localPokemonId);
+    if (!base) continue;
+    merged.push({
+      ...base,
+      slot: slotForSeat(playback.seat),
+      seat: playback.seat,
+      position: playback.position,
+      active: playback.active,
+      fainted: playback.fainted,
+      hp: playback.hp,
+      maxHp: playback.maxHp,
+      status: playback.status,
+    });
+    bySeat.add(playback.seat);
+  }
+  return merged;
 }
 
 function activeEntriesForPlayer(snapshot: BattleSessionSnapshotV4 | null, playerId: ShowdownPlayerIdV4): BattleActivePokemonV4[] {
@@ -521,11 +543,16 @@ function sameIdentity(obj: PokemonBattleOBJ, slot: BattleViewSlotV4): boolean {
   if (obj.showdownIdentityToken && slot.showdownIdentityToken && obj.showdownIdentityToken === slot.showdownIdentityToken) return true;
   if (obj.showdownId && slot.showdownId && obj.showdownId === slot.showdownId) return true;
   if (obj.pokeballId && slot.pokeballId && obj.pokeballId === slot.pokeballId) return true;
-  return obj.playerId === slot.playerId && obj.position === slot.position;
+  return false;
 }
 
 function battleViewSlotBattleKey(slot: BattleViewSlotV4): string {
   return canonicalBattleKey(slot.playerId, slot.showdownIdentityToken || slot.showdownId || slot.pokeballId);
+}
+
+function slotForSeat(seat: string): string {
+  const match = /^(p[1-4])([A-Z])$/i.exec(seat || "");
+  return match ? `${match[1]!.toLowerCase()}${match[2]!.toLowerCase()}` : "";
 }
 
 function safePokemonDisplay(api: PokemonBattleOBJApi, speciesId: string): {name: string; nameZh: string; types: string[]; iconUrl: string; iconStyle: string} {

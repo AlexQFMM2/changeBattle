@@ -2,6 +2,9 @@
 
 Battle V4 的播放顺序以 Pokemon Showdown client 为权威参照。
 
+“与 Showdown Client 一致”只能在本文件矩阵覆盖且测试通过时使用。只验证调度、choice、
+roster 或某个单点事件，不能声称全链路一致。
+
 运行时链路是：
 
 ```txt
@@ -175,3 +178,26 @@ createBattleV4ShowdownSchedulerPlan(stepQueue, {
 - `finishReason` 与 step 类型一致：visual group 为 `visual`，turn/immediate 为 `immediate`，纯消息为 `message-only`。
 
 这层测试的目标不是证明 CSS 动画长得像 Showdown，而是证明前端播放器没有重排、重复消费、提前 finish。画面错但 plan 对时，继续查 scene call 到 React/CSS 的映射；plan 错时，先修 scheduler。
+
+## BattlePokemon Lifecycle Matrix
+
+Showdown Client 参考源：
+
+- `packages/showdown-battle-core/vendor/showdown-client/js/battle.js`
+- `packages/showdown-battle-core/vendor/showdown-client/js/battle-dex.js`
+- `packages/showdown-battle-core/vendor/showdown-client/js/battle-animations.js`
+
+Battle V4 等价层：
+
+| Showdown Client | Battle V4 等价实现 | 必测行为 |
+| --- | --- | --- |
+| `side.pokemon[]` 保存持久 `BattlePokemon` 对象 | `battleRosterByPlayer[player].pokemonByKey` 保存持久 battle object | battleKey 不含 species/name/forme，形态变化后 key 不变 |
+| `side.active[]` 只引用同一个对象 | `activeKeyBySlot[slot]` 只引用 roster key | swap/switch 只移动 key，不复制或重绑对象 |
+| `getPokemon(pokemonid)` 有 slot 时优先返回 `side.active[slot]` | active slot ident 优先从 `activeKeyBySlot[slot]` 取 roster entry | damage/heal/status/faint/detailschange 不按 species/index 重新匹配 |
+| `getPokemon("p2: Name")` 视为 inactive ident，默认跳过当前 active | `parseIdent.slotExplicit=false` 时走 inactive roster 搜索，不默认写 `p2a` | silent inactive `detailschange` 不能污染当前 active |
+| `getSwitchedPokemon(pokemonid, details)` 只在非 active、非 fainted 中找对象；找不到就 addPokemon | switch/drag/replace 通过 pokeball/request row 找 canonical key；不唯一或缺失时 protocol key | Stunfisk 不能继承 Chatot/Aerodactyl identity |
+| `side.faint(pokemon)` 清 volatile，`lastPokemon=pokemon`，`active[slot]=null` | `faint` 标记 roster entry 后清 `activeKeyBySlot[slot]`，写 `lastPokemonKeyBySlot` 到 upkeep | faint 后 slot 不再被 inactive detailschange 当 active |
+| `detailschange` 移除临时 forme/type volatile，永久更新 `speciesForme/details/searchid` | roster entry 和 Web battle object 更新 `battleSpeciesId/battleDetails/searchId` | Mega 后下场再上场仍显示 Mega |
+| `-formechange` 写 `volatiles.formechange`，切出或 `-end` 后还原 | Web playback/runtime 写临时 forme，并保存旧 sprite state | 临时形态结束后回到永久形态 |
+| `-transform` 复制目标当前形态到 volatile | Web runtime 用目标当前 `speciesId` 做 transform sprite，`-end transform` 还原 | Transform 不改变长期身份 |
+| `battle-dex` sprite/icon 从 `speciesForme` 或 `volatiles.formechange` 派生 | BattleArena/target/bag/switch 从 `PokemonBattleOBJ.battleSpeciesId` 和 playback volatile 派生 | visible slot 不丢 active seat，sprite 指向当前形态资源 |

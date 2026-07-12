@@ -88,7 +88,16 @@ const BATTLE_V4_PROTOCOL_LABELS: Record<string, Record<string, string>> = {
 export type BattleRuntimeSlotV4 = BattleViewSlotV4 & {
   lastKnownHp: number;
   lastKnownMaxHp: number;
+  baseSpeciesId?: string;
+  volatileFormeSpeciesId?: string;
+  transformedSpeciesId?: string;
+  oldSpriteState?: BattleRuntimeSlotSpriteStateV4;
 };
+
+type BattleRuntimeSlotSpriteStateV4 = Pick<
+  BattleViewSlotV4,
+  "speciesId" | "spriteUrl" | "frontSpriteUrl" | "backSpriteUrl" | "frontShinySpriteUrl" | "backShinySpriteUrl" | "shiny" | "iconUrl" | "iconStyle" | "name" | "nameZh" | "specialFormeKind"
+>;
 
 export type BattleRuntimeStateV4 = {
   turn: number;
@@ -217,7 +226,7 @@ function applyProtocolEvent(
     const slot = slotFromSwitchProtocolEvent(snapshot, viewModel, event);
     if (!slot || !event.seat) return [];
     const previousSlot = runtime.slots[event.seat];
-    const nextSlot = {...slot, lastKnownHp: slot.hp, lastKnownMaxHp: slot.maxHp};
+    const nextSlot = resetRuntimeSlotFormeState({...slot, lastKnownHp: slot.hp, lastKnownMaxHp: slot.maxHp});
     runtime.slots[event.seat] = nextSlot;
     return [
       ...(previousSlot ? [{kind: "switchOut" as const, sequence: event.sequence, rawLine: event.rawLine, protocolEvent: event, seat: event.seat, slot: previousSlot}] : []),
@@ -272,13 +281,16 @@ function applyProtocolEvent(
       }];
     }
     if (!isTransformProtocolEvent(event)) return [];
+    const seat = event.seat || event.targetSeat;
+    const patchedSlot = patchRuntimeSlotForme(runtime, event);
+    if (seat && patchedSlot) runtime.slots[seat] = patchedSlot;
     return [{
       kind: "transform",
       sequence: event.sequence,
       rawLine: event.rawLine,
       protocolEvent: event,
-      seat: event.seat || event.targetSeat,
-      slot: runtime.slots[event.seat || event.targetSeat],
+      seat,
+      slot: patchedSlot || runtime.slots[seat],
       label: transformLabelForEvent(event),
       transformVariant: transformVariantForEvent(event, runtime),
     }];
@@ -363,13 +375,16 @@ function applyProtocolEvent(
   case "-terastallize":
   case "custom": {
     if (!isTransformProtocolEvent(event)) return [];
+    const seat = event.seat || event.targetSeat;
+    const patchedSlot = patchRuntimeSlotForme(runtime, event);
+    if (seat && patchedSlot) runtime.slots[seat] = patchedSlot;
     return [{
       kind: "transform",
       sequence: event.sequence,
       rawLine: event.rawLine,
       protocolEvent: event,
-      seat: event.seat || event.targetSeat,
-      slot: runtime.slots[event.seat || event.targetSeat],
+      seat,
+      slot: patchedSlot || runtime.slots[seat],
       label: transformLabelForEvent(event),
       transformVariant: transformVariantForEvent(event, runtime),
     }];
@@ -478,7 +493,8 @@ function slotFromSwitchProtocolEvent(snapshot: BattleSessionSnapshotV4, viewMode
   const pokemon = resolveLocalPokemonForProtocolSwitch(parsed, team);
   if (!pokemon) return viewModel?.slots.find(slot => slot.seat === event.seat) || null;
   const condition = parseProtocolCondition(parsed.condition || "", pokemon.maxHp);
-  const spriteUrls = localPokemonSpriteUrls(pokemon, side);
+  const battleSpeciesId = parsed.details.split(",")[0]?.trim() || pokemon.speciesId;
+  const spriteUrls = localPokemonSpriteUrls({...pokemon, speciesId: battleSpeciesId}, side);
   return {
     seat: event.seat,
     playerId,
@@ -492,7 +508,7 @@ function slotFromSwitchProtocolEvent(snapshot: BattleSessionSnapshotV4, viewMode
     fainted: condition?.fainted ?? pokemon.entryHp <= 0,
     name: pokemon.name,
     nameZh: pokemon.nameZh,
-    speciesId: pokemon.speciesId,
+    speciesId: battleSpeciesId,
     level: parsed.level || pokemon.level,
     hp: condition?.hp ?? pokemon.entryHp,
     maxHp: pokemon.maxHp || condition?.maxHp || 0,
@@ -509,9 +525,119 @@ function slotFromSwitchProtocolEvent(snapshot: BattleSessionSnapshotV4, viewMode
   };
 }
 
+function patchRuntimeSlotForme(runtime: BattleRuntimeStateV4, event: BattleProtocolEventV4): BattleRuntimeSlotV4 | undefined {
+  const seat = event.seat || event.targetSeat;
+  if (!seat) return undefined;
+  const slot = runtime.slots[seat];
+  if (!slot) return undefined;
+  if (event.eventType === "-zpower" || event.eventType === "-mega" || event.eventType === "-primal" || event.eventType === "-burst") return slot;
+  if (event.eventType === "-terastallize") return {...slot, teraType: event.args[2] || "", terastallized: true};
+  if (event.eventType === "custom" && toId(event.args[1] || "") === "endterastallize") return {...slot, teraType: "", terastallized: false};
+  if (event.eventType === "-start" && toId(event.args[2] || "") === "dynamax") return {...slot, dynamaxActive: true};
+  if (event.eventType === "-end" && toId(event.args[2] || "") === "dynamax") return {...slot, dynamaxActive: false};
+  if (event.eventType === "-end" && ["formechange", "transform"].includes(toId(event.args[2] || ""))) return restoreRuntimeSlotFormeState(slot);
+  const speciesId = transformSpeciesForRuntimeEvent(runtime, event);
+  if (!speciesId) return slot;
+  const isPermanent = event.eventType === "detailschange";
+  const isTransform = event.eventType === "-transform";
+  const current = ensureRuntimeSlotFormeState(slot);
+  const spriteUrls = localPokemonSpriteUrls({speciesId, shiny: slot.shiny}, slot.side);
+  const displayName = cleanSpeciesForme(speciesId);
+  return {
+    ...current,
+    baseSpeciesId: isPermanent ? speciesId : current.baseSpeciesId || current.speciesId,
+    volatileFormeSpeciesId: isPermanent ? undefined : speciesId,
+    transformedSpeciesId: isTransform ? speciesId : undefined,
+    oldSpriteState: isPermanent ? undefined : current.oldSpriteState || runtimeSpriteStateFromSlot(current),
+    speciesId,
+    name: displayName || slot.name,
+    nameZh: displayName || slot.nameZh,
+    spriteUrl: spriteUrls.spriteUrl,
+    frontSpriteUrl: spriteUrls.frontSpriteUrl,
+    backSpriteUrl: spriteUrls.backSpriteUrl,
+    frontShinySpriteUrl: spriteUrls.frontShinySpriteUrl,
+    backShinySpriteUrl: spriteUrls.backShinySpriteUrl,
+    specialFormeKind: specialFormeKindForRuntimeSpecies(speciesId) || slot.specialFormeKind,
+  };
+}
+
+function ensureRuntimeSlotFormeState(slot: BattleRuntimeSlotV4): BattleRuntimeSlotV4 {
+  return slot.baseSpeciesId ? slot : {...slot, baseSpeciesId: slot.speciesId};
+}
+
+function resetRuntimeSlotFormeState(slot: BattleRuntimeSlotV4): BattleRuntimeSlotV4 {
+  return {
+    ...slot,
+    baseSpeciesId: slot.speciesId,
+    volatileFormeSpeciesId: undefined,
+    transformedSpeciesId: undefined,
+    oldSpriteState: undefined,
+  };
+}
+
+function restoreRuntimeSlotFormeState(slot: BattleRuntimeSlotV4): BattleRuntimeSlotV4 {
+  const current = ensureRuntimeSlotFormeState(slot);
+  if (!current.oldSpriteState) {
+    return {
+      ...current,
+      volatileFormeSpeciesId: undefined,
+      transformedSpeciesId: undefined,
+    };
+  }
+  return {
+    ...current,
+    ...current.oldSpriteState,
+    baseSpeciesId: current.baseSpeciesId || current.oldSpriteState.speciesId,
+    volatileFormeSpeciesId: undefined,
+    transformedSpeciesId: undefined,
+    oldSpriteState: undefined,
+  };
+}
+
+function runtimeSpriteStateFromSlot(slot: BattleRuntimeSlotV4): BattleRuntimeSlotSpriteStateV4 {
+  return {
+    speciesId: slot.speciesId,
+    spriteUrl: slot.spriteUrl,
+    frontSpriteUrl: slot.frontSpriteUrl,
+    backSpriteUrl: slot.backSpriteUrl,
+    frontShinySpriteUrl: slot.frontShinySpriteUrl,
+    backShinySpriteUrl: slot.backShinySpriteUrl,
+    shiny: slot.shiny,
+    iconUrl: slot.iconUrl,
+    iconStyle: slot.iconStyle,
+    name: slot.name,
+    nameZh: slot.nameZh,
+    specialFormeKind: slot.specialFormeKind,
+  };
+}
+
+function transformSpeciesForRuntimeEvent(runtime: BattleRuntimeStateV4, event: BattleProtocolEventV4): string {
+  if (event.eventType === "detailschange") return (event.args[2] || "").split(",")[0]?.trim() || "";
+  if (event.eventType === "-formechange") return event.args[2] || "";
+  if (event.eventType === "-transform") {
+    const targetSlot = runtime.slots[event.targetSeat];
+    return event.args[3] || targetSlot?.speciesId || event.targetName || "";
+  }
+  if (event.eventType === "-end") return "";
+  return "";
+}
+
+function cleanSpeciesForme(value: string): string {
+  return (value || "").split(",")[0]?.trim() || "";
+}
+
+function specialFormeKindForRuntimeSpecies(speciesId: string): BattleViewSlotV4["specialFormeKind"] {
+  const id = toId(speciesId);
+  if (id.includes("mega")) return "mega";
+  if (id.includes("primal")) return "primal";
+  if (id.includes("ultra")) return "ultra";
+  return "";
+}
+
 function parseSwitchDetails(event: BattleProtocolEventV4): {
   playerId: ShowdownPlayerIdV4 | "";
   species: string;
+  details: string;
   condition: string;
   level: number;
 } {
@@ -523,6 +649,7 @@ function parseSwitchDetails(event: BattleProtocolEventV4): {
   return {
     playerId: (playerId || "") as ShowdownPlayerIdV4 | "",
     species: parts[0] || event.actorName,
+    details,
     condition,
     level: levelPart ? Number(levelPart.slice(1)) || 0 : 0,
   };

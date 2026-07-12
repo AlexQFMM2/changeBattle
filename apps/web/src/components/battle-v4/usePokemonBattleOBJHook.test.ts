@@ -127,6 +127,27 @@ function smoke() {
   assert(activeFar?.battleSpeciesId === "Stunfisk", `active far should be Stunfisk, got ${activeFar?.battleSpeciesId}`);
   assert(activeFar.localPokemonId === "formal-p2-2-stunfisk", `Stunfisk should not inherit Chatot local id: ${activeFar.localPokemonId}`);
   assert(stunfiskState.farSlots[0]?.speciesId === "Stunfisk", `far slot should display Stunfisk: ${stunfiskState.farSlots[0]?.speciesId}`);
+  const staleFaintedPlaybackState = buildPokemonBattleOBJState({
+    api,
+    snapshot: stunfiskSnapshot,
+    viewModel: null,
+    playback: {
+      hasProtocolState: true,
+      nearTeam: [],
+      farTeam: [viewSlotFor(stunfiskState.farSlots[0]!, {
+        seat: "p2B",
+        active: true,
+        fainted: true,
+        hp: 0,
+        localPokemonId: chatot.localPokemonId,
+        showdownIdentityToken: "luxuryball",
+        showdownId: "luxuryball",
+        pokeballId: "luxuryball",
+        speciesId: "Chatot",
+      })],
+    },
+  });
+  assert(staleFaintedPlaybackState.farSlots.some(slot => slot.seat === "p2B" && slot.speciesId === "Stunfisk"), `active Stunfisk seat must not disappear before playback merge: ${JSON.stringify(staleFaintedPlaybackState.farSlots)}`);
 
   const pikachuA = localPokemon("formal-p1-1-pikachu-a", "Pikachu", "皮卡丘A", "pokeball");
   const pikachuB = localPokemon("formal-p1-2-pikachu-b", "Pikachu", "皮卡丘B", "greatball");

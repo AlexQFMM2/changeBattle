@@ -1173,9 +1173,9 @@ async function showdownLikeSwitchResolverSmoke() {
     "|switch|p2b: Chatot|Chatot, L49, F|99/99",
     "|faint|p2b: Chatot",
   ]);
-  const chatotKey: string = current.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2b || "";
+  const chatotKey: string = current.battleRosterByPlayer?.p2?.lastPokemonKeyBySlot?.p2b || "";
   if (chatotKey !== "p2:luxuryball") {
-    throw new Error(`chatot key should be canonical playerId:pokeball, got ${chatotKey}`);
+    throw new Error(`fainted chatot should be remembered as lastPokemon with canonical playerId:pokeball, got ${chatotKey}`);
   }
   const stunfiskRows = chatotRows.map(row => row.ident.includes("Chatot")
     ? {...row, active: false, condition: "0 fnt", fainted: true}
@@ -1202,6 +1202,32 @@ async function showdownLikeSwitchResolverSmoke() {
   current = __testApplyBattleProtocolLinesV4(current, ["|upkeep"]);
   if (Object.keys(current.battleRosterByPlayer?.p2?.lastPokemonKeyBySlot || {}).length) {
     throw new Error(`upkeep should clear last pokemon protection like Showdown Client: ${JSON.stringify(current.battleRosterByPlayer?.p2)}`);
+  }
+
+  const staleAerodactylRows: BattleServiceSidePokemonV4[] = [
+    {ident: "p2: Aerodactyl", details: "Aerodactyl, L49, F", condition: "0 fnt", active: true, fainted: true, pokeball: "premierball"},
+    {ident: "p2: Chatot", details: "Chatot, L49, F", condition: "149/149", active: true, pokeball: "luxuryball"},
+    {ident: "p2: Throh", details: "Throh, L49, M", condition: "192/192", active: false, pokeball: "duskball"},
+    {ident: "p2: Stunfisk", details: "Stunfisk, L49, F", condition: "183/183", active: false, pokeball: "healball"},
+  ];
+  const staleSwitch = __testApplyBattleProtocolLinesV4(withLatestRows(baseSnapshot, staleAerodactylRows), [
+    "|switch|p2a: Aerodactyl|Aerodactyl, L49, F|158/158",
+    "|detailschange|p2a: Aerodactyl|Aerodactyl-Mega, L49, F",
+    "|faint|p2a: Aerodactyl",
+    "|detailschange|p2: Aerodactyl|Aerodactyl, L49, F|[silent]",
+    "|switch|p2a: Stunfisk|Stunfisk, L49, F|183/183",
+  ]);
+  const staleP2a = staleSwitch.active.find(active => active.slot === "p2a");
+  if (staleP2a?.species !== "Stunfisk" || staleP2a.pokeball !== "healball" || staleP2a.localPokemonId !== "p2-npc-4-stunfisk") {
+    throw new Error(`stale active request row must not make Stunfisk inherit Aerodactyl identity: ${JSON.stringify(staleP2a)}`);
+  }
+  const staleP2aKey = staleSwitch.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2a || "";
+  if (staleP2aKey !== "p2:healball") {
+    throw new Error(`stale switch should resolve inactive Stunfisk row by pokeball like Showdown getSwitchedPokemon: ${JSON.stringify(staleSwitch.battleRosterByPlayer?.p2)}`);
+  }
+  const staleAerodactyl = staleSwitch.battleRosterByPlayer?.p2?.pokemonByKey?.["p2:premierball"];
+  if (staleAerodactyl?.details !== "Aerodactyl, L49, F" || staleSwitch.active.find(active => active.slot === "p2a")?.species !== "Stunfisk") {
+    throw new Error(`inactive silent detailschange should update inactive Aerodactyl only and leave active Stunfisk intact: ${JSON.stringify(staleSwitch.battleRosterByPlayer?.p2)}`);
   }
 
   const duplicateSnapshot = __testApplyBattleProtocolLinesV4({
@@ -2024,6 +2050,20 @@ function showdownPlaybackTimelineSmoke() {
   const healGroup = timeline.groups.find(group => group.calls.some(call => call.kind === "otherAnim" && call.effect === "heal") && group.calls.some(call => call.kind === "heal"));
   if (!healGroup || !healGroup.rawLines.some(line => line.startsWith("|-heal|"))) {
     throw new Error("item heal should compile to other heal + heal animation group");
+  }
+  const megaTimeline = compileShowdownPlaybackTimelineFromRawLog([
+    "|player|p1|A|",
+    "|player|p2|B|",
+    "|gametype|singles",
+    "|gen|7",
+    "|",
+    "|switch|p2a: Aerodactyl|Aerodactyl, L49, F|158/158",
+    "|detailschange|p2a: Aerodactyl|Aerodactyl-Mega, L49, F",
+    "|-mega|p2a: Aerodactyl|Aerodactyl|Aerodactylite",
+  ], {sessionId: "timeline-mega-forme", previousIndex: 0});
+  const detailsTransform = megaTimeline.groups.flatMap(group => group.calls).find(call => call.rawLine?.includes("|detailschange|p2a: Aerodactyl|Aerodactyl-Mega"));
+  if (detailsTransform?.effect !== "aerodactylmega") {
+    throw new Error(`detailschange transform effect should use species only, got ${detailsTransform?.effect}`);
   }
   const weatherRawLog = [
     "|player|p1|A|",

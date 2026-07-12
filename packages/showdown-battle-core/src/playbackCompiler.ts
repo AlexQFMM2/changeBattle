@@ -438,7 +438,7 @@ function transformEffectId(args: string[]): string {
   const command = args[0] || "";
   if (command === "-start" || command === "-end") return toId(args[2] || "");
   if (command === "custom" && toId(args[1] || "") === "endterastallize") return "terastallize";
-  if (command === "detailschange" || command === "-formechange") return toId(args[2] || "");
+  if (command === "detailschange" || command === "-formechange") return toId((args[2] || "").split(",")[0]);
   if (command === "-transform") return "transform";
   return toId(command.replace(/^-/, ""));
 }
