@@ -34,11 +34,13 @@ import {filterShowdownChoiceForRuleSetV4, showdownMoveNeedsExplicitTargetV4, sho
 import {battleAiRequestKeyV4, chooseAiBattleChoiceV4, fallbackLegalChoiceV4, normalizeBattleAiProfileV4, type BattleAiChoiceResultV4} from "./ai.js";
 import {loadShowdownSimV4} from "./showdownVendor.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
+import {battleKeyFromRosterIdentityV4, canonicalBattleKeyV4, isProtocolBattleKeyV4} from "./battleIdentity.js";
 
 export * from "./showdownCommand.js";
 export * from "./ai.js";
 export * from "./teamGenerator.js";
 export * from "./battleProfiles.js";
+export * from "./battleIdentity.js";
 
 type ShowdownRuntimeApiV4 = {
   BattleStream: new (options?: {keepAlive?: boolean; debug?: boolean}) => BattleStreamLike;
@@ -779,6 +781,16 @@ function assertChoiceValidForSession(session: RuntimeSession, playerId: Showdown
 }
 
 function resolveValidChoiceForWrite(session: RuntimeSession, playerId: ShowdownPlayerIdV4, choice: string, source: "human" | "ai" | "team-preview"): string | null {
+  canonicalizeBattleRosterKeys(session);
+  const invariantErrors = battleRosterInvariantErrors(session);
+  if (invariantErrors.length) {
+    session.snapshot.status = "blocked";
+    session.snapshot.error = `[battle-roster-invariant] ${invariantErrors.join("; ")}`;
+    session.snapshot.debug.inputLog.push(`[BattleV4][blocked] ${session.snapshot.error}`);
+    touch(session);
+    if (source === "human") throw new Error(session.snapshot.error);
+    return null;
+  }
   const validation = validateChoiceForSession(session, playerId, choice);
   if (validation.ok) return validation.choice;
   recordPreflightInvalidChoice(session, playerId, source, validation);
@@ -802,6 +814,61 @@ function validateChoiceForSession(session: RuntimeSession, playerId: ShowdownPla
     request: session.snapshot.requests[playerId],
     choice,
   });
+}
+
+function battleRosterInvariantErrors(session: RuntimeSession): string[] {
+  const errors: string[] = [];
+  for (const [playerId, roster] of Object.entries(session.snapshot.battleRosterByPlayer || {}) as Array<[ShowdownPlayerIdV4, BattleRosterStateV4]>) {
+    for (const [slot, key] of Object.entries(roster.activeKeyBySlot || {})) {
+      if (!roster.pokemonByKey[key]) errors.push(`${playerId} ${slot} points to missing battleKey ${key}`);
+    }
+    const canonicalSeen = new Map<string, string>();
+    for (const [key, pokemon] of Object.entries(roster.pokemonByKey || {})) {
+      const canonical = battleKeyFromRosterIdentityV4(playerId, pokemon);
+      if (canonical) {
+        if (key !== canonical) errors.push(`${playerId} roster key ${key} must be ${canonical}`);
+        const previous = canonicalSeen.get(canonical);
+        if (previous && previous !== key) errors.push(`${playerId} duplicate canonical battleKey ${canonical}: ${previous}, ${key}`);
+        canonicalSeen.set(canonical, key);
+      } else if (!isProtocolBattleKeyV4(key)) {
+        errors.push(`${playerId} roster key ${key} has no pokeball and is not protocol key`);
+      }
+    }
+  }
+  return errors;
+}
+
+function canonicalizeBattleRosterKeys(session: RuntimeSession): void {
+  const previousByPlayer = session.snapshot.battleRosterByPlayer || {};
+  let changed = false;
+  const nextByPlayer = {...previousByPlayer};
+  for (const [playerId, roster] of Object.entries(previousByPlayer) as Array<[ShowdownPlayerIdV4, BattleRosterStateV4]>) {
+    const keyMap = new Map<string, string>();
+    const pokemonByKey: Record<string, BattleRosterPokemonV4> = {};
+    for (const [key, pokemon] of Object.entries(roster.pokemonByKey || {})) {
+      const canonical = battleKeyFromRosterIdentityV4(playerId, pokemon);
+      const nextKey = canonical || key;
+      if (nextKey !== key) {
+        changed = true;
+        keyMap.set(key, nextKey);
+      }
+      pokemonByKey[nextKey] = {...pokemon, key: nextKey};
+    }
+    if (!keyMap.size) continue;
+    const remap = (value: string) => keyMap.get(value) || value;
+    nextByPlayer[playerId] = {
+      ...roster,
+      pokemonByKey,
+      activeKeyBySlot: Object.fromEntries(Object.entries(roster.activeKeyBySlot || {}).map(([slot, key]) => [slot, remap(key)])),
+      lastPokemonKeyBySlot: Object.fromEntries(Object.entries(roster.lastPokemonKeyBySlot || {}).map(([slot, key]) => [slot, remap(key)])),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  if (changed) {
+    session.snapshot.battleRosterByPlayer = nextByPlayer;
+    session.snapshot.debug.inputLog.push("[BattleV4][roster-canonicalize] migrated battle roster keys to playerId:pokeball");
+    touch(session);
+  }
 }
 
 function recordPreflightInvalidChoice(session: RuntimeSession, playerId: ShowdownPlayerIdV4, source: string, validation: Exclude<ShowdownChoiceValidationResultV4, {ok: true}>): void {
@@ -1448,7 +1515,7 @@ function upsertActive(session: RuntimeSession, ident: string, details: string, c
     : activeIdentityFromRequest(session, parsed.playerId, parsed.slot, undefined, details, parsed.name);
   const key = options.preserveExistingIdentity && existingRoster
     ? existingRoster.key
-    : battleRosterKeyForSwitch(session, parsed, details, identity);
+    : battleRosterKeyForSwitch(session, parsed, identity);
   const rosterPokemon: BattleRosterPokemonV4 = {
     key,
     searchId: battleRosterSearchId(parsed.ident, details),
@@ -1483,46 +1550,11 @@ function upsertActive(session: RuntimeSession, ident: string, details: string, c
 
 function battleRosterKeyForSwitch(
   session: RuntimeSession,
-  parsed: {ident: string; playerId: ShowdownPlayerIdV4; slot: string; name: string},
-  details: string,
+  parsed: {playerId: ShowdownPlayerIdV4},
   identity: {localPokemonId?: string; showdownIdentityToken?: string; showdownId?: string; pokeballId?: string; pokeball?: string},
 ): string {
-  const roster = session.snapshot.battleRosterByPlayer?.[parsed.playerId];
-  const searchId = battleRosterSearchId(parsed.ident, details);
   const stableKey = battleRosterStableKey(session, parsed.playerId, identity);
-  const activeKeys = new Set(Object.values(roster?.activeKeyBySlot || {}));
-  const lastKeyForSlot = roster?.lastPokemonKeyBySlot?.[parsed.slot] || "";
-  const switchableRoster = Object.values(roster?.pokemonByKey || {}).filter(pokemon =>
-    !pokemon.fainted &&
-    !activeKeys.has(pokemon.key) &&
-    pokemon.key !== lastKeyForSlot
-  );
-  const searchMatch = switchableRoster.find(pokemon => pokemon.searchId === searchId);
-  if (searchMatch) return searchMatch.key;
-
-  const stableMatch = stableKey ? roster?.pokemonByKey?.[stableKey] : null;
-  if (stableMatch && battleRosterPokemonMatchesDetails(stableMatch, details, parsed.name)) return stableKey;
-
-  const previewMatch = switchableRoster.find(pokemon =>
-    !pokemon.searchId &&
-    battleRosterPokemonMatchesDetails(pokemon, details, parsed.name)
-  );
-  if (previewMatch) return previewMatch.key;
-
-  const speciesMatches = switchableRoster.filter(pokemon => battleRosterPokemonMatchesDetails(pokemon, details, parsed.name));
-  if (speciesMatches.length === 1) return speciesMatches[0]!.key;
-
-  if (stableKey && !stableMatch) return stableKey;
-  return protocolBattleRosterKey(parsed.playerId, parsed.slot, searchId);
-}
-
-function battleRosterPokemonMatchesDetails(pokemon: BattleRosterPokemonV4, details: string, name = ""): boolean {
-  const tokens = speciesTokensForProtocolPokemon(details.split(",")[0] || "", details, name);
-  if (!tokens.size) return false;
-  return speciesTokensForProtocolPokemon(pokemon.species, pokemon.details, pokemon.ident, pokemon.canonicalIdent)
-    .size
-    ? protocolRowSpeciesMatches({details: pokemon.details, ident: pokemon.ident, condition: pokemon.condition}, tokens)
-    : false;
+  return stableKey || protocolBattleRosterKey(session, parsed.playerId);
 }
 
 function activeIdentityFromRequest(session: RuntimeSession, playerId: ShowdownPlayerIdV4, slot: string, existing?: BattleServiceActivePokemonV4, details = "", name = ""): {
@@ -1564,10 +1596,20 @@ function identityFromActive(active: BattleServiceActivePokemonV4): {
 function upsertRosterPokemon(session: RuntimeSession, playerId: ShowdownPlayerIdV4, pokemon: BattleRosterPokemonV4, activeSlot?: string): void {
   const previousByPlayer = session.snapshot.battleRosterByPlayer || {};
   const previous = previousByPlayer[playerId] || {pokemonByKey: {}, activeKeyBySlot: {}, lastPokemonKeyBySlot: {}, updatedAt: ""};
-  const current = previous.pokemonByKey[pokemon.key];
+  const legacyKeys = legacyBattleRosterKeysForPokemon(previous, playerId, pokemon);
+  const current = previous.pokemonByKey[pokemon.key] || legacyKeys.map(key => previous.pokemonByKey[key]).find(Boolean);
   const nextPokemon = {...current, ...pokemon};
   const activeKeyBySlot = {...previous.activeKeyBySlot};
   const lastPokemonKeyBySlot = {...previous.lastPokemonKeyBySlot};
+  for (const legacyKey of legacyKeys) {
+    if (legacyKey === pokemon.key) continue;
+    for (const [slot, key] of Object.entries(activeKeyBySlot)) {
+      if (key === legacyKey) activeKeyBySlot[slot] = pokemon.key;
+    }
+    for (const [slot, key] of Object.entries(lastPokemonKeyBySlot)) {
+      if (key === legacyKey) lastPokemonKeyBySlot[slot] = pokemon.key;
+    }
+  }
   if (activeSlot) {
     const previousActiveKey = activeKeyBySlot[activeSlot];
     if (previousActiveKey && previousActiveKey !== pokemon.key) lastPokemonKeyBySlot[activeSlot] = previousActiveKey;
@@ -1580,7 +1622,7 @@ function upsertRosterPokemon(session: RuntimeSession, playerId: ShowdownPlayerId
     ...previousByPlayer,
     [playerId]: {
       pokemonByKey: {
-        ...previous.pokemonByKey,
+        ...Object.fromEntries(Object.entries(previous.pokemonByKey).filter(([key]) => key === pokemon.key || !legacyKeys.includes(key))),
         [pokemon.key]: nextPokemon,
       },
       activeKeyBySlot,
@@ -1644,11 +1686,9 @@ function activeFromRosterPokemon(pokemon: BattleRosterPokemonV4): BattleServiceA
 }
 
 function battleRosterStableKey(session: RuntimeSession, playerId: ShowdownPlayerIdV4, identity: {localPokemonId?: string; showdownIdentityToken?: string; showdownId?: string; pokeballId?: string; pokeball?: string}): string {
-  const localPokemonId = normalizeIdentityToken(identity.localPokemonId);
-  if (localPokemonId) return localPokemonId;
   const token = normalizeIdentityToken(identity.pokeball || identity.pokeballId || identity.showdownIdentityToken || identity.showdownId);
   if (!token) return "";
-  return identityTokenIsUniqueForPlayer(session, playerId, token) ? token : "";
+  return identityTokenIsUniqueForPlayer(session, playerId, token) ? canonicalBattleKeyV4(playerId, token) : "";
 }
 
 function identityTokenIsUniqueForPlayer(session: RuntimeSession, playerId: ShowdownPlayerIdV4, token: string): boolean {
@@ -1661,11 +1701,41 @@ function identityTokenIsUniqueForPlayer(session: RuntimeSession, playerId: Showd
   if (mappingMatches.length > 0) return mappingMatches.length === 1;
   const rows = session.snapshot.requests[playerId]?.side?.pokemon || session.snapshot.debug.latestSidePokemon?.[playerId] || [];
   const rowMatches = rows.filter(row => identityTokensMatch(row.pokeball, token));
-  return rowMatches.length === 1;
+  if (rowMatches.length > 0) return rowMatches.length === 1;
+  return true;
 }
 
-function protocolBattleRosterKey(playerId: ShowdownPlayerIdV4, slot: string, searchId: string): string {
-  return `protocol-${playerId}-${slot}-${normalizeIdentityToken(searchId)}`;
+function legacyBattleRosterKeysForPokemon(previous: BattleRosterStateV4, playerId: ShowdownPlayerIdV4, pokemon: BattleRosterPokemonV4): string[] {
+  const token = normalizeIdentityToken(pokemon.pokeball || pokemon.pokeballId || pokemon.showdownIdentityToken || pokemon.showdownId);
+  const localPokemonId = normalizeIdentityToken(pokemon.localPokemonId);
+  return Object.entries(previous.pokemonByKey || {})
+    .filter(([key, entry]) => {
+      if (key === pokemon.key || entry.playerId !== playerId) return false;
+      if (isProtocolBattleKeyV4(key)) return false;
+      if (token && [
+        entry.pokeball,
+        entry.pokeballId,
+        entry.showdownIdentityToken,
+        entry.showdownId,
+      ].some(value => identityTokensMatch(value, token))) return true;
+      return Boolean(localPokemonId && normalizeIdentityToken(entry.localPokemonId) === localPokemonId);
+    })
+    .map(([key]) => key);
+}
+
+function protocolBattleRosterKey(session: RuntimeSession, playerId: ShowdownPlayerIdV4): string {
+  const roster = session.snapshot.battleRosterByPlayer?.[playerId];
+  const used = new Set(Object.keys(roster?.pokemonByKey || {}));
+  for (let index = used.size + 1; index < used.size + 10_000; index += 1) {
+    const key = `protocol:${playerId}:${index}`;
+    if (!used.has(key)) {
+      session.snapshot.debug.inputLog.push(`[BattleV4][roster-protocol-key] ${playerId} missing pokeball identity; key=${key}`);
+      return key;
+    }
+  }
+  const key = `protocol:${playerId}:${Date.now()}`;
+  session.snapshot.debug.inputLog.push(`[BattleV4][roster-protocol-key] ${playerId} missing pokeball identity; key=${key}`);
+  return key;
 }
 
 function battleRosterSearchId(ident: string, details: string): string {

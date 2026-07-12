@@ -26,6 +26,10 @@
       "types": "./src/battleProfiles.ts",
       "default": "./src/battleProfiles.ts"
     },
+    "./battleIdentity": {
+      "types": "./src/battleIdentity.ts",
+      "default": "./src/battleIdentity.ts"
+    },
     "./playbackCompiler": {
       "types": "./src/playbackCompiler.ts",
       "default": "./src/playbackCompiler.ts"

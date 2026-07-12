@@ -678,7 +678,12 @@ function coopWinnerNameSmoke() {
 }
 
 async function duplicateSpeciesDoublesSmoke() {
-  const team = [pikachu, {...pikachu}, {...pikachu, name: "Raichu", species: "Raichu"}, {...eevee, name: "Jolteon", species: "Jolteon"}];
+  const team = [
+    {...pikachu, pokeball: "pokeball"},
+    {...pikachu, pokeball: "greatball"},
+    {...pikachu, name: "Raichu", species: "Raichu", pokeball: "ultraball"},
+    {...eevee, name: "Jolteon", species: "Jolteon", pokeball: "masterball"},
+  ];
   const input: BattleServiceSessionInputV4 = {
     runId: "test-run",
     nodeId: "test-node-duplicate-doubles",
@@ -922,6 +927,9 @@ async function activeIdentityContinuitySmoke() {
   const afterDetailsRoster = afterOnlyDetailsChange.battleRosterByPlayer?.p1;
   const afterDetailsKey = afterDetailsRoster?.activeKeyBySlot?.p1a;
   if (!afterDetailsKey) throw new Error(`detailschange should bind p1a to a roster key: ${JSON.stringify(afterOnlyDetailsChange.battleRosterByPlayer)}`);
+  if (afterDetailsKey !== "p1:masterball") {
+    throw new Error(`detailschange should canonicalize roster key to playerId:pokeball: ${afterDetailsKey}`);
+  }
   const afterDetailsEntry = afterDetailsRoster?.pokemonByKey?.[afterDetailsKey];
   if (afterDetailsEntry?.localPokemonId !== greninjaMapping.localPokemonId || afterDetailsEntry.details !== "Greninja-Mega, L50, M") {
     throw new Error(`detailschange should mutate greninja roster entry only: ${JSON.stringify(afterDetailsEntry)}`);
@@ -1044,6 +1052,9 @@ async function activeIdentityStressMatrixSmoke() {
     throw new Error(`opening active identity mismatch: ${JSON.stringify(current.active)}`);
   }
   const greninjaKey = activeKey(current, "p1b");
+  if (greninjaKey !== "p1:masterball") {
+    throw new Error(`greninja key should be canonical playerId:pokeball, got ${greninjaKey}`);
+  }
 
   current = __testApplyBattleProtocolLinesV4(current, ["|detailschange|p1b: Greninja|Greninja-Mega, L50, M"]);
   if (activeKey(current, "p1b") !== greninjaKey || rosterEntry(current, greninjaKey)?.details !== "Greninja-Mega, L50, M") {
@@ -1074,6 +1085,30 @@ async function activeIdentityStressMatrixSmoke() {
   }
   if (activeLocalId(current, "p1b") !== "formal-p1-1-ninetales" || activeLocalId(current, "p1b") === "formal-p1-3-magnezone") {
     throw new Error(`slot move should not leave magnezone identity on p1b: ${JSON.stringify(current.active)}`);
+  }
+
+  const canonicalGreninja = rosterEntry(current, "p1:masterball");
+  if (!canonicalGreninja) throw new Error(`canonical greninja roster missing before legacy migration test: ${JSON.stringify(current.battleRosterByPlayer?.p1)}`);
+  const legacySnapshot = withRows({
+    ...current,
+    battleRosterByPlayer: {
+      ...current.battleRosterByPlayer,
+      p1: {
+        pokemonByKey: {
+          "formal-p1-4-greninja": {...canonicalGreninja, key: "formal-p1-4-greninja"},
+        },
+        activeKeyBySlot: {p1a: "formal-p1-4-greninja"},
+        lastPokemonKeyBySlot: {},
+        updatedAt: "2026-07-12T00:00:00.000Z",
+      },
+    },
+  }, activeRows.reorderedReturn);
+  const migrated = __testApplyBattleProtocolLinesV4(legacySnapshot, ["|switch|p1a: Greninja|Greninja-Mega, L50, M|77/151"]);
+  if (migrated.battleRosterByPlayer?.p1?.activeKeyBySlot?.p1a !== "p1:masterball") {
+    throw new Error(`legacy localPokemonId roster key should migrate to canonical key: ${JSON.stringify(migrated.battleRosterByPlayer?.p1)}`);
+  }
+  if (migrated.battleRosterByPlayer?.p1?.pokemonByKey?.["formal-p1-4-greninja"]) {
+    throw new Error(`legacy roster key should be removed after migration: ${JSON.stringify(migrated.battleRosterByPlayer?.p1)}`);
   }
 
   console.log("showdown-battle-core active identity stress matrix smoke ok");
@@ -1138,7 +1173,10 @@ async function showdownLikeSwitchResolverSmoke() {
     "|switch|p2b: Chatot|Chatot, L49, F|99/99",
     "|faint|p2b: Chatot",
   ]);
-  const chatotKey = current.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2b;
+  const chatotKey: string = current.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2b || "";
+  if (chatotKey !== "p2:luxuryball") {
+    throw new Error(`chatot key should be canonical playerId:pokeball, got ${chatotKey}`);
+  }
   const stunfiskRows = chatotRows.map(row => row.ident.includes("Chatot")
     ? {...row, active: false, condition: "0 fnt", fainted: true}
     : row.ident.includes("Stunfisk")
@@ -1150,7 +1188,12 @@ async function showdownLikeSwitchResolverSmoke() {
   if (p2b?.localPokemonId !== "p2-npc-4-stunfisk" || p2b.showdownIdentityToken !== "healball") {
     throw new Error(`stunfisk should not inherit chatot identity: ${JSON.stringify(p2b)}`);
   }
-  if (current.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2b === chatotKey) {
+  const stunfiskKey = current.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2b || "";
+  const reusedChatotKey = stunfiskKey === chatotKey;
+  if (stunfiskKey !== "p2:healball") {
+    throw new Error(`stunfisk key should be canonical playerId:pokeball: ${JSON.stringify(current.battleRosterByPlayer?.p2)}`);
+  }
+  if (reusedChatotKey) {
     throw new Error(`stunfisk should not reuse chatot roster key: ${JSON.stringify(current.battleRosterByPlayer?.p2)}`);
   }
   if (!current.battleRosterByPlayer?.p2?.lastPokemonKeyBySlot?.p2b) {
@@ -1172,7 +1215,7 @@ async function showdownLikeSwitchResolverSmoke() {
   ]);
   const p2aKey = duplicateSnapshot.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2a || "";
   const p2bKey = duplicateSnapshot.battleRosterByPlayer?.p2?.activeKeyBySlot?.p2b || "";
-  if (!p2aKey.startsWith("protocol-") || !p2bKey.startsWith("protocol-") || p2aKey === p2bKey) {
+  if (!p2aKey.startsWith("protocol:p2:") || !p2bKey.startsWith("protocol:p2:") || p2aKey === p2bKey) {
     throw new Error(`duplicate unresolved pokemon should use distinct protocol keys: ${JSON.stringify(duplicateSnapshot.battleRosterByPlayer?.p2)}`);
   }
   console.log("showdown-battle-core showdown-like switch resolver smoke ok");

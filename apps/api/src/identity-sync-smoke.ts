@@ -552,10 +552,10 @@ const rosterFirstMegaSnapshot: BattleSessionSnapshotV4 = {
   ...staleActiveIdentitySnapshot,
   battleRosterByPlayer: {
     p1: {
-      activeKeyBySlot: {p1a: "formal-p1-4-greninja"},
+      activeKeyBySlot: {p1a: "p1:masterball"},
       pokemonByKey: {
-        "formal-p1-4-greninja": {
-          key: "formal-p1-4-greninja",
+        "p1:masterball": {
+          key: "p1:masterball",
           searchId: "p1: Greninja|Greninja-Mega, L50, M",
           ident: "p1a: Greninja",
           canonicalIdent: "p1: Greninja",
