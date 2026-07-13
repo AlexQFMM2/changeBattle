@@ -275,6 +275,8 @@ export type BattlePlaybackDebugV4 = {
   renderedTimelineSteps: ShowdownAnimationStepV4[];
   semanticEvents: BattleSemanticEventV4[];
   runtimeState: BattleRuntimeStateV4 | null;
+  visibleRuntimeState: BattleRuntimeStateV4 | null;
+  visibleSlots: BattleViewSlotV4[];
   visualQueue: BattleVisualCommandV4[];
   messageQueue: BattleMessageQueueItemV4[];
   playbackStepQueue: BattlePlaybackStepV4[];
@@ -1225,6 +1227,8 @@ export function useBattleV4Playback(
       animationEvents,
       semanticEvents,
       runtimeState,
+      visibleRuntimeState: runtimeState ? {...runtimeState, slots: Object.fromEntries(visibleSlots.map(slot => [slot.seat, slot]))} : null,
+      visibleSlots,
       visualQueue,
       messageQueue,
       playbackStepQueue,

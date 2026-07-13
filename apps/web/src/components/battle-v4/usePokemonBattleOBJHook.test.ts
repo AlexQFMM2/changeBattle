@@ -94,8 +94,19 @@ function smoke() {
       farTeam: [],
     },
   });
-  assert(stalePlaybackMegaState.nearSlots[0]?.speciesId === "Greninja-Mega", `stale playback must not overwrite Mega species: ${stalePlaybackMegaState.nearSlots[0]?.speciesId}`);
+  assert(stalePlaybackMegaState.nearSlots[0]?.speciesId === "Greninja", `playback-visible species owns the current step before detailschange is consumed: ${stalePlaybackMegaState.nearSlots[0]?.speciesId}`);
   assert(stalePlaybackMegaState.nearSlots[0]?.hp === 77, `playback may update HP only: ${stalePlaybackMegaState.nearSlots[0]?.hp}`);
+  const consumedMegaPlaybackState = buildPokemonBattleOBJState({
+    api,
+    snapshot: megaSnapshot,
+    viewModel: null,
+    playback: {
+      hasProtocolState: true,
+      nearTeam: [viewSlotFor(megaState.nearSlots[0]!, {speciesId: "Greninja-Mega", hp: 77, maxHp: 151})],
+      farTeam: [],
+    },
+  });
+  assert(consumedMegaPlaybackState.nearSlots[0]?.speciesId === "Greninja-Mega", `after detailschange step is consumed, visible species should be Mega: ${consumedMegaPlaybackState.nearSlots[0]?.speciesId}`);
 
   const chatot = localPokemon("formal-p2-1-chatot", "Chatot", "聒噪鸟", "luxuryball");
   const stunfisk = localPokemon("formal-p2-2-stunfisk", "Stunfisk", "泥巴鱼", "healball");
@@ -147,7 +158,60 @@ function smoke() {
       })],
     },
   });
-  assert(staleFaintedPlaybackState.farSlots.some(slot => slot.seat === "p2B" && slot.speciesId === "Stunfisk"), `active Stunfisk seat must not disappear before playback merge: ${JSON.stringify(staleFaintedPlaybackState.farSlots)}`);
+  assert(staleFaintedPlaybackState.farSlots.some(slot => slot.seat === "p2B" && slot.speciesId === "Chatot"), `playback-visible fainted slot should stay Chatot until the switch step is consumed: ${JSON.stringify(staleFaintedPlaybackState.farSlots)}`);
+
+  const slowking = localPokemon("formal-p2-1-slowking", "Slowking-Galar", "呆呆王", "luxuryball");
+  const cacturne = localPokemon("formal-p2-3-cacturne", "Cacturne", "梦歌仙人掌", "duskball");
+  const playbackLeakSnapshot = snapshotWithPlayers([
+    {
+      playerId: "p2",
+      localTeam: [slowking, cacturne],
+      mapping: [
+        mappingFor("p2", 0, slowking),
+        mappingFor("p2", 1, cacturne),
+      ],
+      rows: [
+        {ident: "p2: Slowking", details: "Slowking-Galar, L48, F", condition: "0 fnt", active: false, fainted: true, pokeball: "luxuryball"},
+        {ident: "p2: Cacturne", details: "Cacturne, L48, M", condition: "134/134", active: true, pokeball: "duskball"},
+      ],
+      roster: {
+        pokemonByKey: {
+          "formal-p2-1-slowking": rosterFor("p2", "p2a", slowking, "Slowking-Galar, L48, F", "0 fnt", true),
+          "formal-p2-3-cacturne": rosterFor("p2", "p2a", cacturne, "Cacturne, L48, M", "134/134", false),
+        },
+        activeKeyBySlot: {p2a: "formal-p2-3-cacturne"},
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+    },
+  ]);
+  const finalCacturneState = buildPokemonBattleOBJState({api, snapshot: playbackLeakSnapshot, viewModel: null});
+  assert(finalCacturneState.farSlots[0]?.speciesId === "Cacturne", `final snapshot should still project Cacturne after switch: ${finalCacturneState.farSlots[0]?.speciesId}`);
+  const slowkingVisibleDuringFaint = buildPokemonBattleOBJState({
+    api,
+    snapshot: playbackLeakSnapshot,
+    viewModel: null,
+    playback: {
+      hasProtocolState: true,
+      nearTeam: [],
+      farTeam: [viewSlotFor(finalCacturneState.farSlots[0]!, {
+        seat: "p2A",
+        localPokemonId: slowking.localPokemonId,
+        showdownIdentityToken: "luxuryball",
+        showdownId: "luxuryball",
+        pokeballId: "luxuryball",
+        active: true,
+        fainted: true,
+        name: "Slowking",
+        nameZh: "呆呆王",
+        speciesId: "Slowking-Galar",
+        hp: 0,
+        maxHp: 160,
+        status: "fnt",
+      })],
+    },
+  });
+  assert(slowkingVisibleDuringFaint.farSlots[0]?.speciesId === "Slowking-Galar", `Showdown step playback must not leak future Cacturne before switch step: ${JSON.stringify(slowkingVisibleDuringFaint.farSlots)}`);
+  assert(!slowkingVisibleDuringFaint.farSlots.some(slot => slot.speciesId === "Cacturne"), `Cacturne should not appear until switch step is consumed: ${JSON.stringify(slowkingVisibleDuringFaint.farSlots)}`);
 
   const pikachuA = localPokemon("formal-p1-1-pikachu-a", "Pikachu", "皮卡丘A", "pokeball");
   const pikachuB = localPokemon("formal-p1-2-pikachu-b", "Pikachu", "皮卡丘B", "greatball");
@@ -307,6 +371,8 @@ const POKEMON_ZH: Record<string, string> = {
   "greninja-mega": "甲贺忍蛙 Mega",
   chatot: "聒噪鸟",
   stunfisk: "泥巴鱼",
+  "slowking-galar": "呆呆王",
+  cacturne: "梦歌仙人掌",
 };
 
 const POKEMON_TYPES: Record<string, string[]> = {
@@ -314,6 +380,8 @@ const POKEMON_TYPES: Record<string, string[]> = {
   "greninja-mega": ["Water", "Dark"],
   chatot: ["Normal", "Flying"],
   stunfisk: ["Ground", "Electric"],
+  "slowking-galar": ["Poison", "Psychic"],
+  cacturne: ["Grass", "Dark"],
 };
 
 smoke();

@@ -20,6 +20,31 @@ activeKeyBySlot[slot] 只是引用 battleKey
 
 因此，排查身份、形态、active、目标、换人、背包、指令问题时，优先比较本项目和 Showdown Client 的对象生命周期差异。
 
+## Playback Time Authority
+
+Showdown Client 不会先把整段战斗日志投影成最终场面再慢慢播动画。`battle.js#nextStep/run/runMajor/runMinor` 按 step queue 一条 protocol line 一条 protocol line 推进，BattlePokemon 对象状态、`side.active[]` 引用、消息和动画在同一个播放进度里同步变化。
+
+Battle V4 必须等价翻译这一点：
+
+- `snapshot.rawLog` 的最终执行结果只能作为最终事实和诊断事实。
+- 非 `skipAnimations` 下，BattleArena 当前画面只能来自已消费 playback step 的 visible slots。
+- `switch` step 被消费前，seat 仍显示上一只宝可梦，即使最终 snapshot 已经有下一只 active。
+- 指令面板可以读最新 request/snapshot 决策事实，但不能反向污染 BattleArena 的播放态。
+- 导出诊断时要区分 `runtimeState`（完整 rawLog 最终态）和 `visibleRuntimeState/visibleSlots`（当前播放态）。
+
+典型红线案例：
+
+```txt
+|move|p1b: Sharpedo|Crunch|p2a: Slowking
+|-damage|p2a: Slowking|0 fnt
+|faint|p2a: Slowking
+|move|p2b: Sharpedo|Return|p1a: Iron Jugulis
+|-damage|p1a: Iron Jugulis|107/167 frz
+|switch|p2a: Cacturne|Cacturne, L48, M|134/134
+```
+
+播放到 Slowking damage/faint 或 Sharpedo Return 时，p2A 仍必须显示 Slowking/fainted；只有消费到 `switch|p2a: Cacturne` 后，p2A 才能显示 Cacturne。否则就是未来状态泄漏。
+
 ## Showdown Sources
 
 | 领域 | Showdown Client 文件 | 重点函数/对象 | Battle V4 对应位置 |
@@ -34,6 +59,7 @@ activeKeyBySlot[slot] 只是引用 battleKey
 | 变身 | `battle.js` | `-transform`、复制目标当前 forme | `battleV4ProtocolExecutor.ts` 的 `transformedSpeciesId` |
 | sprite/icon 来源 | `battle-dex.js` | `speciesForme`、`volatiles.formechange` | `showdownPokemonSpriteAdapter`、`usePokemonBattleOBJHook`、`battleV4ProtocolExecutor` |
 | 动画播放 | `battle-animations.js`、`battle.js` scene 调用 | `runMoveAnim`、`damageAnim`、`healAnim`、`finishAnimations` | `packages/showdown-battle-core/src/playbackCompiler.ts`、`useBattleV4ShowdownScheduler.ts` |
+| 播放时间推进 | `battle.js` | `nextStep`、`run`、`runMajor`、`runMinor` | `battleV4Playback.ts` 的 visible slots、`useBattleV4ShowdownScheduler.ts` |
 | 指令构造 | Showdown Client `battle-choices.ts` / `BattleChoiceBuilder` | `fixRequest`、`current.targetLoc`、`chooseMove`、`chooseSwitch`、`chooseTeamPreview` | `showdownCommand.ts` shared validator；`useBattleV4CommandBuilder.ts` |
 | 战斗消息 | `battle.js` protocol log handling | `-fail`、`-activate`、`detailschange`、`move` | `battleV4Commentary.ts`、`battleV4MessageFlow.ts` |
 
@@ -256,6 +282,7 @@ invalid choice / BattleStream error / blocked invariant
 - protocol executor 更新 runtime slot、HP、status、volatile forme。
 - visual scene 将 semantic event 转成动画命令。
 - animation adapter 将 Showdown 动画 key 映射到本项目 CSS/asset 表现。
+- BattleArena 当前画面读已消费 step 的 visible slots，不读完整 rawLog 最终 active。
 
 关键红线：
 
@@ -264,6 +291,7 @@ invalid choice / BattleStream error / blocked invariant
 - `turn/upkeep` 不应被前一个动画拖死。
 - backend timeline 正确时，不要改 scheduler 来掩盖 CSS 问题。
 - scheduler 错时，不要改 commentary 或 visual scene 绕过去。
+- 禁止在动画未追上时用 snapshot 最终 runtime 覆盖 `visibleSlots`。
 
 ## Red Lines
 
@@ -274,6 +302,8 @@ invalid choice / BattleStream error / blocked invariant
 - 禁止把 `p2: Name` 这种 inactive ident 默认当成 `p2a` active 写入。
 - 禁止在 Web 面板各自维护宝可梦对象；场上、目标、攻击、背包、换人必须走统一 battle object。
 - 禁止 playback runtime 覆盖长期 identity 或永久 battle species。
+- 禁止 BattleArena 在非 `skipAnimations` 下读取 snapshot 最终 active 作为当前画面。
+- 禁止让未消费的未来 `switch/drag/replace` 进入当前 visible slot。
 - 禁止 target 面板自己“画四张卡”然后猜 targetLoc；必须用 shared validator / Showdown targetLoc 规则。
 - 禁止 AI/fallback 绕过 `validateShowdownChoiceCommandV4`。
 - 禁止静默吞掉 blocked/error/invalid choice。
@@ -455,6 +485,8 @@ Choice 相关必须按 Showdown `BattleChoiceBuilder` 思路处理：
 - rawLog 是动画、消息、HP、状态播放顺序的事实来源。
 - backend `playbackCompiler.ts` 通过 Showdown Client scene stub 生成 groups。
 - Web scheduler 只消费 backend groups，不重新定义 Showdown 播放边界。
+- `runtimeState` 可以表示完整 rawLog 最终态；`visibleRuntimeState/visibleSlots` 才表示当前画面。
+- BattleArena 必须使用 `visibleSlots` 派生出的 battle objects；目标/背包/换人仍可使用最新 request/snapshot 决策事实。
 - 如果 timeline 正确但画面错，查 `battleV4ProtocolExecutor`、`battleV4VisualScene`、CSS 动画映射。
 - 如果 timeline 本身错，先查 `playbackCompiler.ts` 与 Showdown Client scene 方法差异。
 
@@ -468,10 +500,12 @@ Choice 相关必须按 Showdown `BattleChoiceBuilder` 思路处理：
 4. `teamStateByPlayer` 和 request side row 是否提供正确 pokeball。
 5. API view model 是否只是投影，没有重建身份。
 6. `usePokemonBattleOBJHook` 输出的 `battleKey/battleSpeciesId/hp/status` 是否一致。
-7. 场上、目标、攻击、背包、换人是否读取同一个 battle object。
-8. choice 是否通过 shared validator。
-9. blocked/error 是否显式展示。
-10. Web playback timeline 和 scheduler 消费顺序是否与 backend groups 一致。
+7. Web playback consumed sequence 是否已经到达对应 rawLog event。
+8. `visibleSlots/visibleRuntimeState` 是否被未来 final runtime 污染。
+9. 场上、目标、攻击、背包、换人是否读取同一个 battle object，且场上是否服从播放态。
+10. choice 是否通过 shared validator。
+11. blocked/error 是否显式展示。
+12. Web playback timeline 和 scheduler 消费顺序是否与 backend groups 一致。
 
 ## Required Tests
 
@@ -502,6 +536,8 @@ git diff --check
 - `teamStateByPlayer`
 - `visualSlots`
 - `runtimeState.slots`
+- `visibleRuntimeState`
+- `visibleSlots`
 - `showdownPlaybackTimeline`
 - `playbackStepQueue`
 - `playbackStepConsumption`

@@ -104,10 +104,12 @@ export function buildPokemonBattleOBJState(input: UsePokemonBattleOBJHookInput):
   const partyByPlayer = byPlayer;
   const playbackNear = input.playback?.hasProtocolState ? input.playback.nearTeam || [] : [];
   const playbackFar = input.playback?.hasProtocolState ? input.playback.farTeam || [] : [];
-  const activeNear = mergePlaybackActiveObjects(sortActiveBattleObjects([...byPlayer.p1, ...byPlayer.p3].filter(obj => obj.active)), playbackNear)
-    .filter(obj => obj.active && !obj.fainted);
-  const activeFar = mergePlaybackActiveObjects(sortActiveBattleObjects([...byPlayer.p2, ...byPlayer.p4].filter(obj => obj.active)), playbackFar)
-    .filter(obj => obj.active && !obj.fainted);
+  const activeNear = playbackNear.length
+    ? objectsFromPlaybackSlots(input.api, byPlayer, playbackNear).filter(obj => obj.active)
+    : mergePlaybackActiveObjects(sortActiveBattleObjects([...byPlayer.p1, ...byPlayer.p3].filter(obj => obj.active)), playbackNear).filter(obj => obj.active && !obj.fainted);
+  const activeFar = playbackFar.length
+    ? objectsFromPlaybackSlots(input.api, byPlayer, playbackFar).filter(obj => obj.active)
+    : mergePlaybackActiveObjects(sortActiveBattleObjects([...byPlayer.p2, ...byPlayer.p4].filter(obj => obj.active)), playbackFar).filter(obj => obj.active && !obj.fainted);
   const nearSlots = activeNear.map(obj => toPokemonBattleViewSlot(input.api, obj));
   const farSlots = activeFar.map(obj => toPokemonBattleViewSlot(input.api, obj));
   return {
@@ -340,6 +342,104 @@ function mergePlaybackActiveObjects(objects: PokemonBattleOBJ[], playbackSlots: 
     bySeat.add(playback.seat);
   }
   return merged;
+}
+
+function objectsFromPlaybackSlots(api: PokemonBattleOBJApi, byPlayer: Record<ShowdownPlayerIdV4, PokemonBattleOBJ[]>, playbackSlots: BattleViewSlotV4[]): PokemonBattleOBJ[] {
+  return playbackSlots
+    .filter(slot => slot.active)
+    .map((slot, index) => {
+      const playerObjects = byPlayer[slot.playerId] || [];
+      const base = playerObjects.find(obj => obj.battleKey && battleViewSlotBattleKey(slot) && obj.battleKey === battleViewSlotBattleKey(slot)) ||
+        playerObjects.find(obj => obj.localPokemonId && obj.localPokemonId === slot.localPokemonId) ||
+        playerObjects.find(obj => sameIdentity(obj, slot)) ||
+        null;
+      const speciesId = slot.speciesId || base?.battleSpeciesId || base?.baseSpeciesId || "";
+      const dexDisplay = safePokemonDisplay(api, speciesId);
+      const sprites = pokemonSpriteResourceUrls(speciesId);
+      const side = slot.side;
+      return {
+        ...(base || fallbackPokemonBattleOBJ(api, slot, index)),
+        battleKey: base?.battleKey || battleViewSlotBattleKey(slot) || protocolBattleKey(slot.playerId, index),
+        playerId: slot.playerId,
+        slot: slotForSeat(slot.seat),
+        seat: slot.seat,
+        side,
+        position: slot.position,
+        active: slot.active,
+        localPokemonId: slot.localPokemonId || base?.localPokemonId || "",
+        showdownIdentityToken: slot.showdownIdentityToken || base?.showdownIdentityToken || "",
+        showdownId: slot.showdownId || base?.showdownId || "",
+        pokeballId: slot.pokeballId || base?.pokeballId || "",
+        pokeball: base?.pokeball || slot.pokeballId || slot.showdownIdentityToken || slot.showdownId || "",
+        battleSpeciesId: speciesId,
+        battleDetails: base?.battleDetails || speciesId,
+        displayName: slot.nameZh || slot.name || base?.displayName || dexDisplay.nameZh || dexDisplay.name || speciesId,
+        name: slot.name || base?.name || dexDisplay.name || speciesId,
+        nameZh: slot.nameZh || base?.nameZh || dexDisplay.nameZh || "",
+        level: slot.level || base?.level || 50,
+        hp: slot.hp,
+        maxHp: slot.maxHp,
+        status: slot.status,
+        fainted: slot.fainted,
+        shiny: slot.shiny || base?.shiny || false,
+        iconUrl: slot.iconUrl || base?.iconUrl || dexDisplay.iconUrl,
+        iconStyle: slot.iconStyle || base?.iconStyle || dexDisplay.iconStyle,
+        spriteUrl: slot.spriteUrl || (side === "near" ? sprites.backSpriteUrl : sprites.frontSpriteUrl),
+        frontSpriteUrl: slot.frontSpriteUrl || sprites.frontSpriteUrl,
+        backSpriteUrl: slot.backSpriteUrl || sprites.backSpriteUrl,
+        frontShinySpriteUrl: slot.frontShinySpriteUrl || sprites.frontShinySpriteUrl,
+        backShinySpriteUrl: slot.backShinySpriteUrl || sprites.backShinySpriteUrl,
+        types: base?.types || dexDisplay.types,
+        specialFormeKind: slot.specialFormeKind || specialFormeKindForBattleSpecies(speciesId),
+      };
+    })
+    .sort((a, b) => a.seat.localeCompare(b.seat) || a.teamIndex - b.teamIndex || a.battleKey.localeCompare(b.battleKey));
+}
+
+function fallbackPokemonBattleOBJ(api: PokemonBattleOBJApi, slot: BattleViewSlotV4, index: number): PokemonBattleOBJ {
+  const speciesId = slot.speciesId || "";
+  const dexDisplay = safePokemonDisplay(api, speciesId);
+  return {
+    battleKey: battleViewSlotBattleKey(slot) || protocolBattleKey(slot.playerId, index),
+    playerId: slot.playerId,
+    teamIndex: index,
+    choiceIndex: index + 1,
+    slot: slotForSeat(slot.seat),
+    seat: slot.seat,
+    side: slot.side,
+    position: slot.position,
+    active: slot.active,
+    localPokemonId: slot.localPokemonId || "",
+    showdownIdentityToken: slot.showdownIdentityToken || "",
+    showdownId: slot.showdownId || "",
+    pokeballId: slot.pokeballId || "",
+    pokeball: slot.pokeballId || slot.showdownIdentityToken || slot.showdownId || "",
+    baseSpeciesId: speciesId,
+    battleSpeciesId: speciesId,
+    battleDetails: speciesId,
+    displayName: slot.nameZh || slot.name || dexDisplay.nameZh || dexDisplay.name || speciesId,
+    name: slot.name || dexDisplay.name || speciesId,
+    nameZh: slot.nameZh || dexDisplay.nameZh || "",
+    level: slot.level || 50,
+    hp: slot.hp,
+    maxHp: slot.maxHp,
+    status: slot.status,
+    fainted: slot.fainted,
+    shiny: slot.shiny || false,
+    iconUrl: slot.iconUrl || dexDisplay.iconUrl,
+    iconStyle: slot.iconStyle || dexDisplay.iconStyle,
+    spriteUrl: slot.spriteUrl,
+    frontSpriteUrl: slot.frontSpriteUrl,
+    backSpriteUrl: slot.backSpriteUrl,
+    frontShinySpriteUrl: slot.frontShinySpriteUrl,
+    backShinySpriteUrl: slot.backShinySpriteUrl,
+    types: dexDisplay.types,
+    specialFormeKind: slot.specialFormeKind || specialFormeKindForBattleSpecies(speciesId),
+    localPokemon: null,
+    row: null,
+    teamState: null,
+    rosterPokemon: null,
+  };
 }
 
 function activeEntriesForPlayer(snapshot: BattleSessionSnapshotV4 | null, playerId: ShowdownPlayerIdV4): BattleActivePokemonV4[] {
