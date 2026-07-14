@@ -19,6 +19,275 @@ Battle V4 AI 不能只靠“招式伤害评分”解决。单打中真实威力�
 - 模型学习只学习权重，不学习规则本身；线上运行固定模型，保证可复现、可调试。
 - Debug 输出必须能解释候选 choice 的分数来源，不能只给最终分数。
 
+## Dex Evaluation Tag Model
+
+AI 决策的底层事实不应该直接写成“这个技能该不该点”。所有招式、特性、天气、场地、异常、空间等都先进入 `showdown-dex-core` 的评估标签系统，输出稳定的事实标签。AI 是这些标签的消费者，不是标签定义者。
+
+后续实现采用三张表：
+
+1. `DexEvalTag`：原子标签表，描述输出、风险、效果、状态、天气、场地等事实。
+2. `DexEvalTagGroup`：标签组表，把一个招式、异常、天气、特性、道具等入口对象关联到多个 tag。
+3. `DexEvalTagLink`：关系表，描述 tag 到 tagGroup 的关联语义，并控制递归展开。
+
+这个结构保留“tag 表 + tagGroup 表”的简单维护方式，同时用 link 表解决两个关键问题：
+
+- 关系语义：关联到底是造成、依赖、克制、风险、协同、阻断，不能只靠数组猜。
+- 循环控制：天气、场地、特性、道具之间会互相引用，展开 helper 必须能防止死循环。
+
+### Tag Table
+
+`DexEvalTag` 是最小事实单元，不直接代表 AI 分数。
+
+```ts
+type DexEvalTagKindV4 =
+  | "output"
+  | "risk"
+  | "effect"
+  | "state"
+  | "status"
+  | "weather"
+  | "terrain"
+  | "room"
+  | "side-condition"
+  | "ability"
+  | "item"
+  | "mechanic"
+  | "meta";
+
+type DexEvalTagV4 = {
+  id: string;
+  kind: DexEvalTagKindV4;
+  label: string;
+  description: string;
+  severity?: "low" | "medium" | "high" | "critical";
+};
+```
+
+输出评价、风险评价、关联入口都使用 tag 表表达：
+
+```ts
+export const DexEvalTagsV4: Record<string, DexEvalTagV4> = {
+  "output:none": {id: "output:none", kind: "output", label: "无伤害", description: "不会造成直接伤害"},
+  "output:low": {id: "output:low", kind: "output", label: "低伤害", description: "直接伤害偏低"},
+  "output:medium": {id: "output:medium", kind: "output", label: "中等伤害", description: "直接伤害中等"},
+  "output:high": {id: "output:high", kind: "output", label: "高伤害", description: "直接伤害较高"},
+  "output:very-high": {id: "output:very-high", kind: "output", label: "超高伤害", description: "直接伤害极高"},
+
+  "risk:low-accuracy": {id: "risk:low-accuracy", kind: "risk", label: "命中低", description: "命中率存在明显风险"},
+  "risk:charge-turn": {id: "risk:charge-turn", kind: "risk", label: "需要蓄力", description: "通常需要一回合准备"},
+  "risk:recharge-turn": {id: "risk:recharge-turn", kind: "risk", label: "下回合不能动", description: "使用后需要恢复"},
+  "risk:self-lock": {id: "risk:self-lock", kind: "risk", label: "锁招", description: "会限制后续选择"},
+  "risk:self-confuse": {id: "risk:self-confuse", kind: "risk", label: "自身混乱", description: "使用后可能让自己混乱"},
+  "risk:type-immunity-normal": {id: "risk:type-immunity-normal", kind: "risk", label: "一般属性无效风险", description: "对幽灵属性目标无效"},
+
+  "effect:inflict-status:brn": {id: "effect:inflict-status:brn", kind: "effect", label: "施加烧伤", description: "尝试让目标进入烧伤状态"},
+  "effect:stat-drop:spd": {id: "effect:stat-drop:spd", kind: "effect", label: "降低特防", description: "降低目标特防等级"},
+  "effect:set-weather:rain": {id: "effect:set-weather:rain", kind: "effect", label: "设置雨天", description: "让天气变为雨天"},
+};
+```
+
+### Tag Group Table
+
+`DexEvalTagGroup` 是入口对象。招式、异常、天气、场地、空间、特性、道具都可以有自己的 group。
+
+```ts
+type DexEvalTagGroupKindV4 =
+  | "move"
+  | "status"
+  | "weather"
+  | "terrain"
+  | "room"
+  | "side-condition"
+  | "ability"
+  | "item"
+  | "mechanic";
+
+type DexEvalTagGroupV4 = {
+  id: string;
+  kind: DexEvalTagGroupKindV4;
+  label: string;
+  tagIds: string[];
+};
+```
+
+示例：
+
+```ts
+export const DexEvalTagGroupsV4: Record<string, DexEvalTagGroupV4> = {
+  "move:willowisp": {
+    id: "move:willowisp",
+    kind: "move",
+    label: "鬼火",
+    tagIds: ["output:none", "risk:low-accuracy", "effect:inflict-status:brn"],
+  },
+  "move:acid": {
+    id: "move:acid",
+    kind: "move",
+    label: "溶解液",
+    tagIds: ["output:low", "effect:stat-drop:spd"],
+  },
+  "status:brn": {
+    id: "status:brn",
+    kind: "status",
+    label: "烧伤",
+    tagIds: ["status:brn", "effect:dot", "effect:physical-attack-cut"],
+  },
+};
+```
+
+### Tag Link Table
+
+`DexEvalTagLink` 描述 tag 和 tagGroup 之间的关系。它不是简单引用，而是带语义的有向边。
+
+```ts
+type DexEvalTagRelationV4 =
+  | "causes"
+  | "depends-on"
+  | "blocked-by"
+  | "risky-against"
+  | "synergy-with"
+  | "countered-by"
+  | "amplifies"
+  | "reduces"
+  | "reference";
+
+type DexEvalTagLinkV4 = {
+  fromTagId: string;
+  toGroupId: string;
+  relation: DexEvalTagRelationV4;
+  direction: "forward" | "reference-only";
+  maxDepth?: number;
+  weight?: number;
+  note?: string;
+};
+```
+
+示例：
+
+```ts
+export const DexEvalTagLinksV4: DexEvalTagLinkV4[] = [
+  {
+    fromTagId: "effect:inflict-status:brn",
+    toGroupId: "status:brn",
+    relation: "causes",
+    direction: "forward",
+    maxDepth: 1,
+  },
+  {
+    fromTagId: "status:brn",
+    toGroupId: "ability:guts",
+    relation: "risky-against",
+    direction: "reference-only",
+  },
+  {
+    fromTagId: "status:brn",
+    toGroupId: "ability:marvelscale",
+    relation: "risky-against",
+    direction: "reference-only",
+  },
+  {
+    fromTagId: "effect:set-weather:rain",
+    toGroupId: "weather:rain",
+    relation: "causes",
+    direction: "forward",
+    maxDepth: 1,
+  },
+];
+```
+
+### Resolve Rules
+
+展开 tagGroup 时必须严格防止循环应用。
+
+```ts
+type DexEvalResolveOptionsV4 = {
+  maxDepth?: number;
+  includeRelations?: DexEvalTagRelationV4[];
+  excludeRelations?: DexEvalTagRelationV4[];
+};
+
+type DexEvalResolvedTagPathV4 = {
+  tagId: string;
+  viaGroupId: string;
+  relation?: DexEvalTagRelationV4;
+  depth: number;
+  path: string[];
+};
+
+type DexEvalResolvedGroupV4 = {
+  rootGroupId: string;
+  tags: DexEvalTagV4[];
+  groups: DexEvalTagGroupV4[];
+  links: DexEvalTagLinkV4[];
+  paths: DexEvalResolvedTagPathV4[];
+  diagnostics: {
+    skippedCycles: string[];
+    truncatedByDepth: string[];
+    missingTags: string[];
+    missingGroups: string[];
+  };
+};
+```
+
+硬规则：
+
+- 默认 `maxDepth = 2`，不能无限展开。
+- 每次展开维护 `visitedTagIds` 和 `visitedGroupIds`。
+- 同一个 tag 多路径出现时合并，保留最短 path。
+- `direction: "reference-only"` 只展示引用，不继续递归。
+- `blocked-by`、`risky-against` 默认不继续展开，只作为风险引用。
+- `causes`、`depends-on`、`synergy-with` 可以展开，但必须受 `maxDepth` 和 `visited` 限制。
+- 展开结果必须带 diagnostics，方便排查循环、缺 tag、缺 group。
+
+伪代码：
+
+```ts
+function resolveDexEvalTagGroupV4(groupId, options) {
+  const visitedGroups = new Set();
+  const visitedTags = new Set();
+
+  function walkGroup(id, depth, path) {
+    if (depth > maxDepth) return markTruncated(id);
+    if (visitedGroups.has(id)) return markCycle(id);
+    visitedGroups.add(id);
+
+    for (const tagId of group(id).tagIds) {
+      if (!visitedTags.has(tagId)) collectTag(tagId, depth, path);
+      visitedTags.add(tagId);
+
+      for (const link of linksFrom(tagId)) {
+        if (link.direction !== "forward") collectReference(link);
+        else if (relationAllowed(link.relation)) walkGroup(link.toGroupId, depth + 1, [...path, tagId]);
+      }
+    }
+  }
+}
+```
+
+### Dex Helpers
+
+后续工作集中在 `packages/showdown-dex-core`：维护三张表，并提供 resolver/helper。
+
+```ts
+getDexEvalTagV4(tagId: string): DexEvalTagV4 | null;
+getDexEvalTagGroupV4(groupId: string): DexEvalTagGroupV4 | null;
+getDexEvalTagLinksFromV4(tagId: string): DexEvalTagLinkV4[];
+resolveDexEvalTagGroupV4(groupId: string, options?: DexEvalResolveOptionsV4): DexEvalResolvedGroupV4;
+
+evaluateMoveTagGroupV4(moveId: string): DexEvalResolvedGroupV4;
+evaluateAbilityTagGroupV4(abilityId: string): DexEvalResolvedGroupV4;
+evaluateWeatherTagGroupV4(weatherId: string): DexEvalResolvedGroupV4;
+evaluateTerrainTagGroupV4(terrainId: string): DexEvalResolvedGroupV4;
+evaluateStatusTagGroupV4(statusId: string): DexEvalResolvedGroupV4;
+```
+
+`showdown-battle-core` 的 AI 只读取 resolver 输出，再结合当前 battle state 解释价值。例如：
+
+- `Will-O-Wisp` 的 move group 包含 `effect:inflict-status:brn`，通过 link 展开到 `status:brn`，再看到烧伤的稳定扣血、物攻减半、毅力风险、奇异鳞片风险。
+- `Acid` 的 move group 包含低输出和降特防；是否值得点要看当前目标、队友是否有特攻手、是否需要越过 KO 线。
+- `Screech / Charm` 只通过能力变化 tag 表达，不归为“控制敌方”；控制应该留给异常、行动限制、强制换人等。
+- `Thunder Wave` 通过异常/控速 tag group 展开；是否值得点取决于目标速度线、免疫、精神场地、队伍计划。
+
 ## Target Architecture
 
 建议在 `packages/showdown-battle-core/src/ai/` 下建立专门 AI 子系统：
