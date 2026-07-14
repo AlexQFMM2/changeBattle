@@ -76,6 +76,13 @@ type BattleAiSwitchTargetEstimateV4 = {
   koChance: number;
 };
 
+type BattleAiSinglesComplexityV4 = NonNullable<BattleAiSearchDebugV4["complexity"]>;
+
+type BattleAiSearchRuntimeV4 = {
+  visitedNodes: number;
+  truncatedReason?: BattleAiSearchDebugV4["truncatedReason"];
+};
+
 const AI_SEARCH_BUDGETS: Record<BattleAiLevelV4, BattleAiSearchBudgetV4> = {
   rookie: {maxDepth: 1, maxMs: 300, ownTopK: 3, foeTopK: 2, maxNodes: 100, maxJointActions: 4},
   normal: {maxDepth: 2, maxMs: 1_000, ownTopK: 4, foeTopK: 3, maxNodes: 300, maxJointActions: 6},
@@ -256,18 +263,19 @@ function searchSinglesDepth2(
     .slice()
     .sort((a, b) => b.score - a.score)
     .slice(0, budget.ownTopK);
+  const complexity = singlesSearchComplexity(state, ownCandidates, foeCandidates);
+  const dynamicDepth = resolveSinglesDynamicDepth(input.profile.level, budget, capabilities, complexity);
+  const runtime: BattleAiSearchRuntimeV4 = {visitedNodes: 0};
   const ownOutcomes = capabilities.useOutcomeBuckets
     ? ownCandidates.map(candidate => outcomeForOwnCandidate(input, state, candidate))
     : [];
-  let visitedNodes = 0;
   let best: {candidate: BattleAiCandidateV4; reply: BattleAiCandidateV4; leafScore: number; breakdown: BattleAiValueBreakdownV4; buckets: BattleAiOutcomeBucketV4[]} | null = null;
-  let truncatedReason: BattleAiSearchDebugV4["truncatedReason"];
   const targetOverrideEstimates: BattleAiSwitchTargetEstimateV4[] = [];
   const searchedOutcomes: BattleAiCandidateOutcomeV4[] = [];
 
   for (const [index, candidate] of ownCandidates.entries()) {
     if (Date.now() - startedAt > budget.maxMs) {
-      truncatedReason = "timeout";
+      runtime.truncatedReason = "timeout";
       break;
     }
     const ownOutcome = ownOutcomes[index] || {choice: candidate.choice, buckets: [], score: 0};
@@ -284,13 +292,13 @@ function searchSinglesDepth2(
     }
     for (const reply of foeCandidates) {
       if (afterSelf.foe.fainted) break;
-      visitedNodes += 1;
-      if (visitedNodes >= budget.maxNodes) {
-        truncatedReason = "max-nodes";
+      runtime.visitedNodes += 1;
+      if (runtime.visitedNodes >= budget.maxNodes) {
+        runtime.truncatedReason = "max-nodes";
         break;
       }
       if (Date.now() - startedAt > budget.maxMs) {
-        truncatedReason = "timeout";
+        runtime.truncatedReason = "timeout";
         break;
       }
       const replyResult = applyFoeReplyState(afterSelf, reply, candidate, input, foePlayerId, foeRequest);
@@ -300,7 +308,22 @@ function searchSinglesDepth2(
       }
       const replyBuckets = capabilities.useOutcomeBuckets ? outcomeForReply(state, afterSelf, afterReply, candidate, reply, replyResult.targetOverrideEstimate) : [];
       const buckets = uniqueBuckets([...ownOutcome.buckets, ...replyBuckets]);
-      const leaf = scoreSinglesLeafState(afterReply, candidate, reply, input, state, buckets, capabilities);
+      const leaf = scoreSinglesContinuation({
+        state: afterReply,
+        own: candidate,
+        foe: reply,
+        input,
+        initialState: state,
+        buckets,
+        capabilities,
+        ownCandidates,
+        foeCandidates,
+        budget,
+        startedAt,
+        runtime,
+        depthRemaining: Math.max(0, dynamicDepth.depth - 2),
+        nextActor: "self",
+      });
       const leafScore = leaf.score;
       if (leafScore < worstLeaf) {
         worstLeaf = leafScore;
@@ -316,7 +339,7 @@ function searchSinglesDepth2(
     } else if (worstReply) {
       searchedOutcomes.push({choice: candidate.choice, buckets: worstBuckets, score: battleAiOutcomeBucketScoreV4(worstBuckets)});
     }
-    if (truncatedReason) break;
+    if (runtime.truncatedReason) break;
   }
 
   if (!best) return null;
@@ -326,13 +349,15 @@ function searchSinglesDepth2(
     debug: {
       strategy: "minimax",
       maxDepth: budget.maxDepth,
-      searchedDepth: 2,
-      visitedNodes,
+      searchedDepth: dynamicDepth.depth,
+      visitedNodes: runtime.visitedNodes,
       elapsedMs,
-      truncatedReason,
+      truncatedReason: runtime.truncatedReason,
       candidateCount: ownCandidates.length,
       replyCount: foeCandidates.length,
       capabilities,
+      dynamicDepthReason: dynamicDepth.reason,
+      complexity,
       leafScore: roundSearchScore(best.leafScore),
       valueBreakdown: roundValueBreakdown(best.breakdown),
       principalVariation: [
@@ -673,6 +698,122 @@ function scoreSinglesLeafState(
     roleAnalysis: input.roleAnalysis,
     currentWeather: currentWeather(input.snapshot),
   });
+}
+
+function scoreSinglesContinuation(input: {
+  state: BattleAiNumericStateV4;
+  own: BattleAiCandidateV4;
+  foe: BattleAiCandidateV4;
+  input: BattleAiSearchInputV4;
+  initialState: BattleAiNumericStateV4;
+  buckets: BattleAiOutcomeBucketV4[];
+  capabilities: BattleAiCapabilityProfileV4;
+  ownCandidates: BattleAiCandidateV4[];
+  foeCandidates: BattleAiCandidateV4[];
+  budget: BattleAiSearchBudgetV4;
+  startedAt: number;
+  runtime: BattleAiSearchRuntimeV4;
+  depthRemaining: number;
+  nextActor: "self" | "foe";
+}): {score: number; breakdown: BattleAiValueBreakdownV4} {
+  if (
+    input.depthRemaining <= 0 ||
+    input.state.self.fainted ||
+    input.state.foe.fainted ||
+    input.runtime.truncatedReason
+  ) {
+    return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities);
+  }
+  if (Date.now() - input.startedAt > input.budget.maxMs) {
+    input.runtime.truncatedReason = "timeout";
+    return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities);
+  }
+  if (input.runtime.visitedNodes >= input.budget.maxNodes) {
+    input.runtime.truncatedReason = "max-nodes";
+    return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities);
+  }
+
+  const candidates = input.nextActor === "self" ? input.ownCandidates : input.foeCandidates;
+  if (!candidates.length) return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities);
+
+  let best: {score: number; breakdown: BattleAiValueBreakdownV4} | null = null;
+  for (const candidate of candidates) {
+    if (input.runtime.truncatedReason) break;
+    input.runtime.visitedNodes += 1;
+    if (input.runtime.visitedNodes >= input.budget.maxNodes) {
+      input.runtime.truncatedReason = "max-nodes";
+      break;
+    }
+    if (Date.now() - input.startedAt > input.budget.maxMs) {
+      input.runtime.truncatedReason = "timeout";
+      break;
+    }
+    const nextState = input.nextActor === "self"
+      ? applyOwnCandidateState(input.state, candidate, input.input)
+      : applyCandidateDamage(input.state, candidate, "foe");
+    const nextBuckets = input.capabilities.useOutcomeBuckets
+      ? uniqueBuckets([
+          ...input.buckets,
+          ...(input.nextActor === "self"
+            ? outcomeForOwnCandidate(input.input, input.state, candidate).buckets
+            : outcomeForReply(input.initialState, input.state, nextState, input.own, candidate)),
+        ])
+      : input.buckets;
+    const leaf = scoreSinglesContinuation({
+      ...input,
+      state: nextState,
+      own: input.nextActor === "self" ? candidate : input.own,
+      foe: input.nextActor === "foe" ? candidate : input.foe,
+      buckets: nextBuckets,
+      depthRemaining: input.depthRemaining - 1,
+      nextActor: input.nextActor === "self" ? "foe" : "self",
+    });
+    if (!best || (input.nextActor === "self" ? leaf.score > best.score : leaf.score < best.score)) {
+      best = leaf;
+    }
+  }
+  return best || scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities);
+}
+
+function singlesSearchComplexity(
+  state: BattleAiNumericStateV4,
+  ownCandidates: BattleAiCandidateV4[],
+  foeCandidates: BattleAiCandidateV4[],
+): BattleAiSinglesComplexityV4 {
+  const ownCandidateCount = ownCandidates.length;
+  const replyCandidateCount = foeCandidates.length;
+  const switchCandidateCount = ownCandidates.filter(candidate => candidate.kind === "switch").length +
+    foeCandidates.filter(candidate => candidate.kind === "switch").length;
+  const aliveCount = (state.selfResources?.aliveCount || 1) + (state.foeResources?.aliveCount || 1);
+  return {
+    ownCandidateCount,
+    replyCandidateCount,
+    switchCandidateCount,
+    aliveCount,
+    estimatedNodes: Math.max(1, ownCandidateCount) * Math.max(1, replyCandidateCount) * Math.max(1, aliveCount),
+  };
+}
+
+function resolveSinglesDynamicDepth(
+  level: BattleAiLevelV4,
+  budget: BattleAiSearchBudgetV4,
+  capabilities: BattleAiCapabilityProfileV4,
+  complexity: BattleAiSinglesComplexityV4,
+): {depth: number; reason: string} {
+  if (!capabilities.useDynamicDepth) return {depth: Math.min(2, budget.maxDepth), reason: "fixed-depth-2"};
+  const actionCount = complexity.ownCandidateCount + complexity.replyCandidateCount;
+  if (level === "eliteFour") {
+    if (complexity.aliveCount <= 3 && actionCount <= 7) return {depth: Math.min(4, budget.maxDepth), reason: "eliteFour-clean-endgame"};
+    if (complexity.switchCandidateCount <= 1 && actionCount <= 8) return {depth: Math.min(3, budget.maxDepth), reason: "eliteFour-low-branching"};
+    return {depth: 2, reason: "eliteFour-high-complexity"};
+  }
+  if (level === "champion") {
+    if (complexity.aliveCount <= 3 && actionCount <= 6) return {depth: Math.min(6, budget.maxDepth), reason: "champion-endgame"};
+    if (complexity.aliveCount <= 4 && actionCount <= 8) return {depth: Math.min(5, budget.maxDepth), reason: "champion-small-board"};
+    if (complexity.switchCandidateCount <= 2 && actionCount <= 10) return {depth: Math.min(4, budget.maxDepth), reason: "champion-low-branching"};
+    return {depth: 3, reason: "champion-wide-board"};
+  }
+  return {depth: 2, reason: "fixed-depth-2"};
 }
 
 function expectedDamage(candidate: BattleAiCandidateV4, targetMaxHp: number): number {

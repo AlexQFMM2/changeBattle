@@ -43,6 +43,14 @@ export type BattleAiSearchDebugV4 = {
   candidateCount?: number;
   replyCount?: number;
   capabilities?: BattleAiCapabilityProfileV4;
+  dynamicDepthReason?: string;
+  complexity?: {
+    ownCandidateCount: number;
+    replyCandidateCount: number;
+    switchCandidateCount: number;
+    aliveCount: number;
+    estimatedNodes: number;
+  };
   outcomeBuckets?: Array<{choice: string; buckets: BattleAiOutcomeBucketV4[]; score: number}>;
   valueBreakdown?: Record<string, number>;
   targetOverrideEstimates?: Array<{

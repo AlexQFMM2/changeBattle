@@ -2084,6 +2084,74 @@ function aiSinglesDepth2SearchSmoke() {
   console.log("showdown-battle-core ai singles depth 2 search smoke ok");
 }
 
+function aiSinglesDynamicDepthSmoke() {
+  const aiRequest: BattleServiceRequestV4 = {
+    rqid: 67,
+    active: [{
+      moves: [
+        {move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 15, target: "normal"},
+        {move: "Quick Attack", id: "quickattack", pp: 30, maxpp: 30, target: "normal"},
+      ],
+    }],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Pikachu", details: "Pikachu, L50", condition: "80/100", active: true, ability: "Static", item: "Light Ball", moves: ["Thunderbolt", "Quick Attack"], stats: {hp: 100, atk: 75, def: 55, spa: 105, spd: 65, spe: 110}},
+      ],
+    },
+  };
+  const foeRequest: BattleServiceRequestV4 = {
+    rqid: 67,
+    active: [{
+      moves: [
+        {move: "Waterfall", id: "waterfall", pp: 15, maxpp: 15, target: "normal"},
+        {move: "Splash", id: "splash", pp: 40, maxpp: 40, target: "self"},
+      ],
+    }],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Gyarados", details: "Gyarados, L50", condition: "65/170", active: true, ability: "Intimidate", item: "", moves: ["Waterfall", "Splash"], stats: {hp: 170, atk: 145, def: 95, spa: 70, spd: 120, spe: 101}},
+      ],
+    },
+  };
+  const snapshot = {
+    ...aiSnapshot("gen9", "singles", aiRequest),
+    requests: {p1: foeRequest, p2: aiRequest},
+  } satisfies BattleServiceSnapshotV4;
+  const expectedDepth: Record<"gymLeader" | "eliteFour" | "champion", number> = {
+    gymLeader: 2,
+    eliteFour: 4,
+    champion: 6,
+  };
+  for (const level of ["gymLeader", "eliteFour", "champion"] satisfies BattleAiLevelV4[]) {
+    const result = chooseAiBattleChoiceV4({
+      request: aiRequest,
+      snapshot,
+      playerId: "p2",
+      aiProfile: {level, preference: "offense"},
+      rngSeed: `singles-dynamic-depth-${level}`,
+      timeBudgetMs: 10_000,
+    });
+    if (result.debug.search?.strategy !== "minimax" || result.debug.search.searchedDepth !== expectedDepth[level]) {
+      throw new Error(`${level} should use expected singles dynamic depth: ${JSON.stringify(result.debug.search)}`);
+    }
+    if (!result.debug.search.dynamicDepthReason || !result.debug.search.complexity) {
+      throw new Error(`${level} should report dynamic depth reason and complexity: ${JSON.stringify(result.debug.search)}`);
+    }
+    if (result.debug.search.elapsedMs > 10_000) {
+      throw new Error(`${level} dynamic depth should stay inside hard cap: ${JSON.stringify(result.debug.search)}`);
+    }
+    const validation = validateShowdownChoiceCommandV4({request: aiRequest, choice: result.choice});
+    if (!validation.ok) {
+      throw new Error(`${level} dynamic depth choice should validate: ${result.choice}; ${JSON.stringify(validation)}`);
+    }
+  }
+  console.log("showdown-battle-core ai singles dynamic depth smoke ok");
+}
+
 function aiOutcomeBucketSmoke() {
   const aiRequest: BattleServiceRequestV4 = {
     rqid: 63,
@@ -3091,6 +3159,7 @@ void smoke()
   .then(aiForceSwitchSmoke)
   .then(aiDexDamageEvaluatorSmoke)
   .then(aiSinglesDepth2SearchSmoke)
+  .then(aiSinglesDynamicDepthSmoke)
   .then(aiOutcomeBucketSmoke)
   .then(aiTeamRoleAnalyzerSmoke)
   .then(aiTeamArchetypeAnalyzerSmoke)
