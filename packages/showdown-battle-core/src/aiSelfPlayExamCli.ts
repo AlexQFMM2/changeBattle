@@ -86,7 +86,7 @@ function parseArgs(argv: string[]): Record<string, string> {
 }
 
 function csv(value: string | undefined): string[] {
-  return String(value || "rain,sand,trick-room,hazard-stack,setup-offense,balanced")
+  return String(value || "rain,sun,trick-room,balanced")
     .split(",")
     .map(entry => entry.trim())
     .filter(Boolean);

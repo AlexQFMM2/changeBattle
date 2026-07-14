@@ -117,7 +117,7 @@ export type BattleAiSelfPlayExamReportV4 = {
   };
 };
 
-const DEFAULT_ARCHETYPES: ShowdownTeamArchetypeV4[] = ["rain", "sand", "trick-room", "hazard-stack", "setup-offense", "balanced"];
+const DEFAULT_ARCHETYPES: ShowdownTeamArchetypeV4[] = ["rain", "sun", "trick-room", "balanced"];
 const DEFAULT_INPUT: Required<BattleAiSelfPlayExamInputV4> = {
   seed: "ai-self-play",
   ruleSet: "gen9",
@@ -187,6 +187,7 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
       teamArchetype: question.p1.archetype,
       archetypeAttempts: question.archetypeAttempts,
       strictArchetype: question.strictArchetype,
+      aiLevel: question.p1.aiLevel,
     }),
     generateShowdownRandomTeamV4({
       ruleSet: question.ruleSet,
@@ -197,6 +198,7 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
       teamArchetype: question.p2.archetype,
       archetypeAttempts: question.archetypeAttempts,
       strictArchetype: question.strictArchetype,
+      aiLevel: question.p2.aiLevel,
     }),
   ]);
   const emptySummary = {

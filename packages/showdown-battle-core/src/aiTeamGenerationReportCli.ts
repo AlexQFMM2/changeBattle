@@ -6,7 +6,7 @@ import {
   type ShowdownRandomTeamPokemonSetV4,
   type ShowdownTeamArchetypeV4,
 } from "./teamGenerator.js";
-import type {TrainingModeV4, TrainingRuleSetV4} from "./types.js";
+import type {BattleAiLevelV4, TrainingModeV4, TrainingRuleSetV4} from "./types.js";
 
 type TeamGenerationReportInputV4 = {
   seed: string;
@@ -15,6 +15,7 @@ type TeamGenerationReportInputV4 = {
   teamSize: number;
   samplesPerArchetype: number;
   archetypeAttempts: number;
+  aiLevel: BattleAiLevelV4;
   includeLoose: boolean;
   includeStrict: boolean;
   archetypes: ShowdownTeamArchetypeV4[];
@@ -63,6 +64,7 @@ const input: TeamGenerationReportInputV4 = {
   teamSize: numberArg(args.teamSize, 3),
   samplesPerArchetype: numberArg(args.samples, 3),
   archetypeAttempts: numberArg(args.archetypeAttempts, 64),
+  aiLevel: asAiLevel(args.aiLevel || "champion"),
   includeLoose: booleanArg(args.includeLoose, true),
   includeStrict: booleanArg(args.includeStrict, true),
   archetypes: csv(args.archetypes).map(asArchetype),
@@ -90,6 +92,7 @@ for (const archetype of input.archetypes) {
         teamArchetype: archetype,
         archetypeAttempts: input.archetypeAttempts,
         strictArchetype,
+        aiLevel: input.aiLevel,
       });
       const elapsedMs = Date.now() - resultStartedAt;
       const result: TeamGenerationReportResultV4 = {
@@ -141,7 +144,7 @@ function parseArgs(argv: string[]): Record<string, string> {
 }
 
 function csv(value: string | undefined): string[] {
-  return String(value || "rain,sand,trick-room,hazard-stack,setup-offense,balanced")
+  return String(value || "rain,sun,trick-room,balanced")
     .split(",")
     .map(entry => entry.trim())
     .filter(Boolean);
@@ -167,6 +170,11 @@ function asRuleSet(value: string): TrainingRuleSetV4 {
 function asMode(value: string): TrainingModeV4 {
   if (value === "singles" || value === "doubles" || value === "coop") return value;
   throw new Error(`invalid --mode ${value}`);
+}
+
+function asAiLevel(value: string): BattleAiLevelV4 {
+  if (value === "rookie" || value === "normal" || value === "elite" || value === "gymLeader" || value === "eliteFour" || value === "champion") return value;
+  throw new Error(`invalid --aiLevel ${value}`);
 }
 
 function asArchetype(value: string): ShowdownTeamArchetypeV4 {
@@ -237,6 +245,7 @@ function renderMarkdown(report: TeamGenerationReportV4): string {
     `- seed: ${report.input.seed}`,
     `- ruleSet/mode: ${report.input.ruleSet}/${report.input.mode}`,
     `- teamSize: ${report.input.teamSize}`,
+    `- aiLevel: ${report.input.aiLevel}`,
     `- samplesPerArchetype: ${report.input.samplesPerArchetype}`,
     `- archetypeAttempts: ${report.input.archetypeAttempts}`,
     `- includeLoose/includeStrict: ${report.input.includeLoose}/${report.input.includeStrict}`,
@@ -263,6 +272,7 @@ function renderMarkdown(report: TeamGenerationReportV4): string {
     lines.push(`- structureScore: ${round(archetype?.structureScore || 0)}`);
     lines.push(`- fulfilled: ${(archetype?.fulfilledRequirements || []).join(", ") || "-"}`);
     lines.push(`- missing: ${(archetype?.missingRequirements || []).join(", ") || "-"}`);
+    lines.push(`- moveQuality: ${result.diagnostics.moveQuality ? `${result.diagnostics.moveQuality.aiLevel}, slots=${result.diagnostics.moveQuality.minMoveSlots}-${result.diagnostics.moveQuality.maxMoveSlots}, adjusted=${result.diagnostics.moveQuality.adjustedPokemon.join(", ") || "-"}` : "-"}`);
     lines.push(`- messages: ${result.diagnostics.messages.join(" | ") || "-"}`);
     lines.push("");
     for (const pokemon of result.pokemon) {

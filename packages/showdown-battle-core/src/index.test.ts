@@ -2968,6 +2968,41 @@ async function randomTeamGeneratorSmoke() {
       throw new Error(`strict ${archetype} diagnostics missing structure score: ${JSON.stringify(strict.diagnostics.archetype)}`);
     }
   }
+
+  const rookieTeam = await generateShowdownRandomTeamV4({
+    ruleSet: "gen9",
+    mode: "singles",
+    seed: "rookie-move-quality-team",
+    teamSize: 3,
+    teamArchetype: "rain",
+    archetypeAttempts: 16,
+    aiLevel: "rookie",
+  });
+  if (!rookieTeam.diagnostics.ok || !rookieTeam.diagnostics.moveQuality) {
+    throw new Error(`rookie move-quality team failed: ${JSON.stringify(rookieTeam.diagnostics)}`);
+  }
+  if (rookieTeam.pokemonSets.some(set => (set.moves || []).length > 2)) {
+    throw new Error(`rookie team should have reduced move slots: ${rookieTeam.pokemonSets.map(set => `${set.species}:${set.moves.length}`).join(", ")}`);
+  }
+  if (rookieTeam.diagnostics.moveQuality.maxMoveSlots > 2 || !rookieTeam.diagnostics.moveQuality.adjustedPokemon.length) {
+    throw new Error(`rookie move-quality diagnostics missing reductions: ${JSON.stringify(rookieTeam.diagnostics.moveQuality)}`);
+  }
+
+  const championTeam = await generateShowdownRandomTeamV4({
+    ruleSet: "gen9",
+    mode: "singles",
+    seed: "champion-move-quality-team",
+    teamSize: 3,
+    teamArchetype: "rain",
+    archetypeAttempts: 16,
+    aiLevel: "champion",
+  });
+  if (!championTeam.diagnostics.ok || !championTeam.diagnostics.moveQuality) {
+    throw new Error(`champion move-quality team failed: ${JSON.stringify(championTeam.diagnostics)}`);
+  }
+  if (championTeam.diagnostics.moveQuality.maxMoveSlots < 4 || championTeam.pokemonSets.some(set => (set.moves || []).length < 4)) {
+    throw new Error(`champion team should keep full move slots: ${championTeam.pokemonSets.map(set => `${set.species}:${set.moves.length}`).join(", ")}`);
+  }
   console.log("showdown-battle-core random team generator smoke ok");
 }
 
