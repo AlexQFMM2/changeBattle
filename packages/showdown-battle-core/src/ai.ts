@@ -196,6 +196,20 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
     profile,
     timeBudgetMs: context.timeBudgetMs,
     pickBestCandidate: candidates => selectCandidate(candidates, profile, levelConfig, rng),
+    request,
+    snapshot: context.snapshot,
+    playerId: context.playerId,
+    generateCandidatesForPlayer: (playerId, playerRequest) => {
+      const requestKeyForPlayer = battleAiRequestKeyV4(playerId, playerRequest);
+      const playerRng = createSeededRng(`${context.rngSeed || context.snapshot.id}:${playerId}:${requestKeyForPlayer}:${profile.level}:${profile.preference}:search-reply`);
+      const playerContext: BattleAiChoiceContextV4 = {...context, playerId, request: playerRequest};
+      return generateTurnCandidates(playerRequest, playerContext, profile, playerRng)
+        .map(candidate => ({
+          ...candidate,
+          choice: sanitizeAiChoice(candidate.choice, context.snapshot.ruleSet, context.snapshot.mode, allowedSpecialSystemsForPlayer(playerContext)),
+        }))
+        .filter(candidate => candidate.choice && choiceLooksParseable(candidate.choice) && validateShowdownChoiceCommandV4({request: playerRequest, choice: candidate.choice}).ok);
+    },
   });
   const picked = searchResult.candidate || {
     choice: fallback,

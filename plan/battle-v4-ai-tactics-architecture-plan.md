@@ -16,7 +16,7 @@
 - [x] 处理：合法行动枚举 -> 数值化局面 -> outcome 估算 -> Minimax 搜索 -> 局面评分。
 - [x] 输出：选择最高分合法 choice。
 - [x] 最终提交前仍经过 validator。
-- [ ] Debug 串起来：`legalActions -> numericState -> actionDelta -> searchTree -> chosenAction`。
+- [x] Debug 串起来第一版：`legalCandidates -> searchBudget -> principalVariation -> chosenAction`。
 
 ## 0. 当前基础确认
 
@@ -32,7 +32,7 @@
 - [x] 已能计算 expected damage ratio。
 - [x] 已能计算 KO chance。
 - [x] 已有 Tyranitar vs Ceruledge 回归：馆主级以上不应点 Ice Beam。
-- [ ] 跑一次现有测试，确认当前 NumericGuard 基线稳定。
+- [x] 跑一次现有测试，确认当前 NumericGuard 基线稳定。
 
 ## 1. 算法依据
 
@@ -47,55 +47,55 @@
 
 ## 2. Search Engine 骨架
 
-- [ ] 新增 `aiSearchEngineV4.ts`。
-- [ ] 新增 `chooseBattleAiActionBySearchV4(input)`。
-- [ ] 新增 `BattleAiSearchInputV4`。
-- [ ] 新增 `BattleAiSearchResultV4`。
+- [x] 新增 `aiSearchEngineV4.ts`。
+- [x] 新增 `chooseBattleAiActionBySearchV4(input)`。
+- [x] 新增 `BattleAiSearchInputV4`。
+- [x] 新增 `BattleAiSearchResultV4`。
 - [ ] 新增 `BattleAiSearchNodeV4`。
-- [ ] 新增 `BattleAiSearchBudgetV4`。
-- [ ] 支持 depth 1 直接调用现有 NumericGuard scorer。
-- [ ] 支持 depth > 1 进入 Minimax。
+- [x] 新增 `BattleAiSearchBudgetV4`。
+- [x] 支持 depth 1 直接调用现有 NumericGuard scorer。
+- [x] 支持 singles depth 2 进入 Minimax。
 - [ ] 支持 alpha-beta pruning。
 - [ ] 支持 iterative deepening。
-- [ ] 支持 hard time budget。
-- [ ] 超时返回当前已知 best legal action。
+- [x] 支持 hard time budget。
+- [x] 超时返回当前已知 best legal action。
 - [ ] 搜索异常返回 `fallbackLegalChoiceV4`。
 
 ## 3. AI 等级映射
 
-- [ ] `rookie`：depth 1。
-- [ ] `normal`：depth 2。
-- [ ] `elite`：depth 3。
-- [ ] `gymLeader`：depth 4。
-- [ ] `eliteFour`：depth 5。
-- [ ] `champion`：depth 6。
-- [ ] 所有等级共享 10s hard upper bound。
-- [ ] 低等级保留更高 noise。
-- [ ] 馆主级以上启用明显优势禁错。
-- [ ] 深度不足或超时时降级到当前最佳浅层结果。
+- [x] `rookie`：depth 1。
+- [x] `normal`：depth 2。
+- [x] `elite`：depth 3。
+- [x] `gymLeader`：depth 4。
+- [x] `eliteFour`：depth 5。
+- [x] `champion`：depth 6。
+- [x] 所有等级共享 10s hard upper bound。
+- [x] 低等级保留更高 noise。
+- [x] 馆主级以上启用明显优势禁错。
+- [x] 深度不足或超时时降级到当前最佳浅层结果。
 
 ## 4. Budget 参数
 
-- [ ] 定义 `maxDepth`。
-- [ ] 定义 `maxMs`。
-- [ ] 定义 `ownTopK`。
-- [ ] 定义 `foeTopK`。
-- [ ] 定义 `maxNodes`。
-- [ ] 定义 `maxJointActions`。
+- [x] 定义 `maxDepth`。
+- [x] 定义 `maxMs`。
+- [x] 定义 `ownTopK`。
+- [x] 定义 `foeTopK`。
+- [x] 定义 `maxNodes`。
+- [x] 定义 `maxJointActions`。
 - [ ] 定义 `maxAllyComboActions`。
-- [ ] Debug 输出 `searchedDepth`。
-- [ ] Debug 输出 `visitedNodes`。
-- [ ] Debug 输出 `elapsedMs`。
-- [ ] Debug 输出 `truncatedReason`。
+- [x] Debug 输出 `searchedDepth`。
+- [x] Debug 输出 `visitedNodes`。
+- [x] Debug 输出 `elapsedMs`。
+- [x] Debug 输出 `truncatedReason`。
 
 ## 5. Numeric State
 
-- [ ] 新增 `BattleAiNumericStateV4`。
-- [ ] 新增 `BattleAiPokemonNumericStateV4`。
-- [ ] 实现 `buildBattleAiNumericStateV4()`。
-- [ ] 读取双方 active。
+- [x] 新增 singles 内部 `BattleAiNumericStateV4`。
+- [x] 新增 singles 内部 `BattleAiNumericPokemonV4`。
+- [x] 实现 singles 内部 `buildSinglesNumericState()`。
+- [x] 读取双方 active。
 - [ ] 读取可见后排。
-- [ ] 读取 HP / maxHP / hpRatio。
+- [x] 读取 HP / maxHP。
 - [ ] 读取 species / types。
 - [ ] 读取 item。
 - [ ] 读取 ability / baseAbility。
@@ -133,9 +133,9 @@
 
 ## 7. 候选剪枝
 
-- [ ] 单个 active 先用 depth 1 scorer 排序。
-- [ ] 我方候选保留 `ownTopK`。
-- [ ] 对手候选保留 `foeTopK`。
+- [x] 单个 active 先用 depth 1 scorer 排序。
+- [x] 我方候选保留 `ownTopK`。
+- [x] 对手候选保留 `foeTopK`。
 - [ ] 双打先生成 per-active top actions。
 - [ ] 双打再组合 joint actions。
 - [ ] joint actions 按初评保留 `maxJointActions`。
@@ -148,10 +148,10 @@
 
 - [ ] 新增 `BattleAiActionOutcomeV4`。
 - [ ] 实现 `estimateBattleAiActionOutcomeV4()`。
-- [ ] 复用现有 `evaluateBattleAiMoveV4()`。
-- [ ] 估算伤害范围。
-- [ ] 估算 expected damage。
-- [ ] 估算 KO chance。
+- [x] 复用现有 `evaluateBattleAiMoveV4()`。
+- [x] 估算伤害范围。
+- [x] 估算 expected damage。
+- [x] 估算 KO chance。
 - [ ] 估算命中风险。
 - [ ] 估算 priority。
 - [ ] 估算行动顺序。
@@ -170,8 +170,8 @@
 ## 9. 局面推进
 
 - [ ] 新增 `applyBattleAiOutcomeToNumericStateV4()`。
-- [ ] 应用 HP delta。
-- [ ] 应用 fainted 状态。
+- [x] singles depth 2 应用 HP delta。
+- [x] singles depth 2 应用 fainted 状态。
 - [ ] 应用 stat stage delta。
 - [ ] 应用 status delta。
 - [ ] 应用 weather delta。
@@ -181,7 +181,7 @@
 - [ ] 应用 switch delta。
 - [ ] 不确定随机结果用 expected state。
 - [ ] 高风险随机结果写 outcome bucket。
-- [ ] 不追求完整 Showdown 事件顺序。
+- [x] 不追求完整 Showdown 事件顺序。
 
 ## 10. Outcome Bucket
 
@@ -203,11 +203,11 @@
 
 ## 11. 局面评分 Value Function
 
-- [ ] 新增 `scoreBattleAiNumericStateV4()`。
-- [ ] 我方剩余 HP 加分。
-- [ ] 对方剩余 HP 扣分。
-- [ ] 我方 KO 对手加分。
-- [ ] 我方被 KO 扣分。
+- [x] 新增 singles 内部 `scoreSinglesLeafState()`。
+- [x] 我方剩余 HP 加分。
+- [x] 对方剩余 HP 扣分。
+- [x] 我方 KO 对手加分。
+- [x] 我方被 KO 扣分。
 - [ ] 击杀高威胁目标额外加分。
 - [ ] 保住我方核心额外加分。
 - [ ] 我方速度权加分。
@@ -229,19 +229,19 @@
 
 ## 12. Minimax
 
-- [ ] 新增 `searchBattleAiMinimaxV4()`。
-- [ ] 我方节点取 max。
-- [ ] 对手节点取 min。
+- [x] 新增 singles depth 2 minimax 搜索逻辑。
+- [x] 我方节点取 max。
+- [x] 对手节点取 min。
 - [ ] 支持 alpha-beta pruning。
 - [ ] 支持 iterative deepening。
 - [ ] 支持 transposition cache。
 - [ ] cache key 使用 bucket state。
 - [ ] depth 到 0 时调用 value function。
-- [ ] 超过 `maxNodes` 截断。
-- [ ] 超过 `maxMs` 截断。
-- [ ] 截断时返回当前 best。
-- [ ] 对手 policy 第一版使用同一套 scorer 近似。
-- [ ] Debug 记录 top principal variation。
+- [x] 超过 `maxNodes` 截断。
+- [x] 超过 `maxMs` 截断。
+- [x] 截断时返回当前 best。
+- [x] 对手 policy 第一版使用同一套 scorer 近似。
+- [x] Debug 记录 top principal variation。
 
 ## 13. 双打 Joint Action
 
@@ -299,25 +299,25 @@
 
 ## 16. 接入 chooseAiBattleChoiceV4
 
-- [ ] 保留原入口。
-- [ ] 保留原 fallback。
-- [ ] 新搜索结果转回原 choice 格式。
-- [ ] choice 提交前再次 validator。
-- [ ] depth 1 使用现有 evaluator 结果。
-- [ ] depth 2+ 使用 Minimax。
+- [x] 保留原入口。
+- [x] 保留原 fallback。
+- [x] 新搜索结果转回原 choice 格式。
+- [x] choice 提交前再次 validator。
+- [x] depth 1 使用现有 evaluator 结果。
+- [x] singles depth 2 使用 Minimax。
 - [ ] 配置开关：可关闭 Minimax 回到 NumericGuard。
-- [ ] Debug 中标记 `strategy: "numeric-guard" | "minimax"`。
+- [x] Debug 中标记 `strategy: "numeric-guard" | "minimax"`。
 
 ## 17. Debug
 
-- [ ] `BattleAiDecisionDebugV4` 增加 `search` 字段。
-- [ ] 输出 budget。
-- [ ] 输出 depth。
-- [ ] 输出节点数。
-- [ ] 输出耗时。
-- [ ] 输出截断原因。
-- [ ] 输出 top candidates。
-- [ ] 输出 principal variation。
+- [x] `BattleAiDecisionDebugV4` 增加 `search` 字段。
+- [x] 输出 budget。
+- [x] 输出 depth。
+- [x] 输出节点数。
+- [x] 输出耗时。
+- [x] 输出截断原因。
+- [x] 输出 top candidates。
+- [x] 输出 principal variation。
 - [ ] 输出每个候选的 score parts。
 - [ ] 输出每个候选的 outcome bucket。
 - [ ] 输出 ally combo reasons。
@@ -325,14 +325,15 @@
 
 ## 18. 单打测试
 
-- [ ] Tyranitar vs Ceruledge：Ice Beam 不应被 gymLeader+ 选择。
+- [x] Tyranitar vs Ceruledge：Ice Beam 不应被 gymLeader+ 选择。
+- [x] singles depth 2：双方 request 存在时进入 minimax，并输出 principal variation。
 - [ ] 免疫测试。
 - [ ] 抵抗测试。
 - [ ] 克制测试。
 - [ ] 四倍克制测试。
 - [ ] STAB 测试。
-- [ ] 物理伤害读取 atk/def。
-- [ ] 特殊伤害读取 spa/spd。
+- [x] 物理伤害读取 atk/def。
+- [x] 特殊伤害读取 spa/spd。
 - [ ] 命中低但可 KO 的招式测试。
 - [ ] 稳定 KO 不被低命中高威力乱压。
 - [ ] priority 先手测试。
@@ -375,10 +376,10 @@
 
 ## 21. 必跑检查
 
-- [ ] `pnpm --filter @changebattle-v2/showdown-battle-core test`
-- [ ] `pnpm --filter @changebattle-v2/api typecheck`
-- [ ] `pnpm --filter @changebattle-v2/web typecheck`
-- [ ] `git diff --check`
+- [x] `pnpm --filter @changebattle-v2/showdown-battle-core test`
+- [x] `pnpm --filter @changebattle-v2/api typecheck`
+- [x] `pnpm --filter @changebattle-v2/web typecheck`
+- [x] `git diff --check`
 
 ## 22. 非目标
 

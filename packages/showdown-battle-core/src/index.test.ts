@@ -1968,6 +1968,85 @@ function aiDexDamageEvaluatorSmoke() {
   console.log("showdown-battle-core ai dex damage evaluator smoke ok");
 }
 
+function aiSinglesDepth2SearchSmoke() {
+  const aiRequest: BattleServiceRequestV4 = {
+    rqid: 61,
+    active: [
+      {
+        moves: [
+          {move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 15, target: "normal"},
+          {move: "Quick Attack", id: "quickattack", pp: 30, maxpp: 30, target: "normal"},
+          {move: "Protect", id: "protect", pp: 10, maxpp: 10, target: "self"},
+        ],
+      },
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {
+          ident: "p2: Pikachu",
+          details: "Pikachu, L50",
+          condition: "80/100",
+          active: true,
+          ability: "Static",
+          item: "Light Ball",
+          stats: {hp: 100, atk: 75, def: 55, spa: 95, spd: 65, spe: 110},
+        },
+      ],
+    },
+  };
+  const foeRequest: BattleServiceRequestV4 = {
+    rqid: 61,
+    active: [
+      {
+        moves: [
+          {move: "Waterfall", id: "waterfall", pp: 15, maxpp: 15, target: "normal"},
+          {move: "Splash", id: "splash", pp: 40, maxpp: 40, target: "self"},
+        ],
+      },
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {
+          ident: "p1: Gyarados",
+          details: "Gyarados, L50",
+          condition: "65/170",
+          active: true,
+          ability: "Intimidate",
+          item: "",
+          stats: {hp: 170, atk: 145, def: 95, spa: 70, spd: 120, spe: 101},
+        },
+      ],
+    },
+  };
+  const snapshot = {
+    ...aiSnapshot("gen9", "singles", aiRequest),
+    requests: {p1: foeRequest, p2: aiRequest},
+  } satisfies BattleServiceSnapshotV4;
+  const result = chooseAiBattleChoiceV4({
+    request: aiRequest,
+    snapshot,
+    playerId: "p2",
+    aiProfile: {level: "gymLeader", preference: "offense"},
+    rngSeed: "singles-depth-2",
+    timeBudgetMs: 10_000,
+  });
+  if (result.debug.search?.strategy !== "minimax" || result.debug.search.searchedDepth !== 2) {
+    throw new Error(`singles depth 2 should enter minimax search: ${JSON.stringify(result.debug.search)}`);
+  }
+  if (!result.debug.search.principalVariation?.length || !result.debug.search.replyCount || result.debug.search.replyCount < 1) {
+    throw new Error(`singles depth 2 should report principal variation and replies: ${JSON.stringify(result.debug.search)}`);
+  }
+  const validation = validateShowdownChoiceCommandV4({request: aiRequest, choice: result.choice});
+  if (!validation.ok) {
+    throw new Error(`singles depth 2 choice should validate: ${result.choice}; ${JSON.stringify(validation)}; ${JSON.stringify(result.debug)}`);
+  }
+  console.log("showdown-battle-core ai singles depth 2 search smoke ok");
+}
+
 function aiSearchBudgetSmoke() {
   const expected: Array<[BattleAiLevelV4, number]> = [
     ["rookie", 1],
@@ -2294,6 +2373,7 @@ void smoke()
   .then(aiLockedMoveMissingTargetSmoke)
   .then(aiForceSwitchSmoke)
   .then(aiDexDamageEvaluatorSmoke)
+  .then(aiSinglesDepth2SearchSmoke)
   .then(aiSearchBudgetSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);

@@ -16,6 +16,10 @@ export type BattleAiSearchDebugV4 = {
   visitedNodes: number;
   elapsedMs: number;
   truncatedReason?: "timeout" | "max-nodes" | "no-candidates" | "not-enabled";
+  principalVariation?: Array<{choice: string; score: number; role: "self" | "foe"}>;
+  leafScore?: number;
+  candidateCount?: number;
+  replyCount?: number;
 };
 export type BattleAiDecisionDebugV4 = {
   playerId: ShowdownPlayerIdV4;
