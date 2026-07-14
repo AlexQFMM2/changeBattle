@@ -34,6 +34,12 @@ export type BattleAiMoveEvaluationV4 = {
   diagnostics: Record<string, unknown>;
 };
 
+export type BattleAiMoveTargetOverrideV4 = {
+  playerId: ShowdownPlayerIdV4;
+  row: BattleServiceSidePokemonV4;
+  activeIndex?: number;
+};
+
 export type BattleAiMoveEvaluatorContextV4 = {
   request: BattleServiceRequestV4;
   snapshot: BattleServiceSnapshotV4;
@@ -41,6 +47,7 @@ export type BattleAiMoveEvaluatorContextV4 = {
   activeIndex: number;
   move: BattleServiceMoveRequestV4;
   targetLoc?: string;
+  targetOverride?: BattleAiMoveTargetOverrideV4;
   special?: ShowdownSpecialChoiceV4 | null;
   aiProfile?: BattleAiProfileV4 | null;
   timeBudgetMs?: number;
@@ -74,8 +81,9 @@ export function evaluateBattleAiMoveV4(input: BattleAiMoveEvaluatorContextV4): B
   const dex = input.dex || DEFAULT_DEX;
   const move = safeMoveDetail(dex, input.move.id || input.move.move);
   const user = combatantForActive(input.request, input.snapshot, input.playerId, input.activeIndex, dex);
-  const targets = targetCombatantsForMove(input.request, input.snapshot, input.playerId, input.activeIndex, input.targetLoc, move, dex);
+  const targets = targetCombatantsForMove(input.request, input.snapshot, input.playerId, input.activeIndex, input.targetLoc, input.targetOverride, move, dex);
   const damaging = Boolean(move && move.power > 0 && move.categoryId !== "status");
+  const targetOverrideApplied = Boolean(input.targetOverride && targets.some(target => target.row === input.targetOverride?.row));
   const targetEvaluations = targets.map(target => evaluateAgainstTarget({dex, move, user, target, special: input.special, damaging, request: input.request, snapshot: input.snapshot}));
   const best = targetEvaluations.slice().sort((a, b) => b.finalScore - a.finalScore)[0];
   const combined = combineTargetEvaluations(targetEvaluations, best, move);
@@ -100,6 +108,8 @@ export function evaluateBattleAiMoveV4(input: BattleAiMoveEvaluatorContextV4): B
       userSpeciesId: user.speciesId,
       targetSpeciesIds: targets.map(target => target.speciesId),
       targetCount: targets.length,
+      targetOverride: targetOverrideApplied || undefined,
+      targetOverrideIdent: targetOverrideApplied ? input.targetOverride?.row.ident || null : undefined,
       typeMultiplier: best?.typeMultiplier ?? 1,
       stab: best?.stab ?? 1,
       accuracy: moveAccuracy(move),
@@ -205,6 +215,7 @@ function targetCombatantsForMove(
   playerId: ShowdownPlayerIdV4,
   activeIndex: number,
   targetLoc: string | undefined,
+  targetOverride: BattleAiMoveTargetOverrideV4 | undefined,
   move: DexMoveDetail | null,
   dex: ShowdownDexService,
 ): BattleAiCombatantV4[] {
@@ -216,12 +227,20 @@ function targetCombatantsForMove(
   if (target === "allAdjacent" || target === "allAdjacentFoes") {
     return foeActives.map((active, index) => combatantFromSnapshotActive(active, index, dex));
   }
+  if (targetOverride && targetAllowsOverride(target)) {
+    return [combatantFromRow(targetOverride.row, targetOverride.playerId, targetOverride.activeIndex ?? activeIndex, dex)];
+  }
   const parsedLoc = targetLoc?.startsWith("+") ? Number(targetLoc.slice(1)) - 1 : Number.NaN;
   const targetIndex = Number.isFinite(parsedLoc) && parsedLoc >= 0 ? parsedLoc : Math.min(activeIndex, activeCount - 1);
   const active = foeActives[targetIndex] || foeActives[0];
   if (active) return [combatantFromSnapshotActive(active, targetIndex, dex)];
   const fallbackRow = request.side?.pokemon?.find(row => !row.active && !row.fainted && !row.condition.includes("fnt"));
   return [combatantFromRow(fallbackRow, "p1", 0, dex)];
+}
+
+function targetAllowsOverride(target: string): boolean {
+  const normalized = String(target || "").toLowerCase();
+  return normalized !== "self" && !normalized.includes("ally") && normalized !== "alladjacent" && normalized !== "alladjacentfoes";
 }
 
 function combatantForActive(request: BattleServiceRequestV4, snapshot: BattleServiceSnapshotV4, playerId: ShowdownPlayerIdV4, activeIndex: number, dex: ShowdownDexService): BattleAiCombatantV4 {

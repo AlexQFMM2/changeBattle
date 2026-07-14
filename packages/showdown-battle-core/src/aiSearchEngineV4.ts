@@ -5,12 +5,16 @@ import type {
   BattleAiOutcomeBucketV4,
   BattleAiProfileV4,
   BattleAiSearchDebugV4,
+  BattleServiceMoveRequestV4,
   BattleServiceRequestV4,
+  BattleServiceSidePokemonV4,
   BattleServiceSnapshotV4,
   ShowdownPlayerIdV4,
   TrainingModeV4,
 } from "./types.js";
 import type {BattleAiRoleTagSubtypeV4, BattleAiTeamRoleAnalysisV4} from "./aiTeamRoleAnalyzerV4.js";
+import {evaluateBattleAiMoveV4} from "./aiMoveEvaluator.js";
+import {parseShowdownChoiceCommandV4, type ShowdownSpecialChoiceV4} from "./showdownCommand.js";
 
 export type BattleAiCandidateV4 = {
   choice: string;
@@ -65,6 +69,14 @@ type BattleAiCandidateOutcomeV4 = {
   choice: string;
   buckets: BattleAiOutcomeBucketV4[];
   score: number;
+};
+
+type BattleAiSwitchTargetEstimateV4 = {
+  switchChoice: string;
+  replyChoice: string;
+  targetIdent?: string;
+  estimatedDamage: number;
+  koChance: number;
 };
 
 const AI_SEARCH_BUDGETS: Record<BattleAiLevelV4, BattleAiSearchBudgetV4> = {
@@ -253,6 +265,8 @@ function searchSinglesDepth2(
   let visitedNodes = 0;
   let best: {candidate: BattleAiCandidateV4; reply: BattleAiCandidateV4; leafScore: number; buckets: BattleAiOutcomeBucketV4[]} | null = null;
   let truncatedReason: BattleAiSearchDebugV4["truncatedReason"];
+  const targetOverrideEstimates: BattleAiSwitchTargetEstimateV4[] = [];
+  const searchedOutcomes: BattleAiCandidateOutcomeV4[] = [];
 
   for (const [index, candidate] of ownCandidates.entries()) {
     if (Date.now() - startedAt > budget.maxMs) {
@@ -260,7 +274,7 @@ function searchSinglesDepth2(
       break;
     }
     const ownOutcome = ownOutcomes[index] || {choice: candidate.choice, buckets: [], score: 0};
-    const afterSelf = applyCandidateDamage(state, candidate, "self");
+    const afterSelf = applyOwnCandidateState(state, candidate, input);
     let worstReply: BattleAiCandidateV4 | null = null;
     let worstLeaf = Number.POSITIVE_INFINITY;
     let worstBuckets: BattleAiOutcomeBucketV4[] = ownOutcome.buckets;
@@ -280,8 +294,12 @@ function searchSinglesDepth2(
         truncatedReason = "timeout";
         break;
       }
-      const afterReply = applyCandidateDamage(afterSelf, reply, "foe");
-      const replyBuckets = capabilities.useOutcomeBuckets ? outcomeForReply(state, afterSelf, afterReply, candidate, reply) : [];
+      const replyResult = applyFoeReplyState(afterSelf, reply, candidate, input, foePlayerId, foeRequest);
+      const afterReply = replyResult.state;
+      if (replyResult.targetOverrideEstimate && targetOverrideEstimates.length < 12) {
+        targetOverrideEstimates.push(replyResult.targetOverrideEstimate);
+      }
+      const replyBuckets = capabilities.useOutcomeBuckets ? outcomeForReply(state, afterSelf, afterReply, candidate, reply, replyResult.targetOverrideEstimate) : [];
       const buckets = uniqueBuckets([...ownOutcome.buckets, ...replyBuckets]);
       const leafScore = scoreSinglesLeafState(afterReply, candidate, reply, input, state, buckets, capabilities);
       if (leafScore < worstLeaf) {
@@ -291,7 +309,10 @@ function searchSinglesDepth2(
       }
     }
     if (worstReply && (!best || worstLeaf > best.leafScore)) {
+      searchedOutcomes.push({choice: candidate.choice, buckets: worstBuckets, score: outcomeBucketScore(worstBuckets)});
       best = {candidate, reply: worstReply, leafScore: worstLeaf, buckets: worstBuckets};
+    } else if (worstReply) {
+      searchedOutcomes.push({choice: candidate.choice, buckets: worstBuckets, score: outcomeBucketScore(worstBuckets)});
     }
     if (truncatedReason) break;
   }
@@ -318,8 +339,15 @@ function searchSinglesDepth2(
       outcomeBuckets: capabilities.useOutcomeBuckets
         ? debugOutcomeBuckets([
             ...ownOutcomes,
-            {choice: best.candidate.choice, buckets: best.buckets, score: outcomeBucketScore(best.buckets)},
+            ...searchedOutcomes,
           ])
+        : undefined,
+      targetOverrideEstimates: targetOverrideEstimates.length
+        ? targetOverrideEstimates.map(estimate => ({
+            ...estimate,
+            estimatedDamage: roundSearchScore(estimate.estimatedDamage),
+            koChance: roundSearchScore(estimate.koChance),
+          }))
         : undefined,
     },
   };
@@ -345,6 +373,109 @@ function buildSinglesNumericState(snapshot: BattleServiceSnapshotV4, playerId: S
       fainted: foe.fainted,
     },
   };
+}
+
+function applyOwnCandidateState(state: BattleAiNumericStateV4, candidate: BattleAiCandidateV4, input: BattleAiSearchInputV4): BattleAiNumericStateV4 {
+  const switchRow = pokemonRowForSwitchCandidate(input.request, candidate);
+  if (switchRow) {
+    const hp = hpFromCondition(switchRow.condition);
+    const maxHp = maxHpFromCondition(switchRow.condition);
+    return {
+      self: {
+        ...state.self,
+        hp: Math.max(0, hp),
+        maxHp: Math.max(1, maxHp),
+        fainted: Boolean(switchRow.fainted || switchRow.condition.includes("fnt") || hp <= 0),
+      },
+      foe: state.foe,
+    };
+  }
+  return applyCandidateDamage(state, candidate, "self");
+}
+
+function applyFoeReplyState(
+  state: BattleAiNumericStateV4,
+  reply: BattleAiCandidateV4,
+  own: BattleAiCandidateV4,
+  input: BattleAiSearchInputV4,
+  foePlayerId: ShowdownPlayerIdV4,
+  foeRequest: BattleServiceRequestV4,
+): {state: BattleAiNumericStateV4; targetOverrideEstimate?: BattleAiSwitchTargetEstimateV4} {
+  const targetOverrideEstimate = evaluateReplyAgainstSwitchTarget(input, foePlayerId, foeRequest, own, reply);
+  if (!targetOverrideEstimate) {
+    return {state: applyCandidateDamage(state, reply, "foe")};
+  }
+  const hp = Math.max(0, state.self.hp - targetOverrideEstimate.estimatedDamage);
+  return {
+    state: {
+      self: {...state.self, hp, fainted: hp <= 0},
+      foe: state.foe,
+    },
+    targetOverrideEstimate,
+  };
+}
+
+function evaluateReplyAgainstSwitchTarget(
+  input: BattleAiSearchInputV4,
+  foePlayerId: ShowdownPlayerIdV4,
+  foeRequest: BattleServiceRequestV4,
+  own: BattleAiCandidateV4,
+  reply: BattleAiCandidateV4,
+): BattleAiSwitchTargetEstimateV4 | undefined {
+  const switchRow = pokemonRowForSwitchCandidate(input.request, own);
+  if (!switchRow || !input.snapshot || !input.playerId || reply.kind !== "move") return undefined;
+  const parsedReply = parseShowdownChoiceCommandV4(reply.choice);
+  if (!parsedReply || parsedReply.kind !== "move") return undefined;
+  const move = moveRequestForParsedReply(foeRequest, parsedReply.index, parsedReply.special);
+  if (!move) return undefined;
+  const evaluation = evaluateBattleAiMoveV4({
+    request: foeRequest,
+    snapshot: input.snapshot,
+    playerId: foePlayerId,
+    activeIndex: 0,
+    move,
+    targetLoc: parsedReply.target,
+    special: parsedReply.special,
+    targetOverride: {playerId: input.playerId, row: switchRow, activeIndex: 0},
+  });
+  const category = String(evaluation.diagnostics.category || "");
+  if (category === "status" || evaluation.expectedDamageRange.average <= 0) return undefined;
+  return {
+    switchChoice: own.choice,
+    replyChoice: reply.choice,
+    targetIdent: switchRow.ident,
+    estimatedDamage: Math.max(0, evaluation.expectedDamageRange.average),
+    koChance: Math.max(0, Math.min(1, evaluation.koChance)),
+  };
+}
+
+function moveRequestForParsedReply(
+  request: BattleServiceRequestV4,
+  moveIndex: number,
+  special: ShowdownSpecialChoiceV4 | undefined,
+): BattleServiceMoveRequestV4 | undefined {
+  const active = request.active?.[0];
+  const index = moveIndex - 1;
+  if (!active || index < 0) return undefined;
+  if (special === "zmove") {
+    const zMove = active.zMoves?.[index] || active.canZMove?.[index];
+    if (zMove) return zMove;
+  }
+  if (special === "max") {
+    const maxMoves = active.maxMoves;
+    const maxMove = Array.isArray(maxMoves) ? maxMoves[index] : maxMoves?.maxMoves?.[index];
+    if (maxMove) return maxMove;
+  }
+  return active.moves?.[index];
+}
+
+function pokemonRowForSwitchCandidate(request: BattleServiceRequestV4 | undefined, candidate: BattleAiCandidateV4): BattleServiceSidePokemonV4 | undefined {
+  if (candidate.kind !== "switch") return undefined;
+  const parsed = parseShowdownChoiceCommandV4(candidate.choice);
+  if (!parsed || parsed.kind !== "switch") return undefined;
+  const row = request?.side?.pokemon?.[parsed.index - 1];
+  if (!row || row.active || row.fainted || row.condition.includes("fnt")) return undefined;
+  return row;
 }
 
 function applyCandidateDamage(state: BattleAiNumericStateV4, candidate: BattleAiCandidateV4, actor: "self" | "foe"): BattleAiNumericStateV4 {
@@ -430,19 +561,21 @@ function outcomeForReply(
   afterReply: BattleAiNumericStateV4,
   own: BattleAiCandidateV4,
   reply: BattleAiCandidateV4,
+  targetOverrideEstimate?: BattleAiSwitchTargetEstimateV4,
 ): BattleAiOutcomeBucketV4[] {
   const buckets: BattleAiOutcomeBucketV4[] = [];
   if (afterSelf.foe.fainted) return buckets;
   const replyDamage = Math.max(0, afterSelf.self.hp - afterReply.self.hp);
-  const replyDamageRatio = replyDamage / Math.max(1, initialState.self.maxHp);
+  const replyDamageRatio = replyDamage / Math.max(1, afterSelf.self.maxHp || initialState.self.maxHp);
+  const replyKoChance = targetOverrideEstimate?.koChance ?? candidateKoChance(reply);
   if (afterReply.self.fainted) buckets.push("self-ko-risk");
   if (!afterSelf.foe.fainted && afterSelf.foe.hp / Math.max(1, afterSelf.foe.maxHp) <= 0.3 && (afterReply.self.fainted || replyDamageRatio >= 0.45)) {
     buckets.push("revenge-kill-risk");
   }
   if (own.kind === "switch") {
-    if (!afterReply.self.fainted && replyDamageRatio <= 0.3 && candidateKoChance(reply) < 1) {
+    if (!afterReply.self.fainted && replyDamageRatio <= 0.3 && replyKoChance < 1) {
       buckets.push("safe-switch");
-    } else if (afterReply.self.fainted || replyDamageRatio >= 0.45 || candidateKoChance(reply) >= 1) {
+    } else if (afterReply.self.fainted || replyDamageRatio >= 0.45 || replyKoChance >= 1) {
       buckets.push("unsafe-switch");
     }
   }

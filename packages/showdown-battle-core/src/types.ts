@@ -44,6 +44,13 @@ export type BattleAiSearchDebugV4 = {
   replyCount?: number;
   capabilities?: BattleAiCapabilityProfileV4;
   outcomeBuckets?: Array<{choice: string; buckets: BattleAiOutcomeBucketV4[]; score: number}>;
+  targetOverrideEstimates?: Array<{
+    switchChoice: string;
+    replyChoice: string;
+    targetIdent?: string;
+    estimatedDamage: number;
+    koChance: number;
+  }>;
 };
 export type BattleAiDecisionDebugV4 = {
   playerId: ShowdownPlayerIdV4;

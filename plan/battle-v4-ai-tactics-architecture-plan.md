@@ -250,7 +250,7 @@
 - [ ] 估算命中风险。
 - [ ] 估算 priority。
 - [ ] 估算行动顺序。
-- [ ] 估算 switch 后承伤收益。
+- [x] 估算 switch 后承伤收益。
 - [ ] 估算保护收益。
 - [ ] 估算回复收益。
 - [ ] 估算强化收益。
@@ -274,7 +274,7 @@
 - [ ] 应用 terrain delta。
 - [ ] 应用 Tailwind turn delta。
 - [ ] 应用 Trick Room turn delta。
-- [ ] 应用 switch delta。
+- [x] 应用 switch delta。
 - [ ] 不确定随机结果用 expected state。
 - [ ] 高风险随机结果写 outcome bucket。
 - [x] 不追求完整 Showdown 事件顺序。
@@ -498,7 +498,7 @@
 - [ ] Protect 保命测试。
 - [ ] Fake Out 可用性测试。
 - [ ] Sucker Punch 场景测试。
-- [ ] switch 抗性测试。
+- [x] switch 抗性测试。
 
 ## 19. 双打测试
 

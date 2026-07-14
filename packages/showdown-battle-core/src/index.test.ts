@@ -2276,6 +2276,124 @@ function aiRainSwitchRoleSmoke() {
   console.log("showdown-battle-core ai rain switch role smoke ok");
 }
 
+function aiSwitchTargetOverrideSmoke() {
+  const makeAiRequest = (barraskewdaCondition = "120/120"): BattleServiceRequestV4 => ({
+    rqid: 64,
+    active: [
+      {
+        moves: [
+          {move: "Splash", id: "splash", pp: 40, maxpp: 40, target: "self"},
+          {move: "Protect", id: "protect", pp: 10, maxpp: 10, target: "self"},
+        ],
+      },
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Politoed", details: "Politoed, L50", condition: "200/200", active: true, ability: "Drizzle", moves: ["Splash", "Protect"], stats: {hp: 200, atk: 75, def: 140, spa: 110, spd: 200, spe: 90}},
+        {ident: "p2: Barraskewda", details: "Barraskewda, L50", condition: barraskewdaCondition, active: false, ability: "Swift Swim", moves: ["Liquidation", "Aqua Jet"], stats: {hp: 120, atk: 175, def: 80, spa: 70, spd: 70, spe: 170}},
+      ],
+    },
+  });
+  const makeSnapshot = (aiRequest: BattleServiceRequestV4, foeRequest: BattleServiceRequestV4) => {
+    const foeRow = foeRequest.side?.pokemon[0];
+    const condition = foeRow?.condition || "100/100";
+    const [hp, maxHp] = condition.split("/").map(value => Number(value) || 100);
+    return {
+      ...aiSnapshot("gen9", "singles", aiRequest),
+      requests: {p1: foeRequest, p2: aiRequest},
+      rawLog: ["|-weather|RainDance|[from] ability: Drizzle"],
+      active: [
+        {
+          ident: foeRow?.ident?.replace("p1:", "p1a:") || "p1a: Foe",
+          playerId: "p1" as const,
+          slot: "p1a",
+          species: String(foeRow?.details || "Foe").split(",")[0],
+          details: foeRow?.details || "Foe, L50",
+          condition,
+          hp,
+          maxHp,
+          status: "",
+          fainted: false,
+        },
+        {ident: "p2a: Politoed", playerId: "p2" as const, slot: "p2a", species: "Politoed", details: "Politoed, L50", condition: "200/200", hp: 200, maxHp: 200, status: "", fainted: false},
+      ],
+    } satisfies BattleServiceSnapshotV4;
+  };
+  const run = (foeRequest: BattleServiceRequestV4, seed: string, barraskewdaCondition = "120/120") => {
+    const aiRequest = makeAiRequest(barraskewdaCondition);
+    const snapshot = makeSnapshot(aiRequest, foeRequest);
+    return chooseAiBattleChoiceV4({
+      request: aiRequest,
+      snapshot,
+      playerId: "p2",
+      aiProfile: {level: "gymLeader", preference: "balanced"},
+      rngSeed: seed,
+      timeBudgetMs: 10_000,
+    });
+  };
+
+  const safeFoeRequest: BattleServiceRequestV4 = {
+    rqid: 64,
+    active: [{moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35, target: "normal"}]}],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Magikarp", details: "Magikarp, L50", condition: "80/80", active: true, ability: "Swift Swim", moves: ["Tackle"], stats: {hp: 80, atk: 30, def: 55, spa: 25, spd: 35, spe: 80}},
+      ],
+    },
+  };
+  const safeResult = run(safeFoeRequest, "switch-target-override-safe");
+  if (!safeResult.choice.startsWith("switch 2")) {
+    throw new Error(`safe rain abuser switch should still be preferred: ${JSON.stringify(safeResult.debug)}`);
+  }
+  if (!safeResult.debug.search?.targetOverrideEstimates?.some(entry => entry.switchChoice === "switch 2" && entry.replyChoice === "move 1" && entry.estimatedDamage > 0)) {
+    throw new Error(`safe switch should report targetOverride reply estimate: ${JSON.stringify(safeResult.debug.search)}`);
+  }
+  if (!safeResult.debug.search?.outcomeBuckets?.some(entry => entry.choice === "switch 2" && entry.buckets.includes("safe-switch"))) {
+    throw new Error(`safe switch should report safe-switch bucket: ${JSON.stringify(safeResult.debug.search)}`);
+  }
+
+  const unsafeFoeRequest: BattleServiceRequestV4 = {
+    rqid: 64,
+    active: [{moves: [{move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 15, target: "normal"}]}],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Jolteon", details: "Jolteon, L50", condition: "140/140", active: true, ability: "Volt Absorb", moves: ["Thunderbolt"], stats: {hp: 140, atk: 75, def: 80, spa: 180, spd: 115, spe: 200}},
+      ],
+    },
+  };
+  const unsafeResult = run(unsafeFoeRequest, "switch-target-override-unsafe", "60/120");
+  if (unsafeResult.choice.startsWith("switch 2")) {
+    throw new Error(`unsafe rain abuser switch should be rejected after targetOverride estimate: ${JSON.stringify(unsafeResult.debug)}`);
+  }
+  if (!unsafeResult.debug.search?.targetOverrideEstimates?.some(entry => entry.switchChoice === "switch 2" && entry.replyChoice === "move 1" && (entry.koChance >= 1 || entry.estimatedDamage >= 60))) {
+    throw new Error(`unsafe switch should report lethal targetOverride reply estimate: ${JSON.stringify(unsafeResult.debug.search)}`);
+  }
+  if (!unsafeResult.debug.search?.outcomeBuckets?.some(entry => entry.choice === "switch 2" && (entry.buckets.includes("unsafe-switch") || entry.buckets.includes("self-ko-risk")))) {
+    throw new Error(`unsafe switch should report unsafe/self-ko bucket: ${JSON.stringify(unsafeResult.debug.search)}`);
+  }
+  for (const level of ["normal", "elite"] satisfies BattleAiLevelV4[]) {
+    const aiRequest = makeAiRequest();
+    const lowerResult = chooseAiBattleChoiceV4({
+      request: aiRequest,
+      snapshot: makeSnapshot(aiRequest, unsafeFoeRequest),
+      playerId: "p2",
+      aiProfile: {level, preference: "balanced"},
+      rngSeed: `switch-target-override-low-${level}`,
+      timeBudgetMs: 10_000,
+    });
+    if (lowerResult.debug.search?.strategy !== "numeric-guard" || lowerResult.debug.search.targetOverrideEstimates?.length) {
+      throw new Error(`${level} should not enable targetOverride minimax switch estimates: ${JSON.stringify(lowerResult.debug.search)}`);
+    }
+  }
+  console.log("showdown-battle-core ai switch targetOverride smoke ok");
+}
+
 function aiSearchBudgetSmoke() {
   const expected: Array<[BattleAiLevelV4, number]> = [
     ["rookie", 1],
@@ -2639,6 +2757,7 @@ void smoke()
   .then(aiTeamRoleAnalyzerSmoke)
   .then(aiTeamArchetypeAnalyzerSmoke)
   .then(aiRainSwitchRoleSmoke)
+  .then(aiSwitchTargetOverrideSmoke)
   .then(aiSearchBudgetSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);
