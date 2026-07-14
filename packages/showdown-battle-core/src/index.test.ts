@@ -4,6 +4,7 @@ import {
   createBattleSession,
   filterShowdownChoiceForRuleSetV4,
   generateShowdownRandomTeamV4,
+  battleAiSearchBudgetForLevelV4,
   parseShowdownChoiceCommandV4,
   randomLegalChoice,
   resolveBattleWinnerPlayerIdV4,
@@ -1946,6 +1947,12 @@ function aiDexDamageEvaluatorSmoke() {
       rngSeed: `tyranitar-ceruledge-${level}`,
       timeBudgetMs: 10_000,
     });
+    if (!result.debug.search || result.debug.search.strategy !== "numeric-guard") {
+      throw new Error(`${level} AI should include numeric guard search debug: ${JSON.stringify(result.debug)}`);
+    }
+    if (result.debug.search.maxDepth < 4) {
+      throw new Error(`${level} AI search budget should expose minimax target depth: ${JSON.stringify(result.debug.search)}`);
+    }
     if (result.debug.selectedChoice.startsWith("move 1")) {
       throw new Error(`${level} AI should not choose Ice Beam into Ceruledge: ${JSON.stringify(result.debug)}`);
     }
@@ -1959,6 +1966,31 @@ function aiDexDamageEvaluatorSmoke() {
     }
   }
   console.log("showdown-battle-core ai dex damage evaluator smoke ok");
+}
+
+function aiSearchBudgetSmoke() {
+  const expected: Array<[BattleAiLevelV4, number]> = [
+    ["rookie", 1],
+    ["normal", 2],
+    ["elite", 3],
+    ["gymLeader", 4],
+    ["eliteFour", 5],
+    ["champion", 6],
+  ];
+  for (const [level, depth] of expected) {
+    const budget = battleAiSearchBudgetForLevelV4(level);
+    if (budget.maxDepth !== depth) {
+      throw new Error(`expected ${level} search depth ${depth}, got ${JSON.stringify(budget)}`);
+    }
+    if (budget.maxMs > 10_000) {
+      throw new Error(`AI search budget should stay within 10s hard cap: ${JSON.stringify(budget)}`);
+    }
+  }
+  const capped = battleAiSearchBudgetForLevelV4("champion", 250);
+  if (capped.maxMs !== 250) {
+    throw new Error(`explicit time budget should cap champion search maxMs: ${JSON.stringify(capped)}`);
+  }
+  console.log("showdown-battle-core ai search budget smoke ok");
 }
 
 async function randomTeamGeneratorSmoke() {
@@ -2262,5 +2294,6 @@ void smoke()
   .then(aiLockedMoveMissingTargetSmoke)
   .then(aiForceSwitchSmoke)
   .then(aiDexDamageEvaluatorSmoke)
+  .then(aiSearchBudgetSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);

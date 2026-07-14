@@ -29,6 +29,7 @@ import {
   type ShowdownSpecialChoiceV4,
 } from "./showdownCommand.js";
 import {evaluateBattleAiMoveV4, type BattleAiMoveEvaluationV4} from "./aiMoveEvaluator.js";
+import {chooseBattleAiActionBySearchV4, type BattleAiCandidateV4} from "./aiSearchEngineV4.js";
 
 export type BattleAiChoiceContextV4 = {
   request?: BattleServiceRequestV4 | null;
@@ -46,7 +47,7 @@ export type BattleAiChoiceResultV4 = {
   debug: BattleAiDecisionDebugV4;
 };
 
-type AiLevelConfig = {
+export type BattleAiLevelConfigV4 = {
   searchDepth: number;
   perSlotTopN: number;
   turnTopK: number;
@@ -54,14 +55,8 @@ type AiLevelConfig = {
   mistakeRate: number;
 };
 
-type AiCandidate = {
-  choice: string;
-  score: number;
-  features: BattleAiFeatureVectorV4;
-  kind: "team" | "switch" | "move" | "pass";
-  activeIndex?: number;
-  diagnostics?: Record<string, unknown>;
-};
+type AiLevelConfig = BattleAiLevelConfigV4;
+type AiCandidate = BattleAiCandidateV4;
 
 const DEFAULT_AI_PROFILE: Required<BattleAiProfileV4> = {
   level: "normal",
@@ -196,7 +191,13 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
     choice: sanitizeAiChoice(candidate.choice, context.snapshot.ruleSet, context.snapshot.mode, allowedSpecialSystemsForPlayer(context)),
   })).filter(candidate => candidate.choice && choiceLooksParseable(candidate.choice) && validateShowdownChoiceCommandV4({request, choice: candidate.choice}).ok);
   const fallback = fallbackLegalChoiceV4(request);
-  const picked = selectCandidate(legalCandidates, profile, levelConfig, rng) || {
+  const searchResult = chooseBattleAiActionBySearchV4({
+    candidates: legalCandidates,
+    profile,
+    timeBudgetMs: context.timeBudgetMs,
+    pickBestCandidate: candidates => selectCandidate(candidates, profile, levelConfig, rng),
+  });
+  const picked = searchResult.candidate || {
     choice: fallback,
     score: 0,
     features: emptyFeatures(),
@@ -236,6 +237,7 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
       candidateCount: legalCandidates.length,
       selectedChoice: selected.choice || fallback,
       selectedScore: roundScore(selected.score),
+      search: searchResult.debug,
       topCandidates,
     },
   };

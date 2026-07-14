@@ -9,6 +9,14 @@ export type BattleAiProfileV4 = {
   preference?: BattleAiPreferenceV4;
 };
 export type BattleAiFeatureVectorV4 = Record<string, number>;
+export type BattleAiSearchDebugV4 = {
+  strategy: "numeric-guard" | "minimax";
+  maxDepth: number;
+  searchedDepth: number;
+  visitedNodes: number;
+  elapsedMs: number;
+  truncatedReason?: "timeout" | "max-nodes" | "no-candidates" | "not-enabled";
+};
 export type BattleAiDecisionDebugV4 = {
   playerId: ShowdownPlayerIdV4;
   rqid?: number;
@@ -20,6 +28,7 @@ export type BattleAiDecisionDebugV4 = {
   candidateCount: number;
   selectedChoice: string;
   selectedScore: number;
+  search?: BattleAiSearchDebugV4;
   topCandidates: Array<{
     choice: string;
     score: number;
