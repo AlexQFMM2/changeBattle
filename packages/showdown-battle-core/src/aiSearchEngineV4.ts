@@ -22,6 +22,7 @@ import {
   type BattleAiValueBreakdownV4,
 } from "./aiValueFunctionV4.js";
 import {battleAiOutcomeBucketScoreV4} from "./aiOutcomeBucketsV4.js";
+import {buildBattleAiSpeedFieldStateV4, buildBattleAiSpeedStateV4} from "./aiSpeedStateV4.js";
 
 export type BattleAiCandidateV4 = {
   choice: string;
@@ -359,12 +360,25 @@ function buildSinglesNumericState(snapshot: BattleServiceSnapshotV4, playerId: S
   const self = snapshot.active.find(active => active.playerId === playerId && !active.fainted);
   const foe = snapshot.active.find(active => active.playerId !== playerId && !active.fainted);
   if (!self || !foe) return null;
+  const selfRow = activeSideRow(snapshot.requests[playerId], self);
+  const foeRow = activeSideRow(snapshot.requests[foe.playerId], foe);
+  const fieldSpeed = buildBattleAiSpeedFieldStateV4(snapshot);
+  const selfSpeed = buildBattleAiSpeedStateV4({snapshot, playerId, active: self, row: selfRow});
+  const foeSpeed = buildBattleAiSpeedStateV4({snapshot, playerId: foe.playerId, active: foe, row: foeRow});
   const selfPokemon = {
     playerId: self.playerId,
     activeIndex: 0,
     hp: Math.max(0, self.hp || hpFromCondition(self.condition)),
     maxHp: Math.max(1, self.maxHp || maxHpFromCondition(self.condition)),
     fainted: self.fainted,
+    speciesId: selfSpeed.speciesId,
+    types: selfSpeed.types,
+    item: selfSpeed.item,
+    ability: selfSpeed.ability,
+    status: selfSpeed.status || self.status || undefined,
+    stats: selfSpeed.stats,
+    estimatedStats: selfSpeed.estimatedStats,
+    speed: selfSpeed,
   };
   const foePokemon = {
     playerId: foe.playerId,
@@ -372,13 +386,29 @@ function buildSinglesNumericState(snapshot: BattleServiceSnapshotV4, playerId: S
     hp: Math.max(0, foe.hp || hpFromCondition(foe.condition)),
     maxHp: Math.max(1, foe.maxHp || maxHpFromCondition(foe.condition)),
     fainted: foe.fainted,
+    speciesId: foeSpeed.speciesId,
+    types: foeSpeed.types,
+    item: foeSpeed.item,
+    ability: foeSpeed.ability,
+    status: foeSpeed.status || foe.status || undefined,
+    stats: foeSpeed.stats,
+    estimatedStats: foeSpeed.estimatedStats,
+    speed: foeSpeed,
   };
   return {
     self: selfPokemon,
     foe: foePokemon,
     selfResources: buildSideResourceState(snapshot, playerId, selfPokemon, roleAnalysis),
     foeResources: buildSideResourceState(snapshot, foe.playerId, foePokemon),
+    fieldSpeed,
   };
+}
+
+function activeSideRow(request: BattleServiceRequestV4 | undefined, active: {ident: string; species: string; details: string}): BattleServiceSidePokemonV4 | undefined {
+  const rows = request?.side?.pokemon || [];
+  return rows.find(row => row.active) ||
+    rows.find(row => normalizeId(row.ident) === normalizeId(active.ident)) ||
+    rows.find(row => normalizeId(row.details.split(",")[0] || "") === normalizeId(active.species || active.details.split(",")[0] || ""));
 }
 
 function buildSideResourceState(
@@ -456,11 +486,22 @@ function applyOwnCandidateState(state: BattleAiNumericStateV4, candidate: Battle
   if (switchRow) {
     const hp = hpFromCondition(switchRow.condition);
     const maxHp = maxHpFromCondition(switchRow.condition);
+    const speed = input.snapshot && input.playerId
+      ? buildBattleAiSpeedStateV4({snapshot: input.snapshot, playerId: input.playerId, row: switchRow})
+      : state.self.speed;
     const self = {
       ...state.self,
       hp: Math.max(0, hp),
       maxHp: Math.max(1, maxHp),
       fainted: Boolean(switchRow.fainted || switchRow.condition.includes("fnt") || hp <= 0),
+      speciesId: speed?.speciesId,
+      types: speed?.types,
+      item: speed?.item,
+      ability: speed?.ability,
+      status: speed?.status,
+      stats: speed?.stats,
+      estimatedStats: speed?.estimatedStats,
+      speed,
     };
     return {
       ...state,

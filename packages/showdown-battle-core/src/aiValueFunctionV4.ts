@@ -4,6 +4,7 @@ import type {
   ShowdownPlayerIdV4,
 } from "./types.js";
 import type {BattleAiRoleTagSubtypeV4, BattleAiTeamRoleAnalysisV4} from "./aiTeamRoleAnalyzerV4.js";
+import type {BattleAiSpeedFieldStateV4, BattleAiSpeedStateV4} from "./aiSpeedStateV4.js";
 import {battleAiOutcomeBucketScoreV4} from "./aiOutcomeBucketsV4.js";
 
 export type BattleAiValueCandidateV4 = {
@@ -19,6 +20,14 @@ export type BattleAiNumericPokemonForValueV4 = {
   hp: number;
   maxHp: number;
   fainted: boolean;
+  speciesId?: string;
+  types?: string[];
+  item?: string;
+  ability?: string;
+  status?: string;
+  stats?: Record<string, number>;
+  estimatedStats?: boolean;
+  speed?: BattleAiSpeedStateV4;
 };
 
 export type BattleAiHazardLayerStateV4 = {
@@ -47,6 +56,7 @@ export type BattleAiSinglesNumericStateForValueV4 = {
   foe: BattleAiNumericPokemonForValueV4;
   selfResources?: BattleAiSideResourceStateV4;
   foeResources?: BattleAiSideResourceStateV4;
+  fieldSpeed?: BattleAiSpeedFieldStateV4;
 };
 
 export type BattleAiValueBreakdownV4 = Record<string, number>;

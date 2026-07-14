@@ -9,6 +9,9 @@ import {
   battleAiCapabilityForLevelV4,
   battleAiEffectiveSearchBudgetForModeV4,
   battleAiSearchBudgetForLevelV4,
+  battleAiActsBeforeBySpeedV4,
+  buildBattleAiSpeedFieldStateV4,
+  buildBattleAiSpeedStateV4,
   estimateBattleAiActionOutcomeV4,
   evaluateBattleAiSinglesLeafValueV4,
   parseShowdownChoiceCommandV4,
@@ -2541,6 +2544,79 @@ function aiActionOutcomeEstimatorSmoke() {
   console.log("showdown-battle-core ai action outcome estimator smoke ok");
 }
 
+function aiSinglesSpeedStateSmoke() {
+  const request: BattleServiceRequestV4 = {
+    rqid: 66,
+    active: [{moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35, target: "normal"}]}],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Torkoal", details: "Torkoal, L50", condition: "140/140", active: true, ability: "Drought", item: "", moves: ["Tackle"], stats: {hp: 140, atk: 100, def: 160, spa: 110, spd: 90, spe: 40}},
+      ],
+    },
+  };
+  const foeRequest: BattleServiceRequestV4 = {
+    rqid: 66,
+    active: [{moves: [{move: "Tackle", id: "tackle", pp: 35, maxpp: 35, target: "normal"}]}],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Jolteon", details: "Jolteon, L50", condition: "140/140", active: true, ability: "Volt Absorb", item: "", moves: ["Tackle"], stats: {hp: 140, atk: 75, def: 80, spa: 150, spd: 115, spe: 200}},
+      ],
+    },
+  };
+  const snapshot = {
+    ...aiSnapshot("gen9", "singles", request),
+    requests: {p1: foeRequest, p2: request},
+    rawLog: [
+      "|-sidestart|p2: B|move: Tailwind",
+    ],
+    active: [
+      {ident: "p1a: Jolteon", playerId: "p1", slot: "p1a", species: "Jolteon", details: "Jolteon, L50", condition: "140/140", hp: 140, maxHp: 140, status: "", fainted: false},
+      {ident: "p2a: Torkoal", playerId: "p2", slot: "p2a", species: "Torkoal", details: "Torkoal, L50", condition: "140/140", hp: 140, maxHp: 140, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const field = buildBattleAiSpeedFieldStateV4(snapshot);
+  const self = buildBattleAiSpeedStateV4({snapshot, playerId: "p2", active: snapshot.active[1], row: request.side!.pokemon[0]});
+  const foe = buildBattleAiSpeedStateV4({snapshot, playerId: "p1", active: snapshot.active[0], row: foeRequest.side!.pokemon[0]});
+  if (self.effectiveSpeed !== 80 || !self.modifiers.includes("tailwind")) {
+    throw new Error(`Tailwind should double own effective speed: ${JSON.stringify(self)}`);
+  }
+  if (battleAiActsBeforeBySpeedV4(self, foe, field) !== false) {
+    throw new Error(`Torkoal should still be slower than Jolteon outside Trick Room: ${JSON.stringify({self, foe, field})}`);
+  }
+
+  const trickRoomSnapshot = {...snapshot, rawLog: [...snapshot.rawLog, "|-fieldstart|move: Trick Room"]} satisfies BattleServiceSnapshotV4;
+  const trickRoomField = buildBattleAiSpeedFieldStateV4(trickRoomSnapshot);
+  const trickRoomSelf = buildBattleAiSpeedStateV4({snapshot: trickRoomSnapshot, playerId: "p2", active: trickRoomSnapshot.active[1], row: request.side!.pokemon[0]});
+  const trickRoomFoe = buildBattleAiSpeedStateV4({snapshot: trickRoomSnapshot, playerId: "p1", active: trickRoomSnapshot.active[0], row: foeRequest.side!.pokemon[0]});
+  if (battleAiActsBeforeBySpeedV4(trickRoomSelf, trickRoomFoe, trickRoomField) !== true || !trickRoomSelf.modifiers.includes("trick-room")) {
+    throw new Error(`Trick Room should reverse effective speed order: ${JSON.stringify({trickRoomSelf, trickRoomFoe, trickRoomField})}`);
+  }
+
+  const paralyzed = buildBattleAiSpeedStateV4({
+    snapshot,
+    playerId: "p1",
+    active: {...snapshot.active[0], status: "par"},
+    row: {...foeRequest.side!.pokemon[0]!, condition: "140/140 par"},
+  });
+  if (!(paralyzed.effectiveSpeed < foe.effectiveSpeed && paralyzed.modifiers.includes("paralysis"))) {
+    throw new Error(`Paralysis should lower effective speed: ${JSON.stringify({paralyzed, foe})}`);
+  }
+  const estimated = buildBattleAiSpeedStateV4({
+    snapshot,
+    playerId: "p2",
+    active: {...snapshot.active[1], species: "Barraskewda", details: "Barraskewda, L50"},
+    row: {ident: "p2: Barraskewda", details: "Barraskewda, L50", condition: "120/120", active: true, ability: "Swift Swim", item: "Choice Scarf"},
+  });
+  if (!estimated.estimatedStats || !estimated.modifiers.includes("choice-scarf") || estimated.rawSpeed <= 0) {
+    throw new Error(`Missing stats should fall back to dex estimate and item modifier: ${JSON.stringify(estimated)}`);
+  }
+  console.log("showdown-battle-core ai singles speed state smoke ok");
+}
+
 function aiSearchBudgetSmoke() {
   const expected: Array<[BattleAiLevelV4, number]> = [
     ["rookie", 1],
@@ -2908,6 +2984,7 @@ void smoke()
   .then(aiValueFunctionResourceSmoke)
   .then(aiOutcomeBucketsSmoke)
   .then(aiActionOutcomeEstimatorSmoke)
+  .then(aiSinglesSpeedStateSmoke)
   .then(aiSearchBudgetSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);
