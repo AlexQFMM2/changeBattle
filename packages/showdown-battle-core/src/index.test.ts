@@ -5,6 +5,8 @@ import {
   filterShowdownChoiceForRuleSetV4,
   generateShowdownRandomTeamV4,
   analyzeBattleAiTeamRolesV4,
+  battleAiCapabilityForLevelV4,
+  battleAiEffectiveSearchBudgetForModeV4,
   battleAiSearchBudgetForLevelV4,
   parseShowdownChoiceCommandV4,
   randomLegalChoice,
@@ -1940,6 +1942,11 @@ function aiDexDamageEvaluatorSmoke() {
       {ident: "p2a: Tyranitar", playerId: "p2", slot: "p2a", species: "Tyranitar", details: "Tyranitar, L50", condition: "180/180", hp: 180, maxHp: 180, status: "", fainted: false},
     ],
   } satisfies BattleServiceSnapshotV4;
+  const expectedEffectiveDepth: Record<"gymLeader" | "eliteFour" | "champion", number> = {
+    gymLeader: 2,
+    eliteFour: 4,
+    champion: 6,
+  };
   for (const level of ["gymLeader", "eliteFour", "champion"] satisfies BattleAiLevelV4[]) {
     const result = chooseAiBattleChoiceV4({
       request,
@@ -1952,8 +1959,8 @@ function aiDexDamageEvaluatorSmoke() {
     if (!result.debug.search || result.debug.search.strategy !== "numeric-guard") {
       throw new Error(`${level} AI should include numeric guard search debug: ${JSON.stringify(result.debug)}`);
     }
-    if (result.debug.search.maxDepth < 4) {
-      throw new Error(`${level} AI search budget should expose minimax target depth: ${JSON.stringify(result.debug.search)}`);
+    if (result.debug.search.maxDepth !== expectedEffectiveDepth[level]) {
+      throw new Error(`${level} AI search budget should expose singles effective depth: ${JSON.stringify(result.debug.search)}`);
     }
     if (result.debug.selectedChoice.startsWith("move 1")) {
       throw new Error(`${level} AI should not choose Ice Beam into Ceruledge: ${JSON.stringify(result.debug)}`);
@@ -2048,6 +2055,22 @@ function aiSinglesDepth2SearchSmoke() {
   const validation = validateShowdownChoiceCommandV4({request: aiRequest, choice: result.choice});
   if (!validation.ok) {
     throw new Error(`singles depth 2 choice should validate: ${result.choice}; ${JSON.stringify(validation)}; ${JSON.stringify(result.debug)}`);
+  }
+  for (const level of ["normal", "elite"] satisfies BattleAiLevelV4[]) {
+    const lowerResult = chooseAiBattleChoiceV4({
+      request: aiRequest,
+      snapshot,
+      playerId: "p2",
+      aiProfile: {level, preference: "offense"},
+      rngSeed: `singles-depth-2-capability-${level}`,
+      timeBudgetMs: 10_000,
+    });
+    if (lowerResult.debug.search?.strategy !== "numeric-guard" || lowerResult.debug.search.capabilities?.useMinimax) {
+      throw new Error(`${level} should not enable full minimax capability: ${JSON.stringify(lowerResult.debug.search)}`);
+    }
+    if (lowerResult.debug.search?.outcomeBuckets?.length) {
+      throw new Error(`${level} should not emit full outcome buckets: ${JSON.stringify(lowerResult.debug.search)}`);
+    }
   }
   console.log("showdown-battle-core ai singles depth 2 search smoke ok");
 }
@@ -2274,6 +2297,38 @@ function aiSearchBudgetSmoke() {
   const capped = battleAiSearchBudgetForLevelV4("champion", 250);
   if (capped.maxMs !== 250) {
     throw new Error(`explicit time budget should cap champion search maxMs: ${JSON.stringify(capped)}`);
+  }
+  const expectedEffective: Array<[BattleAiLevelV4, "singles" | "doubles" | "coop", number]> = [
+    ["gymLeader", "singles", 2],
+    ["eliteFour", "singles", 4],
+    ["champion", "singles", 6],
+    ["gymLeader", "doubles", 1],
+    ["eliteFour", "doubles", 2],
+    ["champion", "doubles", 3],
+    ["gymLeader", "coop", 1],
+    ["eliteFour", "coop", 2],
+    ["champion", "coop", 3],
+    ["elite", "singles", 1],
+  ];
+  for (const [level, mode, depth] of expectedEffective) {
+    const budget = battleAiEffectiveSearchBudgetForModeV4(level, mode);
+    if (budget.maxDepth !== depth) {
+      throw new Error(`expected ${level}/${mode} effective depth ${depth}, got ${JSON.stringify(budget)}`);
+    }
+  }
+  const expectedCapabilities: Array<[BattleAiLevelV4, boolean, boolean, number]> = [
+    ["rookie", false, false, 0.8],
+    ["normal", false, false, 0.55],
+    ["elite", false, false, 0.35],
+    ["gymLeader", true, true, 0.22],
+    ["eliteFour", true, true, 0.16],
+    ["champion", true, true, 0.1],
+  ];
+  for (const [level, useMinimax, useRoleAnalysis, riskTolerance] of expectedCapabilities) {
+    const capabilities = battleAiCapabilityForLevelV4(level);
+    if (capabilities.useMinimax !== useMinimax || capabilities.useRoleAnalysis !== useRoleAnalysis || capabilities.riskTolerance !== riskTolerance) {
+      throw new Error(`unexpected ${level} capability profile: ${JSON.stringify(capabilities)}`);
+    }
   }
   console.log("showdown-battle-core ai search budget smoke ok");
 }

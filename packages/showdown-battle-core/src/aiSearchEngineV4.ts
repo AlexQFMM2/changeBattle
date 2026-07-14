@@ -1,4 +1,5 @@
 import type {
+  BattleAiCapabilityProfileV4,
   BattleAiFeatureVectorV4,
   BattleAiLevelV4,
   BattleAiOutcomeBucketV4,
@@ -7,6 +8,7 @@ import type {
   BattleServiceRequestV4,
   BattleServiceSnapshotV4,
   ShowdownPlayerIdV4,
+  TrainingModeV4,
 } from "./types.js";
 import type {BattleAiRoleTagSubtypeV4, BattleAiTeamRoleAnalysisV4} from "./aiTeamRoleAnalyzerV4.js";
 
@@ -41,6 +43,7 @@ export type BattleAiSearchInputV4 = {
   request?: BattleServiceRequestV4;
   snapshot?: BattleServiceSnapshotV4;
   playerId?: ShowdownPlayerIdV4;
+  capabilities?: BattleAiCapabilityProfileV4;
   roleAnalysis?: BattleAiTeamRoleAnalysisV4;
   generateCandidatesForPlayer?: (playerId: ShowdownPlayerIdV4, request: BattleServiceRequestV4) => BattleAiCandidateV4[];
 };
@@ -73,6 +76,85 @@ const AI_SEARCH_BUDGETS: Record<BattleAiLevelV4, BattleAiSearchBudgetV4> = {
   champion: {maxDepth: 6, maxMs: 10_000, ownTopK: 6, foeTopK: 5, maxNodes: 5_000, maxJointActions: 12},
 };
 
+const AI_EFFECTIVE_DEPTH_BY_MODE: Record<TrainingModeV4, Partial<Record<BattleAiLevelV4, BattleAiSearchBudgetV4["maxDepth"]>>> = {
+  singles: {
+    gymLeader: 2,
+    eliteFour: 4,
+    champion: 6,
+  },
+  doubles: {
+    gymLeader: 1,
+    eliteFour: 2,
+    champion: 3,
+  },
+  coop: {
+    gymLeader: 1,
+    eliteFour: 2,
+    champion: 3,
+  },
+};
+
+const AI_CAPABILITY_PROFILES: Record<BattleAiLevelV4, BattleAiCapabilityProfileV4> = {
+  rookie: {
+    useMinimax: false,
+    useRoleAnalysis: false,
+    useOutcomeBuckets: false,
+    useSwitchValue: false,
+    useDynamicDepth: false,
+    useOpponentSwitchReply: false,
+    riskTolerance: 0.8,
+  },
+  normal: {
+    useMinimax: false,
+    useRoleAnalysis: false,
+    useOutcomeBuckets: false,
+    useSwitchValue: false,
+    useDynamicDepth: false,
+    useOpponentSwitchReply: false,
+    riskTolerance: 0.55,
+  },
+  elite: {
+    useMinimax: false,
+    useRoleAnalysis: false,
+    useOutcomeBuckets: false,
+    useSwitchValue: false,
+    useDynamicDepth: false,
+    useOpponentSwitchReply: false,
+    riskTolerance: 0.35,
+  },
+  gymLeader: {
+    useMinimax: true,
+    useRoleAnalysis: true,
+    useOutcomeBuckets: true,
+    useSwitchValue: true,
+    useDynamicDepth: false,
+    useOpponentSwitchReply: true,
+    riskTolerance: 0.22,
+  },
+  eliteFour: {
+    useMinimax: true,
+    useRoleAnalysis: true,
+    useOutcomeBuckets: true,
+    useSwitchValue: true,
+    useDynamicDepth: true,
+    useOpponentSwitchReply: true,
+    riskTolerance: 0.16,
+  },
+  champion: {
+    useMinimax: true,
+    useRoleAnalysis: true,
+    useOutcomeBuckets: true,
+    useSwitchValue: true,
+    useDynamicDepth: true,
+    useOpponentSwitchReply: true,
+    riskTolerance: 0.1,
+  },
+};
+
+export function battleAiCapabilityForLevelV4(level: BattleAiLevelV4): BattleAiCapabilityProfileV4 {
+  return {...AI_CAPABILITY_PROFILES[level]};
+}
+
 export function battleAiSearchBudgetForLevelV4(level: BattleAiLevelV4, timeBudgetMs?: number): BattleAiSearchBudgetV4 {
   const budget = AI_SEARCH_BUDGETS[level];
   return {
@@ -81,14 +163,25 @@ export function battleAiSearchBudgetForLevelV4(level: BattleAiLevelV4, timeBudge
   };
 }
 
+export function battleAiEffectiveSearchBudgetForModeV4(level: BattleAiLevelV4, mode: TrainingModeV4 | undefined, timeBudgetMs?: number): BattleAiSearchBudgetV4 {
+  const budget = battleAiSearchBudgetForLevelV4(level, timeBudgetMs);
+  const effectiveDepth = mode ? AI_EFFECTIVE_DEPTH_BY_MODE[mode]?.[level] : undefined;
+  return {
+    ...budget,
+    maxDepth: effectiveDepth ?? (level === "rookie" || level === "normal" || level === "elite" ? 1 : budget.maxDepth),
+  };
+}
+
 export function chooseBattleAiActionBySearchV4(input: BattleAiSearchInputV4): BattleAiSearchResultV4 {
   const startedAt = Date.now();
-  const budget = battleAiSearchBudgetForLevelV4(input.profile.level, input.timeBudgetMs);
+  const budget = battleAiEffectiveSearchBudgetForModeV4(input.profile.level, input.snapshot?.mode, input.timeBudgetMs);
+  const capabilities = input.capabilities || battleAiCapabilityForLevelV4(input.profile.level);
   const debugBase = {
     strategy: "numeric-guard" as const,
     maxDepth: budget.maxDepth,
     searchedDepth: input.candidates.length ? 1 : 0,
     visitedNodes: Math.min(input.candidates.length, budget.maxNodes),
+    capabilities,
   };
   if (!input.candidates.length) {
     return {
@@ -96,8 +189,8 @@ export function chooseBattleAiActionBySearchV4(input: BattleAiSearchInputV4): Ba
       debug: {...debugBase, elapsedMs: Date.now() - startedAt, truncatedReason: "no-candidates", candidateCount: 0},
     };
   }
-  if (canRunSinglesDepth2(input, budget)) {
-    const result = searchSinglesDepth2(input, budget, startedAt);
+  if (canRunSinglesDepth2(input, budget, capabilities)) {
+    const result = searchSinglesDepth2(input, budget, capabilities, startedAt);
     if (result) return result;
   }
   const candidate = input.pickBestCandidate(input.candidates);
@@ -114,8 +207,9 @@ export function chooseBattleAiActionBySearchV4(input: BattleAiSearchInputV4): Ba
   };
 }
 
-function canRunSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearchBudgetV4): boolean {
+function canRunSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearchBudgetV4, capabilities: BattleAiCapabilityProfileV4): boolean {
   return Boolean(
+    capabilities.useMinimax &&
     budget.maxDepth >= 2 &&
     input.request &&
     input.snapshot &&
@@ -128,7 +222,12 @@ function canRunSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearc
   );
 }
 
-function searchSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearchBudgetV4, startedAt: number): BattleAiSearchResultV4 | null {
+function searchSinglesDepth2(
+  input: BattleAiSearchInputV4,
+  budget: BattleAiSearchBudgetV4,
+  capabilities: BattleAiCapabilityProfileV4,
+  startedAt: number,
+): BattleAiSearchResultV4 | null {
   const request = input.request!;
   const snapshot = input.snapshot!;
   const playerId = input.playerId!;
@@ -148,7 +247,9 @@ function searchSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearc
     .slice()
     .sort((a, b) => b.score - a.score)
     .slice(0, budget.ownTopK);
-  const ownOutcomes = ownCandidates.map(candidate => outcomeForOwnCandidate(input, state, candidate));
+  const ownOutcomes = capabilities.useOutcomeBuckets
+    ? ownCandidates.map(candidate => outcomeForOwnCandidate(input, state, candidate))
+    : [];
   let visitedNodes = 0;
   let best: {candidate: BattleAiCandidateV4; reply: BattleAiCandidateV4; leafScore: number; buckets: BattleAiOutcomeBucketV4[]} | null = null;
   let truncatedReason: BattleAiSearchDebugV4["truncatedReason"];
@@ -165,7 +266,7 @@ function searchSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearc
     let worstBuckets: BattleAiOutcomeBucketV4[] = ownOutcome.buckets;
     if (afterSelf.foe.fainted) {
       worstReply = foeCandidates[0] || null;
-      worstLeaf = scoreSinglesLeafState(afterSelf, candidate, worstReply || candidate, input, state, ownOutcome.buckets);
+      worstLeaf = scoreSinglesLeafState(afterSelf, candidate, worstReply || candidate, input, state, ownOutcome.buckets, capabilities);
       worstBuckets = ownOutcome.buckets;
     }
     for (const reply of foeCandidates) {
@@ -180,9 +281,9 @@ function searchSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearc
         break;
       }
       const afterReply = applyCandidateDamage(afterSelf, reply, "foe");
-      const replyBuckets = outcomeForReply(state, afterSelf, afterReply, candidate, reply);
+      const replyBuckets = capabilities.useOutcomeBuckets ? outcomeForReply(state, afterSelf, afterReply, candidate, reply) : [];
       const buckets = uniqueBuckets([...ownOutcome.buckets, ...replyBuckets]);
-      const leafScore = scoreSinglesLeafState(afterReply, candidate, reply, input, state, buckets);
+      const leafScore = scoreSinglesLeafState(afterReply, candidate, reply, input, state, buckets, capabilities);
       if (leafScore < worstLeaf) {
         worstLeaf = leafScore;
         worstReply = reply;
@@ -208,15 +309,18 @@ function searchSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearc
       truncatedReason,
       candidateCount: ownCandidates.length,
       replyCount: foeCandidates.length,
+      capabilities,
       leafScore: roundSearchScore(best.leafScore),
       principalVariation: [
         {role: "self", choice: best.candidate.choice, score: roundSearchScore(best.candidate.score)},
         {role: "foe", choice: best.reply.choice, score: roundSearchScore(best.reply.score)},
       ],
-      outcomeBuckets: debugOutcomeBuckets([
-        ...ownOutcomes,
-        {choice: best.candidate.choice, buckets: best.buckets, score: outcomeBucketScore(best.buckets)},
-      ]),
+      outcomeBuckets: capabilities.useOutcomeBuckets
+        ? debugOutcomeBuckets([
+            ...ownOutcomes,
+            {choice: best.candidate.choice, buckets: best.buckets, score: outcomeBucketScore(best.buckets)},
+          ])
+        : undefined,
     },
   };
 }
@@ -262,11 +366,14 @@ function scoreSinglesLeafState(
   input: BattleAiSearchInputV4,
   initialState: BattleAiNumericStateV4,
   buckets: BattleAiOutcomeBucketV4[],
+  capabilities: BattleAiCapabilityProfileV4,
 ): number {
   const selfRatio = state.self.hp / Math.max(1, state.self.maxHp);
   const foeRatio = state.foe.hp / Math.max(1, state.foe.maxHp);
   const koSwing = (state.foe.fainted ? 140 : 0) - (state.self.fainted ? 170 : 0);
-  return selfRatio * 120 - foeRatio * 120 + koSwing + own.score * 0.12 - foe.score * 0.04 + roleValueBonus(input, initialState, own) + outcomeBucketScore(buckets);
+  const roleBonus = capabilities.useSwitchValue ? roleValueBonus(input, initialState, own) : 0;
+  const bucketBonus = capabilities.useOutcomeBuckets ? outcomeBucketScore(buckets) : 0;
+  return selfRatio * 120 - foeRatio * 120 + koSwing + own.score * 0.12 - foe.score * 0.04 + roleBonus + bucketBonus;
 }
 
 function expectedDamage(candidate: BattleAiCandidateV4, targetMaxHp: number): number {

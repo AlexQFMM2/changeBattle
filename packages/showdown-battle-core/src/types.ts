@@ -9,6 +9,15 @@ export type BattleAiProfileV4 = {
   preference?: BattleAiPreferenceV4;
 };
 export type BattleAiFeatureVectorV4 = Record<string, number>;
+export type BattleAiCapabilityProfileV4 = {
+  useMinimax: boolean;
+  useRoleAnalysis: boolean;
+  useOutcomeBuckets: boolean;
+  useSwitchValue: boolean;
+  useDynamicDepth: boolean;
+  useOpponentSwitchReply: boolean;
+  riskTolerance: number;
+};
 export type BattleAiOutcomeBucketV4 =
   | "ko"
   | "joint-ko"
@@ -33,6 +42,7 @@ export type BattleAiSearchDebugV4 = {
   leafScore?: number;
   candidateCount?: number;
   replyCount?: number;
+  capabilities?: BattleAiCapabilityProfileV4;
   outcomeBuckets?: Array<{choice: string; buckets: BattleAiOutcomeBucketV4[]; score: number}>;
 };
 export type BattleAiDecisionDebugV4 = {

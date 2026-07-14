@@ -95,7 +95,7 @@
 - [x] `gymLeader`：理论上限 depth 4。
 - [x] `eliteFour`：理论上限 depth 5。
 - [x] `champion`：理论上限 depth 6。
-- [ ] 实现 mode-aware effective depth。
+- [x] 实现 mode-aware effective depth。
 - [ ] 实现局面复杂度动态 depth。
 - [ ] 减员/残局时在预算内提高 depth。
 - [x] 所有等级共享 10s hard upper bound。
@@ -114,11 +114,11 @@
 - [x] `gymLeader`：开始启用完整 singles depth 2、role analysis、outcome bucket、基础轮换和天气/核心判断。
 - [x] `eliteFour`：启用更完整 value function、mode-aware dynamic depth、更低 noise、更稳健风险权重。
 - [x] `champion`：完整稳定收益策略，强调 worst-case / risk penalty，残局深搜，必要时进入剪枝优化。
-- [ ] 新增 `BattleAiCapabilityProfileV4`。
-- [ ] capability 控制 `useMinimax`。
-- [ ] capability 控制 `useRoleAnalysis`。
-- [ ] capability 控制 `useOutcomeBuckets`。
-- [ ] capability 控制 `useSwitchValue`。
+- [x] 新增 `BattleAiCapabilityProfileV4`。
+- [x] capability 控制 `useMinimax`。
+- [x] capability 控制 `useRoleAnalysis`。
+- [x] capability 控制 `useOutcomeBuckets`。
+- [x] capability 控制 `useSwitchValue`。
 - [ ] capability 控制 `useDynamicDepth`。
 - [ ] capability 控制 `useOpponentSwitchReply`。
 - [ ] capability 控制 `riskTolerance`。
@@ -131,9 +131,12 @@
 - [x] 双打 4v4：常规预算以 depth 2-3 为主，不默认追到第六回合。
 - [x] 双打残局：减员后分支变窄，可动态提高 depth。
 - [x] 合作：基于双打预算，但更重视玩家体验约束，不盲目深搜。
-- [ ] singles effective depth：`min(levelMaxDepth, dynamicDepthFromComplexity)`。
-- [ ] doubles effective depth：开局默认不超过 2-3，残局再上调。
-- [ ] coop effective depth：默认不超过 doubles，同时保留玩家体验约束。
+- [x] singles effective depth：馆主 2、四天王 4、冠军/反派头目 6。
+- [x] doubles effective depth：馆主 1、四天王 2、冠军/反派头目 3。
+- [x] coop effective depth：馆主 1、四天王 2、冠军/反派头目 3。
+- [ ] singles dynamic depth：在 `min(levelMaxDepth, dynamicDepthFromComplexity)` 内随减员加深。
+- [ ] doubles dynamic depth：开局默认不超过 2-3，残局再上调。
+- [ ] coop dynamic depth：默认不超过 doubles，同时保留玩家体验约束。
 - [ ] complexity 输入：legalActionCount / alivePokemonCount / switchOptionCount / activeCount / targetOptionCount。
 
 ## 4. Budget 参数
@@ -439,7 +442,7 @@
 - [x] choice 提交前再次 validator。
 - [x] depth 1 使用现有 evaluator 结果。
 - [x] singles depth 2 使用 Minimax。
-- [ ] 配置开关：可关闭 Minimax 回到 NumericGuard。
+- [x] 配置开关：可关闭 Minimax 回到 NumericGuard。
 - [x] Debug 中标记 `strategy: "numeric-guard" | "minimax"`。
 
 ## 17. Debug
@@ -450,6 +453,7 @@
 - [x] 输出节点数。
 - [x] 输出耗时。
 - [x] 输出截断原因。
+- [x] 输出 capability profile。
 - [x] 输出 top candidates。
 - [x] 输出 principal variation。
 - [x] 输出每个候选的 outcome bucket。
@@ -461,6 +465,8 @@
 
 - [x] Tyranitar vs Ceruledge：Ice Beam 不应被 gymLeader+ 选择。
 - [x] singles depth 2：双方 request 存在时进入 minimax，并输出 principal variation。
+- [x] normal / elite：有双方 request 时也不启用完整 Minimax。
+- [x] AI 等级 capability 映射测试。
 - [x] singles depth 2：稳定 KO 输出 `ko` outcome bucket。
 - [x] outcome bucket：Stealth Rock 输出 `hazard-progress`。
 - [x] outcome bucket：Toxic 输出 `status-progress`。
