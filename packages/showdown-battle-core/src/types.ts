@@ -24,6 +24,7 @@ export type BattleAiDecisionDebugV4 = {
     choice: string;
     score: number;
     features: BattleAiFeatureVectorV4;
+    diagnostics?: Record<string, unknown>;
   }>;
 };
 export type TrainingPlayerDraftV4 = {

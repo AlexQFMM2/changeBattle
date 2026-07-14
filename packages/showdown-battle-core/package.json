@@ -30,6 +30,10 @@
       "types": "./src/battleIdentity.ts",
       "default": "./src/battleIdentity.ts"
     },
+    "./aiMoveEvaluator": {
+      "types": "./src/aiMoveEvaluator.ts",
+      "default": "./src/aiMoveEvaluator.ts"
+    },
     "./playbackCompiler": {
       "types": "./src/playbackCompiler.ts",
       "default": "./src/playbackCompiler.ts"
@@ -39,8 +43,10 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json && node dist/server.js",
     "start": "node dist/server.js",
-    "test": "tsc -p tsconfig.test.json && node dist-test/index.test.js",
+    "test": "pnpm --filter @changebattle-v2/showdown-dex-core build && tsc -p tsconfig.test.json && node dist-test/index.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@changebattle-v2/showdown-dex-core": "workspace:*"
+  }
 }

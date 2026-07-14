@@ -1535,6 +1535,33 @@
   box-shadow: 0 0 12px rgb(177 255 39 / 24%), inset 0 0 0 1px rgb(255 255 255 / 22%);
 }
 
+.battle-v4-global-notice {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  z-index: 1100;
+  box-sizing: border-box;
+  max-width: calc(100% - 28px);
+  min-height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 6px 12px;
+  border: 1px solid rgb(236 255 134 / 62%);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgb(24 34 54 / 94%), rgb(9 13 25 / 94%)),
+    radial-gradient(ellipse at 24% 0%, rgb(197 255 82 / 20%), transparent 58%);
+  color: #fff;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 38%), 0 0 14px rgb(177 255 73 / 18%);
+  font-size: 10px;
+  font-weight: 1000;
+  line-height: 1.35;
+  pointer-events: none;
+  text-align: center;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 62%);
+  transform: translateX(-50%);
+}
+
 .battle-v4-command-timer {
   justify-self: end;
   font-size: 9px;

@@ -28,6 +28,7 @@ import {
   type ShowdownParsedChoiceV4,
   type ShowdownSpecialChoiceV4,
 } from "./showdownCommand.js";
+import {evaluateBattleAiMoveV4, type BattleAiMoveEvaluationV4} from "./aiMoveEvaluator.js";
 
 export type BattleAiChoiceContextV4 = {
   request?: BattleServiceRequestV4 | null;
@@ -59,6 +60,7 @@ type AiCandidate = {
   features: BattleAiFeatureVectorV4;
   kind: "team" | "switch" | "move" | "pass";
   activeIndex?: number;
+  diagnostics?: Record<string, unknown>;
 };
 
 const DEFAULT_AI_PROFILE: Required<BattleAiProfileV4> = {
@@ -217,6 +219,7 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
       choice: candidate.choice,
       score: roundScore(candidate.score),
       features: roundFeatures(candidate.features),
+      diagnostics: candidate.diagnostics,
     }));
   return {
     choice: selected.choice || fallback,
@@ -363,11 +366,23 @@ function generateMoveTurnCandidates(
         const targets = targetSuffixesForMove(request, activeIndex, targetMove);
         for (const target of targets) {
           const parsed: ShowdownParsedChoiceV4 = {kind: "move", index: entry.index + 1, special: special || undefined, target: target || undefined};
+          const evaluation = evaluateBattleAiMoveV4({
+            request,
+            snapshot: context.snapshot,
+            playerId: context.playerId,
+            activeIndex,
+            move: targetMove,
+            targetLoc: target,
+            special,
+            aiProfile: profile,
+            timeBudgetMs: context.timeBudgetMs,
+          });
           actions.push(scoreCandidate({
             choice: stringifyShowdownChoiceCommandV4(parsed),
             kind: "move",
             activeIndex,
-            features: featuresForMove(request, activeIndex, targetMove, special, target, context.snapshot),
+            features: featuresForMove(request, activeIndex, targetMove, special, evaluation),
+            diagnostics: evaluation.diagnostics,
           }, context, profile, rng));
         }
       }
@@ -428,12 +443,21 @@ function composeSlotCandidates(
           choice: [...parts, candidate.choice].join(", "),
           kind: candidate.kind,
           features,
+          diagnostics: mergeAiCandidateDiagnostics(base.diagnostics, candidate.diagnostics),
         }, context, profile, rng, base.score + candidate.score));
       }
     }
     combined = pruneTurnCandidates(next, profile);
   }
   return pruneTurnCandidates(combined, profile);
+}
+
+function mergeAiCandidateDiagnostics(base: Record<string, unknown> | undefined, next: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!base) return next;
+  if (!next) return base;
+  const baseParts = Array.isArray(base.parts) ? base.parts : [base];
+  const nextParts = Array.isArray(next.parts) ? next.parts : [next];
+  return {parts: [...baseParts, ...nextParts]};
 }
 
 function pruneSlotCandidates(candidates: AiCandidate[], profile: Required<BattleAiProfileV4>): AiCandidate[] {
@@ -456,6 +480,11 @@ function selectCandidate(
 ): AiCandidate | null {
   if (!candidates.length) return null;
   const sorted = candidates.slice().sort((a, b) => b.score - a.score);
+  if (["gymLeader", "eliteFour", "champion"].includes(profile.level)) {
+    const best = sorted[0];
+    const runnerUp = sorted[1];
+    if (best && runnerUp && best.score - runnerUp.score >= 35) return best;
+  }
   if (profile.level === "rookie" || rng() < config.mistakeRate) {
     const poolSize = profile.level === "rookie" ? Math.min(sorted.length, 8) : Math.min(sorted.length, 4);
     return sorted[Math.floor(rng() * poolSize)] || sorted[0]!;
@@ -486,8 +515,7 @@ function featuresForMove(
   activeIndex: number,
   move: BattleServiceMoveRequestV4,
   special: ShowdownSpecialChoiceV4 | null,
-  target: string,
-  snapshot: BattleServiceSnapshotV4,
+  evaluation: BattleAiMoveEvaluationV4,
 ): BattleAiFeatureVectorV4 {
   const features = emptyFeatures();
   const id = normalizeId(move.id || move.move);
@@ -495,18 +523,18 @@ function featuresForMove(
   const recoveryMove = moveIsRecovery(id);
   const protectMove = moveIsProtect(id);
   const hpRatio = activeHpRatio(request, activeIndex);
-  features.damage = statusMove || recoveryMove || protectMove ? 0 : movePowerEstimate(id, special);
-  features.ko = estimateKoScore(request, move, special, target);
-  features.stab = estimateStabScore(request, activeIndex, move);
-  features.typeAdvantage = estimateTypeAdvantageScore(move, target, snapshot);
-  features.accuracy = moveAccuracyScore(id);
+  features.damage = Math.min(180, evaluation.expectedDamageRange.average);
+  features.ko = evaluation.koChance >= 1 ? 100 : evaluation.koChance > 0 ? 55 * evaluation.koChance : 0;
+  features.stab = evaluation.stab > 1 ? 18 : 0;
+  features.typeAdvantage = typeMultiplierFeatureScore(evaluation.typeMultiplier);
+  features.accuracy = evaluation.accuracy >= 100 ? 8 : evaluation.accuracy >= 90 ? 4 : evaluation.accuracy >= 80 ? -4 : -12;
   features.survival = hpRatio < 0.35 ? 20 : hpRatio < 0.6 ? 8 : 0;
   features.protect = protectMove ? (hpRatio < 0.5 ? 42 : 18) : 0;
   features.recovery = recoveryMove ? (hpRatio < 0.5 ? 46 : 8) : 0;
-  features.support = statusMove ? 24 : 0;
+  features.support = statusMove ? Math.max(24, evaluation.utilityScore) : evaluation.utilityScore;
   features.switch = 0;
   features.special = special ? specialScore(special, features) : 0;
-  features.targeting = target ? 8 : 0;
+  features.targeting = evaluation.diagnostics.targetLoc ? 8 : 0;
   features.weather = moveIsWeather(id) ? 24 : 0;
   features.terrain = moveIsTerrain(id) ? 24 : 0;
   features.room = moveIsRoomOrSpeedControl(id) ? 28 : 0;
@@ -675,60 +703,13 @@ function hpRatioFromCondition(condition: string | undefined): number {
   return max > 0 ? Math.max(0, Math.min(1, hp / max)) : 1;
 }
 
-function estimateKoScore(request: BattleServiceRequestV4, move: BattleServiceMoveRequestV4, special: ShowdownSpecialChoiceV4 | null, target: string): number {
-  const targetIndex = target.startsWith("+") ? Number(target.slice(1)) - 1 : 0;
-  const foeActives = request.active?.length || 1;
-  const estimatedTargetRatio = foeActives > 1 ? 0.65 : 0.75;
-  const power = movePowerEstimate(normalizeId(move.id || move.move), special);
-  return power / 100 > estimatedTargetRatio ? 28 : power >= 90 ? 12 : 0;
-}
-
-function estimateStabScore(request: BattleServiceRequestV4, activeIndex: number, move: BattleServiceMoveRequestV4): number {
-  const row = activeRow(request, activeIndex);
-  const details = normalizeId(row?.details || "");
-  const moveId = normalizeId(move.id || move.move);
-  if (!details || !moveId) return 0;
-  if (details.includes("charizard") && (moveId.includes("flame") || moveId.includes("fire") || moveId.includes("air"))) return 14;
-  if (details.includes("pikachu") && (moveId.includes("thunder") || moveId.includes("volt") || moveId.includes("electric"))) return 14;
-  if (details.includes("bulbasaur") && (moveId.includes("grass") || moveId.includes("vine") || moveId.includes("leaf"))) return 14;
-  return 5;
-}
-
-function estimateTypeAdvantageScore(move: BattleServiceMoveRequestV4, target: string, snapshot: BattleServiceSnapshotV4): number {
-  const id = normalizeId(move.id || move.move);
-  if (!target.startsWith("+")) return 0;
-  const foe = snapshot.active.find(active => active.playerId !== movePlayerIdFromSnapshot(snapshot));
-  const species = normalizeId(foe?.species || foe?.details || "");
-  if (id.includes("thunder") && (species.includes("gyarados") || species.includes("water"))) return 28;
-  if ((id.includes("flame") || id.includes("fire")) && (species.includes("bulbasaur") || species.includes("grass"))) return 20;
+function typeMultiplierFeatureScore(multiplier: number): number {
+  if (multiplier <= 0) return -90;
+  if (multiplier >= 4) return 52;
+  if (multiplier >= 2) return 32;
+  if (multiplier <= 0.25) return -44;
+  if (multiplier <= 0.5) return -26;
   return 0;
-}
-
-function movePlayerIdFromSnapshot(snapshot: BattleServiceSnapshotV4): ShowdownPlayerIdV4 | "" {
-  return snapshot.requests.p1 ? "p1" : snapshot.requests.p2 ? "p2" : snapshot.requests.p3 ? "p3" : snapshot.requests.p4 ? "p4" : "";
-}
-
-function moveAccuracyScore(id: string): number {
-  if (["thunder", "blizzard", "hydropump", "focusblast", "irontail"].includes(id)) return -12;
-  if (["willowisp", "hypnosis", "sleeppowder"].includes(id)) return -8;
-  return 4;
-}
-
-function movePowerEstimate(id: string, special: ShowdownSpecialChoiceV4 | null): number {
-  if (special === "zmove") return 150;
-  if (special === "max") return 130;
-  if (special === "mega" || special === "megax" || special === "megay" || special === "terastallize") return 95;
-  const known: Record<string, number> = {
-    tackle: 40,
-    quickattack: 40,
-    thunderbolt: 90,
-    irontail: 100,
-    flamethrower: 90,
-    airslash: 75,
-    aquatail: 90,
-    shadowpunch: 60,
-  };
-  return known[id] ?? (moveIsSupport(id) || moveIsRecovery(id) || moveIsProtect(id) ? 0 : 65);
 }
 
 function specialScore(special: ShowdownSpecialChoiceV4, features: BattleAiFeatureVectorV4): number {

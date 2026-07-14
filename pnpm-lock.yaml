@@ -110,7 +110,11 @@ importers:
 
   packages/changebattle-v2-core: {}
 
-  packages/showdown-battle-core: {}
+  packages/showdown-battle-core:
+    dependencies:
+      '@changebattle-v2/showdown-dex-core':
+        specifier: workspace:*
+        version: link:../showdown-dex-core
 
   packages/showdown-dex-core: {}
 

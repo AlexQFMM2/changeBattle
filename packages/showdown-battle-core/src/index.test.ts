@@ -1902,6 +1902,65 @@ function aiForceSwitchSmoke() {
   console.log("showdown-battle-core ai force switch smoke ok");
 }
 
+function aiDexDamageEvaluatorSmoke() {
+  const request: BattleServiceRequestV4 = {
+    rqid: 41,
+    active: [
+      {
+        moves: [
+          {move: "Ice Beam", id: "icebeam", pp: 10, maxpp: 10, target: "normal"},
+          {move: "Knock Off", id: "knockoff", pp: 20, maxpp: 20, target: "normal"},
+          {move: "Stone Edge", id: "stoneedge", pp: 5, maxpp: 5, target: "normal"},
+        ],
+      },
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {
+          ident: "p2: Tyranitar",
+          details: "Tyranitar, L50",
+          condition: "180/180",
+          active: true,
+          ability: "Sand Force",
+          item: "",
+          stats: {hp: 180, atk: 186, def: 130, spa: 115, spd: 120, spe: 81},
+        },
+      ],
+    },
+  };
+  const snapshot = {
+    ...aiSnapshot("gen9", "singles", request),
+    active: [
+      {ident: "p1a: Ceruledge", playerId: "p1", slot: "p1a", species: "Ceruledge", details: "Ceruledge, L50", condition: "120/150", hp: 120, maxHp: 150, status: "", fainted: false},
+      {ident: "p2a: Tyranitar", playerId: "p2", slot: "p2a", species: "Tyranitar", details: "Tyranitar, L50", condition: "180/180", hp: 180, maxHp: 180, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  for (const level of ["gymLeader", "eliteFour", "champion"] satisfies BattleAiLevelV4[]) {
+    const result = chooseAiBattleChoiceV4({
+      request,
+      snapshot,
+      playerId: "p2",
+      aiProfile: {level, preference: "offense"},
+      rngSeed: `tyranitar-ceruledge-${level}`,
+      timeBudgetMs: 10_000,
+    });
+    if (result.debug.selectedChoice.startsWith("move 1")) {
+      throw new Error(`${level} AI should not choose Ice Beam into Ceruledge: ${JSON.stringify(result.debug)}`);
+    }
+    const ice = result.debug.topCandidates.find(entry => entry.diagnostics?.moveId === "icebeam");
+    const best = result.debug.topCandidates[0];
+    if (!ice || Number(ice.diagnostics?.typeMultiplier) >= 1) {
+      throw new Error(`Ice Beam should be diagnosed as resisted: ${JSON.stringify(result.debug.topCandidates)}`);
+    }
+    if (!best || !["knockoff", "stoneedge"].includes(String(best.diagnostics?.moveId || ""))) {
+      throw new Error(`AI should rank Knock Off or Stone Edge above Ice Beam: ${JSON.stringify(result.debug.topCandidates)}`);
+    }
+  }
+  console.log("showdown-battle-core ai dex damage evaluator smoke ok");
+}
+
 async function randomTeamGeneratorSmoke() {
   const first = await generateShowdownRandomTeamV4({ruleSet: "gen9", mode: "singles", seed: "team-seed"});
   const second = await generateShowdownRandomTeamV4({ruleSet: "gen9", mode: "singles", seed: "team-seed"});
@@ -2202,5 +2261,6 @@ void smoke()
   .then(aiMaxGuardTargetSmoke)
   .then(aiLockedMoveMissingTargetSmoke)
   .then(aiForceSwitchSmoke)
+  .then(aiDexDamageEvaluatorSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);

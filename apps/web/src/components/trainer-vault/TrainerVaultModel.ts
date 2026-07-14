@@ -5,7 +5,7 @@ import {pokemonSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import type {VaultMoveReplaceMove} from "./VaultMoveReplaceModal";
 
 export type TrainerVaultTab = "bag" | "pokemon";
-export type TrainerVaultPokemonDetailTab = "overview" | "stats" | "moves" | "honors";
+export type TrainerVaultPokemonDetailTab = "overview" | "stats" | "moves" | "evolution" | "honors";
 export type VaultPageKind = "storage";
 export type VaultPageEntry =
   | {kind: "item"; key: string; item: PlayerItemRecordV4; pageKind: VaultPageKind; storagePageIndex: number; slotIndex: number}

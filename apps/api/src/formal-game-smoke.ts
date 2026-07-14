@@ -1751,6 +1751,20 @@ const soulmateCandidateSmoke = createSoulmateCandidateListV4({
       rawLine: "",
     },
     {
+      id: "soulmate-log-p1-alias",
+      key: "soulmate-log-p1-alias",
+      at: new Date(0).toISOString(),
+      sessionId: "soulmate-session",
+      nodeId: withCoinLog.roundPlan[0]!.id,
+      turn: 2,
+      rawLogIndex: 4,
+      eventType: "move",
+      sourcePlayerId: "p1",
+      sourcePokemonKey: `p1b:${firstPlayerPokemon.speciesId}`,
+      sourcePokemonName: firstPlayerPokemon.speciesId,
+      rawLine: "",
+    },
+    {
       id: "soulmate-log-p2-only",
       key: "soulmate-log-p2-only",
       at: new Date(0).toISOString(),
@@ -1773,6 +1787,7 @@ const soulmateCandidateSmoke = createSoulmateCandidateListV4({
 });
 assert(soulmateCandidateSmoke.length === 1, "soulmate candidates should include only p1 battleLog participants");
 assert(soulmateCandidateSmoke[0]!.localPokemonId === firstPlayerPokemon.localPokemonId, "soulmate candidate should map battleLog participant to local pokemon");
+assert(soulmateCandidateSmoke[0]!.usedRounds.join(",") === "0", "soulmate candidate aliases should merge into one local pokemon record");
 assert(normalizeSoulmateEvolutionRequirementV4({evoLevel: 16} as never).itemId === "universal-evolution-stone", "level evolution should require universal evolution stone");
 assert(normalizeSoulmateEvolutionRequirementV4({evoType: "levelFriendship"}).itemId === "universal-evolution-stone", "friendship evolution should require universal evolution stone");
 assert(normalizeSoulmateEvolutionRequirementV4({evoType: "useItem", evoItem: "Fire Stone"}).itemId === "firestone", "item evolution should require exact evo item");

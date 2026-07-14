@@ -1,5 +1,6 @@
 import {createLocalShowdownDex} from "./localDex.js";
 import {BattlePokemonIconIndexes} from "./data/pokemon-icon-indexes.js";
+import {TypeChart} from "./data/typechart.js";
 import {ZhCnDetails} from "./data/i18n/zh-cn-details.js";
 import {ZhCnOverrides} from "./data/i18n/zh-cn-overrides.js";
 import {
@@ -425,6 +426,12 @@ export type ShowdownDexServiceOptions = {
 };
 
 export type ShowdownDexService = ReturnType<typeof createShowdownDexService>;
+export type ShowdownTypeEffectivenessResultV4 = {
+  moveType: string;
+  defenderTypes: string[];
+  multiplier: number;
+  stages: number[];
+};
 
 const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 const DEFAULT_RESOURCE_PREFIX = "/showdown/";
@@ -1493,6 +1500,7 @@ export function createShowdownDexService(options: ShowdownDexServiceOptions = {}
     getMoveLearners,
     calculatePokemonStats,
     getPokemonMaxStats,
+    getShowdownTypeEffectiveness: getShowdownTypeEffectivenessV4,
     resolvePokemonSprites,
     resolveTypeIcon,
     resolveCategoryIcon,
@@ -1608,6 +1616,41 @@ export function toID(value: unknown): string {
 
 export function toDexId(value: unknown): string {
   return toID(value);
+}
+
+export function getShowdownTypeEffectivenessV4(moveType: string, defenderTypes: string[]): ShowdownTypeEffectivenessResultV4 {
+  const canonicalMoveType = canonicalTypeName(moveType);
+  const stages = defenderTypes
+    .map(type => canonicalTypeId(type))
+    .filter(Boolean)
+    .map(typeId => {
+      const entry = (TypeChart as Record<string, {damageTaken?: Record<string, number>}>)[typeId];
+      const value = entry?.damageTaken?.[canonicalMoveType];
+      return typeof value === "number" ? value : 0;
+    });
+  const multiplier = stages.reduce((current, stage) => {
+    if (stage === 3) return 0;
+    if (stage === 1) return current * 2;
+    if (stage === 2) return current * 0.5;
+    return current;
+  }, 1);
+  return {
+    moveType: canonicalMoveType,
+    defenderTypes: defenderTypes.map(canonicalTypeName).filter(Boolean),
+    multiplier,
+    stages,
+  };
+}
+
+function canonicalTypeId(value: string): string {
+  const raw = String(value || "").trim();
+  return TYPE_ID_BY_ZH[raw] || toID(raw);
+}
+
+function canonicalTypeName(value: string): string {
+  const id = canonicalTypeId(value);
+  const match = TYPE_IDS.find(type => toID(type) === id);
+  return match || (id ? id.charAt(0).toUpperCase() + id.slice(1) : "");
 }
 
 function showdownSpriteIdFromSpecies(species: any, fallbackSpeciesId: string): string {

@@ -823,7 +823,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
           visualFarTeam={visualFarTeam}
           snapshot={snapshot}
           busy={busy}
-          message={choiceStatus || message}
+          message={message}
           actions={viewModel?.command.actions || []}
           mode={viewModel?.mode || "singles"}
           requestType={viewModel?.command.requestType || "none"}
@@ -895,6 +895,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
           onSubmitItemChoice={applyDraftChoice}
         />
       ) : null}
+      {choiceStatus ? <BattleV4GlobalNotice message={choiceStatus} /> : null}
       {shouldShowResultPanel && snapshot ? (
         <div className="battle-v4-result-panel">
           <strong>{snapshot.winner === "p1" || snapshot.winner === "p3" ? "训练胜利" : "训练失败"}</strong>
@@ -949,6 +950,14 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
         />
       ) : null}
     </section>
+  );
+}
+
+function BattleV4GlobalNotice({message}: {message: string}) {
+  return (
+    <div className="battle-v4-global-notice" role="status" aria-live="polite">
+      {message}
+    </div>
   );
 }
 

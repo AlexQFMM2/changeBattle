@@ -299,6 +299,14 @@ for (const [trainerId, teams] of teamsByTrainer) {
   assert.ok(teams.some(team => team.diagnostics.preferredSpeciesHitCount > 0), `no preferred species hit for ${trainerId}`);
 }
 assert.equal(dex.getTrainerDetail("gym:关都地区:小刚:1").bossPresetMatrix?.generatedCount, 36);
+const ceruledgeIce = dex.getShowdownTypeEffectiveness("Ice", ["Fire", "Ghost"]);
+assert.equal(ceruledgeIce.multiplier, 0.5);
+const ceruledgeDark = dex.getShowdownTypeEffectiveness("Dark", ["Fire", "Ghost"]);
+assert.equal(ceruledgeDark.multiplier, 2);
+const gyaradosElectric = dex.getShowdownTypeEffectiveness("Electric", ["Water", "Flying"]);
+assert.equal(gyaradosElectric.multiplier, 4);
+const normalGhost = dex.getShowdownTypeEffectiveness("Normal", ["Ghost"]);
+assert.equal(normalGhost.multiplier, 0);
 
 console.log("showdown-dex-core tests passed");
 

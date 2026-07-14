@@ -61,6 +61,7 @@ const POKEMON_DETAIL_TABS: Array<{id: TrainerVaultPokemonDetailTab; label: strin
   {id: "overview", label: "概览"},
   {id: "stats", label: "数值"},
   {id: "moves", label: "技能"},
+  {id: "evolution", label: "进化"},
   {id: "honors", label: "荣誉"},
 ];
 
@@ -96,6 +97,20 @@ function PokemonDetailTabPanel({view, tab, honorBadges, onSelectHonorBadge}: {vi
               <span>{move.type} · {move.category} · 威力 {move.power} · PP {move.pp}</span>
             </article>
           )) : <p>暂无技能记录。</p>}
+        </div>
+      </div>
+    );
+  }
+  if (tab === "evolution") {
+    return (
+      <div className="vault-pokemon-drawer-tab-panel">
+        <div className="vault-pokemon-drawer-evolution-list">
+          {view.evolutions.length ? view.evolutions.map((evolution, index) => (
+            <article key={`${evolution.from}:${evolution.to}:${index}`}>
+              <strong>{evolution.from} → {evolution.to}</strong>
+              <span>{evolution.method}</span>
+            </article>
+          )) : <p>当前形态暂无进化记录。</p>}
         </div>
       </div>
     );

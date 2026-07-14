@@ -164,12 +164,24 @@ export function createSoulmateCandidateListV4(input: {
 }): SoulmateCandidateV4[] {
   const teamByKey = buildTeamKeyMapV4(input.team);
   const summarize = input.requireDamageDealt ? getPokemonEligibleForSoulmateV4 : getPokemonParticipantsForSoulmateV4;
-  return summarize(input.battleLog, {playerId: "p1"}).flatMap(summary => {
+  const mergedByPokemonKey = new Map<string, {summary: BattleLogPokemonSummaryV4; pokemon: LocalPokemonV4}>();
+  for (const summary of summarize(input.battleLog, {playerId: "p1"})) {
     const resolvedKey = input.resolvePokemonKey?.(summary) || summary.pokemonKey;
     const pokemon = teamByKey.get(normalizeBattleKeyText(resolvedKey));
-    if (!pokemon) return [];
-    return [createCandidateFromSummaryV4({...summary, pokemonKey: resolvedKey}, pokemon)];
-  });
+    if (!pokemon) continue;
+    const stableKey = pokemon.localPokemonId || pokemon.showdownIdentityToken || pokemon.showdownId || pokemon.pokeballId || resolvedKey;
+    const normalizedStableKey = normalizeBattleKeyText(stableKey);
+    const current = mergedByPokemonKey.get(normalizedStableKey);
+    const nextSummary = {...summary, pokemonKey: stableKey};
+    if (!current) {
+      mergedByPokemonKey.set(normalizedStableKey, {summary: nextSummary, pokemon});
+      continue;
+    }
+    current.summary = mergeSoulmateCandidateSummary(current.summary, nextSummary);
+  }
+  return Array.from(mergedByPokemonKey.values())
+    .map(entry => createCandidateFromSummaryV4(entry.summary, entry.pokemon))
+    .sort((a, b) => b.damageDealt - a.damageDealt || b.usedRounds.length - a.usedRounds.length || a.displayName.localeCompare(b.displayName));
 }
 
 export function createSoulmatePokemonRecordV4(input: {
@@ -269,6 +281,29 @@ function createCandidateFromSummaryV4(summary: BattleLogPokemonSummaryV4, pokemo
     damageDealt: summary.damageDealt,
     usedRounds: summary.usedRounds,
     pokemon: normalized,
+  };
+}
+
+function mergeSoulmateCandidateSummary(base: BattleLogPokemonSummaryV4, incoming: BattleLogPokemonSummaryV4): BattleLogPokemonSummaryV4 {
+  const usedRounds = Array.from(new Set([...base.usedRounds, ...incoming.usedRounds])).sort((a, b) => a - b);
+  const kills = base.kills + incoming.kills;
+  const deaths = base.deaths + incoming.deaths;
+  const assists = base.assists + incoming.assists;
+  const damageDealt = base.damageDealt + incoming.damageDealt;
+  const damageTaken = base.damageTaken + incoming.damageTaken;
+  const healing = base.healing + incoming.healing;
+  return {
+    ...base,
+    pokemonName: base.pokemonName || incoming.pokemonName,
+    kills,
+    deaths,
+    assists,
+    damageDealt,
+    damageTaken,
+    healing,
+    usedRounds,
+    kdaScore: (kills + assists * 0.5 + 1) / Math.max(1, deaths),
+    mvpScore: kills * 120 + assists * 40 - deaths * 35 + damageDealt + damageTaken * 0.35 + healing * 0.25 + usedRounds.length * 10,
   };
 }
 
