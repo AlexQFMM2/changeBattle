@@ -36,7 +36,7 @@
 - [ ] 后续拆分 `aiSinglesStrategyV4.ts`。
 - [ ] 后续拆分 `aiDoublesStrategyV4.ts`。
 - [ ] 后续拆分 `aiCoopStrategyV4.ts`。
-- [ ] 后续抽出 `aiValueFunctionV4.ts`。
+- [x] 后续抽出 `aiValueFunctionV4.ts`。
 - [ ] 后续抽出 `aiOutcomeBucketsV4.ts`。
 
 ## 0. 当前基础确认
@@ -159,7 +159,7 @@
 - [x] 新增 singles 内部 `BattleAiNumericPokemonV4`。
 - [x] 实现 singles 内部 `buildSinglesNumericState()`。
 - [x] 读取双方 active。
-- [ ] 读取可见后排。
+- [x] 读取可见后排。
 - [x] 读取 HP / maxHP。
 - [ ] 读取 species / types。
 - [ ] 读取 item。
@@ -317,6 +317,10 @@
 - [x] 对方剩余 HP 扣分。
 - [x] 我方 KO 对手加分。
 - [x] 我方被 KO 扣分。
+- [x] 整队 HP 总量差进入评分。
+- [x] 存活数量差进入评分。
+- [x] 残血数量压力进入评分。
+- [x] win condition 存活/健康进入评分。
 - [x] 保住我方核心额外加分。
 - [x] 撒场推进额外加分。
 - [x] 异常推进额外加分。
@@ -336,7 +340,8 @@
 - [ ] 对方强化扣分。
 - [ ] 我方异常扣分。
 - [ ] 对方异常加分。
-- [ ] 风险项单独输出。
+- [x] 风险项单独输出。
+- [x] 输出 selected leaf `valueBreakdown`。
 - [ ] reasons 可解释。
 
 ## 11.1 Singles Role-Aware Switch Value
@@ -457,6 +462,7 @@
 - [x] 输出 top candidates。
 - [x] 输出 principal variation。
 - [x] 输出每个候选的 outcome bucket。
+- [x] 输出 selected leaf value breakdown。
 - [ ] 输出每个候选的 score parts。
 - [ ] 输出 ally combo reasons。
 - [ ] 输出 fallback reason。
@@ -499,6 +505,10 @@
 - [ ] Fake Out 可用性测试。
 - [ ] Sucker Punch 场景测试。
 - [x] switch 抗性测试。
+- [x] value function：整队 HP 总量差测试。
+- [x] value function：win condition 健康/送死测试。
+- [x] value function：对手后排数量影响撒场收益测试。
+- [x] value function：对方多个残血时收割压力测试。
 
 ## 19. 双打测试
 

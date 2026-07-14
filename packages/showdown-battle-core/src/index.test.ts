@@ -8,6 +8,7 @@ import {
   battleAiCapabilityForLevelV4,
   battleAiEffectiveSearchBudgetForModeV4,
   battleAiSearchBudgetForLevelV4,
+  evaluateBattleAiSinglesLeafValueV4,
   parseShowdownChoiceCommandV4,
   randomLegalChoice,
   resolveBattleWinnerPlayerIdV4,
@@ -2049,6 +2050,9 @@ function aiSinglesDepth2SearchSmoke() {
   if (!result.debug.search.principalVariation?.length || !result.debug.search.replyCount || result.debug.search.replyCount < 1) {
     throw new Error(`singles depth 2 should report principal variation and replies: ${JSON.stringify(result.debug.search)}`);
   }
+  if (!result.debug.search.valueBreakdown || !Number.isFinite(result.debug.search.valueBreakdown.activeHp)) {
+    throw new Error(`singles depth 2 should report value function breakdown: ${JSON.stringify(result.debug.search)}`);
+  }
   if (!result.debug.search.outcomeBuckets?.some(entry => entry.choice === result.choice && entry.buckets.includes("ko"))) {
     throw new Error(`singles depth 2 should report KO outcome bucket for selected KO: ${JSON.stringify(result.debug.search)}`);
   }
@@ -2392,6 +2396,87 @@ function aiSwitchTargetOverrideSmoke() {
     }
   }
   console.log("showdown-battle-core ai switch targetOverride smoke ok");
+}
+
+function aiValueFunctionResourceSmoke() {
+  const capabilities = battleAiCapabilityForLevelV4("gymLeader");
+  const pokemon = (hp: number, maxHp: number, fainted = false) => ({
+    playerId: "p2" as const,
+    activeIndex: 0,
+    hp,
+    maxHp,
+    fainted,
+  });
+  const hazards = {stealthRock: 0, spikes: 0, toxicSpikes: 0, stickyWeb: 0};
+  const resources = (overrides: Record<string, unknown> = {}) => ({
+    totalPokemonCount: 3,
+    aliveCount: 3,
+    faintedCount: 0,
+    lowHpCount: 0,
+    totalHpRatio: 0.75,
+    activeHpRatio: 0.75,
+    benchHpRatio: 0.75,
+    winConditionAlive: false,
+    winConditionHealthy: false,
+    activeIsWinCondition: false,
+    hazards,
+    ...overrides,
+  });
+  const baseState = {
+    self: pokemon(80, 100),
+    foe: {...pokemon(70, 100), playerId: "p1" as const},
+    selfResources: resources({totalHpRatio: 0.8, activeHpRatio: 0.8}),
+    foeResources: resources({totalHpRatio: 0.4, activeHpRatio: 0.2, lowHpCount: 2}),
+  };
+  const ownHazard = {choice: "move 1", score: 80, kind: "move", diagnostics: {moveId: "stealthrock"}};
+  const foeSplash = {choice: "move 1", score: 10, kind: "move", diagnostics: {moveId: "splash"}};
+  const hazardIntoBench = evaluateBattleAiSinglesLeafValueV4({
+    state: baseState,
+    initialState: baseState,
+    own: ownHazard,
+    foe: foeSplash,
+    buckets: ["hazard-progress"],
+    capabilities,
+  });
+  const hazardIntoLastMon = evaluateBattleAiSinglesLeafValueV4({
+    state: {...baseState, foeResources: resources({totalPokemonCount: 1, aliveCount: 1, totalHpRatio: 0.2, activeHpRatio: 0.2})},
+    initialState: {...baseState, foeResources: resources({totalPokemonCount: 1, aliveCount: 1, totalHpRatio: 0.2, activeHpRatio: 0.2})},
+    own: ownHazard,
+    foe: foeSplash,
+    buckets: ["hazard-progress"],
+    capabilities,
+  });
+  if (!(hazardIntoBench.breakdown.hazard > hazardIntoLastMon.breakdown.hazard && hazardIntoLastMon.breakdown.hazard < 0)) {
+    throw new Error(`hazard value should prefer bench-heavy opponents and penalize last-mon hazards: ${JSON.stringify({hazardIntoBench, hazardIntoLastMon})}`);
+  }
+  if (!(hazardIntoBench.breakdown.teamHp > 0 && hazardIntoBench.breakdown.lowHpPressure > 0)) {
+    throw new Error(`resource value should reward team HP lead and foe low HP pressure: ${JSON.stringify(hazardIntoBench.breakdown)}`);
+  }
+
+  const healthyWincon = evaluateBattleAiSinglesLeafValueV4({
+    state: {...baseState, selfResources: resources({winConditionAlive: true, winConditionHealthy: true, activeIsWinCondition: true})},
+    initialState: {...baseState, selfResources: resources({winConditionAlive: true, winConditionHealthy: true, activeIsWinCondition: true})},
+    own: {choice: "move 2", score: 90, kind: "move", diagnostics: {moveId: "liquidation"}},
+    foe: foeSplash,
+    buckets: [],
+    capabilities,
+  });
+  const deadWincon = evaluateBattleAiSinglesLeafValueV4({
+    state: {
+      ...baseState,
+      self: pokemon(0, 100, true),
+      selfResources: resources({aliveCount: 2, faintedCount: 1, winConditionAlive: false, winConditionHealthy: false, activeIsWinCondition: true}),
+    },
+    initialState: {...baseState, selfResources: resources({winConditionAlive: true, winConditionHealthy: true, activeIsWinCondition: true})},
+    own: {choice: "switch 2", score: 90, kind: "switch", diagnostics: {}},
+    foe: {choice: "move 1", score: 120, kind: "move", diagnostics: {moveId: "thunderbolt"}},
+    buckets: ["self-ko-risk", "unsafe-switch"],
+    capabilities,
+  });
+  if (!(healthyWincon.breakdown.winCondition > 0 && deadWincon.breakdown.winCondition < 0 && deadWincon.score < healthyWincon.score)) {
+    throw new Error(`win condition value should reward healthy wincon and punish throwing it away: ${JSON.stringify({healthyWincon, deadWincon})}`);
+  }
+  console.log("showdown-battle-core ai value function resource smoke ok");
 }
 
 function aiSearchBudgetSmoke() {
@@ -2758,6 +2843,7 @@ void smoke()
   .then(aiTeamArchetypeAnalyzerSmoke)
   .then(aiRainSwitchRoleSmoke)
   .then(aiSwitchTargetOverrideSmoke)
+  .then(aiValueFunctionResourceSmoke)
   .then(aiSearchBudgetSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);

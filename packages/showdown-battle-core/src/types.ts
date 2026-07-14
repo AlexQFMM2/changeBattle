@@ -44,6 +44,7 @@ export type BattleAiSearchDebugV4 = {
   replyCount?: number;
   capabilities?: BattleAiCapabilityProfileV4;
   outcomeBuckets?: Array<{choice: string; buckets: BattleAiOutcomeBucketV4[]; score: number}>;
+  valueBreakdown?: Record<string, number>;
   targetOverrideEstimates?: Array<{
     switchChoice: string;
     replyChoice: string;
