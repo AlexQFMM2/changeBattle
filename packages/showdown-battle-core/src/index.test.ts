@@ -28,6 +28,7 @@ import {
   withShowdownMoveTargetSuffixV4,
 } from "./index.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
+import {generateBattleAiSelfPlayQuestionsV4, renderBattleAiSelfPlayExamMarkdownV4, runBattleAiSelfPlayExamV4} from "./aiSelfPlayExamV4.js";
 import type {BattleAiTeamArchetypeV4} from "./aiTeamRoleAnalyzerV4.js";
 import type {BattleAiLevelV4, BattleAiPreferenceV4, BattleServiceRequestV4, BattleServiceSessionInputV4, BattleServiceSidePokemonV4, BattleServiceSnapshotV4} from "./types.js";
 
@@ -2937,6 +2938,45 @@ async function randomTeamGeneratorSmoke() {
   console.log("showdown-battle-core random team generator smoke ok");
 }
 
+async function aiSelfPlayExamSmoke() {
+  const questions = generateBattleAiSelfPlayQuestionsV4({
+    seed: "self-play-smoke",
+    archetypes: ["rain", "balanced"],
+    gamesPerPair: 1,
+    teamSize: 1,
+    maxTurns: 6,
+    p1Level: "gymLeader",
+    p2Level: "gymLeader",
+  });
+  if (questions.length !== 2 || !questions[0]?.id.includes("rain-vs-balanced")) {
+    throw new Error(`self-play question generator should build archetype matchups: ${JSON.stringify(questions)}`);
+  }
+  const report = await runBattleAiSelfPlayExamV4({
+    seed: "self-play-smoke",
+    archetypes: ["balanced"],
+    gamesPerPair: 1,
+    teamSize: 1,
+    maxTurns: 6,
+    p1Level: "gymLeader",
+    p2Level: "gymLeader",
+  });
+  if (report.summary.total !== 1 || !report.results[0]) {
+    throw new Error(`self-play report should contain one result: ${JSON.stringify(report.summary)}`);
+  }
+  const result = report.results[0];
+  if (result.status === "team-generation-failed") {
+    throw new Error(`self-play smoke team generation failed: ${JSON.stringify(result.teams)}`);
+  }
+  if (!result.metrics.aiDecisionCount && result.status !== "ended") {
+    throw new Error(`self-play should produce AI decisions or end immediately: ${JSON.stringify(result)}`);
+  }
+  const markdown = renderBattleAiSelfPlayExamMarkdownV4(report);
+  if (!markdown.includes("Battle V4 AI Self-Play Exam Report") || !markdown.includes(result.question.id)) {
+    throw new Error(`self-play markdown report missing expected content: ${markdown}`);
+  }
+  console.log("showdown-battle-core ai self-play exam smoke ok");
+}
+
 function aiSnapshot(ruleSet: BattleServiceSessionInputV4["ruleSet"], mode: BattleServiceSessionInputV4["mode"], request: BattleServiceRequestV4, allowedSpecialSystems?: BattleServiceSnapshotV4["players"][number]["allowedSpecialSystems"]): BattleServiceSnapshotV4 {
   return {
     id: "ai-test-session",
@@ -3172,4 +3212,5 @@ void smoke()
   .then(aiSinglesSpeedStateSmoke)
   .then(aiSearchBudgetSmoke)
   .then(randomTeamGeneratorSmoke)
+  .then(aiSelfPlayExamSmoke)
   .then(showdownPlaybackTimelineSmoke);

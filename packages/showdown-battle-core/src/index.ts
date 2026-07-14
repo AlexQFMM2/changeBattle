@@ -331,6 +331,16 @@ export async function submitChoice(input: BattleServiceSubmitChoiceInputV4): Pro
   return clone(session.snapshot);
 }
 
+export async function advanceBattleAutoChoicesV4(sessionId: string): Promise<BattleServiceSnapshotV4> {
+  const session = getSession(sessionId);
+  if (session.snapshot.status === "ended") return clone(session.snapshot);
+  await flushReadyAutoChoices(session);
+  await waitForRequests(session, 700);
+  await submitAiChoices(session);
+  await waitForRequests(session, 700);
+  return clone(session.snapshot);
+}
+
 export async function submitTrainerItem(input: BattleServiceSubmitTrainerItemInputV4): Promise<BattleServiceSnapshotV4> {
   const session = getSession(input.sessionId);
   if (session.snapshot.status === "ended") return clone(session.snapshot);
