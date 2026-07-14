@@ -2,9 +2,13 @@
 
 ## 最终决定
 
-- [x] Battle V4 AI 下一阶段采用 **Minimax 实时算法**。
-- [x] 不训练实时出招模型。
+- [x] 算法主线：Battle V4 AI 采用 **极小极大 / Minimax 实时搜索**。
+- [x] 核心战力：持续完善 **估值函数 / Value Function**，让 AI 选择稳定收益而不是只追最高伤害。
+- [x] 性能优化：当搜索深度或双打 joint action 超时时，再引入 **剪枝算法**。
+- [x] 默认剪枝方向：优先考虑 **Alpha-Beta pruning**，同时保留 topK / maxNodes / time budget。
+- [x] 不做实时出招模型训练。
 - [x] 不让 LLM / 小模型直接决定 choice。
+- [x] 不使用玩家历史操作训练读心模型。
 - [x] 不做完整 Showdown 战斗模拟器替代。
 - [x] Showdown request / validator 继续作为合法行动边界。
 - [x] 当前 `aiMoveEvaluator` / NumericGuard 作为 depth 1 叶子评分基础。
@@ -17,6 +21,23 @@
 - [x] 输出：选择最高分合法 choice。
 - [x] 最终提交前仍经过 validator。
 - [x] Debug 串起来第一版：`legalCandidates -> searchBudget -> principalVariation -> chosenAction`。
+
+## 模式架构
+
+- [x] 不写三套完整 AI；采用 **共享 AI 内核 + mode strategy**。
+- [x] 共享内核：Minimax 搜索框架、估值函数组件、outcome bucket、team role analysis、debug、validator/fallback。
+- [x] 单打 strategy：重点处理留场/换人、读换、撒场、保 win condition、天气/空间启动后的轮转。
+- [x] 双打 strategy：重点处理 joint action、双点 KO、Protect/Fake Out、速度控制、ally combo、范围招和队友误伤。
+- [x] 合作 strategy：复用双打基础，但估值函数额外强调不坑玩家、保护玩家核心、辅助玩家节奏。
+- [x] 单打特点：选择少、战线长，适合更长视野和残局深搜。
+- [x] 双打特点：分支宽、回合短，最快两回合结束，多数局不需要看到第六回合。
+- [x] 合作特点：队伍规模为 2+2 vs 2+2，分支受限，但必须额外约束玩家体验。
+- [x] `chooseAiBattleChoiceV4` 保持唯一外部入口，由 search engine 根据 battle mode 分发到对应 strategy。
+- [ ] 后续拆分 `aiSinglesStrategyV4.ts`。
+- [ ] 后续拆分 `aiDoublesStrategyV4.ts`。
+- [ ] 后续拆分 `aiCoopStrategyV4.ts`。
+- [ ] 后续抽出 `aiValueFunctionV4.ts`。
+- [ ] 后续抽出 `aiOutcomeBucketsV4.ts`。
 
 ## 0. 当前基础确认
 
@@ -36,6 +57,9 @@
 
 ## 1. 算法依据
 
+- [x] 总架构明确为：`Minimax 搜索框架` + `估值函数` + `剪枝优化`。
+- [x] 当前优先级：先完善估值函数，再扩大搜索深度，最后按性能需要加剪枝。
+- [x] 高等级 AI 倾向稳定收益：考虑 worst-case / risk penalty，不盲目赌低概率高收益。
 - [x] 本地保存 PokéChamp 论文：`docs/reference/pokechamp-paper.pdf`。
 - [x] 记录 PokéChamp 使用 minimax tree search 的思路。
 - [x] 记录论文中的 one-step world model / damage estimator 思路。
@@ -63,16 +87,54 @@
 
 ## 3. AI 等级映射
 
-- [x] `rookie`：depth 1。
-- [x] `normal`：depth 2。
-- [x] `elite`：depth 3。
-- [x] `gymLeader`：depth 4。
-- [x] `eliteFour`：depth 5。
-- [x] `champion`：depth 6。
+- [x] AI 等级 = 理论搜索上限 + 能力模块解锁 + 风险容忍度。
+- [x] AI 等级定义理论搜索上限，不代表所有 mode 都固定搜到同一 depth，也不代表所有等级都启用完整复杂搜索。
+- [x] `rookie`：理论上限 depth 1。
+- [x] `normal`：理论上限 depth 2。
+- [x] `elite`：理论上限 depth 3。
+- [x] `gymLeader`：理论上限 depth 4。
+- [x] `eliteFour`：理论上限 depth 5。
+- [x] `champion`：理论上限 depth 6。
+- [ ] 实现 mode-aware effective depth。
+- [ ] 实现局面复杂度动态 depth。
+- [ ] 减员/残局时在预算内提高 depth。
 - [x] 所有等级共享 10s hard upper bound。
 - [x] 低等级保留更高 noise。
 - [x] 馆主级以上启用明显优势禁错。
 - [x] 深度不足或超时时降级到当前最佳浅层结果。
+
+## 3.1 AI Capability Unlock
+
+- [x] `rookie`：即时判断 AI，不启用 Minimax，不启用 role analysis，不启用完整 outcome bucket，高 noise / 高 mistakeRate。
+- [x] `rookie`：允许明显小错和简单贪伤害，避免低等级表现得像战术玩家。
+- [x] `normal`：NumericGuard 为主，不启用完整 Minimax，只保留基础安全判断和较高随机性。
+- [x] `normal`：可以选择高伤害/高收益行动，但不要求理解体系运营。
+- [x] `elite`：轻量战术 AI，可启用 KO / 被 KO 风险判断，但不启用完整队伍体系和复杂轮换。
+- [x] `elite`：换人只做残血保命或明显安全换人，不做深层读换。
+- [x] `gymLeader`：开始启用完整 singles depth 2、role analysis、outcome bucket、基础轮换和天气/核心判断。
+- [x] `eliteFour`：启用更完整 value function、mode-aware dynamic depth、更低 noise、更稳健风险权重。
+- [x] `champion`：完整稳定收益策略，强调 worst-case / risk penalty，残局深搜，必要时进入剪枝优化。
+- [ ] 新增 `BattleAiCapabilityProfileV4`。
+- [ ] capability 控制 `useMinimax`。
+- [ ] capability 控制 `useRoleAnalysis`。
+- [ ] capability 控制 `useOutcomeBuckets`。
+- [ ] capability 控制 `useSwitchValue`。
+- [ ] capability 控制 `useDynamicDepth`。
+- [ ] capability 控制 `useOpponentSwitchReply`。
+- [ ] capability 控制 `riskTolerance`。
+
+## 3.2 Mode-Aware Search Budget
+
+- [x] 单打：分支窄、战线长，优先允许更深搜索。
+- [x] 单打 3v3：开局可按复杂度尝试中等深度，残局可接近 AI 等级上限。
+- [x] 双打：分支宽、回合短，优先提高当前回合和下一回合 joint action 质量。
+- [x] 双打 4v4：常规预算以 depth 2-3 为主，不默认追到第六回合。
+- [x] 双打残局：减员后分支变窄，可动态提高 depth。
+- [x] 合作：基于双打预算，但更重视玩家体验约束，不盲目深搜。
+- [ ] singles effective depth：`min(levelMaxDepth, dynamicDepthFromComplexity)`。
+- [ ] doubles effective depth：开局默认不超过 2-3，残局再上调。
+- [ ] coop effective depth：默认不超过 doubles，同时保留玩家体验约束。
+- [ ] complexity 输入：legalActionCount / alivePokemonCount / switchOptionCount / activeCount / targetOptionCount。
 
 ## 4. Budget 参数
 
@@ -290,6 +352,8 @@
 - [x] 我方节点取 max。
 - [x] 对手节点取 min。
 - [ ] 支持 alpha-beta pruning。
+- [ ] Alpha-Beta 仅作为性能优化，不改变估值逻辑。
+- [ ] 在 depth 4+ 或双打 joint action 出现性能压力后启用 Alpha-Beta。
 - [ ] 支持 iterative deepening。
 - [ ] 支持 transposition cache。
 - [ ] cache key 使用 bucket state。
@@ -302,6 +366,7 @@
 
 ## 13. 双打 Joint Action
 
+- [ ] 双打开始实现前拆出 `aiDoublesStrategyV4.ts`。
 - [ ] 双打搜索以 joint action 为单位。
 - [ ] 一个 joint action 包含两个 active 的行动。
 - [ ] 支持 move + move。
@@ -315,6 +380,18 @@
 - [ ] spread move 伤害估算第一版复用现有 evaluator。
 - [ ] 队友误伤必须扣分。
 - [ ] 只有 combo detector 命中时，打队友才允许获得正向战术分。
+
+## 13.1 合作 Coop Strategy
+
+- [ ] 合作开始实现前拆出 `aiCoopStrategyV4.ts`。
+- [ ] 合作复用双打 joint action / target / ally combo 基础能力。
+- [ ] 合作 value function 增加 `avoidPlayerFriendlyFire`。
+- [ ] 合作 value function 增加 `preservePlayerCore`。
+- [ ] 合作 value function 增加 `supportPlayerWincon`。
+- [ ] 合作 value function 增加 `followPlayerTempo`。
+- [ ] 玩家已能稳定 KO 时，AI 优先考虑辅助、保护、控速或打另一个目标。
+- [ ] AI 不应抢占明显属于玩家核心的收益窗口，除非可避免失败。
+- [ ] AI 不应对玩家 active 使用高风险误伤行动，除非 combo detector 明确收益且不致死。
 
 ## 14. Ally Combo Detector
 
@@ -457,6 +534,7 @@
 ## 22. 非目标
 
 - [x] 不做实时模型训练。
+- [x] 不训练小模型/LLM 来直接选择出招。
 - [x] 不做 LLM 直接出招。
 - [x] 不做完整 MCTS。
 - [x] 不做完整 Showdown 模拟器替代。
