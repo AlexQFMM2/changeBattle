@@ -2484,6 +2484,121 @@ function aiValueFunctionResourceSmoke() {
   console.log("showdown-battle-core ai value function resource smoke ok");
 }
 
+function aiValueFunctionV2Smoke() {
+  const capabilities = battleAiCapabilityForLevelV4("gymLeader");
+  const speed = (effectiveSpeed: number, speciesId: string) => ({
+    speciesId,
+    types: [],
+    stats: {hp: 100, atk: 100, def: 100, spa: 100, spd: 100, spe: effectiveSpeed},
+    baseSpeed: effectiveSpeed,
+    rawSpeed: effectiveSpeed,
+    effectiveSpeed,
+    estimatedStats: false,
+    modifiers: [],
+  });
+  const pokemon = (playerId: "p1" | "p2", hp: number, maxHp: number, effectiveSpeed: number, speciesId: string) => ({
+    playerId,
+    activeIndex: 0,
+    hp,
+    maxHp,
+    fainted: hp <= 0,
+    speed: speed(effectiveSpeed, speciesId),
+  });
+  const resources = {
+    totalPokemonCount: 3,
+    aliveCount: 3,
+    faintedCount: 0,
+    lowHpCount: 0,
+    totalHpRatio: 0.8,
+    activeHpRatio: 0.8,
+    benchHpRatio: 0.8,
+    winConditionAlive: true,
+    winConditionHealthy: true,
+    activeIsWinCondition: false,
+    hazards: {stealthRock: 0, spikes: 0, toxicSpikes: 0, stickyWeb: 0},
+  };
+  const state = {
+    self: pokemon("p2", 80, 100, 70, "azumarill"),
+    foe: pokemon("p1", 30, 100, 160, "jolteon"),
+    selfResources: resources,
+    foeResources: {...resources, lowHpCount: 2, activeHpRatio: 0.3, totalHpRatio: 0.45},
+    fieldSpeed: {trickRoom: false, tailwindByPlayer: {}},
+  };
+  const foeKoReply = {choice: "move 1", score: 100, kind: "move", diagnostics: {moveId: "thunderbolt", accuracy: 100, koChance: 1, expectedDamageRatio: 1.1}};
+  const priorityKo = evaluateBattleAiSinglesLeafValueV4({
+    state: {...state, foe: {...state.foe, hp: 0, fainted: true}},
+    initialState: state,
+    own: {choice: "move 1", score: 80, kind: "move", diagnostics: {moveId: "aquajet", accuracy: 100, koChance: 1, expectedDamageRatio: 0.4}},
+    foe: foeKoReply,
+    buckets: ["ko"],
+    capabilities,
+  });
+  if (!(priorityKo.breakdown.speed > 0 && priorityKo.breakdown.specialMove > 0)) {
+    throw new Error(`priority KO should receive speed and priority value: ${JSON.stringify(priorityKo.breakdown)}`);
+  }
+
+  const trickRoomKo = evaluateBattleAiSinglesLeafValueV4({
+    state: {...state, fieldSpeed: {trickRoom: true, tailwindByPlayer: {}}},
+    initialState: {...state, fieldSpeed: {trickRoom: true, tailwindByPlayer: {}}},
+    own: {choice: "move 1", score: 80, kind: "move", diagnostics: {moveId: "earthquake", accuracy: 100, koChance: 1, expectedDamageRatio: 1.1}},
+    foe: foeKoReply,
+    buckets: ["ko"],
+    capabilities,
+  });
+  if (!(trickRoomKo.breakdown.speed > 0 && trickRoomKo.breakdown.field > 0)) {
+    throw new Error(`Trick Room should reward slower first-strike KO: ${JSON.stringify(trickRoomKo.breakdown)}`);
+  }
+
+  const lowAccuracyKo = evaluateBattleAiSinglesLeafValueV4({
+    state,
+    initialState: state,
+    own: {choice: "move 1", score: 80, kind: "move", diagnostics: {moveId: "focusblast", accuracy: 70, koChance: 0.4, expectedDamageRatio: 0.9}},
+    foe: {choice: "move 1", score: 30, kind: "move", diagnostics: {moveId: "tackle", accuracy: 100, koChance: 0, expectedDamageRatio: 0.1}},
+    buckets: ["threaten-ko"],
+    capabilities,
+  });
+  if (!(lowAccuracyKo.breakdown.risk < 0 && lowAccuracyKo.breakdown.threat > 0)) {
+    throw new Error(`low accuracy possible KO should expose risk while keeping threat value: ${JSON.stringify(lowAccuracyKo.breakdown)}`);
+  }
+
+  const protectThreat = evaluateBattleAiSinglesLeafValueV4({
+    state,
+    initialState: state,
+    own: {choice: "move 2", score: 40, kind: "move", diagnostics: {moveId: "protect", accuracy: 100, koChance: 0, expectedDamageRatio: 0}},
+    foe: foeKoReply,
+    buckets: ["self-ko-risk"],
+    capabilities,
+  });
+  const recoveryWindow = evaluateBattleAiSinglesLeafValueV4({
+    state: {...state, self: {...state.self, hp: 42}},
+    initialState: {...state, self: {...state.self, hp: 42}},
+    own: {choice: "move 3", score: 40, kind: "move", diagnostics: {moveId: "recover", accuracy: 100, koChance: 0, expectedDamageRatio: 0}},
+    foe: {choice: "move 1", score: 30, kind: "move", diagnostics: {moveId: "tackle", accuracy: 100, koChance: 0, expectedDamageRatio: 0.2}},
+    buckets: [],
+    capabilities,
+  });
+  const setupSafe = evaluateBattleAiSinglesLeafValueV4({
+    state,
+    initialState: state,
+    own: {choice: "move 4", score: 40, kind: "move", diagnostics: {moveId: "swordsdance", accuracy: 100, koChance: 0, expectedDamageRatio: 0}},
+    foe: {choice: "move 1", score: 30, kind: "move", diagnostics: {moveId: "tackle", accuracy: 100, koChance: 0, expectedDamageRatio: 0.2}},
+    buckets: [],
+    capabilities,
+  });
+  const setupUnsafe = evaluateBattleAiSinglesLeafValueV4({
+    state: {...state, self: {...state.self, hp: 25}},
+    initialState: {...state, self: {...state.self, hp: 25}},
+    own: {choice: "move 4", score: 40, kind: "move", diagnostics: {moveId: "swordsdance", accuracy: 100, koChance: 0, expectedDamageRatio: 0}},
+    foe: foeKoReply,
+    buckets: ["self-ko-risk"],
+    capabilities,
+  });
+  if (!(protectThreat.breakdown.specialMove > 0 && recoveryWindow.breakdown.specialMove > 0 && setupSafe.breakdown.specialMove > 0 && setupUnsafe.breakdown.specialMove < 0)) {
+    throw new Error(`special move values should handle protect/recovery/setup windows: ${JSON.stringify({protectThreat: protectThreat.breakdown, recoveryWindow: recoveryWindow.breakdown, setupSafe: setupSafe.breakdown, setupUnsafe: setupUnsafe.breakdown})}`);
+  }
+  console.log("showdown-battle-core ai value function v2 smoke ok");
+}
+
 function aiOutcomeBucketsSmoke() {
   const cases: Array<[ReturnType<typeof battleAiDamageBucketForEstimateV4>, Parameters<typeof battleAiDamageBucketForEstimateV4>[0]]> = [
     ["immune", {typeMultiplier: 0, expectedDamageRatio: 0, koChance: 0}],
@@ -2982,6 +3097,7 @@ void smoke()
   .then(aiRainSwitchRoleSmoke)
   .then(aiSwitchTargetOverrideSmoke)
   .then(aiValueFunctionResourceSmoke)
+  .then(aiValueFunctionV2Smoke)
   .then(aiOutcomeBucketsSmoke)
   .then(aiActionOutcomeEstimatorSmoke)
   .then(aiSinglesSpeedStateSmoke)

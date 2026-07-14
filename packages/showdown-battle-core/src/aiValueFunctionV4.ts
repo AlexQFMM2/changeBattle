@@ -3,8 +3,9 @@ import type {
   BattleAiOutcomeBucketV4,
   ShowdownPlayerIdV4,
 } from "./types.js";
+import {createShowdownDexService, toDexId} from "@changebattle-v2/showdown-dex-core";
 import type {BattleAiRoleTagSubtypeV4, BattleAiTeamRoleAnalysisV4} from "./aiTeamRoleAnalyzerV4.js";
-import type {BattleAiSpeedFieldStateV4, BattleAiSpeedStateV4} from "./aiSpeedStateV4.js";
+import {battleAiActsBeforeBySpeedV4, type BattleAiSpeedFieldStateV4, type BattleAiSpeedStateV4} from "./aiSpeedStateV4.js";
 import {battleAiOutcomeBucketScoreV4} from "./aiOutcomeBucketsV4.js";
 
 export type BattleAiValueCandidateV4 = {
@@ -77,6 +78,14 @@ export type BattleAiSinglesLeafValueResultV4 = {
   breakdown: BattleAiValueBreakdownV4;
 };
 
+const DEFAULT_DEX = createShowdownDexService();
+const PROTECT_MOVES = new Set(["protect", "detect", "spikyshield", "kingsshield", "banefulbunker", "silktrap", "burningbulwark"]);
+const RECOVERY_MOVES = new Set(["recover", "roost", "slackoff", "moonlight", "synthesis", "softboiled", "milkdrink", "wish", "shoreup"]);
+const SETUP_MOVES = new Set(["swordsdance", "nastyplot", "dragondance", "calmmind", "bulkup", "quiverdance", "shellsmash", "growth", "coil"]);
+const WEATHER_MOVES = new Set(["raindance", "sunnyday", "sandstorm", "snowscape", "hail"]);
+const TERRAIN_MOVES = new Set(["electricterrain", "grassyterrain", "psychicterrain", "mistyterrain"]);
+const SPEED_FIELD_MOVES = new Set(["tailwind", "trickroom", "icywind", "electroweb", "stringshot"]);
+
 export function evaluateBattleAiSinglesLeafValueV4(input: BattleAiSinglesLeafValueInputV4): BattleAiSinglesLeafValueResultV4 {
   const selfRatio = hpRatio(input.state.self);
   const foeRatio = hpRatio(input.state.foe);
@@ -94,6 +103,11 @@ export function evaluateBattleAiSinglesLeafValueV4(input: BattleAiSinglesLeafVal
   const lowHpPressure = (foeResources?.lowHpCount || 0) * 10 - (selfResources?.lowHpCount || 0) * 8;
   const winCondition = winConditionValue(input);
   const hazard = hazardValue(input, initialSelfResources, initialFoeResources);
+  const speed = speedValue(input);
+  const field = fieldValue(input);
+  const risk = riskValue(input);
+  const threat = threatValue(input);
+  const specialMove = specialMoveValue(input);
   const breakdown = {
     activeHp,
     teamHp,
@@ -104,12 +118,106 @@ export function evaluateBattleAiSinglesLeafValueV4(input: BattleAiSinglesLeafVal
     role,
     winCondition,
     hazard,
+    speed,
+    field,
+    risk,
+    threat,
+    specialMove,
     candidateTieBreak,
   };
   return {
     score: Object.values(breakdown).reduce((sum, value) => sum + value, 0),
     breakdown,
   };
+}
+
+function speedValue(input: BattleAiSinglesLeafValueInputV4): number {
+  const field = input.initialState.fieldSpeed || input.state.fieldSpeed;
+  const selfSpeed = input.state.self.speed || input.initialState.self.speed;
+  const foeSpeed = input.state.foe.speed || input.initialState.foe.speed;
+  if (!field || !selfSpeed || !foeSpeed) return 0;
+  const ownPriority = movePriority(candidateMoveId(input.own));
+  const foePriority = movePriority(candidateMoveId(input.foe));
+  const ownKo = candidateKoChance(input.own) >= 1 || input.state.foe.fainted || input.buckets.includes("ko");
+  const foeKo = candidateKoChance(input.foe) >= 1 || input.state.self.fainted || input.buckets.includes("self-ko-risk");
+  const priorityDelta = ownPriority - foePriority;
+  if (priorityDelta > 0) return ownKo ? 28 : 8;
+  if (priorityDelta < 0) return foeKo ? -30 : -8;
+  const actsBefore = battleAiActsBeforeBySpeedV4(selfSpeed, foeSpeed, field);
+  if (actsBefore === true && ownKo) return 30;
+  if (actsBefore === false && foeKo) return -36;
+  if (actsBefore === true && expectedDamageRatio(input.own) >= 0.45) return 10;
+  if (actsBefore === false && expectedDamageRatio(input.foe) >= 0.45) return -12;
+  return 0;
+}
+
+function fieldValue(input: BattleAiSinglesLeafValueInputV4): number {
+  const moveId = candidateMoveId(input.own);
+  let value = 0;
+  if (WEATHER_MOVES.has(moveId)) value += weatherSubtypeFromMove(moveId) && input.roleAnalysis && teamHasHealthyAbuser(input.roleAnalysis, weatherSubtypeFromMove(moveId)!) ? 18 : -8;
+  if (TERRAIN_MOVES.has(moveId)) value += 8;
+  if (SPEED_FIELD_MOVES.has(moveId)) value += setupWindow(input) ? 14 : -6;
+  if (input.initialState.fieldSpeed?.trickRoom && input.state.self.speed && input.state.foe.speed && input.state.self.speed.effectiveSpeed < input.state.foe.speed.effectiveSpeed) {
+    value += 8;
+  }
+  return value;
+}
+
+function riskValue(input: BattleAiSinglesLeafValueInputV4): number {
+  const ownAccuracy = candidateAccuracy(input.own);
+  const foeAccuracy = candidateAccuracy(input.foe);
+  const ownKoChance = candidateKoChance(input.own);
+  const foeKoChance = candidateKoChance(input.foe);
+  let value = 0;
+  if (ownKoChance >= 1 && ownAccuracy >= 90) value += 12;
+  if (ownKoChance > 0 && ownAccuracy < 85) value -= Math.max(8, (100 - ownAccuracy) * 0.45);
+  if (foeKoChance > 0 && foeAccuracy < 85) value += Math.max(6, (100 - foeAccuracy) * 0.25);
+  if (input.buckets.includes("unsafe-switch") || input.buckets.includes("self-ko-risk")) value -= 18;
+  if (input.buckets.includes("safe-switch")) value += 10;
+  return value;
+}
+
+function threatValue(input: BattleAiSinglesLeafValueInputV4): number {
+  const ownDamageRatio = expectedDamageRatio(input.own);
+  const foeDamageRatio = expectedDamageRatio(input.foe);
+  let value = 0;
+  if (input.state.foe.fainted) value += 18;
+  if (ownDamageRatio >= 0.65) value += 12;
+  if ((input.initialState.foeResources?.lowHpCount || 0) >= 2 && (input.state.foe.fainted || ownDamageRatio >= 0.35)) value += 10;
+  if (foeDamageRatio >= 0.65) value -= 12;
+  if (input.state.self.fainted) value -= 18;
+  return value;
+}
+
+function specialMoveValue(input: BattleAiSinglesLeafValueInputV4): number {
+  const moveId = candidateMoveId(input.own);
+  const selfHp = hpRatio(input.initialState.self);
+  const foeKoChance = candidateKoChance(input.foe);
+  const ownKoChance = candidateKoChance(input.own);
+  const actsBefore = input.initialState.fieldSpeed
+    ? battleAiActsBeforeBySpeedV4(input.initialState.self.speed, input.initialState.foe.speed, input.initialState.fieldSpeed)
+    : null;
+  if (PROTECT_MOVES.has(moveId)) {
+    if (foeKoChance >= 1 || input.buckets.includes("self-ko-risk")) return 22;
+    if (ownKoChance >= 1) return -18;
+    return selfHp < 0.35 ? 8 : -8;
+  }
+  if (RECOVERY_MOVES.has(moveId)) {
+    if (selfHp > 0.75) return -14;
+    if (foeKoChance < 1 && selfHp <= 0.5) return 24;
+    return selfHp <= 0.65 ? 10 : -4;
+  }
+  if (SETUP_MOVES.has(moveId)) {
+    if (selfHp <= 0.35 || foeKoChance >= 1 || actsBefore === false && expectedDamageRatio(input.foe) >= 0.45) return -24;
+    return 18 + (input.state.selfResources?.winConditionHealthy ? 8 : 0);
+  }
+  if (moveId === "suckerpunch") {
+    const foeMoveId = candidateMoveId(input.foe);
+    const foeAttacks = expectedDamageRatio(input.foe) > 0 || candidateKoChance(input.foe) > 0;
+    return foeAttacks && !PROTECT_MOVES.has(foeMoveId) && !SETUP_MOVES.has(foeMoveId) ? 18 : -16;
+  }
+  if (movePriority(moveId) > 0 && ownKoChance >= 1) return 18;
+  return 0;
 }
 
 function roleValueBonus(input: BattleAiSinglesLeafValueInputV4): number {
@@ -183,8 +291,28 @@ function candidateMoveId(candidate: BattleAiValueCandidateV4): string {
   return String(flattenedDiagnostics(candidate.diagnostics)[0]?.moveId || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
+function candidateAccuracy(candidate: BattleAiValueCandidateV4): number {
+  return firstFiniteNumber(flattenedDiagnostics(candidate.diagnostics).map(entry => Number(entry.accuracy))) ?? 100;
+}
+
 function candidateKoChance(candidate: BattleAiValueCandidateV4): number {
   return firstFiniteNumber(flattenedDiagnostics(candidate.diagnostics).map(entry => Number(entry.koChance))) ?? 0;
+}
+
+function expectedDamageRatio(candidate: BattleAiValueCandidateV4): number {
+  return firstFiniteNumber(flattenedDiagnostics(candidate.diagnostics).map(entry => Number(entry.expectedDamageRatio))) ?? 0;
+}
+
+function movePriority(moveId: string): number {
+  if (!moveId) return 0;
+  try {
+    return Number(DEFAULT_DEX.getMoveDetail(toDexId(moveId)).priority || 0);
+  } catch {
+    if (moveId === "suckerpunch") return 1;
+    if (["quickattack", "aquajet", "machpunch", "bulletpunch", "iceshard", "shadowsneak", "vacuumwave"].includes(moveId)) return 1;
+    if (moveId === "extremespeed") return 2;
+    return 0;
+  }
 }
 
 function flattenedDiagnostics(diagnostics: Record<string, unknown> | undefined): Array<Record<string, unknown>> {
@@ -200,6 +328,10 @@ function firstFiniteNumber(values: number[]): number | null {
     if (Number.isFinite(value)) return value;
   }
   return null;
+}
+
+function setupWindow(input: BattleAiSinglesLeafValueInputV4): boolean {
+  return hpRatio(input.initialState.self) > 0.45 && candidateKoChance(input.foe) < 1 && expectedDamageRatio(input.foe) < 0.55;
 }
 
 function pokemonForSwitchCandidate(analysis: BattleAiTeamRoleAnalysisV4, candidate: BattleAiValueCandidateV4) {
