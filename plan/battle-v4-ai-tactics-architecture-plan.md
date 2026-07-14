@@ -1,608 +1,391 @@
-# Battle V4 AI 战术架构与扩展计划
-
-## Summary
-
-Battle V4 AI 不能只靠“招式伤害评分”解决。单打中真实威力、属性克制、STAB、KO 权重可以避免明显错误；但双打、合作、馆主战和冠军战需要 AI 理解队伍优势、识别常见战术、根据局势执行或反制。
-
-本计划把 `packages/showdown-battle-core` 中的 AI 拆成专门子系统：保留 Showdown request/validator 作为合法指令边界，新增可解释的 AI Brain 与战术模块体系。目标是让 AI 的每次选择都能回答三件事：
-
-- 我的队伍优势是什么。
-- 当前局势应该推进自己的战术，还是反制对手。
-- 为什么这个合法 choice 是当前最合理的指令。
-
-## Core Principles
-
-- Showdown 仍是规则真相：choice 格式、target suffix、特殊系统、合法性全部继续经过 `showdownCommand` normalizer/validator。
-- AI 不直接绕过规则提交命令；所有候选先生成，再评分，最后仍用 validator 过滤。
-- 伤害 evaluator 只负责单个行动的战斗收益，不承载全部战术逻辑。
-- 战术逻辑必须模块化，每个模块负责一种可解释战术意识，例如天气、空间、威吓轮转、Fake Out、保护、队友误伤。
-- 模型学习只学习权重，不学习规则本身；线上运行固定模型，保证可复现、可调试。
-- Debug 输出必须能解释候选 choice 的分数来源，不能只给最终分数。
-
-## Dex Evaluation Tag Model
-
-AI 决策的底层事实不应该直接写成“这个技能该不该点”。所有招式、特性、天气、场地、异常、空间等都先进入 `showdown-dex-core` 的评估标签系统，输出稳定的事实标签。AI 是这些标签的消费者，不是标签定义者。
-
-后续实现采用三张表：
-
-1. `DexEvalTag`：原子标签表，描述输出、风险、效果、状态、天气、场地等事实。
-2. `DexEvalTagGroup`：标签组表，把一个招式、异常、天气、特性、道具等入口对象关联到多个 tag。
-3. `DexEvalTagLink`：关系表，描述 tag 到 tagGroup 的关联语义，并控制递归展开。
-
-这个结构保留“tag 表 + tagGroup 表”的简单维护方式，同时用 link 表解决两个关键问题：
-
-- 关系语义：关联到底是造成、依赖、克制、风险、协同、阻断，不能只靠数组猜。
-- 循环控制：天气、场地、特性、道具之间会互相引用，展开 helper 必须能防止死循环。
-
-### Tag Table
-
-`DexEvalTag` 是最小事实单元，不直接代表 AI 分数。
-
-```ts
-type DexEvalTagKindV4 =
-  | "output"
-  | "risk"
-  | "effect"
-  | "state"
-  | "status"
-  | "weather"
-  | "terrain"
-  | "room"
-  | "side-condition"
-  | "ability"
-  | "item"
-  | "mechanic"
-  | "meta";
-
-type DexEvalTagV4 = {
-  id: string;
-  kind: DexEvalTagKindV4;
-  label: string;
-  description: string;
-  severity?: "low" | "medium" | "high" | "critical";
-};
-```
-
-输出评价、风险评价、关联入口都使用 tag 表表达：
-
-```ts
-export const DexEvalTagsV4: Record<string, DexEvalTagV4> = {
-  "output:none": {id: "output:none", kind: "output", label: "无伤害", description: "不会造成直接伤害"},
-  "output:low": {id: "output:low", kind: "output", label: "低伤害", description: "直接伤害偏低"},
-  "output:medium": {id: "output:medium", kind: "output", label: "中等伤害", description: "直接伤害中等"},
-  "output:high": {id: "output:high", kind: "output", label: "高伤害", description: "直接伤害较高"},
-  "output:very-high": {id: "output:very-high", kind: "output", label: "超高伤害", description: "直接伤害极高"},
-
-  "risk:low-accuracy": {id: "risk:low-accuracy", kind: "risk", label: "命中低", description: "命中率存在明显风险"},
-  "risk:charge-turn": {id: "risk:charge-turn", kind: "risk", label: "需要蓄力", description: "通常需要一回合准备"},
-  "risk:recharge-turn": {id: "risk:recharge-turn", kind: "risk", label: "下回合不能动", description: "使用后需要恢复"},
-  "risk:self-lock": {id: "risk:self-lock", kind: "risk", label: "锁招", description: "会限制后续选择"},
-  "risk:self-confuse": {id: "risk:self-confuse", kind: "risk", label: "自身混乱", description: "使用后可能让自己混乱"},
-  "risk:type-immunity-normal": {id: "risk:type-immunity-normal", kind: "risk", label: "一般属性无效风险", description: "对幽灵属性目标无效"},
-
-  "effect:inflict-status:brn": {id: "effect:inflict-status:brn", kind: "effect", label: "施加烧伤", description: "尝试让目标进入烧伤状态"},
-  "effect:stat-drop:spd": {id: "effect:stat-drop:spd", kind: "effect", label: "降低特防", description: "降低目标特防等级"},
-  "effect:set-weather:rain": {id: "effect:set-weather:rain", kind: "effect", label: "设置雨天", description: "让天气变为雨天"},
-};
-```
-
-### Tag Group Table
-
-`DexEvalTagGroup` 是入口对象。招式、异常、天气、场地、空间、特性、道具都可以有自己的 group。
-
-```ts
-type DexEvalTagGroupKindV4 =
-  | "move"
-  | "status"
-  | "weather"
-  | "terrain"
-  | "room"
-  | "side-condition"
-  | "ability"
-  | "item"
-  | "mechanic";
-
-type DexEvalTagGroupV4 = {
-  id: string;
-  kind: DexEvalTagGroupKindV4;
-  label: string;
-  tagIds: string[];
-};
-```
-
-示例：
-
-```ts
-export const DexEvalTagGroupsV4: Record<string, DexEvalTagGroupV4> = {
-  "move:willowisp": {
-    id: "move:willowisp",
-    kind: "move",
-    label: "鬼火",
-    tagIds: ["output:none", "risk:low-accuracy", "effect:inflict-status:brn"],
-  },
-  "move:acid": {
-    id: "move:acid",
-    kind: "move",
-    label: "溶解液",
-    tagIds: ["output:low", "effect:stat-drop:spd"],
-  },
-  "status:brn": {
-    id: "status:brn",
-    kind: "status",
-    label: "烧伤",
-    tagIds: ["status:brn", "effect:dot", "effect:physical-attack-cut"],
-  },
-};
-```
-
-### Tag Link Table
-
-`DexEvalTagLink` 描述 tag 和 tagGroup 之间的关系。它不是简单引用，而是带语义的有向边。
-
-```ts
-type DexEvalTagRelationV4 =
-  | "causes"
-  | "depends-on"
-  | "blocked-by"
-  | "risky-against"
-  | "synergy-with"
-  | "countered-by"
-  | "amplifies"
-  | "reduces"
-  | "reference";
-
-type DexEvalTagLinkV4 = {
-  fromTagId: string;
-  toGroupId: string;
-  relation: DexEvalTagRelationV4;
-  direction: "forward" | "reference-only";
-  maxDepth?: number;
-  weight?: number;
-  note?: string;
-};
-```
-
-示例：
-
-```ts
-export const DexEvalTagLinksV4: DexEvalTagLinkV4[] = [
-  {
-    fromTagId: "effect:inflict-status:brn",
-    toGroupId: "status:brn",
-    relation: "causes",
-    direction: "forward",
-    maxDepth: 1,
-  },
-  {
-    fromTagId: "status:brn",
-    toGroupId: "ability:guts",
-    relation: "risky-against",
-    direction: "reference-only",
-  },
-  {
-    fromTagId: "status:brn",
-    toGroupId: "ability:marvelscale",
-    relation: "risky-against",
-    direction: "reference-only",
-  },
-  {
-    fromTagId: "effect:set-weather:rain",
-    toGroupId: "weather:rain",
-    relation: "causes",
-    direction: "forward",
-    maxDepth: 1,
-  },
-];
-```
-
-### Resolve Rules
-
-展开 tagGroup 时必须严格防止循环应用。
-
-```ts
-type DexEvalResolveOptionsV4 = {
-  maxDepth?: number;
-  includeRelations?: DexEvalTagRelationV4[];
-  excludeRelations?: DexEvalTagRelationV4[];
-};
-
-type DexEvalResolvedTagPathV4 = {
-  tagId: string;
-  viaGroupId: string;
-  relation?: DexEvalTagRelationV4;
-  depth: number;
-  path: string[];
-};
-
-type DexEvalResolvedGroupV4 = {
-  rootGroupId: string;
-  tags: DexEvalTagV4[];
-  groups: DexEvalTagGroupV4[];
-  links: DexEvalTagLinkV4[];
-  paths: DexEvalResolvedTagPathV4[];
-  diagnostics: {
-    skippedCycles: string[];
-    truncatedByDepth: string[];
-    missingTags: string[];
-    missingGroups: string[];
-  };
-};
-```
-
-硬规则：
-
-- 默认 `maxDepth = 2`，不能无限展开。
-- 每次展开维护 `visitedTagIds` 和 `visitedGroupIds`。
-- 同一个 tag 多路径出现时合并，保留最短 path。
-- `direction: "reference-only"` 只展示引用，不继续递归。
-- `blocked-by`、`risky-against` 默认不继续展开，只作为风险引用。
-- `causes`、`depends-on`、`synergy-with` 可以展开，但必须受 `maxDepth` 和 `visited` 限制。
-- 展开结果必须带 diagnostics，方便排查循环、缺 tag、缺 group。
-
-伪代码：
-
-```ts
-function resolveDexEvalTagGroupV4(groupId, options) {
-  const visitedGroups = new Set();
-  const visitedTags = new Set();
-
-  function walkGroup(id, depth, path) {
-    if (depth > maxDepth) return markTruncated(id);
-    if (visitedGroups.has(id)) return markCycle(id);
-    visitedGroups.add(id);
-
-    for (const tagId of group(id).tagIds) {
-      if (!visitedTags.has(tagId)) collectTag(tagId, depth, path);
-      visitedTags.add(tagId);
-
-      for (const link of linksFrom(tagId)) {
-        if (link.direction !== "forward") collectReference(link);
-        else if (relationAllowed(link.relation)) walkGroup(link.toGroupId, depth + 1, [...path, tagId]);
-      }
-    }
-  }
-}
-```
-
-### Dex Helpers
-
-后续工作集中在 `packages/showdown-dex-core`：维护三张表，并提供 resolver/helper。
-
-```ts
-getDexEvalTagV4(tagId: string): DexEvalTagV4 | null;
-getDexEvalTagGroupV4(groupId: string): DexEvalTagGroupV4 | null;
-getDexEvalTagLinksFromV4(tagId: string): DexEvalTagLinkV4[];
-resolveDexEvalTagGroupV4(groupId: string, options?: DexEvalResolveOptionsV4): DexEvalResolvedGroupV4;
-
-evaluateMoveTagGroupV4(moveId: string): DexEvalResolvedGroupV4;
-evaluateAbilityTagGroupV4(abilityId: string): DexEvalResolvedGroupV4;
-evaluateWeatherTagGroupV4(weatherId: string): DexEvalResolvedGroupV4;
-evaluateTerrainTagGroupV4(terrainId: string): DexEvalResolvedGroupV4;
-evaluateStatusTagGroupV4(statusId: string): DexEvalResolvedGroupV4;
-```
-
-`showdown-battle-core` 的 AI 只读取 resolver 输出，再结合当前 battle state 解释价值。例如：
-
-- `Will-O-Wisp` 的 move group 包含 `effect:inflict-status:brn`，通过 link 展开到 `status:brn`，再看到烧伤的稳定扣血、物攻减半、毅力风险、奇异鳞片风险。
-- `Acid` 的 move group 包含低输出和降特防；是否值得点要看当前目标、队友是否有特攻手、是否需要越过 KO 线。
-- `Screech / Charm` 只通过能力变化 tag 表达，不归为“控制敌方”；控制应该留给异常、行动限制、强制换人等。
-- `Thunder Wave` 通过异常/控速 tag group 展开；是否值得点取决于目标速度线、免疫、精神场地、队伍计划。
-
-## Target Architecture
-
-建议在 `packages/showdown-battle-core/src/ai/` 下建立专门 AI 子系统：
-
-```text
-ai/
-  index.ts
-  aiBrain.ts
-  aiTypes.ts
-  aiFeatureExtractor.ts
-  aiTeamPlan.ts
-  aiSituation.ts
-  aiCandidateGenerator.ts
-  aiCandidateScorer.ts
-  aiLearning.ts
-
-  evaluators/
-    moveDamageEvaluator.ts
-    switchEvaluator.ts
-    supportEvaluator.ts
-
-  tactics/
-    directKoTactic.ts
-    targetPriorityTactic.ts
-    friendlyFireTactic.ts
-    protectTactic.ts
-    fakeOutTactic.ts
-    trickRoomTactic.ts
-    tailwindTactic.ts
-    weatherTactic.ts
-    intimidatePivotTactic.ts
-    redirectionTactic.ts
-    setupTactic.ts
-    antiSetupTactic.ts
-    itemDisruptTactic.ts
-
-  models/
-    defaultWeights.ts
-    gymLeaderWeights.ts
-    championWeights.ts
-```
-
-现有 `src/ai.ts` 后续逐步变成薄入口：
-
-```ts
-export function chooseAiBattleChoiceV4(context) {
-  const request = normalizeShowdownChoiceRequestV4(context.request);
-  const brain = analyzeBattleAiBrainV4({snapshot, request, playerId, aiProfile});
-  const candidates = generateLegalAiCandidatesV4({request, snapshot, playerId});
-  const scored = scoreAiCandidatesV4({brain, candidates, model, context});
-  return pickBestLegalChoiceV4({request, scored, fallback});
-}
-```
-
-## AI Brain
-
-AI Brain 是一回合决策前的局势理解结果，不直接提交 choice。
-
-### Team Plan
-
-`analyzeTeamPlanV4()` 负责识别己方队伍优势：
-
-- 天气：rain、sun、sand、snow。
-- 速度控制：Trick Room、Tailwind、Icy Wind、Electroweb、Thunder Wave。
-- 轮转：Intimidate、Parting Shot、U-turn、Volt Switch、Regenerator。
-- 保护与辅助：Protect、Wide Guard、Quick Guard、Follow Me、Rage Powder。
-- 压制：Fake Out、Taunt、Encore、Spore、Will-O-Wisp。
-- 强化：Swords Dance、Dragon Dance、Nasty Plot、Calm Mind、Shell Smash。
-- 输出核心：高火力打手、天气打手、空间慢速打手、强化清场手。
-
-输出示例：
-
-```ts
-type BattleAiTeamPlanV4 = {
-  archetypes: Array<"rain" | "sun" | "sand" | "trick-room" | "tailwind" | "setup" | "pivot" | "balanced">;
-  winConditions: string[];
-  keyPokemon: string[];
-  supportMoves: string[];
-  riskNotes: string[];
-};
-```
-
-### Situation
-
-`analyzeBattleSituationV4()` 负责识别当前局势：
-
-- 谁能立即 KO 谁。
-- 哪个目标威胁最高。
-- 当前天气、空间、顺风、场地对谁有利。
-- 是否需要开、抢、拖、反制天气或空间。
-- 当前 active 是否是核心，需要保护或换下。
-- 双打里是否存在队友误伤风险。
-- 对方是否可能开空间、强化、集火、保护、换人。
-
-输出示例：
-
-```ts
-type BattleAiSituationV4 = {
-  mode: "attack" | "setup-own-plan" | "deny-opponent-plan" | "protect-core" | "stall-field-turns" | "pivot";
-  priorities: BattleAiTacticalPriorityV4[];
-  activeThreats: BattleAiThreatV4[];
-  fieldState: BattleAiFieldStateV4;
-};
-```
-
-## Tactic Module Interface
-
-每个战术模块只做两件事：识别机会、给候选加减分。模块不能生成非法 choice，也不能跳过 validator。
-
-建议接口：
-
-```ts
-type BattleAiTacticModuleV4 = {
-  id: string;
-  applies(input: BattleAiTacticInputV4): boolean;
-  score(input: BattleAiTacticInputV4): BattleAiTacticScoreV4;
-};
-
-type BattleAiTacticScoreV4 = {
-  delta: number;
-  features: Record<string, number>;
-  reasons: string[];
-};
-```
-
-候选总分：
-
-```ts
-finalScore =
-  baseDamageScore
-  + koScore
-  + tacticDeltas
-  + learnedWeightScore
-  + trainerPersonalityBias
-  - riskPenalty
-```
-
-每个模块必须提供测试 fixture，证明它在应该触发时触发，在不该触发时不触发。
-
-## First Tactic Modules
-
-### Direct KO
-
-- 能稳定 KO 时大幅加分。
-- 馆主级以上禁止明显低分招式盖过稳定 KO。
-- 如果当前可直接收掉高威胁目标，不应点无关辅助。
-
-### Target Priority
-
-- 双打中优先击杀低血高威胁目标。
-- 单体招式必须正确区分 `+1` / `+2`。
-- 集火目标要结合威胁、血量、抗性和 KO 线。
-
-### Friendly Fire
-
-- `Earthquake`、`Surf`、`Discharge`、`Explosion` 等会打队友的招式必须扣分。
-- 如果队友免疫、吸收或收益，例如 Flying/Levitate 免疫地震，扣分降低或转为加分。
-- 如果队友会被范围招 KO，除非能赢下战斗，否则禁止高分。
-
-### Weather
-
-- 识别 Rain/Sun/Sand/Snow 队伍结构。
-- 天气未启动且己方天气收益高时，提高开天气价值。
-- 天气已对己方有利时，提高对应属性与能力打手价值。
-- 对方天气收益更高时，考虑抢天气或拖天气。
-
-### Trick Room
-
-- 识别慢速队、空间手、空间打手。
-- 我方慢速且攻击收益低时，提高开空间价值。
-- 对方空间队将要启动时，提高 Taunt、Fake Out、集火空间手价值。
-- 空间已开且对己方不利时，考虑 Protect、换人、拖回合。
-
-### Tailwind / Speed Control
-
-- 我方高速压制队提高 Tailwind 价值。
-- 对方速度明显领先且我方无法直接 KO 时，提高速度控制价值。
-- 已经能直接 KO 时，不让速度控制抢掉必杀。
-
-### Protect / Wide Guard / Quick Guard
-
-- 核心残血、被双集火风险高时 Protect 加分。
-- 对方范围招威胁明显时 Wide Guard 加分。
-- 对方先制威胁明显时 Quick Guard 加分。
-- 不能在明显必杀局频繁点保护。
-
-### Fake Out
-
-- 首回合或刚上场时识别 Fake Out 可用性。
-- 优先拍空间手、天气手、强化手、能 KO 我方核心的高威胁目标。
-- 对 Ghost、Inner Focus、Covert Cloak 等风险扣分。
-
-### Intimidate Pivot
-
-以咆哮虎等威吓手为典型：
-
-- 后排有威吓手且对方物攻威胁高时，提高换入威吓手价值。
-- 威吓手在场时，提高 Fake Out、Parting Shot、Knock Off 等局势操作价值。
-- 对特殊攻击手威吓收益低，不乱换。
-- 对 Defiant、Competitive、Clear Body 等反威吓目标扣分。
-- 换入后会被秒时扣分。
-
-### Redirection
-
-- Follow Me / Rage Powder 保护己方核心或空间手时加分。
-- 对方有草系、防尘、防粉、范围招时降低 Rage Powder 价值。
-- 如果核心已安全或可直接 KO，不让 redirection 抢掉强行动。
-
-## Learning Model
-
-学习系统不应直接替代战术模块。推荐路线：
-
-1. 战术模块产出可解释 features。
-2. 战斗日志记录每个候选 choice 的 features、score、selected、局势结果。
-3. 离线训练权重。
-4. 生成固定模型权重表。
-5. 线上 AI 只加载固定权重，不在线改变行为。
-
-候选日志建议：
-
-```ts
-type BattleAiDecisionTrainingRowV4 = {
-  battleId: string;
-  turn: number;
-  playerId: string;
-  aiLevel: string;
-  trainerId?: string;
-  teamPlan: BattleAiTeamPlanV4;
-  situation: BattleAiSituationV4;
-  candidates: Array<{
-    choice: string;
-    legal: boolean;
-    selected: boolean;
-    features: Record<string, number>;
-    tacticReasons: string[];
-    score: number;
-  }>;
-  outcome?: {
-    hpSwing: number;
-    koSwing: number;
-    preservedWinCondition: boolean;
-    wonBattle?: boolean;
-  };
-};
-```
-
-首版模型使用线性权重：
-
-```ts
-score = sum(feature * weight)
-```
-
-优点：
-
-- 可解释。
-- 可手调。
-- 可离线训练。
-- 可按 AI 等级和训练师性格切换。
-- 不会绕过 Showdown validator。
-
-## AI Level Behavior
-
-- `rookie`：主要使用基础伤害和少量随机，允许明显失误。
-- `normal`：使用伤害、克制、KO、基本目标选择。
-- `elite`：启用天气、空间、保护、双打目标优先级。
-- `gymLeader`：启用队伍流派识别和主要战术模块，减少明显失误。
-- `eliteFour`：启用更多反制模块，例如 anti-setup、redirection、friendly fire。
-- `champion`：启用完整战术模块、低随机、明显优势禁错、更多保核心和反制判断。
-
-训练师性格通过权重偏置体现：
-
-- offense：更重视 KO、压制、速度控制。
-- defense：更重视保护、换人、回复、风险规避。
-- support：更重视天气、空间、redirection、Fake Out、Wide Guard。
-- balanced：权重均衡。
-
-## Test Strategy
-
-每个战术模块至少配一组正反 fixture：
-
-- 正例：该战术应该触发，并让对应 choice 排在前列。
-- 反例：局面不适合该战术时不能乱触发。
-- 冲突例：直接 KO、保护核心、开空间等多个战术冲突时，优先级符合预期。
-
-优先压测场景：
-
-- 单打：明显弱点、免疫、稳定 KO、低命中高威力和稳定招式取舍。
-- 双打：`+1/+2` 目标选择、范围招收益、队友误伤、集火残血高威胁。
-- 天气：雨天水打手、晴天火打手、沙暴岩石/地面/钢收益、抢天气。
-- 空间：己方慢速开空间、对方空间手反制、空间回合拖延。
-- 威吓：换入威吓手、避免送 Defiant、Parting Shot 轮转。
-- 保护：核心残血 Protect、Wide Guard 防范围、不能错过必杀。
-
-## Rollout Plan
-
-1. 保留当前 `chooseAiBattleChoiceV4` 行为，先增加 `ai/` 子系统并由旧入口调用。
-2. 把当前伤害 evaluator 移入 `ai/evaluators/`。
-3. 新增 `aiBrain`，先只输出 teamPlan/situation/debug，不改变选择。
-4. 分批启用战术模块，每启用一批就加 fixture。
-5. AI debug 中展示每个 tactic 的 delta 和 reason。
-6. 稳定后增加 `aiLearning` 日志采集，但默认不影响线上行为。
-7. 最后再引入离线权重训练产物。
-
-## Non-Goals
-
-- 不在本阶段做黑盒神经网络决策。
-- 不让 AI 在线自学习并即时改变正式战斗行为。
-- 不绕过 Showdown validator。
-- 不追求一次覆盖全部宝可梦战术；优先建立可扩展架构。
-- 不把所有战术硬塞进伤害 evaluator。
-
-## Acceptance Criteria
-
-- AI 代码从单一 `ai.ts` 收敛到可维护的 AI 子系统。
-- 每个战术模块有明确输入、输出、debug reason 和测试 fixture。
-- 常见双打基础战术能够被解释和压测。
-- 馆主级以上不会因为随机噪声覆盖明显正确选择。
-- 后续新增咆哮虎威吓轮转、空间队、雨天队等，只需要新增或调整战术模块，不需要重写主 AI。
+# Battle V4 AI Minimax 实时算法开发清单
+
+## 最终决定
+
+- [x] Battle V4 AI 下一阶段采用 **Minimax 实时算法**。
+- [x] 不训练实时出招模型。
+- [x] 不让 LLM / 小模型直接决定 choice。
+- [x] 不做完整 Showdown 战斗模拟器替代。
+- [x] Showdown request / validator 继续作为合法行动边界。
+- [x] 当前 `aiMoveEvaluator` / NumericGuard 作为 depth 1 叶子评分基础。
+- [x] Minimax 负责比较未来局面，不负责生成非法指令。
+
+## 总流程
+
+- [x] 输入：battle snapshot、Showdown request、双方队伍、AI profile。
+- [x] 处理：合法行动枚举 -> 数值化局面 -> outcome 估算 -> Minimax 搜索 -> 局面评分。
+- [x] 输出：选择最高分合法 choice。
+- [x] 最终提交前仍经过 validator。
+- [ ] Debug 串起来：`legalActions -> numericState -> actionDelta -> searchTree -> chosenAction`。
+
+## 0. 当前基础确认
+
+- [x] 已有 `chooseAiBattleChoiceV4` 入口。
+- [x] 已有合法 choice / fallback 框架。
+- [x] 已有 AI profile、noise、mistake rate 框架。
+- [x] 已有 `aiMoveEvaluator`。
+- [x] 已能计算真实 move data。
+- [x] 已能计算 type multiplier。
+- [x] 已能计算 STAB。
+- [x] 已能计算 accuracy。
+- [x] 已能计算 damage range。
+- [x] 已能计算 expected damage ratio。
+- [x] 已能计算 KO chance。
+- [x] 已有 Tyranitar vs Ceruledge 回归：馆主级以上不应点 Ice Beam。
+- [ ] 跑一次现有测试，确认当前 NumericGuard 基线稳定。
+
+## 1. 算法依据
+
+- [x] 本地保存 PokéChamp 论文：`docs/reference/pokechamp-paper.pdf`。
+- [x] 记录 PokéChamp 使用 minimax tree search 的思路。
+- [x] 记录论文中的 one-step world model / damage estimator 思路。
+- [x] 区分 PokéChamp minimax 论文和 FoulPlay / MCTS 报道。
+- [x] Battle V4 第一版不实现 LLM action sampling。
+- [x] Battle V4 第一版不实现 LLM opponent modeling。
+- [x] Battle V4 第一版不实现 LLM value estimation。
+- [x] Battle V4 采用本地规则算法实时计算。
+
+## 2. Search Engine 骨架
+
+- [ ] 新增 `aiSearchEngineV4.ts`。
+- [ ] 新增 `chooseBattleAiActionBySearchV4(input)`。
+- [ ] 新增 `BattleAiSearchInputV4`。
+- [ ] 新增 `BattleAiSearchResultV4`。
+- [ ] 新增 `BattleAiSearchNodeV4`。
+- [ ] 新增 `BattleAiSearchBudgetV4`。
+- [ ] 支持 depth 1 直接调用现有 NumericGuard scorer。
+- [ ] 支持 depth > 1 进入 Minimax。
+- [ ] 支持 alpha-beta pruning。
+- [ ] 支持 iterative deepening。
+- [ ] 支持 hard time budget。
+- [ ] 超时返回当前已知 best legal action。
+- [ ] 搜索异常返回 `fallbackLegalChoiceV4`。
+
+## 3. AI 等级映射
+
+- [ ] `rookie`：depth 1。
+- [ ] `normal`：depth 2。
+- [ ] `elite`：depth 3。
+- [ ] `gymLeader`：depth 4。
+- [ ] `eliteFour`：depth 5。
+- [ ] `champion`：depth 6。
+- [ ] 所有等级共享 10s hard upper bound。
+- [ ] 低等级保留更高 noise。
+- [ ] 馆主级以上启用明显优势禁错。
+- [ ] 深度不足或超时时降级到当前最佳浅层结果。
+
+## 4. Budget 参数
+
+- [ ] 定义 `maxDepth`。
+- [ ] 定义 `maxMs`。
+- [ ] 定义 `ownTopK`。
+- [ ] 定义 `foeTopK`。
+- [ ] 定义 `maxNodes`。
+- [ ] 定义 `maxJointActions`。
+- [ ] 定义 `maxAllyComboActions`。
+- [ ] Debug 输出 `searchedDepth`。
+- [ ] Debug 输出 `visitedNodes`。
+- [ ] Debug 输出 `elapsedMs`。
+- [ ] Debug 输出 `truncatedReason`。
+
+## 5. Numeric State
+
+- [ ] 新增 `BattleAiNumericStateV4`。
+- [ ] 新增 `BattleAiPokemonNumericStateV4`。
+- [ ] 实现 `buildBattleAiNumericStateV4()`。
+- [ ] 读取双方 active。
+- [ ] 读取可见后排。
+- [ ] 读取 HP / maxHP / hpRatio。
+- [ ] 读取 species / types。
+- [ ] 读取 item。
+- [ ] 读取 ability / baseAbility。
+- [ ] 读取 status。
+- [ ] 读取 boosts。
+- [ ] 读取 stats。
+- [ ] 缺失 stats 时用 dex baseStats + level 估算。
+- [ ] diagnostics 标记 `estimatedStats`。
+- [ ] 计算 effective speed。
+- [ ] 计算 priority 前的速度线。
+- [ ] 处理 Tailwind 速度修正。
+- [ ] 处理 Trick Room 速度反转。
+- [ ] 处理 paralysis 速度修正。
+- [ ] 处理常见天气速度特性占位。
+- [ ] 处理 Choice Scarf 占位。
+
+## 6. 合法行动枚举
+
+- [ ] 新增 `BattleAiSingleActionV4`。
+- [ ] 新增 `BattleAiJointActionV4`。
+- [ ] 实现 `generateLegalBattleAiSingleActionsV4()`。
+- [ ] 实现 `generateLegalBattleAiJointActionsV4()`。
+- [ ] 单打枚举 move。
+- [ ] 单打枚举 switch。
+- [ ] 双打枚举每个 active 的 move。
+- [ ] 双打枚举每个 active 的 switch。
+- [ ] 双打组合两个 active 的行动。
+- [ ] 正确保留 targetLoc。
+- [ ] 允许合法 ally target。
+- [ ] 允许合法 self target。
+- [ ] 排除 fainted target。
+- [ ] 排除 request 不存在的 move。
+- [ ] 排除 validator 不通过的 choice。
+- [ ] joint action 最终能还原成 Showdown choice string。
+
+## 7. 候选剪枝
+
+- [ ] 单个 active 先用 depth 1 scorer 排序。
+- [ ] 我方候选保留 `ownTopK`。
+- [ ] 对手候选保留 `foeTopK`。
+- [ ] 双打先生成 per-active top actions。
+- [ ] 双打再组合 joint actions。
+- [ ] joint actions 按初评保留 `maxJointActions`。
+- [ ] 明显 KO 候选强制保留。
+- [ ] 明显保护保命候选强制保留。
+- [ ] 明显控速候选强制保留。
+- [ ] ally combo 候选单独保留少量名额。
+
+## 8. One-Step Outcome Estimator
+
+- [ ] 新增 `BattleAiActionOutcomeV4`。
+- [ ] 实现 `estimateBattleAiActionOutcomeV4()`。
+- [ ] 复用现有 `evaluateBattleAiMoveV4()`。
+- [ ] 估算伤害范围。
+- [ ] 估算 expected damage。
+- [ ] 估算 KO chance。
+- [ ] 估算命中风险。
+- [ ] 估算 priority。
+- [ ] 估算行动顺序。
+- [ ] 估算 switch 后承伤收益。
+- [ ] 估算保护收益。
+- [ ] 估算回复收益。
+- [ ] 估算强化收益。
+- [ ] 估算削弱收益。
+- [ ] 估算异常收益。
+- [ ] 估算天气变化。
+- [ ] 估算场地变化。
+- [ ] 估算 Trick Room 变化。
+- [ ] 估算 Tailwind 变化。
+- [ ] 未覆盖效果写 diagnostics。
+
+## 9. 局面推进
+
+- [ ] 新增 `applyBattleAiOutcomeToNumericStateV4()`。
+- [ ] 应用 HP delta。
+- [ ] 应用 fainted 状态。
+- [ ] 应用 stat stage delta。
+- [ ] 应用 status delta。
+- [ ] 应用 weather delta。
+- [ ] 应用 terrain delta。
+- [ ] 应用 Tailwind turn delta。
+- [ ] 应用 Trick Room turn delta。
+- [ ] 应用 switch delta。
+- [ ] 不确定随机结果用 expected state。
+- [ ] 高风险随机结果写 outcome bucket。
+- [ ] 不追求完整 Showdown 事件顺序。
+
+## 10. Outcome Bucket
+
+- [ ] 新增 `BattleAiOutcomeBucketV4`。
+- [ ] 新增 `BattleAiDamageBucketV4`。
+- [ ] 支持 `immune`。
+- [ ] 支持 `negligible`。
+- [ ] 支持 `chip`。
+- [ ] 支持 `pressure`。
+- [ ] 支持 `two-hit-ko`。
+- [ ] 支持 `near-ko`。
+- [ ] 支持 `possible-ko`。
+- [ ] 支持 `guaranteed-ko`。
+- [ ] 支持 `selfRiskBucket`。
+- [ ] 支持 `speedBucket`。
+- [ ] 支持 `fieldBucket`。
+- [ ] 支持 `comboBucket`。
+- [ ] 搜索节点可用 bucket 合并近似状态。
+
+## 11. 局面评分 Value Function
+
+- [ ] 新增 `scoreBattleAiNumericStateV4()`。
+- [ ] 我方剩余 HP 加分。
+- [ ] 对方剩余 HP 扣分。
+- [ ] 我方 KO 对手加分。
+- [ ] 我方被 KO 扣分。
+- [ ] 击杀高威胁目标额外加分。
+- [ ] 保住我方核心额外加分。
+- [ ] 我方速度权加分。
+- [ ] 对方速度权扣分。
+- [ ] 我方有利天气加分。
+- [ ] 对方有利天气扣分。
+- [ ] 我方有利场地加分。
+- [ ] 对方有利场地扣分。
+- [ ] 我方有利 Trick Room 加分。
+- [ ] 对方有利 Trick Room 扣分。
+- [ ] 我方有利 Tailwind 加分。
+- [ ] 对方有利 Tailwind 扣分。
+- [ ] 我方强化加分。
+- [ ] 对方强化扣分。
+- [ ] 我方异常扣分。
+- [ ] 对方异常加分。
+- [ ] 风险项单独输出。
+- [ ] reasons 可解释。
+
+## 12. Minimax
+
+- [ ] 新增 `searchBattleAiMinimaxV4()`。
+- [ ] 我方节点取 max。
+- [ ] 对手节点取 min。
+- [ ] 支持 alpha-beta pruning。
+- [ ] 支持 iterative deepening。
+- [ ] 支持 transposition cache。
+- [ ] cache key 使用 bucket state。
+- [ ] depth 到 0 时调用 value function。
+- [ ] 超过 `maxNodes` 截断。
+- [ ] 超过 `maxMs` 截断。
+- [ ] 截断时返回当前 best。
+- [ ] 对手 policy 第一版使用同一套 scorer 近似。
+- [ ] Debug 记录 top principal variation。
+
+## 13. 双打 Joint Action
+
+- [ ] 双打搜索以 joint action 为单位。
+- [ ] 一个 joint action 包含两个 active 的行动。
+- [ ] 支持 move + move。
+- [ ] 支持 move + switch。
+- [ ] 支持 switch + move。
+- [ ] 支持 switch + switch。
+- [ ] 支持 move target foe。
+- [ ] 支持 move target ally。
+- [ ] 支持 move target self。
+- [ ] 支持 spread move。
+- [ ] spread move 伤害估算第一版复用现有 evaluator。
+- [ ] 队友误伤必须扣分。
+- [ ] 只有 combo detector 命中时，打队友才允许获得正向战术分。
+
+## 14. Ally Combo Detector
+
+- [ ] 新增 `detectBattleAiAllyCombosV4()`。
+- [ ] 支持 Weakness Policy。
+- [ ] 支持 Contrary。
+- [ ] 支持 Flash Fire。
+- [ ] 支持 Lightning Rod。
+- [ ] 支持 Storm Drain。
+- [ ] 支持 Water Absorb。
+- [ ] 支持 Volt Absorb。
+- [ ] 支持 Sap Sipper。
+- [ ] 支持 Motor Drive。
+- [ ] 支持 Anger Point 占位。
+- [ ] 支持 Surf / Discharge / Earthquake + 队友免疫或吸收占位。
+- [ ] combo 必须检查是否会击杀队友。
+- [ ] combo 必须检查触发后队友是否有输出窗口。
+- [ ] combo 必须输出 `comboId`。
+- [ ] combo 必须输出 benefit。
+- [ ] combo 必须输出 risk。
+- [ ] combo 必须进入 debug。
+
+## 15. 特殊招式第一批
+
+- [ ] Protect：残血会被击杀或被双点时加分。
+- [ ] Protect：己方稳定 KO 且不需要保护时扣分。
+- [ ] Fake Out：仅首回合/可用时保留高权重。
+- [ ] Fake Out：不可用时剪枝或强扣分。
+- [ ] Sucker Punch：目标高概率攻击时加分。
+- [ ] Sucker Punch：目标高概率变化招时扣分。
+- [ ] Tailwind：我方无顺风且速度线收益明显时加分。
+- [ ] Tailwind：我方已有顺风时扣分或剪枝。
+- [ ] Trick Room：低速队收益时加分。
+- [ ] Trick Room：高速队自毁时扣分。
+- [ ] Weather move：能抢天气且己方收益高时加分。
+- [ ] Terrain move：能抢场地且己方收益高时加分。
+- [ ] Recovery：能脱离 KO 线时加分。
+- [ ] Setup move：有存活窗口和后续收益时加分。
+
+## 16. 接入 chooseAiBattleChoiceV4
+
+- [ ] 保留原入口。
+- [ ] 保留原 fallback。
+- [ ] 新搜索结果转回原 choice 格式。
+- [ ] choice 提交前再次 validator。
+- [ ] depth 1 使用现有 evaluator 结果。
+- [ ] depth 2+ 使用 Minimax。
+- [ ] 配置开关：可关闭 Minimax 回到 NumericGuard。
+- [ ] Debug 中标记 `strategy: "numeric-guard" | "minimax"`。
+
+## 17. Debug
+
+- [ ] `BattleAiDecisionDebugV4` 增加 `search` 字段。
+- [ ] 输出 budget。
+- [ ] 输出 depth。
+- [ ] 输出节点数。
+- [ ] 输出耗时。
+- [ ] 输出截断原因。
+- [ ] 输出 top candidates。
+- [ ] 输出 principal variation。
+- [ ] 输出每个候选的 score parts。
+- [ ] 输出每个候选的 outcome bucket。
+- [ ] 输出 ally combo reasons。
+- [ ] 输出 fallback reason。
+
+## 18. 单打测试
+
+- [ ] Tyranitar vs Ceruledge：Ice Beam 不应被 gymLeader+ 选择。
+- [ ] 免疫测试。
+- [ ] 抵抗测试。
+- [ ] 克制测试。
+- [ ] 四倍克制测试。
+- [ ] STAB 测试。
+- [ ] 物理伤害读取 atk/def。
+- [ ] 特殊伤害读取 spa/spd。
+- [ ] 命中低但可 KO 的招式测试。
+- [ ] 稳定 KO 不被低命中高威力乱压。
+- [ ] priority 先手测试。
+- [ ] Trick Room 速度反转测试。
+- [ ] Tailwind 速度翻倍测试。
+- [ ] Protect 保命测试。
+- [ ] Fake Out 可用性测试。
+- [ ] Sucker Punch 场景测试。
+- [ ] switch 抗性测试。
+
+## 19. 双打测试
+
+- [ ] 单体招按 targetLoc 分别评分。
+- [ ] 不攻击 fainted 目标。
+- [ ] spread move 命中多个目标。
+- [ ] spread move 计算队友误伤。
+- [ ] 双点 KO 威胁下 Protect 分提高。
+- [ ] Fake Out 阻止 Trick Room。
+- [ ] Tailwind mirror 场景。
+- [ ] Trick Room vs 高速队场景。
+- [ ] Weather war 场景。
+- [ ] Weakness Policy 打队友触发场景。
+- [ ] Contrary + stat drop 打队友强化场景。
+- [ ] Flash Fire 队友触发场景。
+- [ ] Lightning Rod / Storm Drain 队友吸收场景。
+- [ ] Surf / Discharge / Earthquake 配合免疫场景。
+- [ ] joint action 不能生成非法 target suffix。
+
+## 20. 性能测试
+
+- [ ] 单打 depth 1 在 100ms 内。
+- [ ] 单打 depth 2 在 500ms 内。
+- [ ] 单打 depth 3 在 2s 内。
+- [ ] 双打 depth 1 在 300ms 内。
+- [ ] 双打 depth 2 在 2s 内。
+- [ ] 双打 depth 3 在 5s 内。
+- [ ] champion hard budget 不超过 10s。
+- [ ] 超时能返回合法 best-so-far。
+- [ ] maxNodes 截断能返回合法 best-so-far。
+
+## 21. 必跑检查
+
+- [ ] `pnpm --filter @changebattle-v2/showdown-battle-core test`
+- [ ] `pnpm --filter @changebattle-v2/api typecheck`
+- [ ] `pnpm --filter @changebattle-v2/web typecheck`
+- [ ] `git diff --check`
+
+## 22. 非目标
+
+- [x] 不做实时模型训练。
+- [x] 不做 LLM 直接出招。
+- [x] 不做完整 MCTS。
+- [x] 不做完整 Showdown 模拟器替代。
+- [x] 不绕过 validator。
+- [x] 不一次性覆盖全部双打高级战术。
+- [x] 不用玩家历史操作做读心式针对。
