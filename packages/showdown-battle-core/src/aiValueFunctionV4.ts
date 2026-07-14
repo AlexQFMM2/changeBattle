@@ -4,6 +4,7 @@ import type {
   ShowdownPlayerIdV4,
 } from "./types.js";
 import type {BattleAiRoleTagSubtypeV4, BattleAiTeamRoleAnalysisV4} from "./aiTeamRoleAnalyzerV4.js";
+import {battleAiOutcomeBucketScoreV4} from "./aiOutcomeBucketsV4.js";
 
 export type BattleAiValueCandidateV4 = {
   choice: string;
@@ -101,24 +102,6 @@ export function evaluateBattleAiSinglesLeafValueV4(input: BattleAiSinglesLeafVal
   };
 }
 
-export function battleAiOutcomeBucketScoreV4(buckets: BattleAiOutcomeBucketV4[]): number {
-  const weights: Record<BattleAiOutcomeBucketV4, number> = {
-    "ko": 82,
-    "joint-ko": 76,
-    "threaten-ko": 22,
-    "self-ko-risk": -92,
-    "revenge-kill-risk": -30,
-    "safe-switch": 16,
-    "unsafe-switch": -46,
-    "setup-weather": 18,
-    "enable-wincon": 28,
-    "preserve-wincon": 24,
-    "hazard-progress": 20,
-    "status-progress": 12,
-  };
-  return uniqueBuckets(buckets).reduce((sum, bucket) => sum + weights[bucket], 0);
-}
-
 function roleValueBonus(input: BattleAiSinglesLeafValueInputV4): number {
   const analysis = input.roleAnalysis;
   if (!analysis) return 0;
@@ -184,10 +167,6 @@ function hpRatio(pokemon: BattleAiNumericPokemonForValueV4): number {
 
 function resourceRatio(value: number | undefined): number {
   return Math.max(0, Math.min(1, Number.isFinite(value) ? Number(value) : 0));
-}
-
-function uniqueBuckets(buckets: BattleAiOutcomeBucketV4[]): BattleAiOutcomeBucketV4[] {
-  return [...new Set(buckets)];
 }
 
 function candidateMoveId(candidate: BattleAiValueCandidateV4): string {

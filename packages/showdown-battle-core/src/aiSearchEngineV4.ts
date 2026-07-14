@@ -16,12 +16,12 @@ import type {BattleAiRoleTagSubtypeV4, BattleAiTeamRoleAnalysisV4} from "./aiTea
 import {evaluateBattleAiMoveV4} from "./aiMoveEvaluator.js";
 import {parseShowdownChoiceCommandV4, type ShowdownSpecialChoiceV4} from "./showdownCommand.js";
 import {
-  battleAiOutcomeBucketScoreV4,
   evaluateBattleAiSinglesLeafValueV4,
   type BattleAiSideResourceStateV4,
   type BattleAiSinglesNumericStateForValueV4,
   type BattleAiValueBreakdownV4,
 } from "./aiValueFunctionV4.js";
+import {battleAiOutcomeBucketScoreV4} from "./aiOutcomeBucketsV4.js";
 
 export type BattleAiCandidateV4 = {
   choice: string;

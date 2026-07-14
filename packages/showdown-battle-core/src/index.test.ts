@@ -5,6 +5,7 @@ import {
   filterShowdownChoiceForRuleSetV4,
   generateShowdownRandomTeamV4,
   analyzeBattleAiTeamRolesV4,
+  battleAiDamageBucketForEstimateV4,
   battleAiCapabilityForLevelV4,
   battleAiEffectiveSearchBudgetForModeV4,
   battleAiSearchBudgetForLevelV4,
@@ -2479,6 +2480,26 @@ function aiValueFunctionResourceSmoke() {
   console.log("showdown-battle-core ai value function resource smoke ok");
 }
 
+function aiOutcomeBucketsSmoke() {
+  const cases: Array<[ReturnType<typeof battleAiDamageBucketForEstimateV4>, Parameters<typeof battleAiDamageBucketForEstimateV4>[0]]> = [
+    ["immune", {typeMultiplier: 0, expectedDamageRatio: 0, koChance: 0}],
+    ["negligible", {typeMultiplier: 1, expectedDamageRatio: 0.03, koChance: 0}],
+    ["chip", {typeMultiplier: 1, expectedDamageRatio: 0.12, koChance: 0}],
+    ["pressure", {typeMultiplier: 1, expectedDamageRatio: 0.32, koChance: 0}],
+    ["two-hit-ko", {typeMultiplier: 1, expectedDamageRatio: 0.55, koChance: 0}],
+    ["near-ko", {typeMultiplier: 1, expectedDamageRatio: 0.88, koChance: 0}],
+    ["possible-ko", {typeMultiplier: 1, expectedDamageRatio: 0.7, koChance: 0.2}],
+    ["guaranteed-ko", {typeMultiplier: 1, expectedDamageRatio: 1.2, koChance: 1}],
+  ];
+  for (const [expected, input] of cases) {
+    const actual = battleAiDamageBucketForEstimateV4(input);
+    if (actual !== expected) {
+      throw new Error(`damage bucket mismatch: expected ${expected}, got ${actual}, input=${JSON.stringify(input)}`);
+    }
+  }
+  console.log("showdown-battle-core ai outcome buckets smoke ok");
+}
+
 function aiSearchBudgetSmoke() {
   const expected: Array<[BattleAiLevelV4, number]> = [
     ["rookie", 1],
@@ -2844,6 +2865,7 @@ void smoke()
   .then(aiRainSwitchRoleSmoke)
   .then(aiSwitchTargetOverrideSmoke)
   .then(aiValueFunctionResourceSmoke)
+  .then(aiOutcomeBucketsSmoke)
   .then(aiSearchBudgetSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);
