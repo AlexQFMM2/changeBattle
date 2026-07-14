@@ -934,13 +934,14 @@ function firstFiniteNumber(values: number[]): number | null {
 }
 
 function hpFromCondition(condition: string): number {
-  const [hp] = condition.split("/");
-  return Number(hp) || 0;
+  if (condition.includes("fnt")) return 0;
+  const match = /^(\d+)/.exec(condition.trim());
+  return match ? Number(match[1]) || 0 : 0;
 }
 
 function maxHpFromCondition(condition: string): number {
-  const [, maxHp] = condition.split("/");
-  return Number(maxHp) || 1;
+  const match = /^\d+\/(\d+)/.exec(condition.trim());
+  return match ? Number(match[1]) || 1 : 1;
 }
 
 function hpRatio(pokemon: BattleAiNumericStateV4["self"]): number {

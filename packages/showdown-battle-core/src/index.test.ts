@@ -2433,6 +2433,11 @@ function aiSwitchTargetOverrideSmoke() {
   if (!safeResult.debug.search?.outcomeBuckets?.some(entry => entry.choice === "switch 2" && entry.buckets.includes("safe-switch"))) {
     throw new Error(`safe switch should report safe-switch bucket: ${JSON.stringify(safeResult.debug.search)}`);
   }
+  const statusSuffixResult = run(safeFoeRequest, "switch-target-override-safe-status-suffix", "120/120 par");
+  const largestBreakdown = Math.max(0, ...Object.values(statusSuffixResult.debug.search?.valueBreakdown || {}).map(value => Math.abs(Number(value))));
+  if (largestBreakdown >= 1_000) {
+    throw new Error(`status-suffixed HP condition should not explode value breakdown: ${JSON.stringify(statusSuffixResult.debug.search)}`);
+  }
 
   const unsafeFoeRequest: BattleServiceRequestV4 = {
     rqid: 64,
@@ -2950,6 +2955,9 @@ async function aiSelfPlayExamSmoke() {
   });
   if (questions.length !== 2 || !questions[0]?.id.includes("rain-vs-balanced")) {
     throw new Error(`self-play question generator should build archetype matchups: ${JSON.stringify(questions)}`);
+  }
+  if (!questions.every(question => question.forceLevel === 50 && !question.strictArchetype && question.archetypeAttempts === 64)) {
+    throw new Error(`self-play questions should default to L50 high-attempt archetype generation: ${JSON.stringify(questions)}`);
   }
   const report = await runBattleAiSelfPlayExamV4({
     seed: "self-play-smoke",

@@ -30,6 +30,9 @@ export type BattleAiSelfPlayQuestionV4 = {
   ruleSet: TrainingRuleSetV4;
   mode: Extract<TrainingModeV4, "singles">;
   teamSize: number;
+  forceLevel: number;
+  archetypeAttempts: number;
+  strictArchetype: boolean;
   maxTurns: number;
   p1: BattleAiSelfPlaySideSpecV4;
   p2: BattleAiSelfPlaySideSpecV4;
@@ -80,6 +83,9 @@ export type BattleAiSelfPlayExamInputV4 = {
   seed?: string;
   ruleSet?: TrainingRuleSetV4;
   teamSize?: number;
+  forceLevel?: number;
+  archetypeAttempts?: number;
+  strictArchetype?: boolean;
   maxTurns?: number;
   archetypes?: ShowdownTeamArchetypeV4[];
   gamesPerPair?: number;
@@ -103,9 +109,11 @@ export type BattleAiSelfPlayExamReportV4 = {
     p1Wins: number;
     p2Wins: number;
     averageTurns: number;
+    averageQuestionElapsedMs: number;
     averageDecisionMs: number;
     timeoutCount: number;
     maxSearchedDepth: number;
+    slowestQuestion?: {id: string; elapsedMs: number};
   };
 };
 
@@ -114,6 +122,9 @@ const DEFAULT_INPUT: Required<BattleAiSelfPlayExamInputV4> = {
   seed: "ai-self-play",
   ruleSet: "gen9",
   teamSize: 3,
+  forceLevel: 50,
+  archetypeAttempts: 64,
+  strictArchetype: false,
   maxTurns: 40,
   archetypes: DEFAULT_ARCHETYPES,
   gamesPerPair: 1,
@@ -136,6 +147,9 @@ export function generateBattleAiSelfPlayQuestionsV4(input: BattleAiSelfPlayExamI
         ruleSet: normalized.ruleSet,
         mode: "singles",
         teamSize: normalized.teamSize,
+        forceLevel: normalized.forceLevel,
+        archetypeAttempts: normalized.archetypeAttempts,
+        strictArchetype: normalized.strictArchetype,
         maxTurns: normalized.maxTurns,
         p1: {archetype: p1Archetype, aiLevel: normalized.p1Level, preference: normalized.p1Preference},
         p2: {archetype: p2Archetype, aiLevel: normalized.p2Level, preference: normalized.p2Preference},
@@ -171,7 +185,8 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
       teamSize: question.teamSize,
       playerId: "p1",
       teamArchetype: question.p1.archetype,
-      archetypeAttempts: 24,
+      archetypeAttempts: question.archetypeAttempts,
+      strictArchetype: question.strictArchetype,
     }),
     generateShowdownRandomTeamV4({
       ruleSet: question.ruleSet,
@@ -180,7 +195,8 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
       teamSize: question.teamSize,
       playerId: "p2",
       teamArchetype: question.p2.archetype,
-      archetypeAttempts: 24,
+      archetypeAttempts: question.archetypeAttempts,
+      strictArchetype: question.strictArchetype,
     }),
   ]);
   const emptySummary = {
@@ -189,8 +205,8 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
     turns: 0,
     elapsedMs: Date.now() - startedAt,
     teams: {
-      p1: teamSummary(question.p1.archetype, p1Team.pokemonSets, p1Team.diagnostics),
-      p2: teamSummary(question.p2.archetype, p2Team.pokemonSets, p2Team.diagnostics),
+      p1: teamSummary(question.p1.archetype, p1Team.pokemonSets, p1Team.diagnostics, question.forceLevel),
+      p2: teamSummary(question.p2.archetype, p2Team.pokemonSets, p2Team.diagnostics, question.forceLevel),
     },
     metrics: emptyMetrics(),
     notableChoices: [],
@@ -221,8 +237,8 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
     turns: snapshot.turn,
     elapsedMs: Date.now() - startedAt,
     teams: {
-      p1: teamSummary(question.p1.archetype, p1Team.pokemonSets, p1Team.diagnostics),
-      p2: teamSummary(question.p2.archetype, p2Team.pokemonSets, p2Team.diagnostics),
+      p1: teamSummary(question.p1.archetype, p1Team.pokemonSets, p1Team.diagnostics, question.forceLevel),
+      p2: teamSummary(question.p2.archetype, p2Team.pokemonSets, p2Team.diagnostics, question.forceLevel),
     },
     metrics: metricsFromSnapshot(snapshot),
     notableChoices: notableChoicesFromSnapshot(snapshot),
@@ -242,32 +258,26 @@ export function renderBattleAiSelfPlayExamMarkdownV4(report: BattleAiSelfPlayExa
     `- seed: ${report.input.seed}`,
     `- ruleSet: ${report.input.ruleSet}`,
     `- teamSize: ${report.input.teamSize}`,
+    `- forceLevel: ${report.input.forceLevel}`,
+    `- archetypeAttempts: ${report.input.archetypeAttempts}`,
+    `- strictArchetype: ${report.input.strictArchetype}`,
     `- games: ${report.summary.total}`,
     `- ended/maxTurns/stalled/failed: ${report.summary.ended}/${report.summary.maxTurns}/${report.summary.stalled}/${report.summary.teamGenerationFailed}`,
     `- wins p1/p2: ${report.summary.p1Wins}/${report.summary.p2Wins}`,
     `- averageTurns: ${round(report.summary.averageTurns)}`,
+    `- averageQuestionElapsedMs: ${round(report.summary.averageQuestionElapsedMs)}`,
     `- averageDecisionMs: ${round(report.summary.averageDecisionMs)}`,
     `- timeoutCount: ${report.summary.timeoutCount}`,
     `- maxSearchedDepth: ${report.summary.maxSearchedDepth}`,
+    `- slowestQuestion: ${report.summary.slowestQuestion ? `${report.summary.slowestQuestion.id} (${round(report.summary.slowestQuestion.elapsedMs)}ms)` : "-"}`,
     "",
     "## Questions",
     "",
-    "| id | matchup | levels | status | winner | turns | avg ms | max depth | notes |",
-    "| --- | --- | --- | --- | --- | ---: | ---: | ---: | --- |",
+    "| id | matchup | levels | status | winner | turns | elapsed ms | avg decision ms | max depth | notes |",
+    "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
   ];
   for (const result of report.results) {
-    lines.push([
-      `| ${result.question.id}`,
-      `${result.question.p1.archetype} vs ${result.question.p2.archetype}`,
-      `${result.question.p1.aiLevel}/${result.question.p2.aiLevel}`,
-      result.status,
-      result.winner || "-",
-      String(result.turns),
-      String(round(result.metrics.averageDecisionMs)),
-      String(result.metrics.maxSearchedDepth),
-      reportNotes(result),
-      "|",
-    ].join(" | "));
+    lines.push(`| ${result.question.id} | ${result.question.p1.archetype} vs ${result.question.p2.archetype} | ${result.question.p1.aiLevel}/${result.question.p2.aiLevel} | ${result.status} | ${result.winner || "-"} | ${result.turns} | ${round(result.elapsedMs)} | ${round(result.metrics.averageDecisionMs)} | ${result.metrics.maxSearchedDepth} | ${reportNotes(result)} |`);
   }
   lines.push("", "## Per-Question Details", "");
   for (const result of report.results) {
@@ -276,6 +286,7 @@ export function renderBattleAiSelfPlayExamMarkdownV4(report: BattleAiSelfPlayExa
     lines.push(`- status: ${result.status}`);
     lines.push(`- winner: ${result.winner || "-"}`);
     lines.push(`- turns: ${result.turns}`);
+    lines.push(`- elapsedMs: ${round(result.elapsedMs)}`);
     lines.push(`- p1 team: ${result.teams.p1.pokemon.join(", ")}`);
     lines.push(`- p2 team: ${result.teams.p2.pokemon.join(", ")}`);
     lines.push(`- metrics: decisions=${result.metrics.aiDecisionCount}, timeouts=${result.metrics.timeoutCount}, switches=${result.metrics.switchCount}, protect=${result.metrics.protectCount}, setup=${result.metrics.setupCount}, hazard=${result.metrics.hazardCount}, weather=${result.metrics.weatherCount}`);
@@ -297,6 +308,9 @@ function normalizeExamInput(input: BattleAiSelfPlayExamInputV4): Required<Battle
     archetypes: input.archetypes?.length ? input.archetypes : DEFAULT_INPUT.archetypes,
     gamesPerPair: Math.max(1, Math.min(20, Math.floor(input.gamesPerPair || DEFAULT_INPUT.gamesPerPair))),
     teamSize: Math.max(1, Math.min(6, Math.floor(input.teamSize || DEFAULT_INPUT.teamSize))),
+    forceLevel: Math.max(1, Math.min(100, Math.floor(input.forceLevel || DEFAULT_INPUT.forceLevel))),
+    archetypeAttempts: Math.max(1, Math.min(64, Math.floor(input.archetypeAttempts || DEFAULT_INPUT.archetypeAttempts))),
+    strictArchetype: input.strictArchetype ?? DEFAULT_INPUT.strictArchetype,
     maxTurns: Math.max(1, Math.min(200, Math.floor(input.maxTurns || DEFAULT_INPUT.maxTurns))),
   };
 }
@@ -319,7 +333,7 @@ function buildSessionInput(
         controller: "ai",
         alliance: "near",
         aiProfile: {level: question.p1.aiLevel, preference: question.p1.preference},
-        team: p1Team.map(toBattlePokemonSet),
+        team: p1Team.map(set => toBattlePokemonSet(set, question.forceLevel)),
         draft: null as never,
       },
       {
@@ -328,14 +342,14 @@ function buildSessionInput(
         controller: "ai",
         alliance: "far",
         aiProfile: {level: question.p2.aiLevel, preference: question.p2.preference},
-        team: p2Team.map(toBattlePokemonSet),
+        team: p2Team.map(set => toBattlePokemonSet(set, question.forceLevel)),
         draft: null as never,
       },
     ],
   };
 }
 
-function toBattlePokemonSet(set: ShowdownRandomTeamPokemonSetV4): BattleServicePokemonSetV4 {
+function toBattlePokemonSet(set: ShowdownRandomTeamPokemonSetV4, forceLevel: number): BattleServicePokemonSetV4 {
   return {
     species: set.species,
     name: set.name || set.species,
@@ -347,7 +361,7 @@ function toBattlePokemonSet(set: ShowdownRandomTeamPokemonSetV4): BattleServiceP
     ivs: normalizeStats(set.ivs, 31),
     gender: set.gender,
     shiny: set.shiny,
-    level: set.level || 50,
+    level: forceLevel || set.level || 50,
     teraType: set.teraType,
   };
 }
@@ -371,10 +385,11 @@ function teamSummary(
   archetype: ShowdownTeamArchetypeV4,
   pokemonSets: ShowdownRandomTeamPokemonSetV4[],
   diagnostics: ShowdownRandomTeamGeneratorDiagnosticsV4,
+  forceLevel: number,
 ): BattleAiSelfPlayQuestionResultV4["teams"]["p1"] {
   return {
     archetype,
-    pokemon: pokemonSets.map(set => `${set.species}${set.item ? ` @ ${set.item}` : ""} (${set.ability})`),
+    pokemon: pokemonSets.map(set => `${set.species} L${forceLevel}${set.item ? ` @ ${set.item}` : ""} (${set.ability}) [${(set.moves || []).join(" / ")}]`),
     diagnostics,
   };
 }
@@ -442,10 +457,17 @@ function summarizeResults(results: BattleAiSelfPlayQuestionResultV4[]): BattleAi
     p1Wins: results.filter(result => result.winner === "p1").length,
     p2Wins: results.filter(result => result.winner === "p2").length,
     averageTurns: average(results.map(result => result.turns)),
+    averageQuestionElapsedMs: average(results.map(result => result.elapsedMs)),
     averageDecisionMs: average(results.map(result => result.metrics.averageDecisionMs).filter(Boolean)),
     timeoutCount: results.reduce((sum, result) => sum + result.metrics.timeoutCount, 0),
     maxSearchedDepth: Math.max(0, ...results.map(result => result.metrics.maxSearchedDepth)),
+    slowestQuestion: slowestResult(results),
   };
+}
+
+function slowestResult(results: BattleAiSelfPlayQuestionResultV4[]): BattleAiSelfPlayExamReportV4["summary"]["slowestQuestion"] {
+  const slowest = results.slice().sort((a, b) => b.elapsedMs - a.elapsedMs)[0];
+  return slowest ? {id: slowest.question.id, elapsedMs: slowest.elapsedMs} : undefined;
 }
 
 function reportNotes(result: BattleAiSelfPlayQuestionResultV4): string {

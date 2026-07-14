@@ -1,8 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
+  generateBattleAiSelfPlayQuestionsV4,
   renderBattleAiSelfPlayExamMarkdownV4,
-  runBattleAiSelfPlayExamV4,
+  runBattleAiSelfPlayQuestionV4,
+  type BattleAiSelfPlayExamReportV4,
   type BattleAiSelfPlayExamInputV4,
 } from "./aiSelfPlayExamV4.js";
 import type {BattleAiLevelV4, BattleAiPreferenceV4, TrainingRuleSetV4} from "./types.js";
@@ -14,6 +16,9 @@ const input: BattleAiSelfPlayExamInputV4 = {
   seed: args.seed || "ai-self-play",
   ruleSet: asRuleSet(args.ruleSet || "gen9"),
   teamSize: numberArg(args.teamSize, 3),
+  forceLevel: numberArg(args.forceLevel, 50),
+  archetypeAttempts: numberArg(args.archetypeAttempts, 64),
+  strictArchetype: booleanArg(args.strictArchetype, false),
   maxTurns: numberArg(args.maxTurns, 40),
   gamesPerPair: numberArg(args.games, 1),
   archetypes: csv(args.archetypes).map(asArchetype),
@@ -26,7 +31,35 @@ const outDir = path.resolve(args.outDir || `debug/ai-self-play/${new Date().toIS
 fs.mkdirSync(outDir, {recursive: true});
 
 console.log(`[ai-self-play] starting ${JSON.stringify(input)}`);
-const report = await runBattleAiSelfPlayExamV4(input);
+const questions = generateBattleAiSelfPlayQuestionsV4(input);
+const results: BattleAiSelfPlayExamReportV4["results"] = [];
+for (const [index, question] of questions.entries()) {
+  console.log(`[ai-self-play] question ${index + 1}/${questions.length} ${question.id} started`);
+  const result = await runBattleAiSelfPlayQuestionV4(question);
+  results.push(result);
+  console.log(`[ai-self-play] question ${index + 1}/${questions.length} ${question.id} status=${result.status} winner=${result.winner || "-"} turns=${result.turns} elapsedMs=${result.elapsedMs} avgDecisionMs=${Math.round(result.metrics.averageDecisionMs * 100) / 100} maxDepth=${result.metrics.maxSearchedDepth}`);
+}
+const report: BattleAiSelfPlayExamReportV4 = {
+  generatedAt: new Date().toISOString(),
+  input: input as Required<BattleAiSelfPlayExamInputV4>,
+  questions,
+  results,
+  summary: {
+    total: results.length,
+    ended: results.filter(result => result.status === "ended").length,
+    maxTurns: results.filter(result => result.status === "max-turns").length,
+    stalled: results.filter(result => result.status === "stalled").length,
+    teamGenerationFailed: results.filter(result => result.status === "team-generation-failed").length,
+    p1Wins: results.filter(result => result.winner === "p1").length,
+    p2Wins: results.filter(result => result.winner === "p2").length,
+    averageTurns: average(results.map(result => result.turns)),
+    averageQuestionElapsedMs: average(results.map(result => result.elapsedMs)),
+    averageDecisionMs: average(results.map(result => result.metrics.averageDecisionMs).filter(Boolean)),
+    timeoutCount: results.reduce((sum, result) => sum + result.metrics.timeoutCount, 0),
+    maxSearchedDepth: Math.max(0, ...results.map(result => result.metrics.maxSearchedDepth)),
+    slowestQuestion: slowestResult(results),
+  },
+};
 const jsonFile = path.join(outDir, "report.json");
 const mdFile = path.join(outDir, "report.md");
 fs.writeFileSync(jsonFile, `${JSON.stringify(report, null, 2)}\n`);
@@ -64,6 +97,13 @@ function numberArg(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function booleanArg(value: string | undefined, fallback: boolean): boolean {
+  if (value === undefined) return fallback;
+  if (["true", "1", "yes", "y"].includes(value.toLowerCase())) return true;
+  if (["false", "0", "no", "n"].includes(value.toLowerCase())) return false;
+  return fallback;
+}
+
 function asRuleSet(value: string): TrainingRuleSetV4 {
   if (value === "standard" || value === "gen7" || value === "gen8" || value === "gen9") return value;
   throw new Error(`invalid --ruleSet ${value}`);
@@ -96,4 +136,14 @@ function asArchetype(value: string): ShowdownTeamArchetypeV4 {
   ]);
   if (valid.has(value)) return value as ShowdownTeamArchetypeV4;
   throw new Error(`invalid archetype ${value}`);
+}
+
+function average(values: number[]): number {
+  const filtered = values.filter(value => Number.isFinite(value));
+  return filtered.length ? filtered.reduce((sum, value) => sum + value, 0) / filtered.length : 0;
+}
+
+function slowestResult(results: BattleAiSelfPlayExamReportV4["results"]): BattleAiSelfPlayExamReportV4["summary"]["slowestQuestion"] {
+  const slowest = results.slice().sort((a, b) => b.elapsedMs - a.elapsedMs)[0];
+  return slowest ? {id: slowest.question.id, elapsedMs: slowest.elapsedMs} : undefined;
 }

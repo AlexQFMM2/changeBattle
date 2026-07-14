@@ -278,9 +278,9 @@ function primaryRoles(tags: BattleAiRoleTagV4[]): string[] {
 }
 
 function hpRatioFromCondition(condition: string): number {
-  const [hpText, maxText] = condition.split("/");
-  const hp = Number(hpText);
-  const maxHp = Number(maxText);
+  const match = /^(\d+)\/(\d+)/.exec(condition.trim());
+  const hp = match ? Number(match[1]) : Number.NaN;
+  const maxHp = match ? Number(match[2]) : Number.NaN;
   if (!Number.isFinite(hp) || !Number.isFinite(maxHp) || maxHp <= 0) return condition.includes("fnt") ? 0 : 1;
   return Math.max(0, Math.min(1, hp / maxHp));
 }
