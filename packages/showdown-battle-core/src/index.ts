@@ -38,6 +38,7 @@ import {battleKeyFromRosterIdentityV4, canonicalBattleKeyV4, isProtocolBattleKey
 
 export * from "./showdownCommand.js";
 export * from "./ai.js";
+export * from "./aiActionOutcomeEstimatorV4.js";
 export * from "./aiMoveEvaluator.js";
 export * from "./aiSearchEngineV4.js";
 export * from "./aiTeamRoleAnalyzerV4.js";

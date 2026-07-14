@@ -9,6 +9,7 @@ import {
   battleAiCapabilityForLevelV4,
   battleAiEffectiveSearchBudgetForModeV4,
   battleAiSearchBudgetForLevelV4,
+  estimateBattleAiActionOutcomeV4,
   evaluateBattleAiSinglesLeafValueV4,
   parseShowdownChoiceCommandV4,
   randomLegalChoice,
@@ -2500,6 +2501,46 @@ function aiOutcomeBucketsSmoke() {
   console.log("showdown-battle-core ai outcome buckets smoke ok");
 }
 
+function aiActionOutcomeEstimatorSmoke() {
+  const request: BattleServiceRequestV4 = {
+    rqid: 65,
+    active: [{
+      moves: [
+        {move: "Tackle", id: "tackle", pp: 35, maxpp: 35, target: "normal"},
+        {move: "Quick Attack", id: "quickattack", pp: 30, maxpp: 30, target: "normal"},
+        {move: "Rain Dance", id: "raindance", pp: 5, maxpp: 5, target: "all"},
+      ],
+    }],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Snorlax", details: "Snorlax, L50", condition: "220/220", active: true, ability: "Thick Fat", moves: ["Tackle", "Quick Attack", "Rain Dance"], stats: {hp: 220, atk: 130, def: 100, spa: 75, spd: 130, spe: 45}},
+      ],
+    },
+  };
+  const snapshot = {
+    ...aiSnapshot("gen9", "singles", request),
+    active: [
+      {ident: "p1a: Gengar", playerId: "p1", slot: "p1a", species: "Gengar", details: "Gengar, L50", condition: "135/135", hp: 135, maxHp: 135, status: "", fainted: false},
+      {ident: "p2a: Snorlax", playerId: "p2", slot: "p2a", species: "Snorlax", details: "Snorlax, L50", condition: "220/220", hp: 220, maxHp: 220, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const immune = estimateBattleAiActionOutcomeV4({request, snapshot, playerId: "p2", activeIndex: 0, move: request.active![0]!.moves![0]!});
+  if (immune.damageBucket !== "immune" || immune.expectedDamageRange.average !== 0) {
+    throw new Error(`Tackle into Gengar should be immune: ${JSON.stringify(immune)}`);
+  }
+  const priority = estimateBattleAiActionOutcomeV4({request, snapshot, playerId: "p2", activeIndex: 0, move: request.active![0]!.moves![1]!});
+  if (priority.priority !== 1) {
+    throw new Error(`Quick Attack should report priority 1: ${JSON.stringify(priority)}`);
+  }
+  const rain = estimateBattleAiActionOutcomeV4({request, snapshot, playerId: "p2", activeIndex: 0, move: request.active![0]!.moves![2]!});
+  if (!rain.fieldBuckets.includes("weather-progress") || rain.damaging) {
+    throw new Error(`Rain Dance should report weather-progress and non-damaging: ${JSON.stringify(rain)}`);
+  }
+  console.log("showdown-battle-core ai action outcome estimator smoke ok");
+}
+
 function aiSearchBudgetSmoke() {
   const expected: Array<[BattleAiLevelV4, number]> = [
     ["rookie", 1],
@@ -2866,6 +2907,7 @@ void smoke()
   .then(aiSwitchTargetOverrideSmoke)
   .then(aiValueFunctionResourceSmoke)
   .then(aiOutcomeBucketsSmoke)
+  .then(aiActionOutcomeEstimatorSmoke)
   .then(aiSearchBudgetSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);
