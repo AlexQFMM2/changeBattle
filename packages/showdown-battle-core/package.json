@@ -42,6 +42,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "ai:selfplay": "pnpm build && node dist/aiSelfPlayExamCli.js",
+    "ai:teams": "pnpm build && node dist/aiTeamGenerationReportCli.js",
     "dev": "tsc -p tsconfig.json && node dist/server.js",
     "start": "node dist/server.js",
     "test": "pnpm --filter @changebattle-v2/showdown-dex-core build && tsc -p tsconfig.test.json && node dist-test/index.test.js",

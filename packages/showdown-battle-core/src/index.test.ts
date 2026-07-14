@@ -2940,6 +2940,34 @@ async function randomTeamGeneratorSmoke() {
   if (!rain.diagnostics.archetype || rain.diagnostics.archetype.bestScore <= 0 || rain.diagnostics.archetype.matchedPoolSize <= 0) {
     throw new Error(`rain archetype diagnostics missing score: ${JSON.stringify(rain.diagnostics.archetype)}`);
   }
+  if (
+    typeof rain.diagnostics.archetype.structureScore !== "number" ||
+    !Array.isArray(rain.diagnostics.archetype.fulfilledRequirements) ||
+    !Array.isArray(rain.diagnostics.archetype.missingRequirements)
+  ) {
+    throw new Error(`rain archetype diagnostics missing structure details: ${JSON.stringify(rain.diagnostics.archetype)}`);
+  }
+  if (![...rain.diagnostics.archetype.fulfilledRequirements, ...rain.diagnostics.archetype.missingRequirements].some(requirement => requirement.startsWith("rain-"))) {
+    throw new Error(`rain archetype should report rain structure requirements: ${JSON.stringify(rain.diagnostics.archetype)}`);
+  }
+
+  for (const archetype of ["rain", "sand"] as const) {
+    const strict = await generateShowdownRandomTeamV4({
+      ruleSet: "gen9",
+      mode: "singles",
+      seed: `strict-${archetype}-team`,
+      teamSize: 3,
+      teamArchetype: archetype,
+      archetypeAttempts: 16,
+      strictArchetype: true,
+    });
+    if (!strict.diagnostics.ok || strict.pokemonSets.length !== 3) {
+      throw new Error(`strict ${archetype} team should fall back to a valid generated team: ${JSON.stringify(strict.diagnostics)}`);
+    }
+    if (!strict.diagnostics.archetype || !Number.isFinite(strict.diagnostics.archetype.structureScore)) {
+      throw new Error(`strict ${archetype} diagnostics missing structure score: ${JSON.stringify(strict.diagnostics.archetype)}`);
+    }
+  }
   console.log("showdown-battle-core random team generator smoke ok");
 }
 

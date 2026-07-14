@@ -72,6 +72,9 @@ export type ShowdownRandomTeamGeneratorDiagnosticsV4 = {
     id: ShowdownTeamArchetypeV4;
     attempts: number;
     bestScore: number;
+    structureScore?: number;
+    fulfilledRequirements?: string[];
+    missingRequirements?: string[];
     matchedPoolSize: number;
   } | null;
   messages: string[];
@@ -133,6 +136,12 @@ type RandomSetTableNameV4 =
   | "randomBSSFactorySets"
   | "random1v1FactorySets";
 
+type ShowdownTeamArchetypeStructureV4 = {
+  score: number;
+  fulfilledRequirements: string[];
+  missingRequirements: string[];
+};
+
 const FORMAT_BY_RULESET_MODE: Record<Exclude<TrainingRuleSetV4, "standard">, Record<TrainingModeV4, string | null>> = {
   gen9: {
     singles: "[Gen 9] Random Battle",
@@ -190,10 +199,12 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
       diagnostics.messages.push(`${resolvedRuleSet} ${requestedMode} 使用 fallback format: ${input.formatOverride}`);
     }
     const teamsApi = await getShowdownTeams();
-    let best: {team: ShowdownRandomTeamPokemonSetV4[]; score: number; matchedPoolSize: number} | null = null;
+    let best: {team: ShowdownRandomTeamPokemonSetV4[]; score: number; structure: ShowdownTeamArchetypeStructureV4; matchedPoolSize: number} | null = null;
+    const fallbackMessages = new Set<string>();
     for (let attempt = 0; attempt < attempts; attempt += 1) {
-      const generator = teamsApi.getGenerator(formatId, seedForAttempt(seed, attempt));
-      const poolDiagnostics = applyGeneratorPoolFilters(generator, {
+      const attemptSeed = seedForAttempt(seed, attempt);
+      const generator = teamsApi.getGenerator(formatId, attemptSeed);
+      let poolDiagnostics = applyGeneratorPoolFilters(generator, {
         mode: requestedMode,
         pokemonFilter,
         teamArchetype,
@@ -209,12 +220,26 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
         };
         diagnostics.messages.push(...poolDiagnostics.messages);
       }
-      const team = generator.getTeam(null).map(normalizeGeneratedSet);
-      const score = scoreTeamForArchetype(team, teamArchetype);
+      let team = safeGenerateTeam(generator);
+      if (!team.length && input.strictArchetype) {
+        fallbackMessages.add(`${teamArchetype} strict archetype pool could not produce a team; retried with scored soft archetype generation.`);
+        const fallbackGenerator = teamsApi.getGenerator(formatId, attemptSeed);
+        poolDiagnostics = applyGeneratorPoolFilters(fallbackGenerator, {
+          mode: requestedMode,
+          pokemonFilter,
+          teamArchetype,
+          strictArchetype: false,
+        });
+        team = safeGenerateTeam(fallbackGenerator);
+      }
+      const normalizedTeam = team.map(normalizeGeneratedSet);
+      const structure = evaluateTeamStructureForArchetype(normalizedTeam, teamArchetype);
+      const score = scoreTeamForArchetype(normalizedTeam, teamArchetype, structure);
       if (!best || score > best.score || (score === best.score && team.length > best.team.length)) {
-        best = {team, score, matchedPoolSize: poolDiagnostics.archetypeMatchedPoolSize};
+        best = {team: normalizedTeam, score, structure, matchedPoolSize: poolDiagnostics.archetypeMatchedPoolSize};
       }
     }
+    diagnostics.messages.push(...fallbackMessages);
     const generated = best?.team || [];
     const pokemonSets = input.teamSize ? generated.slice(0, clampInt(input.teamSize, 1, 6)) : generated;
     const packedTeam = teamsApi.pack(pokemonSets);
@@ -223,6 +248,9 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
     diagnostics.teamSize = pokemonSets.length;
     if (diagnostics.archetype && best) {
       diagnostics.archetype.bestScore = best.score;
+      diagnostics.archetype.structureScore = best.structure.score;
+      diagnostics.archetype.fulfilledRequirements = best.structure.fulfilledRequirements;
+      diagnostics.archetype.missingRequirements = best.structure.missingRequirements;
       diagnostics.archetype.matchedPoolSize = best.matchedPoolSize;
     }
     if (!pokemonSets.length) diagnostics.messages.push("Showdown 生成结果为空。");
@@ -359,6 +387,14 @@ function normalizeGeneratedSet(set: ShowdownRandomTeamPokemonSetV4): ShowdownRan
   };
 }
 
+function safeGenerateTeam(generator: ShowdownRandomTeamGeneratorLikeV4): ShowdownRandomTeamPokemonSetV4[] {
+  try {
+    return generator.getTeam(null) || [];
+  } catch {
+    return [];
+  }
+}
+
 function scoreRandomSetDataForArchetype(speciesId: string, data: ShowdownRandomSetDataV4, archetype: ShowdownTeamArchetypeV4): number {
   if (archetype === "balanced") return 1;
   let score = 0;
@@ -373,14 +409,95 @@ function scoreRandomSetDataForArchetype(speciesId: string, data: ShowdownRandomS
   return score;
 }
 
-function scoreTeamForArchetype(team: ShowdownRandomTeamPokemonSetV4[], archetype: ShowdownTeamArchetypeV4): number {
+function scoreTeamForArchetype(team: ShowdownRandomTeamPokemonSetV4[], archetype: ShowdownTeamArchetypeV4, structure = evaluateTeamStructureForArchetype(team, archetype)): number {
   if (archetype === "balanced") return team.length;
-  return team.reduce((total, set) => total + scoreSignalsForArchetype(archetype, {
+  const signalScore = team.reduce((total, set) => total + scoreSignalsForArchetype(archetype, {
     speciesId: set.species,
     ability: set.ability,
     moves: set.moves || [],
     role: "",
   }), 0);
+  return signalScore + structure.score;
+}
+
+function evaluateTeamStructureForArchetype(team: ShowdownRandomTeamPokemonSetV4[], archetype: ShowdownTeamArchetypeV4): ShowdownTeamArchetypeStructureV4 {
+  if (archetype === "balanced") {
+    return {score: team.length, fulfilledRequirements: ["balanced-team"], missingRequirements: []};
+  }
+  const fulfilled: string[] = [];
+  const missing: string[] = [];
+  let score = 0;
+  const mark = (ok: boolean, requirement: string, points: number) => {
+    if (ok) {
+      fulfilled.push(requirement);
+      score += points;
+    } else {
+      missing.push(requirement);
+      score -= Math.ceil(points * 0.6);
+    }
+  };
+  const has = (predicate: (set: ShowdownRandomTeamPokemonSetV4) => boolean): boolean => team.some(predicate);
+  const count = (predicate: (set: ShowdownRandomTeamPokemonSetV4) => boolean): number => team.filter(predicate).length;
+  switch (archetype) {
+    case "rain":
+      mark(has(isRainSetter), "rain-setter", 18);
+      mark(has(isRainAbuser), "rain-abuser", 12);
+      score += Math.min(6, count(hasWaterPressure) * 2);
+      break;
+    case "sun":
+      mark(has(isSunSetter), "sun-setter", 18);
+      mark(has(isSunAbuser), "sun-abuser", 12);
+      score += Math.min(6, count(hasSunPressure) * 2);
+      break;
+    case "sand":
+      mark(has(isSandSetter), "sand-setter", 18);
+      mark(has(isSandAbuser), "sand-abuser", 10);
+      score += Math.min(6, count(hasSandPressure) * 2);
+      break;
+    case "snow":
+      mark(has(isSnowSetter), "snow-setter", 18);
+      mark(has(isSnowAbuser), "snow-abuser", 10);
+      score += Math.min(6, count(hasSnowPressure) * 2);
+      break;
+    case "trick-room":
+      mark(has(isTrickRoomSetter), "trick-room-setter", 22);
+      mark(count(isBulkyOrSlowAttacker) >= 1, "slow-or-bulky-attacker", 10);
+      break;
+    case "tailwind":
+      mark(hasMoveInTeam(team, "tailwind"), "tailwind-setter", 20);
+      mark(count(isFastPressure) >= 1, "fast-pressure", 8);
+      break;
+    case "terrain":
+      mark(has(isTerrainSetter), "terrain-setter", 18);
+      mark(has(isTerrainAbuser), "terrain-abuser", 8);
+      break;
+    case "hazard-stack": {
+      const hazardCount = count(isHazardSetter);
+      mark(hazardCount >= 1, "hazard-setter", 18);
+      if (hazardCount >= 2) {
+        fulfilled.push("multiple-hazards");
+        score += 8;
+      }
+      break;
+    }
+    case "poison-stall":
+      mark(has(isPoisonProgress), "poison-progress", 14);
+      mark(has(isStallSustain), "stall-sustain", 12);
+      break;
+    case "baton-pass":
+      mark(hasMoveInTeam(team, "batonpass"), "baton-pass", 20);
+      mark(has(isSetupUser), "passable-setup", 8);
+      break;
+    case "setup-offense":
+      mark(has(isSetupUser), "setup-sweeper", 18);
+      mark(count(isOffensivePressure) >= 2, "offensive-pressure", 10);
+      break;
+  }
+  return {
+    score,
+    fulfilledRequirements: fulfilled,
+    missingRequirements: missing,
+  };
 }
 
 function scoreSignalsForArchetype(
@@ -448,6 +565,113 @@ function scoreSignalsForArchetype(
       return 1;
   }
   return score;
+}
+
+function isRainSetter(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasAbility(set, "drizzle") || hasMove(set, "raindance");
+}
+
+function isRainAbuser(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasAbility(set, "swiftswim", "raindish") || hasMove(set, "hurricane", "thunder", "weatherball");
+}
+
+function hasWaterPressure(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "surf", "hydropump", "liquidation", "waterfall", "wavecrash", "scald", "weatherball");
+}
+
+function isSunSetter(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasAbility(set, "drought") || hasMove(set, "sunnyday");
+}
+
+function isSunAbuser(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasAbility(set, "chlorophyll", "solarpower", "protosynthesis") || hasMove(set, "solarbeam", "solarblade", "weatherball");
+}
+
+function hasSunPressure(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "flamethrower", "fireblast", "heatwave", "flareblitz", "weatherball", "solarbeam", "solarblade");
+}
+
+function isSandSetter(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasAbility(set, "sandstream") || hasMove(set, "sandstorm");
+}
+
+function isSandAbuser(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasAbility(set, "sandrush", "sandforce", "sandveil") || hasMove(set, "shoreup");
+}
+
+function hasSandPressure(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "earthquake", "earthpower", "stoneedge", "rockslide", "stealthrock", "shoreup");
+}
+
+function isSnowSetter(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasAbility(set, "snowwarning") || hasMove(set, "snowscape", "hail");
+}
+
+function isSnowAbuser(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasAbility(set, "slushrush", "icebody") || hasMove(set, "auroraveil", "blizzard");
+}
+
+function hasSnowPressure(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "blizzard", "freezedry", "icebeam", "iciclecrash", "auroraveil");
+}
+
+function isTrickRoomSetter(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "trickroom");
+}
+
+function isBulkyOrSlowAttacker(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "recover", "roost", "slackoff", "wish", "bodypress", "gyroball", "curse") ||
+    hasAbility(set, "regenerator", "unaware", "sturdy") ||
+    /slow|bulky|wall|tank/i.test(String((set as {role?: string}).role || ""));
+}
+
+function isFastPressure(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "uturn", "voltswitch", "knockoff", "hurricane", "bravebird", "acrobatics") ||
+    hasAbility(set, "speedboost", "prankster");
+}
+
+function isTerrainSetter(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasAbility(set, "electricsurge", "grassysurge", "mistysurge", "psychicsurge") ||
+    hasMove(set, "electricterrain", "grassyterrain", "mistyterrain", "psychicterrain");
+}
+
+function isTerrainAbuser(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "expandingforce", "terrainpulse", "grassyglide", "risingvoltage");
+}
+
+function isHazardSetter(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "stealthrock", "spikes", "toxicspikes", "stickyweb");
+}
+
+function isPoisonProgress(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "toxic", "toxicspikes", "willowisp", "spore");
+}
+
+function isStallSustain(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "protect", "substitute", "recover", "roost", "wish", "haze") ||
+    hasAbility(set, "regenerator", "poisonheal", "magicguard");
+}
+
+function isSetupUser(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return hasMove(set, "swordsdance", "nastyplot", "dragondance", "quiverdance", "calmmind", "shellsmash", "bulkup", "irondefense", "coil");
+}
+
+function isOffensivePressure(set: ShowdownRandomTeamPokemonSetV4): boolean {
+  return isSetupUser(set) || hasMove(set, "closecombat", "earthquake", "hydropump", "dracometeor", "knockoff", "stoneedge", "thunderbolt", "moonblast", "shadowball", "liquidation");
+}
+
+function hasMoveInTeam(team: ShowdownRandomTeamPokemonSetV4[], ...ids: string[]): boolean {
+  return team.some(set => hasMove(set, ...ids));
+}
+
+function hasMove(set: ShowdownRandomTeamPokemonSetV4, ...ids: string[]): boolean {
+  const moves = new Set((set.moves || []).map(toID));
+  return ids.some(id => moves.has(toID(id)));
+}
+
+function hasAbility(set: ShowdownRandomTeamPokemonSetV4, ...ids: string[]): boolean {
+  const ability = toID(set.ability);
+  return ids.some(id => ability.includes(toID(id)));
 }
 
 function seedFromString(seed: string): number[] {
