@@ -30,6 +30,7 @@ import {
 } from "./showdownCommand.js";
 import {evaluateBattleAiMoveV4, type BattleAiMoveEvaluationV4} from "./aiMoveEvaluator.js";
 import {chooseBattleAiActionBySearchV4, type BattleAiCandidateV4} from "./aiSearchEngineV4.js";
+import {analyzeBattleAiTeamRolesV4} from "./aiTeamRoleAnalyzerV4.js";
 
 export type BattleAiChoiceContextV4 = {
   request?: BattleServiceRequestV4 | null;
@@ -185,6 +186,7 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
   const request = normalizeShowdownChoiceRequestV4(context.request) as BattleServiceRequestV4 | undefined;
   const requestKey = battleAiRequestKeyV4(context.playerId, request);
   const rng = createSeededRng(`${context.rngSeed || context.snapshot.id}:${context.playerId}:${requestKey}:${profile.level}:${profile.preference}`);
+  const roleAnalysis = request ? analyzeBattleAiTeamRolesV4({playerId: context.playerId, request, snapshot: context.snapshot}) : undefined;
   const candidates = generateTurnCandidates(request, context, profile, rng);
   const legalCandidates = candidates.map(candidate => ({
     ...candidate,
@@ -199,6 +201,7 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
     request,
     snapshot: context.snapshot,
     playerId: context.playerId,
+    roleAnalysis,
     generateCandidatesForPlayer: (playerId, playerRequest) => {
       const requestKeyForPlayer = battleAiRequestKeyV4(playerId, playerRequest);
       const playerRng = createSeededRng(`${context.rngSeed || context.snapshot.id}:${playerId}:${requestKeyForPlayer}:${profile.level}:${profile.preference}:search-reply`);

@@ -4,6 +4,7 @@ import {
   createBattleSession,
   filterShowdownChoiceForRuleSetV4,
   generateShowdownRandomTeamV4,
+  analyzeBattleAiTeamRolesV4,
   battleAiSearchBudgetForLevelV4,
   parseShowdownChoiceCommandV4,
   randomLegalChoice,
@@ -19,6 +20,7 @@ import {
   withShowdownMoveTargetSuffixV4,
 } from "./index.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
+import type {BattleAiTeamArchetypeV4} from "./aiTeamRoleAnalyzerV4.js";
 import type {BattleAiLevelV4, BattleAiPreferenceV4, BattleServiceRequestV4, BattleServiceSessionInputV4, BattleServiceSidePokemonV4, BattleServiceSnapshotV4} from "./types.js";
 
 const pikachu = {
@@ -2040,11 +2042,215 @@ function aiSinglesDepth2SearchSmoke() {
   if (!result.debug.search.principalVariation?.length || !result.debug.search.replyCount || result.debug.search.replyCount < 1) {
     throw new Error(`singles depth 2 should report principal variation and replies: ${JSON.stringify(result.debug.search)}`);
   }
+  if (!result.debug.search.outcomeBuckets?.some(entry => entry.choice === result.choice && entry.buckets.includes("ko"))) {
+    throw new Error(`singles depth 2 should report KO outcome bucket for selected KO: ${JSON.stringify(result.debug.search)}`);
+  }
   const validation = validateShowdownChoiceCommandV4({request: aiRequest, choice: result.choice});
   if (!validation.ok) {
     throw new Error(`singles depth 2 choice should validate: ${result.choice}; ${JSON.stringify(validation)}; ${JSON.stringify(result.debug)}`);
   }
   console.log("showdown-battle-core ai singles depth 2 search smoke ok");
+}
+
+function aiOutcomeBucketSmoke() {
+  const aiRequest: BattleServiceRequestV4 = {
+    rqid: 63,
+    active: [
+      {
+        moves: [
+          {move: "Stealth Rock", id: "stealthrock", pp: 20, maxpp: 20, target: "foeSide"},
+          {move: "Toxic", id: "toxic", pp: 10, maxpp: 10, target: "normal"},
+          {move: "Splash", id: "splash", pp: 40, maxpp: 40, target: "self"},
+        ],
+      },
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Glimmora", details: "Glimmora, L50", condition: "150/150", active: true, ability: "Toxic Debris", moves: ["Stealth Rock", "Toxic", "Splash"], stats: {hp: 150, atk: 75, def: 105, spa: 160, spd: 100, spe: 105}},
+      ],
+    },
+  };
+  const foeRequest: BattleServiceRequestV4 = {
+    rqid: 63,
+    active: [
+      {
+        moves: [
+          {move: "Splash", id: "splash", pp: 40, maxpp: 40, target: "self"},
+        ],
+      },
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Snorlax", details: "Snorlax, L50", condition: "220/220", active: true, ability: "Thick Fat", moves: ["Splash"], stats: {hp: 220, atk: 130, def: 100, spa: 75, spd: 130, spe: 45}},
+        {ident: "p1: Charizard", details: "Charizard, L50", condition: "160/160", active: false, ability: "Blaze", moves: ["Flamethrower"], stats: {hp: 160, atk: 95, def: 90, spa: 145, spd: 105, spe: 150}},
+      ],
+    },
+  };
+  const snapshot = {
+    ...aiSnapshot("gen9", "singles", aiRequest),
+    requests: {p1: foeRequest, p2: aiRequest},
+  } satisfies BattleServiceSnapshotV4;
+  const result = chooseAiBattleChoiceV4({
+    request: aiRequest,
+    snapshot,
+    playerId: "p2",
+    aiProfile: {level: "gymLeader", preference: "support"},
+    rngSeed: "outcome-buckets",
+    timeBudgetMs: 10_000,
+  });
+  const buckets = result.debug.search?.outcomeBuckets || [];
+  if (!buckets.some(entry => entry.choice.startsWith("move 1") && entry.buckets.includes("hazard-progress"))) {
+    throw new Error(`Stealth Rock should report hazard-progress outcome bucket: ${JSON.stringify(result.debug.search)}`);
+  }
+  if (!buckets.some(entry => entry.choice.startsWith("move 2") && entry.buckets.includes("status-progress"))) {
+    throw new Error(`Toxic should report status-progress outcome bucket: ${JSON.stringify(result.debug.search)}`);
+  }
+  console.log("showdown-battle-core ai outcome bucket smoke ok");
+}
+
+function aiTeamRoleAnalyzerSmoke() {
+  const request: BattleServiceRequestV4 = {
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Pelipper", details: "Pelipper, L50", condition: "120/120", active: true, ability: "Drizzle", moves: ["Hurricane", "U-turn", "Roost"], stats: {hp: 120, atk: 70, def: 120, spa: 115, spd: 90, spe: 85}},
+        {ident: "p2: Barraskewda", details: "Barraskewda, L50", condition: "120/120", active: false, ability: "Swift Swim", moves: ["Liquidation", "Flip Turn", "Aqua Jet"], stats: {hp: 120, atk: 175, def: 80, spa: 70, spd: 70, spe: 170}},
+        {ident: "p2: Ferrothorn", details: "Ferrothorn, L50", condition: "150/150", active: false, ability: "Iron Barbs", moves: ["Leech Seed", "Protect", "Spikes"], stats: {hp: 150, atk: 110, def: 160, spa: 60, spd: 150, spe: 30}},
+        {ident: "p2: Rotom-Wash", details: "Rotom-Wash, L50", condition: "125/125", active: false, ability: "Levitate", moves: ["Volt Switch", "Will-O-Wisp", "Thunder Wave"], stats: {hp: 125, atk: 70, def: 120, spa: 125, spd: 120, spe: 106}},
+        {ident: "p2: Dragonite", details: "Dragonite, L50", condition: "160/160", active: false, ability: "Multiscale", moves: ["Dragon Dance", "Extreme Speed"], stats: {hp: 160, atk: 170, def: 115, spa: 105, spd: 120, spe: 100}},
+      ],
+    },
+  };
+  const analysis = analyzeBattleAiTeamRolesV4({playerId: "p2", request, snapshot: aiSnapshot("gen9", "singles", request)});
+  const assertTag = (ident: string, kind: string, subtype?: string) => {
+    const entry = analysis.pokemon[ident];
+    if (!entry || !entry.tags.some(tag => tag.kind === kind && (!subtype || tag.subtype === subtype))) {
+      throw new Error(`missing role tag ${kind}:${subtype || ""} for ${ident}: ${JSON.stringify(entry || analysis)}`);
+    }
+  };
+  assertTag("p2: Pelipper", "weather-setter", "rain");
+  assertTag("p2: Pelipper", "pivot");
+  assertTag("p2: Barraskewda", "weather-abuser", "rain");
+  assertTag("p2: Ferrothorn", "wall");
+  assertTag("p2: Ferrothorn", "hazard-setter");
+  assertTag("p2: Rotom-Wash", "pivot");
+  assertTag("p2: Dragonite", "setup-sweeper");
+  if (!analysis.team.archetypes.includes("rain")) {
+    throw new Error(`rain archetype should be detected: ${JSON.stringify(analysis.team)}`);
+  }
+  console.log("showdown-battle-core ai team role analyzer smoke ok");
+}
+
+function aiTeamArchetypeAnalyzerSmoke() {
+  const analyze = (pokemon: BattleServiceSidePokemonV4[]) => {
+    const request: BattleServiceRequestV4 = {side: {id: "p2", name: "B", pokemon}};
+    return analyzeBattleAiTeamRolesV4({playerId: "p2", request, snapshot: aiSnapshot("gen9", "singles", request)}).team.archetypes;
+  };
+  const assertArchetype = (name: string, expected: BattleAiTeamArchetypeV4, pokemon: BattleServiceSidePokemonV4[]) => {
+    const archetypes = analyze(pokemon);
+    if (!archetypes.includes(expected)) {
+      throw new Error(`${name} should detect ${expected}: ${JSON.stringify(archetypes)}`);
+    }
+  };
+  assertArchetype("tailwind team", "tailwind", [
+    {ident: "p2: Tornadus", details: "Tornadus, L50", condition: "140/140", active: true, ability: "Prankster", moves: ["Tailwind", "U-turn", "Hurricane"], stats: {hp: 140, atk: 105, def: 90, spa: 145, spd: 100, spe: 150}},
+    {ident: "p2: Garchomp", details: "Garchomp, L50", condition: "170/170", active: false, ability: "Rough Skin", moves: ["Earthquake", "Swords Dance"], stats: {hp: 170, atk: 160, def: 115, spa: 85, spd: 105, spe: 150}},
+    {ident: "p2: Iron Valiant", details: "Iron Valiant, L50", condition: "150/150", active: false, ability: "Quark Drive", moves: ["Moonblast", "Close Combat"], stats: {hp: 150, atk: 150, def: 100, spa: 150, spd: 90, spe: 170}},
+  ]);
+  assertArchetype("trick room team", "trick-room", [
+    {ident: "p2: Hatterene", details: "Hatterene, L50", condition: "150/150", active: true, ability: "Magic Bounce", moves: ["Trick Room", "Calm Mind", "Psychic"], stats: {hp: 150, atk: 80, def: 115, spa: 170, spd: 140, spe: 45}},
+    {ident: "p2: Torkoal", details: "Torkoal, L50", condition: "150/150", active: false, ability: "Drought", moves: ["Eruption", "Protect"], stats: {hp: 150, atk: 105, def: 170, spa: 135, spd: 90, spe: 30}},
+  ]);
+  assertArchetype("terrain team", "terrain", [
+    {ident: "p2: Indeedee-F", details: "Indeedee-F, L50", condition: "140/140", active: true, ability: "Psychic Surge", moves: ["Psychic Terrain", "Helping Hand"], stats: {hp: 140, atk: 70, def: 100, spa: 115, spd: 135, spe: 105}},
+    {ident: "p2: Armarouge", details: "Armarouge, L50", condition: "160/160", active: false, ability: "Flash Fire", moves: ["Expanding Force", "Armor Cannon"], stats: {hp: 160, atk: 80, def: 120, spa: 165, spd: 100, spe: 95}},
+  ]);
+  assertArchetype("hazard stack team", "hazard-stack", [
+    {ident: "p2: Glimmora", details: "Glimmora, L50", condition: "150/150", active: true, ability: "Toxic Debris", moves: ["Stealth Rock", "Spikes", "Toxic Spikes"], stats: {hp: 150, atk: 75, def: 105, spa: 160, spd: 100, spe: 105}},
+    {ident: "p2: Ting-Lu", details: "Ting-Lu, L50", condition: "220/220", active: false, ability: "Vessel of Ruin", moves: ["Spikes", "Whirlwind"], stats: {hp: 220, atk: 130, def: 145, spa: 75, spd: 130, spe: 65}},
+  ]);
+  assertArchetype("poison stall team", "poison-stall", [
+    {ident: "p2: Clodsire", details: "Clodsire, L50", condition: "200/200", active: true, ability: "Water Absorb", moves: ["Toxic", "Recover", "Protect"], stats: {hp: 200, atk: 95, def: 120, spa: 65, spd: 150, spe: 40}},
+    {ident: "p2: Toxapex", details: "Toxapex, L50", condition: "150/150", active: false, ability: "Regenerator", moves: ["Toxic Spikes", "Recover"], stats: {hp: 150, atk: 75, def: 180, spa: 75, spd: 170, spe: 55}},
+  ]);
+  assertArchetype("setup offense team", "setup-offense", [
+    {ident: "p2: Dragonite", details: "Dragonite, L50", condition: "160/160", active: true, ability: "Multiscale", moves: ["Dragon Dance", "Extreme Speed"], stats: {hp: 160, atk: 170, def: 115, spa: 105, spd: 120, spe: 100}},
+    {ident: "p2: Gholdengo", details: "Gholdengo, L50", condition: "150/150", active: false, ability: "Good as Gold", moves: ["Nasty Plot", "Make It Rain"], stats: {hp: 150, atk: 80, def: 115, spa: 170, spd: 110, spe: 110}},
+    {ident: "p2: Chien-Pao", details: "Chien-Pao, L50", condition: "140/140", active: false, ability: "Sword of Ruin", moves: ["Icicle Crash", "Sucker Punch"], stats: {hp: 140, atk: 172, def: 100, spa: 80, spd: 85, spe: 170}},
+  ]);
+  assertArchetype("balanced fallback team", "balanced", [
+    {ident: "p2: Pikachu", details: "Pikachu, L50", condition: "100/100", active: true, ability: "Static", moves: ["Thunderbolt", "Protect"], stats: {hp: 100, atk: 80, def: 70, spa: 90, spd: 80, spe: 90}},
+    {ident: "p2: Eevee", details: "Eevee, L50", condition: "110/110", active: false, ability: "Run Away", moves: ["Swift", "Protect"], stats: {hp: 110, atk: 85, def: 75, spa: 75, spd: 85, spe: 75}},
+  ]);
+  console.log("showdown-battle-core ai team archetype analyzer smoke ok");
+}
+
+function aiRainSwitchRoleSmoke() {
+  const aiRequest: BattleServiceRequestV4 = {
+    rqid: 62,
+    active: [
+      {
+        moves: [
+          {move: "Splash", id: "splash", pp: 40, maxpp: 40, target: "self"},
+          {move: "Protect", id: "protect", pp: 10, maxpp: 10, target: "self"},
+        ],
+      },
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Pelipper", details: "Pelipper, L50", condition: "120/120", active: true, ability: "Drizzle", moves: ["Splash", "Protect"], stats: {hp: 120, atk: 70, def: 120, spa: 95, spd: 90, spe: 85}},
+        {ident: "p2: Barraskewda", details: "Barraskewda, L50", condition: "120/120", active: false, ability: "Swift Swim", moves: ["Liquidation", "Aqua Jet"], stats: {hp: 120, atk: 175, def: 80, spa: 70, spd: 70, spe: 170}},
+      ],
+    },
+  };
+  const foeRequest: BattleServiceRequestV4 = {
+    rqid: 62,
+    active: [
+      {
+        moves: [
+          {move: "Splash", id: "splash", pp: 40, maxpp: 40, target: "self"},
+        ],
+      },
+    ],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Magikarp", details: "Magikarp, L50", condition: "80/80", active: true, ability: "Swift Swim", moves: ["Splash"], stats: {hp: 80, atk: 30, def: 55, spa: 25, spd: 35, spe: 80}},
+      ],
+    },
+  };
+  const snapshot = {
+    ...aiSnapshot("gen9", "singles", aiRequest),
+    requests: {p1: foeRequest, p2: aiRequest},
+    rawLog: ["|-weather|RainDance|[from] ability: Drizzle"],
+    active: [
+      {ident: "p1a: Magikarp", playerId: "p1", slot: "p1a", species: "Magikarp", details: "Magikarp, L50", condition: "80/80", hp: 80, maxHp: 80, status: "", fainted: false},
+      {ident: "p2a: Pelipper", playerId: "p2", slot: "p2a", species: "Pelipper", details: "Pelipper, L50", condition: "120/120", hp: 120, maxHp: 120, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const result = chooseAiBattleChoiceV4({
+    request: aiRequest,
+    snapshot,
+    playerId: "p2",
+    aiProfile: {level: "gymLeader", preference: "balanced"},
+    rngSeed: "rain-switch-role",
+    timeBudgetMs: 10_000,
+  });
+  if (!result.choice.startsWith("switch 2")) {
+    throw new Error(`rain setter should prefer switching to healthy rain abuser: ${JSON.stringify(result.debug)}`);
+  }
+  if (result.debug.search?.strategy !== "minimax" || result.debug.search.searchedDepth !== 2) {
+    throw new Error(`rain switch should still use singles depth 2 minimax: ${JSON.stringify(result.debug.search)}`);
+  }
+  console.log("showdown-battle-core ai rain switch role smoke ok");
 }
 
 function aiSearchBudgetSmoke() {
@@ -2374,6 +2580,10 @@ void smoke()
   .then(aiForceSwitchSmoke)
   .then(aiDexDamageEvaluatorSmoke)
   .then(aiSinglesDepth2SearchSmoke)
+  .then(aiOutcomeBucketSmoke)
+  .then(aiTeamRoleAnalyzerSmoke)
+  .then(aiTeamArchetypeAnalyzerSmoke)
+  .then(aiRainSwitchRoleSmoke)
   .then(aiSearchBudgetSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(showdownPlaybackTimelineSmoke);

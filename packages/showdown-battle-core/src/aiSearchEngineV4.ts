@@ -1,12 +1,14 @@
 import type {
   BattleAiFeatureVectorV4,
   BattleAiLevelV4,
+  BattleAiOutcomeBucketV4,
   BattleAiProfileV4,
   BattleAiSearchDebugV4,
   BattleServiceRequestV4,
   BattleServiceSnapshotV4,
   ShowdownPlayerIdV4,
 } from "./types.js";
+import type {BattleAiRoleTagSubtypeV4, BattleAiTeamRoleAnalysisV4} from "./aiTeamRoleAnalyzerV4.js";
 
 export type BattleAiCandidateV4 = {
   choice: string;
@@ -39,6 +41,7 @@ export type BattleAiSearchInputV4 = {
   request?: BattleServiceRequestV4;
   snapshot?: BattleServiceSnapshotV4;
   playerId?: ShowdownPlayerIdV4;
+  roleAnalysis?: BattleAiTeamRoleAnalysisV4;
   generateCandidatesForPlayer?: (playerId: ShowdownPlayerIdV4, request: BattleServiceRequestV4) => BattleAiCandidateV4[];
 };
 
@@ -53,6 +56,12 @@ type BattleAiNumericPokemonV4 = {
 type BattleAiNumericStateV4 = {
   self: BattleAiNumericPokemonV4;
   foe: BattleAiNumericPokemonV4;
+};
+
+type BattleAiCandidateOutcomeV4 = {
+  choice: string;
+  buckets: BattleAiOutcomeBucketV4[];
+  score: number;
 };
 
 const AI_SEARCH_BUDGETS: Record<BattleAiLevelV4, BattleAiSearchBudgetV4> = {
@@ -139,19 +148,28 @@ function searchSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearc
     .slice()
     .sort((a, b) => b.score - a.score)
     .slice(0, budget.ownTopK);
+  const ownOutcomes = ownCandidates.map(candidate => outcomeForOwnCandidate(input, state, candidate));
   let visitedNodes = 0;
-  let best: {candidate: BattleAiCandidateV4; reply: BattleAiCandidateV4; leafScore: number} | null = null;
+  let best: {candidate: BattleAiCandidateV4; reply: BattleAiCandidateV4; leafScore: number; buckets: BattleAiOutcomeBucketV4[]} | null = null;
   let truncatedReason: BattleAiSearchDebugV4["truncatedReason"];
 
-  for (const candidate of ownCandidates) {
+  for (const [index, candidate] of ownCandidates.entries()) {
     if (Date.now() - startedAt > budget.maxMs) {
       truncatedReason = "timeout";
       break;
     }
+    const ownOutcome = ownOutcomes[index] || {choice: candidate.choice, buckets: [], score: 0};
     const afterSelf = applyCandidateDamage(state, candidate, "self");
     let worstReply: BattleAiCandidateV4 | null = null;
     let worstLeaf = Number.POSITIVE_INFINITY;
+    let worstBuckets: BattleAiOutcomeBucketV4[] = ownOutcome.buckets;
+    if (afterSelf.foe.fainted) {
+      worstReply = foeCandidates[0] || null;
+      worstLeaf = scoreSinglesLeafState(afterSelf, candidate, worstReply || candidate, input, state, ownOutcome.buckets);
+      worstBuckets = ownOutcome.buckets;
+    }
     for (const reply of foeCandidates) {
+      if (afterSelf.foe.fainted) break;
       visitedNodes += 1;
       if (visitedNodes >= budget.maxNodes) {
         truncatedReason = "max-nodes";
@@ -162,14 +180,17 @@ function searchSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearc
         break;
       }
       const afterReply = applyCandidateDamage(afterSelf, reply, "foe");
-      const leafScore = scoreSinglesLeafState(afterReply, candidate, reply);
+      const replyBuckets = outcomeForReply(state, afterSelf, afterReply, candidate, reply);
+      const buckets = uniqueBuckets([...ownOutcome.buckets, ...replyBuckets]);
+      const leafScore = scoreSinglesLeafState(afterReply, candidate, reply, input, state, buckets);
       if (leafScore < worstLeaf) {
         worstLeaf = leafScore;
         worstReply = reply;
+        worstBuckets = buckets;
       }
     }
     if (worstReply && (!best || worstLeaf > best.leafScore)) {
-      best = {candidate, reply: worstReply, leafScore: worstLeaf};
+      best = {candidate, reply: worstReply, leafScore: worstLeaf, buckets: worstBuckets};
     }
     if (truncatedReason) break;
   }
@@ -192,6 +213,10 @@ function searchSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearc
         {role: "self", choice: best.candidate.choice, score: roundSearchScore(best.candidate.score)},
         {role: "foe", choice: best.reply.choice, score: roundSearchScore(best.reply.score)},
       ],
+      outcomeBuckets: debugOutcomeBuckets([
+        ...ownOutcomes,
+        {choice: best.candidate.choice, buckets: best.buckets, score: outcomeBucketScore(best.buckets)},
+      ]),
     },
   };
 }
@@ -230,11 +255,18 @@ function applyCandidateDamage(state: BattleAiNumericStateV4, candidate: BattleAi
   };
 }
 
-function scoreSinglesLeafState(state: BattleAiNumericStateV4, own: BattleAiCandidateV4, foe: BattleAiCandidateV4): number {
+function scoreSinglesLeafState(
+  state: BattleAiNumericStateV4,
+  own: BattleAiCandidateV4,
+  foe: BattleAiCandidateV4,
+  input: BattleAiSearchInputV4,
+  initialState: BattleAiNumericStateV4,
+  buckets: BattleAiOutcomeBucketV4[],
+): number {
   const selfRatio = state.self.hp / Math.max(1, state.self.maxHp);
   const foeRatio = state.foe.hp / Math.max(1, state.foe.maxHp);
   const koSwing = (state.foe.fainted ? 140 : 0) - (state.self.fainted ? 170 : 0);
-  return selfRatio * 120 - foeRatio * 120 + koSwing + own.score * 0.12 - foe.score * 0.04;
+  return selfRatio * 120 - foeRatio * 120 + koSwing + own.score * 0.12 - foe.score * 0.04 + roleValueBonus(input, initialState, own) + outcomeBucketScore(buckets);
 }
 
 function expectedDamage(candidate: BattleAiCandidateV4, targetMaxHp: number): number {
@@ -246,6 +278,104 @@ function expectedDamage(candidate: BattleAiCandidateV4, targetMaxHp: number): nu
   const koChance = firstFiniteNumber(diagnostics.map(entry => Number(entry.koChance)));
   if (koChance !== null && koChance >= 1) return targetMaxHp;
   return Math.max(0, candidate.features.damage || 0);
+}
+
+function outcomeForOwnCandidate(
+  input: BattleAiSearchInputV4,
+  state: BattleAiNumericStateV4,
+  candidate: BattleAiCandidateV4,
+): BattleAiCandidateOutcomeV4 {
+  const buckets: BattleAiOutcomeBucketV4[] = [];
+  const damage = expectedDamage(candidate, state.foe.maxHp);
+  const koChance = candidateKoChance(candidate);
+  const moveId = candidateMoveId(candidate);
+  const weatherMove = weatherSubtypeFromMove(moveId);
+  const analysis = input.roleAnalysis;
+  const weather = currentWeather(input.snapshot);
+
+  if (koChance >= 1 || damage >= state.foe.hp) {
+    buckets.push("ko");
+  } else if (koChance > 0 || damage >= state.foe.hp * 0.65 || damage / Math.max(1, state.foe.maxHp) >= 0.45) {
+    buckets.push("threaten-ko");
+  }
+  if (weatherMove) {
+    buckets.push("setup-weather");
+    if (analysis && teamHasHealthyAbuser(analysis, weatherMove)) buckets.push("enable-wincon");
+  }
+  if (isHazardMove(moveId) && hazardCanProgress(input, moveId)) buckets.push("hazard-progress");
+  if (isStatusProgressMove(moveId)) buckets.push("status-progress");
+
+  if (analysis && candidate.kind === "switch") {
+    const target = pokemonForSwitchCandidate(analysis, candidate);
+    if (activeIsWinCondition(analysis) && state.self.hp / Math.max(1, state.self.maxHp) < 0.45) {
+      buckets.push("preserve-wincon");
+    }
+    if (target && target.hpRatio > 0.45 && (isWinCondition(target) || weather && hasTag(target, "weather-abuser", weather))) {
+      buckets.push("enable-wincon");
+    }
+  }
+  return {choice: candidate.choice, buckets: uniqueBuckets(buckets), score: outcomeBucketScore(buckets)};
+}
+
+function outcomeForReply(
+  initialState: BattleAiNumericStateV4,
+  afterSelf: BattleAiNumericStateV4,
+  afterReply: BattleAiNumericStateV4,
+  own: BattleAiCandidateV4,
+  reply: BattleAiCandidateV4,
+): BattleAiOutcomeBucketV4[] {
+  const buckets: BattleAiOutcomeBucketV4[] = [];
+  if (afterSelf.foe.fainted) return buckets;
+  const replyDamage = Math.max(0, afterSelf.self.hp - afterReply.self.hp);
+  const replyDamageRatio = replyDamage / Math.max(1, initialState.self.maxHp);
+  if (afterReply.self.fainted) buckets.push("self-ko-risk");
+  if (!afterSelf.foe.fainted && afterSelf.foe.hp / Math.max(1, afterSelf.foe.maxHp) <= 0.3 && (afterReply.self.fainted || replyDamageRatio >= 0.45)) {
+    buckets.push("revenge-kill-risk");
+  }
+  if (own.kind === "switch") {
+    if (!afterReply.self.fainted && replyDamageRatio <= 0.3 && candidateKoChance(reply) < 1) {
+      buckets.push("safe-switch");
+    } else if (afterReply.self.fainted || replyDamageRatio >= 0.45 || candidateKoChance(reply) >= 1) {
+      buckets.push("unsafe-switch");
+    }
+  }
+  return uniqueBuckets(buckets);
+}
+
+function outcomeBucketScore(buckets: BattleAiOutcomeBucketV4[]): number {
+  const weights: Record<BattleAiOutcomeBucketV4, number> = {
+    "ko": 82,
+    "joint-ko": 76,
+    "threaten-ko": 22,
+    "self-ko-risk": -92,
+    "revenge-kill-risk": -30,
+    "safe-switch": 16,
+    "unsafe-switch": -46,
+    "setup-weather": 18,
+    "enable-wincon": 28,
+    "preserve-wincon": 24,
+    "hazard-progress": 20,
+    "status-progress": 12,
+  };
+  return uniqueBuckets(buckets).reduce((sum, bucket) => sum + weights[bucket], 0);
+}
+
+function debugOutcomeBuckets(outcomes: BattleAiCandidateOutcomeV4[]): BattleAiSearchDebugV4["outcomeBuckets"] {
+  const byChoice = new Map<string, BattleAiCandidateOutcomeV4>();
+  for (const outcome of outcomes) {
+    const existing = byChoice.get(outcome.choice);
+    const buckets = uniqueBuckets([...(existing?.buckets || []), ...outcome.buckets]);
+    byChoice.set(outcome.choice, {choice: outcome.choice, buckets, score: outcomeBucketScore(buckets)});
+  }
+  return [...byChoice.values()]
+    .filter(outcome => outcome.buckets.length)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8)
+    .map(outcome => ({...outcome, score: roundSearchScore(outcome.score)}));
+}
+
+function uniqueBuckets(buckets: BattleAiOutcomeBucketV4[]): BattleAiOutcomeBucketV4[] {
+  return [...new Set(buckets)];
 }
 
 function flattenedDiagnostics(diagnostics: Record<string, unknown> | undefined): Array<Record<string, unknown>> {
@@ -288,4 +418,142 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function roundSearchScore(score: number): number {
   return Math.round(score * 100) / 100;
+}
+
+function roleValueBonus(input: BattleAiSearchInputV4, state: BattleAiNumericStateV4, candidate: BattleAiCandidateV4): number {
+  const analysis = input.roleAnalysis;
+  if (!analysis) return 0;
+  const weather = currentWeather(input.snapshot);
+  const weatherMove = weatherSubtypeFromMove(candidateMoveId(candidate));
+  let bonus = 0;
+  if (weatherMove) {
+    bonus += teamHasHealthyAbuser(analysis, weatherMove) ? 24 : -14;
+  }
+  if (candidate.kind === "switch") {
+    const target = pokemonForSwitchCandidate(analysis, candidate);
+    if (target) {
+      if (weather && hasTag(target, "weather-abuser", weather)) bonus += 36;
+      if (state.self.hp / Math.max(1, state.self.maxHp) < 0.35 && (hasTag(target, "pivot") || hasTag(target, "wall"))) bonus += 22;
+      if (target.hpRatio < 0.35 && (hasTag(target, "weather-abuser") || hasTag(target, "setup-sweeper") || hasTag(target, "revenge-killer"))) bonus -= 24;
+    }
+  } else if (weather && activeSetterMatchesWeather(analysis, weather) && teamHasHealthyAbuser(analysis, weather) && candidateKoChance(candidate) < 1) {
+    bonus -= 18;
+  }
+  return bonus;
+}
+
+function hazardCanProgress(input: BattleAiSearchInputV4, moveId: string): boolean {
+  const foePlayerId = input.playerId && input.snapshot ? opponentPlayerId(input.snapshot, input.playerId) : undefined;
+  if (!foePlayerId) return true;
+  const maxLayers = hazardMaxLayers(moveId);
+  if (maxLayers <= 0) return false;
+  const currentLayers = sideHazardLayers(input.snapshot, foePlayerId, moveId);
+  if (currentLayers >= maxLayers) return false;
+  const foeRequest = input.snapshot?.requests[foePlayerId];
+  const aliveFoes = (foeRequest?.side?.pokemon || []).filter(row => !row.active && !row.fainted && !String(row.condition || "").includes("fnt")).length;
+  return aliveFoes >= 1 || !foeRequest;
+}
+
+function opponentPlayerId(snapshot: BattleServiceSnapshotV4, playerId: ShowdownPlayerIdV4): ShowdownPlayerIdV4 | undefined {
+  const player = snapshot.players.find(entry => entry.playerId === playerId);
+  return snapshot.players.find(entry => entry.playerId !== playerId && entry.alliance !== player?.alliance)?.playerId;
+}
+
+function sideHazardLayers(snapshot: BattleServiceSnapshotV4 | undefined, playerId: ShowdownPlayerIdV4, moveId: string): number {
+  const hazard = hazardProtocolName(moveId);
+  if (!snapshot || !hazard) return 0;
+  let layers = 0;
+  for (const line of snapshot.rawLog || []) {
+    const normalized = line.toLowerCase();
+    if (normalized.includes("|-sideend|") && normalized.includes(playerId) && normalizeId(normalized).includes(hazard)) {
+      layers = 0;
+    }
+    if (normalized.includes("|-sidestart|") && normalized.includes(playerId) && normalizeId(normalized).includes(hazard)) {
+      layers = Math.min(hazardMaxLayers(moveId), layers + 1);
+    }
+  }
+  return layers;
+}
+
+function hazardProtocolName(moveId: string): string | null {
+  if (moveId === "stealthrock") return "stealthrock";
+  if (moveId === "spikes") return "spikes";
+  if (moveId === "toxicspikes") return "toxicspikes";
+  if (moveId === "stickyweb") return "stickyweb";
+  return null;
+}
+
+function hazardMaxLayers(moveId: string): number {
+  if (moveId === "spikes") return 3;
+  if (moveId === "toxicspikes") return 2;
+  if (moveId === "stealthrock" || moveId === "stickyweb") return 1;
+  return 0;
+}
+
+function isHazardMove(moveId: string): boolean {
+  return hazardMaxLayers(moveId) > 0;
+}
+
+function isStatusProgressMove(moveId: string): boolean {
+  return ["thunderwave", "willowisp", "toxic", "spore", "sleeppowder", "stunspore", "glare", "yawn"].includes(moveId);
+}
+
+function activeIsWinCondition(analysis: BattleAiTeamRoleAnalysisV4): boolean {
+  return Object.values(analysis.pokemon).some(entry => entry.active && isWinCondition(entry));
+}
+
+function isWinCondition(pokemon: BattleAiTeamRoleAnalysisV4["pokemon"][string]): boolean {
+  return pokemon.tags.some(tag => ["weather-abuser", "setup-sweeper", "revenge-killer", "priority-user"].includes(tag.kind));
+}
+
+function currentWeather(snapshot: BattleServiceSnapshotV4 | undefined): BattleAiRoleTagSubtypeV4 | undefined {
+  const line = snapshot?.rawLog.slice().reverse().find(entry => entry.includes("|-weather|"))?.toLowerCase() || "";
+  if (line.includes("raindance") || line.includes("rain")) return "rain";
+  if (line.includes("sunnyday") || line.includes("harsh sunlight") || line.includes("sun")) return "sun";
+  if (line.includes("sandstorm")) return "sand";
+  if (line.includes("snow") || line.includes("hail")) return "snow";
+  return undefined;
+}
+
+function weatherSubtypeFromMove(moveId: string): BattleAiRoleTagSubtypeV4 | undefined {
+  if (moveId === "raindance") return "rain";
+  if (moveId === "sunnyday") return "sun";
+  if (moveId === "sandstorm") return "sand";
+  if (moveId === "snowscape" || moveId === "hail") return "snow";
+  return undefined;
+}
+
+function candidateMoveId(candidate: BattleAiCandidateV4): string {
+  return String(flattenedDiagnostics(candidate.diagnostics)[0]?.moveId || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+
+function candidateKoChance(candidate: BattleAiCandidateV4): number {
+  return firstFiniteNumber(flattenedDiagnostics(candidate.diagnostics).map(entry => Number(entry.koChance))) ?? 0;
+}
+
+function pokemonForSwitchCandidate(analysis: BattleAiTeamRoleAnalysisV4, candidate: BattleAiCandidateV4) {
+  const match = candidate.choice.match(/^switch\s+(\d+)/);
+  if (!match) return null;
+  const rowIndex = Number(match[1]) - 1;
+  return Object.values(analysis.pokemon).find(entry => entry.rowIndex === rowIndex) || null;
+}
+
+function teamHasHealthyAbuser(analysis: BattleAiTeamRoleAnalysisV4, subtype: BattleAiRoleTagSubtypeV4): boolean {
+  return Object.values(analysis.pokemon).some(entry => !entry.active && !entry.fainted && entry.hpRatio > 0.35 && hasTag(entry, "weather-abuser", subtype));
+}
+
+function activeSetterMatchesWeather(analysis: BattleAiTeamRoleAnalysisV4, weather: BattleAiRoleTagSubtypeV4): boolean {
+  return Object.values(analysis.pokemon).some(entry => entry.active && hasTag(entry, "weather-setter", weather));
+}
+
+function hasTag(
+  pokemon: BattleAiTeamRoleAnalysisV4["pokemon"][string],
+  kind: string,
+  subtype?: BattleAiRoleTagSubtypeV4,
+): boolean {
+  return pokemon.tags.some(tag => tag.kind === kind && (!subtype || tag.subtype === subtype));
+}
+
+function normalizeId(value: string): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }

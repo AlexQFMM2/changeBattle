@@ -9,6 +9,19 @@ export type BattleAiProfileV4 = {
   preference?: BattleAiPreferenceV4;
 };
 export type BattleAiFeatureVectorV4 = Record<string, number>;
+export type BattleAiOutcomeBucketV4 =
+  | "ko"
+  | "joint-ko"
+  | "threaten-ko"
+  | "self-ko-risk"
+  | "revenge-kill-risk"
+  | "safe-switch"
+  | "unsafe-switch"
+  | "setup-weather"
+  | "enable-wincon"
+  | "preserve-wincon"
+  | "hazard-progress"
+  | "status-progress";
 export type BattleAiSearchDebugV4 = {
   strategy: "numeric-guard" | "minimax";
   maxDepth: number;
@@ -20,6 +33,7 @@ export type BattleAiSearchDebugV4 = {
   leafScore?: number;
   candidateCount?: number;
   replyCount?: number;
+  outcomeBuckets?: Array<{choice: string; buckets: BattleAiOutcomeBucketV4[]; score: number}>;
 };
 export type BattleAiDecisionDebugV4 = {
   playerId: ShowdownPlayerIdV4;

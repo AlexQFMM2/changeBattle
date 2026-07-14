@@ -112,6 +112,36 @@
 - [ ] 处理常见天气速度特性占位。
 - [ ] 处理 Choice Scarf 占位。
 
+## 5.1 Team Role Analysis
+
+- [x] 新增 `aiTeamRoleAnalyzerV4.ts`。
+- [x] 新增 `analyzeBattleAiTeamRolesV4(input)`。
+- [x] 支持 `weather-setter` 标签。
+- [x] 支持 `weather-abuser` 标签。
+- [x] 支持 `terrain-setter` 标签。
+- [x] 支持 `terrain-abuser` 标签。
+- [x] 支持 `pivot` 标签。
+- [x] 支持 `wall` 标签。
+- [x] 支持 `physical-attacker` / `special-attacker` / `mixed-attacker` 标签。
+- [x] 支持 `setup-sweeper` 标签。
+- [x] 支持 `revenge-killer` 标签。
+- [x] 支持 `hazard-setter` / `hazard-remover` 标签。
+- [x] 支持 `status-spreader` 标签。
+- [x] 支持 `priority-user` 标签。
+- [x] 支持 `speed-control` 标签。
+- [x] 支持 `trick-room-setter` 标签。
+- [x] 根据天气 setter + abuser 汇总 team archetype。
+- [x] 对齐正式赛队伍生成偏好：`rain` / `sun` / `sand` / `snow` / `trick-room` / `tailwind` / `terrain` / `hazard-stack` / `poison-stall` / `setup-offense` / `balanced`。
+- [x] 根据场地 setter / abuser 汇总 `terrain` archetype。
+- [x] 根据 Tailwind / 速度控制组件汇总 `tailwind` archetype。
+- [x] 根据 Trick Room 组件汇总 `trick-room` archetype。
+- [x] 根据多层撒场组件汇总 `hazard-stack` archetype。
+- [x] 根据中毒 + 回复/Protect/消耗组件汇总 `poison-stall` archetype。
+- [x] 根据强化手 + 进攻核心汇总 `setup-offense` archetype。
+- [x] 无明显组件时回退 `balanced` archetype。
+- [x] 根据角色标签汇总 setters / abusers / pivots / defensiveCore / winConditions。
+- [x] 角色标签只用于 AI 内部评分和测试，不展示给玩家。
+
 ## 6. 合法行动枚举
 
 - [ ] 新增 `BattleAiSingleActionV4`。
@@ -172,6 +202,7 @@
 - [ ] 新增 `applyBattleAiOutcomeToNumericStateV4()`。
 - [x] singles depth 2 应用 HP delta。
 - [x] singles depth 2 应用 fainted 状态。
+- [x] singles depth 2 稳定 KO 后不再套用对手 reply 伤害。
 - [ ] 应用 stat stage delta。
 - [ ] 应用 status delta。
 - [ ] 应用 weather delta。
@@ -185,7 +216,20 @@
 
 ## 10. Outcome Bucket
 
-- [ ] 新增 `BattleAiOutcomeBucketV4`。
+- [x] 新增 `BattleAiOutcomeBucketV4`。
+- [x] 支持 `ko`。
+- [ ] 支持 `joint-ko`。
+- [x] 支持 `threaten-ko`。
+- [x] 支持 `self-ko-risk`。
+- [x] 支持 `revenge-kill-risk`。
+- [x] 支持 `safe-switch`。
+- [x] 支持 `unsafe-switch`。
+- [x] 支持 `setup-weather`。
+- [x] 支持 `enable-wincon`。
+- [x] 支持 `preserve-wincon`。
+- [x] 支持 `hazard-progress`。
+- [x] 支持 `status-progress`。
+- [x] Outcome bucket 进入 singles depth 2 leaf score。
 - [ ] 新增 `BattleAiDamageBucketV4`。
 - [ ] 支持 `immune`。
 - [ ] 支持 `negligible`。
@@ -208,8 +252,11 @@
 - [x] 对方剩余 HP 扣分。
 - [x] 我方 KO 对手加分。
 - [x] 我方被 KO 扣分。
+- [x] 保住我方核心额外加分。
+- [x] 撒场推进额外加分。
+- [x] 异常推进额外加分。
+- [x] 危险换人扣分。
 - [ ] 击杀高威胁目标额外加分。
-- [ ] 保住我方核心额外加分。
 - [ ] 我方速度权加分。
 - [ ] 对方速度权扣分。
 - [ ] 我方有利天气加分。
@@ -226,6 +273,16 @@
 - [ ] 对方异常加分。
 - [ ] 风险项单独输出。
 - [ ] reasons 可解释。
+
+## 11.1 Singles Role-Aware Switch Value
+
+- [x] singles depth 2 接入 team role analysis。
+- [x] 当前天气匹配后排 weather-abuser 时，switch 加分。
+- [x] 当前 active 是天气 setter 且天气已开、后排有健康 abuser 时，低 KO 留场降分。
+- [x] 残血时换入 pivot / wall 加分。
+- [x] 低血 win condition 换入扣分。
+- [x] 天气招式在己方有对应 abuser 时加分。
+- [x] 天气招式在己方无对应 abuser 时降分。
 
 ## 12. Minimax
 
@@ -318,8 +375,8 @@
 - [x] 输出截断原因。
 - [x] 输出 top candidates。
 - [x] 输出 principal variation。
+- [x] 输出每个候选的 outcome bucket。
 - [ ] 输出每个候选的 score parts。
-- [ ] 输出每个候选的 outcome bucket。
 - [ ] 输出 ally combo reasons。
 - [ ] 输出 fallback reason。
 
@@ -327,6 +384,22 @@
 
 - [x] Tyranitar vs Ceruledge：Ice Beam 不应被 gymLeader+ 选择。
 - [x] singles depth 2：双方 request 存在时进入 minimax，并输出 principal variation。
+- [x] singles depth 2：稳定 KO 输出 `ko` outcome bucket。
+- [x] outcome bucket：Stealth Rock 输出 `hazard-progress`。
+- [x] outcome bucket：Toxic 输出 `status-progress`。
+- [x] 队伍标签：Pelipper / Drizzle -> `weather-setter: rain`。
+- [x] 队伍标签：Barraskewda / Swift Swim -> `weather-abuser: rain`。
+- [x] 队伍标签：Ferrothorn + Leech Seed/Protect/Spikes -> `wall` + `hazard-setter`。
+- [x] 队伍标签：Rotom-W + Volt Switch -> `pivot`。
+- [x] 队伍标签：Dragon Dance 用户 -> `setup-sweeper`。
+- [x] 队伍类型：Tailwind 组件 + 进攻核心 -> `tailwind`。
+- [x] 队伍类型：Trick Room 组件 -> `trick-room`。
+- [x] 队伍类型：场地组件 -> `terrain`。
+- [x] 队伍类型：多层撒场 -> `hazard-stack`。
+- [x] 队伍类型：中毒 + 回复/Protect 消耗 -> `poison-stall`。
+- [x] 队伍类型：强化手 + 进攻核心 -> `setup-offense`。
+- [x] 队伍类型：无明显组件 -> `balanced`。
+- [x] 雨天已开，场上 setter 无 KO 机会，后排 rain abuser 健康：switch abuser 分提高。
 - [ ] 免疫测试。
 - [ ] 抵抗测试。
 - [ ] 克制测试。
