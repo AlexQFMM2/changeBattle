@@ -22,7 +22,6 @@ const requiredSnippets = [
       "training_run.dat",
       "formal_run.dat",
       "formalComputeWorker.js",
-      "desktop background update",
       ".update-staging",
       ".update-backup",
     ],
