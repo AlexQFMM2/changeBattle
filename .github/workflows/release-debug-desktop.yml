@@ -77,10 +77,10 @@ jobs:
       - name: Setup MinGW
         uses: msys2/setup-msys2@v2
         with:
-          msystem: MINGW64
+          msystem: UCRT64
           update: true
           install: >-
-            mingw-w64-x86_64-gcc
+            mingw-w64-ucrt-x86_64-gcc
 
       - name: Verify version
         shell: pwsh
@@ -208,7 +208,7 @@ jobs:
           powershell -NoProfile -ExecutionPolicy Bypass -File tools\windows\build-desktop-launcher.ps1 `
             -SourceRoot "${{ github.workspace }}" `
             -OutputDir "${{ github.workspace }}\release\desktop-launcher" `
-            -MingwBin "C:\msys64\mingw64\bin"
+            -MingwBin "C:\msys64\ucrt64\bin"
 
       - name: Package portable release
         shell: pwsh
