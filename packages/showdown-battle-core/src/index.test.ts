@@ -21,6 +21,7 @@ import {
   randomLegalChoice,
   resolveBattleWinnerPlayerIdV4,
   resolveShowdownRandomTeamFormatV4,
+  scoreBattleAiDoublesJointCandidateV4,
   showdownMoveNeedsExplicitTargetV4,
   normalizeShowdownChoiceRequestV4,
   applyPermanentFormeChange,
@@ -3276,6 +3277,114 @@ function aiSinglesSpeedStateSmoke() {
   console.log("showdown-battle-core ai singles speed state smoke ok");
 }
 
+function aiDoublesStrategyV0Smoke() {
+  const request: BattleServiceRequestV4 = {
+    rqid: 91,
+    targetable: true,
+    active: [
+      {
+        moves: [
+          {move: "Earthquake", id: "earthquake", pp: 10, maxpp: 10, target: "allAdjacent"},
+          {move: "Rock Slide", id: "rockslide", pp: 10, maxpp: 10, target: "allAdjacentFoes"},
+          {move: "Dragon Claw", id: "dragonclaw", pp: 15, maxpp: 15, target: "normal"},
+        ],
+      },
+      {
+        moves: [
+          {move: "Thunderbolt", id: "thunderbolt", pp: 15, maxpp: 15, target: "normal"},
+          {move: "Helping Hand", id: "helpinghand", pp: 20, maxpp: 20, target: "adjacentAlly"},
+          {move: "Protect", id: "protect", pp: 10, maxpp: 10, target: "self"},
+        ],
+      },
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Garchomp", details: "Garchomp, L50", condition: "180/180", active: true, ability: "Rough Skin", moves: ["Earthquake", "Rock Slide", "Dragon Claw"], stats: {hp: 180, atk: 170, def: 110, spa: 85, spd: 100, spe: 125}},
+        {ident: "p2: Raichu", details: "Raichu, L50", condition: "140/140", active: true, ability: "Static", moves: ["Thunderbolt", "Helping Hand", "Protect"], stats: {hp: 140, atk: 100, def: 75, spa: 110, spd: 90, spe: 150}},
+      ],
+    },
+  };
+  const earthquake = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 1, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "earthquake", target: "allAdjacent", category: "physical", expectedDamageRatio: 0.55},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!earthquake.tags.includes("spread-friendly-fire-risk") || !(earthquake.adjustment < 0)) {
+    throw new Error(`Earthquake should carry doubles friendly-fire risk: ${JSON.stringify(earthquake)}`);
+  }
+  const rockSlide = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 2, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "rockslide", target: "allAdjacentFoes", category: "physical", expectedDamageRatio: 0.35},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!rockSlide.tags.includes("spread-foes") || !(rockSlide.adjustment > earthquake.adjustment)) {
+    throw new Error(`Rock Slide should be recognized as foe-only spread: ${JSON.stringify({rockSlide, earthquake})}`);
+  }
+  const allyDamage = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 3 -2, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "dragonclaw", target: "normal", category: "physical", expectedDamageRatio: 0.5},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!allyDamage.tags.includes("avoid-ally-damage") || !(allyDamage.adjustment < earthquake.adjustment)) {
+    throw new Error(`Direct ally damage should be strongly punished without combo: ${JSON.stringify(allyDamage)}`);
+  }
+  const doubleTarget = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 3 +1, move 1 +1",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "dragonclaw", target: "normal", category: "physical", expectedDamageRatio: 0.45},
+      {moveId: "thunderbolt", target: "normal", category: "special", expectedDamageRatio: 0.45},
+    ]},
+  });
+  if (!doubleTarget.tags.includes("double-target-foe") || !(doubleTarget.adjustment > 0)) {
+    throw new Error(`Double targeting the same foe should be recognized: ${JSON.stringify(doubleTarget)}`);
+  }
+
+  const snapshot = {
+    ...aiSnapshot("gen9", "doubles", request),
+    active: [
+      {ident: "p1a: Arcanine", playerId: "p1", slot: "p1a", species: "Arcanine", details: "Arcanine, L50", condition: "160/160", hp: 160, maxHp: 160, status: "", fainted: false},
+      {ident: "p1b: Kilowattrel", playerId: "p1", slot: "p1b", species: "Kilowattrel", details: "Kilowattrel, L50", condition: "145/145", hp: 145, maxHp: 145, status: "", fainted: false},
+      {ident: "p2a: Garchomp", playerId: "p2", slot: "p2a", species: "Garchomp", details: "Garchomp, L50", condition: "180/180", hp: 180, maxHp: 180, status: "", fainted: false},
+      {ident: "p2b: Raichu", playerId: "p2", slot: "p2b", species: "Raichu", details: "Raichu, L50", condition: "140/140", hp: 140, maxHp: 140, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const result = chooseAiBattleChoiceV4({
+    request,
+    snapshot,
+    playerId: "p2",
+    aiProfile: {level: "gymLeader", preference: "balanced"},
+    rngSeed: "doubles-strategy-v0",
+  });
+  const validation = validateShowdownChoiceCommandV4({request, choice: result.choice});
+  if (!validation.ok) {
+    throw new Error(`doubles strategy v0 should return legal choice: ${result.choice}; ${JSON.stringify(validation)}; ${JSON.stringify(result.debug)}`);
+  }
+  if (result.debug.search?.dynamicDepthReason !== "doubles-v0-joint-action-safety" || !result.debug.search.reasonTags?.length) {
+    throw new Error(`doubles strategy v0 should expose debug reason tags: ${JSON.stringify(result.debug.search)}`);
+  }
+  console.log("showdown-battle-core ai doubles strategy v0 smoke ok");
+}
+
 function aiSearchBudgetSmoke() {
   const expected: Array<[BattleAiLevelV4, number]> = [
     ["rookie", 1],
@@ -3784,6 +3893,7 @@ void smoke()
   .then(aiOutcomeBucketsSmoke)
   .then(aiActionOutcomeEstimatorSmoke)
   .then(aiSinglesSpeedStateSmoke)
+  .then(aiDoublesStrategyV0Smoke)
   .then(aiSearchBudgetSmoke)
   .then(randomTeamGeneratorSmoke)
   .then(aiSelfPlayExamSmoke)

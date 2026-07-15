@@ -421,20 +421,26 @@
 
 ## 13. 双打 Joint Action
 
-- [ ] 双打开始实现前拆出 `aiDoublesStrategyV4.ts`。
-- [ ] 双打搜索以 joint action 为单位。
-- [ ] 一个 joint action 包含两个 active 的行动。
-- [ ] 支持 move + move。
-- [ ] 支持 move + switch。
-- [ ] 支持 switch + move。
-- [ ] 支持 switch + switch。
-- [ ] 支持 move target foe。
-- [ ] 支持 move target ally。
-- [ ] 支持 move target self。
-- [ ] 支持 spread move。
-- [ ] spread move 伤害估算第一版复用现有 evaluator。
-- [ ] 队友误伤必须扣分。
-- [ ] 只有 combo detector 命中时，打队友才允许获得正向战术分。
+- [x] 双打 v0：拆出 `aiDoublesStrategyV4.ts`。
+- [x] 双打 v0：不生成新 choice，只重排现有合法 joint candidates。
+- [x] 双打 v0：解析 joint action parts，识别 move / switch / pass。
+- [x] 双打 v0：识别 move + move。
+- [x] 双打 v0：识别 move + switch。
+- [x] 双打 v0：识别 switch + move。
+- [x] 双打 v0：识别 switch + switch。
+- [x] 双打 v0：识别 move target foe。
+- [x] 双打 v0：识别 move target ally。
+- [x] 双打 v0：识别 move target self。
+- [x] 双打 v0：识别 spread move。
+- [x] 双打 v0：spread move 伤害估算第一版复用现有 evaluator diagnostics。
+- [x] 双打 v0：`allAdjacentFoes` 不算友伤。
+- [x] 双打 v0：`allAdjacent` 默认按可能友伤扣分。
+- [x] 双打 v0：队友误伤必须扣分。
+- [x] 双打 v0：没有 combo detector 命中时，攻击队友不得获得正向战术分。
+- [x] 双打 v0：debug 输出 doubles reason tags。
+- [ ] 双打 v1：引入 ally combo detector 后，打队友才允许正收益。
+- [ ] 双打 v1：实现 Weakness Policy / Contrary / 吸收特性首批 combo。
+- [ ] 双打 v2：引入对手 joint reply，馆主/四天王/冠军按 `1/2/3` 搜索。
 
 ## 13.1 合作 Coop Strategy
 
@@ -611,7 +617,7 @@
 - [ ] 单体招按 targetLoc 分别评分。
 - [ ] 不攻击 fainted 目标。
 - [ ] spread move 命中多个目标。
-- [ ] spread move 计算队友误伤。
+- [x] spread move 计算队友误伤。
 - [ ] 双点 KO 威胁下 Protect 分提高。
 - [ ] Fake Out 阻止 Trick Room。
 - [ ] Tailwind mirror 场景。
@@ -623,6 +629,11 @@
 - [ ] Lightning Rod / Storm Drain 队友吸收场景。
 - [ ] Surf / Discharge / Earthquake 配合免疫场景。
 - [ ] joint action 不能生成非法 target suffix。
+- [x] doubles v0：`Earthquake/allAdjacent` 输出 `spread-friendly-fire-risk`。
+- [x] doubles v0：`Rock Slide/allAdjacentFoes` 输出 `spread-foes`。
+- [x] doubles v0：直接攻击队友输出 `avoid-ally-damage`。
+- [x] doubles v0：双点同一敌人输出 `double-target-foe`。
+- [x] doubles v0：AI 选择后仍通过 validator。
 
 ## 20. 性能测试
 

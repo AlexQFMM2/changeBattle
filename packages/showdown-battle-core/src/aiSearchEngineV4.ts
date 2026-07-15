@@ -23,6 +23,7 @@ import {
 } from "./aiValueFunctionV4.js";
 import {battleAiOutcomeBucketScoreV4} from "./aiOutcomeBucketsV4.js";
 import {buildBattleAiSpeedFieldStateV4, buildBattleAiSpeedStateV4} from "./aiSpeedStateV4.js";
+import {battleAiDoublesReasonTagsForDebugV4, chooseBattleAiDoublesActionV4} from "./aiDoublesStrategyV4.js";
 import {
   battleAiReasonTagsForCandidateV4,
   buildBattleAiStrategicContextV4,
@@ -214,6 +215,10 @@ export function chooseBattleAiActionBySearchV4(input: BattleAiSearchInputV4): Ba
     const result = searchSinglesDepth2(input, budget, capabilities, startedAt);
     if (result) return result;
   }
+  if (canRunDoublesStrategyV0(input, capabilities)) {
+    const result = chooseBattleAiDoublesActionByStrategyV0(input, budget, capabilities, startedAt);
+    if (result) return result;
+  }
   const candidate = input.pickBestCandidate(input.candidates);
   const elapsedMs = Date.now() - startedAt;
   const timedOut = elapsedMs > budget.maxMs;
@@ -224,6 +229,49 @@ export function chooseBattleAiActionBySearchV4(input: BattleAiSearchInputV4): Ba
       elapsedMs,
       candidateCount: input.candidates.length,
       truncatedReason: timedOut ? "timeout" : budget.maxDepth > 1 ? "not-enabled" : undefined,
+    },
+  };
+}
+
+function canRunDoublesStrategyV0(input: BattleAiSearchInputV4, capabilities: BattleAiCapabilityProfileV4): boolean {
+  return Boolean(
+    capabilities.useMinimax &&
+    input.request &&
+    input.snapshot?.mode === "doubles" &&
+    input.request.active &&
+    input.request.active.length > 1 &&
+    !input.request.teamPreview &&
+    !input.request.forceSwitch?.some(Boolean),
+  );
+}
+
+function chooseBattleAiDoublesActionByStrategyV0(
+  input: BattleAiSearchInputV4,
+  budget: BattleAiSearchBudgetV4,
+  capabilities: BattleAiCapabilityProfileV4,
+  startedAt: number,
+): BattleAiSearchResultV4 | null {
+  if (!input.request) return null;
+  const result = chooseBattleAiDoublesActionV4({
+    request: input.request,
+    candidates: input.candidates.slice(0, Math.max(budget.ownTopK, budget.maxJointActions)),
+  });
+  const elapsedMs = Date.now() - startedAt;
+  const reasonTags = battleAiDoublesReasonTagsForDebugV4(result.scoredCandidates);
+  return {
+    candidate: result.candidate,
+    debug: {
+      strategy: "numeric-guard",
+      maxDepth: budget.maxDepth,
+      searchedDepth: 1,
+      visitedNodes: result.scoredCandidates.length,
+      elapsedMs,
+      truncatedReason: budget.maxDepth > 1 ? "not-enabled" : undefined,
+      candidateCount: input.candidates.length,
+      capabilities,
+      dynamicDepthReason: "doubles-v0-joint-action-safety",
+      valueBreakdown: {doubles: result.scoredCandidates.find(entry => entry.choice === result.candidate?.choice)?.adjustment || 0},
+      reasonTags: reasonTags.length ? reasonTags : undefined,
     },
   };
 }
