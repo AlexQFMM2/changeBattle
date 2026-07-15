@@ -1,6 +1,7 @@
 import type {BattleServiceRequestV4} from "./types.js";
 import {parseShowdownChoiceCommandV4, type ShowdownParsedChoiceV4} from "./showdownCommand.js";
 import type {BattleAiCandidateV4} from "./aiSearchEngineV4.js";
+import {battleAiAllyComboNetValueV4, detectBattleAiAllyCombosV4, type BattleAiAllyComboV4} from "./aiAllyComboDetectorV4.js";
 
 export type BattleAiDoublesReasonTagV4 =
   | "double-target-foe"
@@ -10,7 +11,8 @@ export type BattleAiDoublesReasonTagV4 =
   | "spread-foes"
   | "spread-friendly-fire-risk"
   | "avoid-ally-damage"
-  | "ally-support";
+  | "ally-support"
+  | "ally-combo";
 
 export type BattleAiDoublesJointPartV4 = {
   slotIndex: number;
@@ -23,6 +25,7 @@ export type BattleAiDoublesJointScoreV4 = {
   choice: string;
   adjustment: number;
   tags: BattleAiDoublesReasonTagV4[];
+  combos: BattleAiAllyComboV4[];
   parts: BattleAiDoublesJointPartV4[];
 };
 
@@ -50,6 +53,7 @@ export function chooseBattleAiDoublesActionV4(input: BattleAiDoublesStrategyInpu
 export function scoreBattleAiDoublesJointCandidateV4(request: BattleServiceRequestV4, candidate: BattleAiCandidateV4): BattleAiDoublesJointScoreV4 {
   const parts = jointParts(candidate);
   const tags = new Set<BattleAiDoublesReasonTagV4>();
+  const combos: BattleAiAllyComboV4[] = [];
   let adjustment = 0;
   const positiveTargets = new Map<string, number>();
 
@@ -66,12 +70,31 @@ export function scoreBattleAiDoublesJointCandidateV4(request: BattleServiceReque
     }
     if (part.parsed.target?.startsWith("-")) {
       tags.add("ally-target");
+      const targetSlotIndex = Math.abs(Number(part.parsed.target)) - 1;
+      const detectedCombos = detectBattleAiAllyCombosV4({
+        request,
+        userSlotIndex: part.slotIndex,
+        targetSlotIndex,
+        diagnostics,
+      });
       if (damaging) {
-        tags.add("avoid-ally-damage");
-        adjustment -= 95;
+        if (detectedCombos.length) {
+          tags.add("ally-combo");
+          combos.push(...detectedCombos);
+          adjustment += battleAiAllyComboNetValueV4(detectedCombos);
+        } else {
+          tags.add("avoid-ally-damage");
+          adjustment -= 95;
+        }
       } else {
-        tags.add("ally-support");
-        adjustment += 10;
+        if (detectedCombos.length) {
+          tags.add("ally-combo");
+          combos.push(...detectedCombos);
+          adjustment += battleAiAllyComboNetValueV4(detectedCombos);
+        } else {
+          tags.add("ally-support");
+          adjustment += 10;
+        }
       }
     }
     if (moveTarget === "self") {
@@ -83,8 +106,16 @@ export function scoreBattleAiDoublesJointCandidateV4(request: BattleServiceReque
       adjustment += 14;
     }
     if (moveTarget === "alladjacent") {
-      tags.add("spread-friendly-fire-risk");
-      adjustment -= 42;
+      const spreadCombos = allySlotIndexes(request, part.slotIndex)
+        .flatMap(targetSlotIndex => detectBattleAiAllyCombosV4({request, userSlotIndex: part.slotIndex, targetSlotIndex, diagnostics}));
+      if (spreadCombos.length) {
+        tags.add("ally-combo");
+        combos.push(...spreadCombos);
+        adjustment += battleAiAllyComboNetValueV4(spreadCombos);
+      } else {
+        tags.add("spread-friendly-fire-risk");
+        adjustment -= 42;
+      }
     }
   }
 
@@ -97,6 +128,7 @@ export function scoreBattleAiDoublesJointCandidateV4(request: BattleServiceReque
     choice: candidate.choice,
     adjustment,
     tags: [...tags],
+    combos,
     parts,
   };
 }
@@ -106,7 +138,11 @@ export function battleAiDoublesReasonTagsForDebugV4(scoredCandidates: BattleAiDo
     .filter(entry => entry.tags.length || entry.adjustment !== 0)
     .sort((a, b) => Math.abs(b.adjustment) - Math.abs(a.adjustment))
     .slice(0, 8)
-    .map(entry => ({choice: entry.choice, tags: entry.tags, score: Math.round(entry.adjustment * 100) / 100}));
+    .map(entry => ({
+      choice: entry.choice,
+      tags: [...entry.tags, ...entry.combos.map(combo => `ally-combo:${combo.comboId}`)],
+      score: Math.round(entry.adjustment * 100) / 100,
+    }));
 }
 
 function jointParts(candidate: BattleAiCandidateV4): BattleAiDoublesJointPartV4[] {
@@ -123,6 +159,13 @@ function jointParts(candidate: BattleAiCandidateV4): BattleAiDoublesJointPartV4[
 function moveRequestForPart(request: BattleServiceRequestV4, part: BattleAiDoublesJointPartV4) {
   if (!part.parsed || part.parsed.kind !== "move") return undefined;
   return request.active?.[part.slotIndex]?.moves?.[part.parsed.index - 1];
+}
+
+function allySlotIndexes(request: BattleServiceRequestV4, userSlotIndex: number): number[] {
+  return (request.active || [])
+    .map((active, index) => ({active, index}))
+    .filter(entry => entry.index !== userSlotIndex && Boolean(entry.active))
+    .map(entry => entry.index);
 }
 
 function flattenedDiagnostics(diagnostics: Record<string, unknown> | undefined): Array<Record<string, unknown>> {

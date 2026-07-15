@@ -3302,7 +3302,7 @@ function aiDoublesStrategyV0Smoke() {
       name: "B",
       pokemon: [
         {ident: "p2: Garchomp", details: "Garchomp, L50", condition: "180/180", active: true, ability: "Rough Skin", moves: ["Earthquake", "Rock Slide", "Dragon Claw"], stats: {hp: 180, atk: 170, def: 110, spa: 85, spd: 100, spe: 125}},
-        {ident: "p2: Raichu", details: "Raichu, L50", condition: "140/140", active: true, ability: "Static", moves: ["Thunderbolt", "Helping Hand", "Protect"], stats: {hp: 140, atk: 100, def: 75, spa: 110, spd: 90, spe: 150}},
+        {ident: "p2: Raichu", details: "Raichu, L50", condition: "140/140", active: true, ability: "Static", item: "Weakness Policy", moves: ["Thunderbolt", "Helping Hand", "Protect"], stats: {hp: 140, atk: 100, def: 75, spa: 110, spd: 90, spe: 150}},
       ],
     },
   };
@@ -3345,6 +3345,19 @@ function aiDoublesStrategyV0Smoke() {
   if (!allyDamage.tags.includes("avoid-ally-damage") || !(allyDamage.adjustment < earthquake.adjustment)) {
     throw new Error(`Direct ally damage should be strongly punished without combo: ${JSON.stringify(allyDamage)}`);
   }
+  const weaknessPolicy = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 3 -2, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "bulldoze", moveType: "Ground", target: "any", category: "physical", expectedDamageRatio: 0.2, typeMultiplier: 2, koChance: 0},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!weaknessPolicy.tags.includes("ally-combo") || !weaknessPolicy.combos.some(combo => combo.comboId === "weakness-policy") || weaknessPolicy.tags.includes("avoid-ally-damage") || !(weaknessPolicy.adjustment > 0)) {
+    throw new Error(`Weakness Policy ally hit should be a positive combo: ${JSON.stringify(weaknessPolicy)}`);
+  }
   const doubleTarget = scoreBattleAiDoublesJointCandidateV4(request, {
     choice: "move 3 +1, move 1 +1",
     score: 100,
@@ -3357,6 +3370,104 @@ function aiDoublesStrategyV0Smoke() {
   });
   if (!doubleTarget.tags.includes("double-target-foe") || !(doubleTarget.adjustment > 0)) {
     throw new Error(`Double targeting the same foe should be recognized: ${JSON.stringify(doubleTarget)}`);
+  }
+
+  const flashFireRequest: BattleServiceRequestV4 = {
+    ...request,
+    active: [
+      {moves: [{move: "Flamethrower", id: "flamethrower", pp: 15, maxpp: 15, target: "any"}]},
+      {moves: [{move: "Protect", id: "protect", pp: 10, maxpp: 10, target: "self"}]},
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Salazzle", details: "Salazzle, L50", condition: "150/150", active: true, ability: "Corrosion", moves: ["Flamethrower"], stats: {hp: 150, atk: 70, def: 80, spa: 150, spd: 90, spe: 150}},
+        {ident: "p2: Arcanine", details: "Arcanine, L50", condition: "170/170", active: true, ability: "Flash Fire", moves: ["Protect"], stats: {hp: 170, atk: 130, def: 100, spa: 110, spd: 100, spe: 115}},
+      ],
+    },
+  };
+  const flashFireSnapshot = {
+    ...aiSnapshot("gen9", "doubles", flashFireRequest),
+    active: [
+      {ident: "p1a: Amoonguss", playerId: "p1", slot: "p1a", species: "Amoonguss", details: "Amoonguss, L50", condition: "180/180", hp: 180, maxHp: 180, status: "", fainted: false},
+      {ident: "p1b: Corviknight", playerId: "p1", slot: "p1b", species: "Corviknight", details: "Corviknight, L50", condition: "180/180", hp: 180, maxHp: 180, status: "", fainted: false},
+      {ident: "p2a: Salazzle", playerId: "p2", slot: "p2a", species: "Salazzle", details: "Salazzle, L50", condition: "150/150", hp: 150, maxHp: 150, status: "", fainted: false},
+      {ident: "p2b: Arcanine", playerId: "p2", slot: "p2b", species: "Arcanine", details: "Arcanine, L50", condition: "170/170", hp: 170, maxHp: 170, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const flashFireEval = evaluateBattleAiMoveV4({
+    request: flashFireRequest,
+    snapshot: flashFireSnapshot,
+    playerId: "p2",
+    activeIndex: 0,
+    move: flashFireRequest.active![0]!.moves![0]!,
+    targetLoc: "-2",
+  });
+  if (flashFireEval.typeMultiplier !== 0 || flashFireEval.diagnostics.abilityImmunity !== "Flash Fire" || !Array.isArray(flashFireEval.diagnostics.targetSpeciesIds) || flashFireEval.diagnostics.targetSpeciesIds[0] !== "arcanine") {
+    throw new Error(`negative targetLoc should estimate damage against ally: ${JSON.stringify(flashFireEval)}`);
+  }
+  const flashFireCombo = scoreBattleAiDoublesJointCandidateV4(flashFireRequest, {
+    choice: "move 1 -2, move 1",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {...flashFireEval.diagnostics, expectedDamageRatio: flashFireEval.expectedDamageRatio, typeMultiplier: flashFireEval.typeMultiplier, koChance: flashFireEval.koChance},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!flashFireCombo.tags.includes("ally-combo") || !flashFireCombo.combos.some(combo => combo.comboId === "flash-fire") || flashFireCombo.tags.includes("avoid-ally-damage")) {
+    throw new Error(`Flash Fire ally target should be a safe combo: ${JSON.stringify(flashFireCombo)}`);
+  }
+  const contraryRequest: BattleServiceRequestV4 = {
+    ...request,
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Grimmsnarl", details: "Grimmsnarl, L50", condition: "170/170", active: true, ability: "Prankster", moves: ["Charm"], stats: {hp: 170, atk: 130, def: 90, spa: 100, spd: 90, spe: 80}},
+        {ident: "p2: Lurantis", details: "Lurantis, L50", condition: "150/150", active: true, ability: "Contrary", moves: ["Leaf Storm"], stats: {hp: 150, atk: 125, def: 100, spa: 120, spd: 100, spe: 60}},
+      ],
+    },
+  };
+  const contraryCombo = scoreBattleAiDoublesJointCandidateV4(contraryRequest, {
+    choice: "move 3 -2, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "charm", moveType: "Fairy", target: "normal", category: "status", expectedDamageRatio: 0, typeMultiplier: 1, koChance: 0},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!contraryCombo.tags.includes("ally-combo") || !contraryCombo.combos.some(combo => combo.comboId === "contrary-stat-drop")) {
+    throw new Error(`Contrary stat-drop support should be a combo: ${JSON.stringify(contraryCombo)}`);
+  }
+
+  const surfAbsorbRequest: BattleServiceRequestV4 = {
+    ...request,
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Kingdra", details: "Kingdra, L50", condition: "150/150", active: true, ability: "Swift Swim", moves: ["Surf"], stats: {hp: 150, atk: 100, def: 100, spa: 150, spd: 100, spe: 120}},
+        {ident: "p2: Gastrodon", details: "Gastrodon, L50", condition: "190/190", active: true, ability: "Storm Drain", moves: ["Protect"], stats: {hp: 190, atk: 90, def: 100, spa: 110, spd: 110, spe: 40}},
+      ],
+    },
+  };
+  const surfAbsorb = scoreBattleAiDoublesJointCandidateV4(surfAbsorbRequest, {
+    choice: "move 1, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "surf", moveType: "Water", target: "allAdjacent", category: "special", expectedDamageRatio: 0, typeMultiplier: 0, koChance: 0},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!surfAbsorb.tags.includes("ally-combo") || surfAbsorb.tags.includes("spread-friendly-fire-risk") || !surfAbsorb.combos.some(combo => combo.comboId === "storm-drain")) {
+    throw new Error(`Surf into Storm Drain ally should be detected as spread combo: ${JSON.stringify(surfAbsorb)}`);
   }
 
   const snapshot = {

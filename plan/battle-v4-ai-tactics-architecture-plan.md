@@ -438,8 +438,8 @@
 - [x] 双打 v0：队友误伤必须扣分。
 - [x] 双打 v0：没有 combo detector 命中时，攻击队友不得获得正向战术分。
 - [x] 双打 v0：debug 输出 doubles reason tags。
-- [ ] 双打 v1：引入 ally combo detector 后，打队友才允许正收益。
-- [ ] 双打 v1：实现 Weakness Policy / Contrary / 吸收特性首批 combo。
+- [x] 双打 v1：引入 ally combo detector 后，打队友才允许正收益。
+- [x] 双打 v1：实现 Weakness Policy / Contrary / 吸收特性首批 combo。
 - [ ] 双打 v2：引入对手 joint reply，馆主/四天王/冠军按 `1/2/3` 搜索。
 
 ## 13.1 合作 Coop Strategy
@@ -456,24 +456,24 @@
 
 ## 14. Ally Combo Detector
 
-- [ ] 新增 `detectBattleAiAllyCombosV4()`。
-- [ ] 支持 Weakness Policy。
-- [ ] 支持 Contrary。
-- [ ] 支持 Flash Fire。
-- [ ] 支持 Lightning Rod。
-- [ ] 支持 Storm Drain。
-- [ ] 支持 Water Absorb。
-- [ ] 支持 Volt Absorb。
-- [ ] 支持 Sap Sipper。
-- [ ] 支持 Motor Drive。
+- [x] 新增 `detectBattleAiAllyCombosV4()`。
+- [x] 支持 Weakness Policy。
+- [x] 支持 Contrary。
+- [x] 支持 Flash Fire。
+- [x] 支持 Lightning Rod。
+- [x] 支持 Storm Drain。
+- [x] 支持 Water Absorb。
+- [x] 支持 Volt Absorb。
+- [x] 支持 Sap Sipper。
+- [x] 支持 Motor Drive。
 - [ ] 支持 Anger Point 占位。
-- [ ] 支持 Surf / Discharge / Earthquake + 队友免疫或吸收占位。
-- [ ] combo 必须检查是否会击杀队友。
+- [x] 支持 Surf / Discharge / Earthquake + 队友免疫或吸收占位。
+- [x] combo 必须检查是否会击杀队友。
 - [ ] combo 必须检查触发后队友是否有输出窗口。
-- [ ] combo 必须输出 `comboId`。
-- [ ] combo 必须输出 benefit。
-- [ ] combo 必须输出 risk。
-- [ ] combo 必须进入 debug。
+- [x] combo 必须输出 `comboId`。
+- [x] combo 必须输出 benefit。
+- [x] combo 必须输出 risk。
+- [x] combo 必须进入 debug。
 
 ## 15. 特殊招式第一批
 
@@ -634,6 +634,11 @@
 - [x] doubles v0：直接攻击队友输出 `avoid-ally-damage`。
 - [x] doubles v0：双点同一敌人输出 `double-target-foe`。
 - [x] doubles v0：AI 选择后仍通过 validator。
+- [x] doubles v1：负数 targetLoc 估伤应真正命中队友。
+- [x] doubles v1：Weakness Policy 队友触发获得正向 combo。
+- [x] doubles v1：Contrary + stat drop 队友触发获得正向 combo。
+- [x] doubles v1：Flash Fire 队友触发获得正向 combo。
+- [x] doubles v1：Storm Drain / Water spread 队友触发获得正向 combo。
 
 ## 20. 性能测试
 

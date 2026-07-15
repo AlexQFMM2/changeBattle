@@ -225,17 +225,29 @@ function targetCombatantsForMove(
 ): BattleAiCombatantV4[] {
   const foePlayerIds = snapshot.players.filter(player => player.playerId !== playerId && player.alliance !== snapshot.players.find(entry => entry.playerId === playerId)?.alliance).map(player => player.playerId);
   const foeActives = snapshot.active.filter(active => foePlayerIds.includes(active.playerId) && !active.fainted);
+  const ownActives = snapshot.active.filter(active => active.playerId === playerId && !active.fainted);
   const activeCount = Math.max(1, request.active?.length || 1);
   const target = move?.target || "";
   if (target === "self") return [combatantForActive(request, snapshot, playerId, activeIndex, dex)];
   if (target === "allAdjacent" || target === "allAdjacentFoes") {
-    return foeActives.map((active, index) => combatantFromSnapshotActive(active, index, dex, snapshot));
+    const foes = foeActives.map((active, index) => combatantFromSnapshotActive(active, index, dex, snapshot));
+    if (target === "allAdjacentFoes") return foes;
+    const allies = ownActives
+      .map((active, index) => ({active, index}))
+      .filter(entry => entry.index !== activeIndex)
+      .map(entry => combatantFromSnapshotActive(entry.active, entry.index, dex, snapshot));
+    return [...foes, ...allies];
   }
   if (targetOverride && targetAllowsOverride(target)) {
     return [combatantFromRow(targetOverride.row, targetOverride.playerId, targetOverride.activeIndex ?? activeIndex, dex)];
   }
-  const parsedLoc = targetLoc?.startsWith("+") ? Number(targetLoc.slice(1)) - 1 : Number.NaN;
-  const targetIndex = Number.isFinite(parsedLoc) && parsedLoc >= 0 ? parsedLoc : Math.min(activeIndex, activeCount - 1);
+  const parsedFoeLoc = targetLoc?.startsWith("+") ? Number(targetLoc.slice(1)) - 1 : Number.NaN;
+  const parsedAllyLoc = targetLoc?.startsWith("-") ? Math.abs(Number(targetLoc)) - 1 : Number.NaN;
+  if (Number.isFinite(parsedAllyLoc) && parsedAllyLoc >= 0) {
+    const ally = ownActives[parsedAllyLoc];
+    if (ally) return [combatantFromSnapshotActive(ally, parsedAllyLoc, dex, snapshot)];
+  }
+  const targetIndex = Number.isFinite(parsedFoeLoc) && parsedFoeLoc >= 0 ? parsedFoeLoc : Math.min(activeIndex, activeCount - 1);
   const active = foeActives[targetIndex] || foeActives[0];
   if (active) return [combatantFromSnapshotActive(active, targetIndex, dex, snapshot)];
   const fallbackRow = request.side?.pokemon?.find(row => !row.active && !row.fainted && !row.condition.includes("fnt"));
