@@ -61,6 +61,15 @@ jobs:
         with:
           ref: ${{ inputs.source_ref }}
 
+      - name: Resolve source commit
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $sourceCommit = git rev-parse HEAD
+          Write-Host "Checked out source ref: ${{ inputs.source_ref }}"
+          Write-Host "Checked out source commit: $sourceCommit"
+          "CHANGEBATTLE_SOURCE_COMMIT=$sourceCommit" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -256,7 +265,7 @@ jobs:
           $env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT = "${{ github.workspace }}\release\desktop-launcher"
           $env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT = "${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown"
           $env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = "${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown-client"
-          $env:CHANGEBATTLE_COMMIT = "${{ github.sha }}"
+          $env:CHANGEBATTLE_COMMIT = "$env:CHANGEBATTLE_SOURCE_COMMIT"
           python tools\package_desktop_release.py `
             --electron-runtime-path "$env:ELECTRON_RUNTIME_PATH" `
             --launcher-output-path "$env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT" `
@@ -300,7 +309,7 @@ jobs:
           $tag = "desk-debug-v$env:RELEASE_VERSION"
           $zip = "release\ChangeBattle-V2-Desk-portable-debug-v$env:RELEASE_VERSION.zip"
           $title = "ChangeBattle V2 Desk Debug v$env:RELEASE_VERSION"
-          $notes = "Debug desktop build from $env:GITHUB_SHA.`n`nUpdate metadata remains hosted on the ChangeBattle beta server."
+          $notes = "Debug desktop build from $env:CHANGEBATTLE_SOURCE_COMMIT on source_ref=${{ inputs.source_ref }}.`n`nUpdate metadata remains hosted on the ChangeBattle beta server."
           $releaseExists = $false
           try {
             gh release view $tag --repo "${{ github.repository }}" *> $null
@@ -309,7 +318,8 @@ jobs:
             $releaseExists = $false
           }
           if ($releaseExists) {
+            gh release edit $tag --repo "${{ github.repository }}" --target "$env:CHANGEBATTLE_SOURCE_COMMIT" --title $title --notes $notes --prerelease
             gh release upload $tag $zip --repo "${{ github.repository }}" --clobber
           } else {
-            gh release create $tag $zip --repo "${{ github.repository }}" --target "${{ github.sha }}" --title $title --notes $notes --prerelease
+            gh release create $tag $zip --repo "${{ github.repository }}" --target "$env:CHANGEBATTLE_SOURCE_COMMIT" --title $title --notes $notes --prerelease
           }
