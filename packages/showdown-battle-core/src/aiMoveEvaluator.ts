@@ -263,7 +263,7 @@ function combatantFromRow(row: BattleServiceSidePokemonV4 | undefined, playerId:
 
 function combatantFromRowAndActive(row: BattleServiceSidePokemonV4 | undefined, active: BattleServiceActivePokemonV4 | undefined, playerId: ShowdownPlayerIdV4, activeIndex: number, dex: ShowdownDexService): BattleAiCombatantV4 {
   const details = active?.details || row?.details || "";
-  const speciesId = speciesIdFromDetails(active?.species || row?.details || details);
+  const speciesId = speciesIdFromDetails(bestSpeciesSource(row, active, details));
   const species = safeSpeciesDetail(dex, speciesId);
   const condition = active?.condition || row?.condition || "";
   const hpInfo = hpFromCondition(condition, active?.hp, active?.maxHp);
@@ -285,6 +285,15 @@ function combatantFromRowAndActive(row: BattleServiceSidePokemonV4 | undefined, 
     species,
     estimatedStats: !row?.stats,
   };
+}
+
+function bestSpeciesSource(row: BattleServiceSidePokemonV4 | undefined, active: BattleServiceActivePokemonV4 | undefined, fallback: string): string {
+  const activeSpeciesId = toDexId(active?.species || "");
+  const activeDetailsId = speciesIdFromDetails(active?.details || "");
+  const rowDetailsId = speciesIdFromDetails(row?.details || "");
+  if (activeDetailsId && activeDetailsId !== activeSpeciesId) return active?.details || fallback;
+  if (rowDetailsId && rowDetailsId !== activeSpeciesId) return row?.details || fallback;
+  return active?.details || row?.details || active?.species || fallback;
 }
 
 function activeSidePokemonRow(request: BattleServiceRequestV4, activeIndex: number): BattleServiceSidePokemonV4 | undefined {

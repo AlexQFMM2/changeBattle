@@ -10,6 +10,8 @@ import {
   battleAiEffectiveSearchBudgetForModeV4,
   battleAiSearchBudgetForLevelV4,
   battleAiActsBeforeBySpeedV4,
+  battleAiReasonTagsForCandidateV4,
+  buildBattleAiStrategicContextV4,
   buildBattleAiSpeedFieldStateV4,
   buildBattleAiSpeedStateV4,
   estimateBattleAiActionOutcomeV4,
@@ -2245,6 +2247,9 @@ function aiSinglesDepth2SearchSmoke() {
   if (!result.debug.search.outcomeBuckets?.some(entry => entry.choice === result.choice && entry.buckets.includes("ko"))) {
     throw new Error(`singles depth 2 should report KO outcome bucket for selected KO: ${JSON.stringify(result.debug.search)}`);
   }
+  if (!result.debug.search.reasonTags?.some(entry => entry.choice === result.choice && entry.tags.includes("ko-current-threat"))) {
+    throw new Error(`singles depth 2 should explain selected threat KO: ${JSON.stringify(result.debug.search)}`);
+  }
   const validation = validateShowdownChoiceCommandV4({request: aiRequest, choice: result.choice});
   if (!validation.ok) {
     throw new Error(`singles depth 2 choice should validate: ${result.choice}; ${JSON.stringify(validation)}; ${JSON.stringify(result.debug)}`);
@@ -2923,6 +2928,134 @@ function aiValueFunctionV3StabilitySmoke() {
   console.log("showdown-battle-core ai value function v3 stability smoke ok");
 }
 
+function aiStrategicContextSmoke() {
+  const capabilities = battleAiCapabilityForLevelV4("champion");
+  const aiRequest: BattleServiceRequestV4 = {
+    rqid: 82,
+    active: [{
+      canTerastallize: true,
+      canDynamax: true,
+      maxMoves: [{move: "Max Airstream", id: "maxairstream", pp: 10, maxpp: 10, target: "normal"}],
+      moves: [
+        {move: "Tackle", id: "tackle", pp: 35, maxpp: 35, target: "normal"},
+        {move: "Air Slash", id: "airslash", pp: 15, maxpp: 15, target: "normal"},
+      ],
+    }],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Blissey", details: "Blissey, L50", condition: "300/300", active: true, ability: "Natural Cure", item: "", teraType: "Normal", moves: ["Tackle", "Air Slash"], stats: {hp: 300, atk: 20, def: 20, spa: 95, spd: 160, spe: 55}},
+        {ident: "p2: Dragonite", details: "Dragonite, L50", condition: "180/180", active: false, ability: "Multiscale", item: "", teraType: "Flying", moves: ["Dragon Dance", "Extreme Speed", "Earthquake"], stats: {hp: 180, atk: 180, def: 115, spa: 110, spd: 120, spe: 120}},
+      ],
+    },
+  };
+  const foeRequest: BattleServiceRequestV4 = {
+    rqid: 82,
+    active: [{moves: [{move: "Dragon Dance", id: "dragondance", pp: 20, maxpp: 20, target: "self"}]}],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Gyarados", details: "Gyarados, L50", condition: "45/170", active: true, ability: "Moxie", item: "", moves: ["Dragon Dance", "Waterfall"], stats: {hp: 170, atk: 165, def: 95, spa: 70, spd: 120, spe: 130}},
+        {ident: "p1: Volcarona", details: "Volcarona, L50", condition: "160/160", active: false, ability: "Flame Body", item: "", moves: ["Quiver Dance", "Fiery Dance"], stats: {hp: 160, atk: 70, def: 85, spa: 180, spd: 130, spe: 125}},
+      ],
+    },
+  };
+  const snapshot = {
+    ...aiSnapshot("gen9", "singles", aiRequest, ["terastallize", "max"]),
+    requests: {p1: foeRequest, p2: aiRequest},
+    active: [
+      {ident: "p1a: Gyarados", playerId: "p1", slot: "p1a", species: "Gyarados", details: "Gyarados, L50", condition: "45/170", hp: 45, maxHp: 170, status: "", fainted: false},
+      {ident: "p2a: Blissey", playerId: "p2", slot: "p2a", species: "Blissey", details: "Blissey, L50", condition: "300/300", hp: 300, maxHp: 300, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const roleAnalysis = analyzeBattleAiTeamRolesV4({playerId: "p2", request: aiRequest, snapshot});
+  const foeRoleAnalysis = analyzeBattleAiTeamRolesV4({playerId: "p1", request: foeRequest, snapshot});
+  const strategicContext = buildBattleAiStrategicContextV4({request: aiRequest, snapshot, playerId: "p2", roleAnalysis, foeRoleAnalysis});
+  if (!strategicContext.currentFoeThreat?.ident.includes("Gyarados") || !strategicContext.selfWinConditions.some(entry => entry.ident.includes("Dragonite"))) {
+    throw new Error(`strategic context should identify current threat and own win condition: ${JSON.stringify(strategicContext)}`);
+  }
+  if (!strategicContext.resourceAdvice.holdTera || !strategicContext.resourceAdvice.holdDynamax) {
+    throw new Error(`strategic context should hold resources for healthy bench win condition: ${JSON.stringify(strategicContext.resourceAdvice)}`);
+  }
+
+  const koTags = battleAiReasonTagsForCandidateV4({
+    candidate: {choice: "move 1", score: 80, kind: "move", diagnostics: {moveId: "thunderbolt", typeMultiplier: 4, accuracy: 100, koChance: 1, expectedDamageRatio: 1.3}},
+    buckets: ["ko"],
+    strategicContext,
+  });
+  if (!koTags.tags.includes("ko-current-threat")) {
+    throw new Error(`KO into current threat should emit reason tag: ${JSON.stringify(koTags)}`);
+  }
+  const holdTeraTags = battleAiReasonTagsForCandidateV4({
+    candidate: {
+      choice: "move 1 terastallize",
+      score: 70,
+      kind: "move",
+      diagnostics: {
+        moveId: "tackle",
+        typeMultiplier: 1,
+        accuracy: 100,
+        koChance: 0,
+        expectedDamageRatio: 0.12,
+        specialSystemTags: ["terastallize"],
+        specialSystemBreakdown: {teraBase: 8, teraLowValuePenalty: -12},
+      },
+    },
+    buckets: [],
+    strategicContext,
+  });
+  if (!holdTeraTags.tags.includes("hold-tera")) {
+    throw new Error(`low value tera should emit hold-tera: ${JSON.stringify(holdTeraTags)}`);
+  }
+  const maxTags = battleAiReasonTagsForCandidateV4({
+    candidate: {choice: "move 2 max", score: 120, kind: "move", diagnostics: {moveId: "maxairstream", typeMultiplier: 1, accuracy: 100, koChance: 1, expectedDamageRatio: 1.1, specialSystemTags: ["dynamax", "max-speed"]}},
+    buckets: ["ko"],
+    strategicContext,
+  });
+  if (!maxTags.tags.includes("commit-dynamax") || !maxTags.tags.includes("speed-control-value")) {
+    throw new Error(`max airstream KO should emit commit and speed tags: ${JSON.stringify(maxTags)}`);
+  }
+  const immuneTags = battleAiReasonTagsForCandidateV4({
+    candidate: {choice: "move 3", score: 60, kind: "move", diagnostics: {moveId: "shadowball", typeMultiplier: 0, accuracy: 100, koChance: 0, expectedDamageRatio: 0}},
+    buckets: [],
+    strategicContext,
+  });
+  if (!immuneTags.tags.includes("avoid-immune-move")) {
+    throw new Error(`immune move should emit avoid tag: ${JSON.stringify(immuneTags)}`);
+  }
+
+  const state = {
+    self: {playerId: "p2" as const, activeIndex: 0, hp: 300, maxHp: 300, fainted: false},
+    foe: {playerId: "p1" as const, activeIndex: 0, hp: 45, maxHp: 170, fainted: false},
+    selfResources: {totalPokemonCount: 2, aliveCount: 2, faintedCount: 0, lowHpCount: 0, totalHpRatio: 1, activeHpRatio: 1, benchHpRatio: 1, winConditionAlive: true, winConditionHealthy: true, activeIsWinCondition: false, hazards: {stealthRock: 0, spikes: 0, toxicSpikes: 0, stickyWeb: 0}},
+    foeResources: {totalPokemonCount: 2, aliveCount: 2, faintedCount: 0, lowHpCount: 1, totalHpRatio: 0.63, activeHpRatio: 0.26, benchHpRatio: 1, winConditionAlive: true, winConditionHealthy: true, activeIsWinCondition: true, hazards: {stealthRock: 0, spikes: 0, toxicSpikes: 0, stickyWeb: 0}},
+  };
+  const lowValueTera = evaluateBattleAiSinglesLeafValueV4({
+    state,
+    initialState: state,
+    own: {choice: "move 1 terastallize", score: 70, kind: "move", diagnostics: {moveId: "tackle", typeMultiplier: 1, accuracy: 100, koChance: 0, expectedDamageRatio: 0.12, specialSystemTags: ["terastallize"], specialSystemBreakdown: {teraBase: 8, teraLowValuePenalty: -12}}},
+    foe: {choice: "move 1", score: 40, kind: "move", diagnostics: {moveId: "waterfall", typeMultiplier: 1, accuracy: 100, koChance: 0, expectedDamageRatio: 0.2}},
+    buckets: [],
+    capabilities,
+    strategicContext,
+  });
+  const threatKo = evaluateBattleAiSinglesLeafValueV4({
+    state: {...state, foe: {...state.foe, hp: 0, fainted: true}},
+    initialState: state,
+    own: {choice: "move 2", score: 70, kind: "move", diagnostics: {moveId: "thunderbolt", typeMultiplier: 4, accuracy: 100, koChance: 1, expectedDamageRatio: 1.3}},
+    foe: {choice: "move 1", score: 40, kind: "move", diagnostics: {moveId: "waterfall", typeMultiplier: 1, accuracy: 100, koChance: 0, expectedDamageRatio: 0.2}},
+    buckets: ["ko"],
+    capabilities,
+    strategicContext,
+  });
+  if (!(lowValueTera.breakdown.strategic < 0 && threatKo.breakdown.strategic > 0 && threatKo.score > lowValueTera.score)) {
+    throw new Error(`strategic value should hold low-value resource and reward current threat KO: ${JSON.stringify({lowValueTera: lowValueTera.breakdown, threatKo: threatKo.breakdown})}`);
+  }
+  console.log("showdown-battle-core ai strategic context smoke ok");
+}
+
 function aiOutcomeBucketsSmoke() {
   const cases: Array<[ReturnType<typeof battleAiDamageBucketForEstimateV4>, Parameters<typeof battleAiDamageBucketForEstimateV4>[0]]> = [
     ["immune", {typeMultiplier: 0, expectedDamageRatio: 0, koChance: 0}],
@@ -3021,6 +3154,43 @@ function aiActionOutcomeEstimatorSmoke() {
   const revelationImmune = estimateBattleAiActionOutcomeV4({request: revelationRequest, snapshot: revelationSnapshot, playerId: "p2", activeIndex: 0, move: revelationRequest.active![0]!.moves![0]!});
   if (revelationImmune.damageBucket !== "immune" || revelationImmune.expectedDamageRange.average !== 0 || revelationImmune.evaluation.diagnostics.moveType !== "Ghost") {
     throw new Error(`Revelation Dance from Oricorio-Sensu into Porygon-Z should be Ghost immune: ${JSON.stringify(revelationImmune)}`);
+  }
+  const teraBlastRequest: BattleServiceRequestV4 = {
+    rqid: 68,
+    active: [{moves: [{move: "Tera Blast", id: "terablast", pp: 10, maxpp: 10, target: "normal"}]}],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Porygon-Z", details: "Porygon-Z, L50", condition: "150/150", active: true, ability: "Adaptability", teraType: "Normal", moves: ["Tera Blast"], stats: {hp: 150, atk: 80, def: 80, spa: 160, spd: 90, spe: 110}},
+      ],
+    },
+  };
+  const oricorioRequest: BattleServiceRequestV4 = {
+    rqid: 68,
+    active: [{moves: [{move: "Hurricane", id: "hurricane", pp: 10, maxpp: 10, target: "normal"}]}],
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Oricorio", details: "Oricorio-Sensu, L50", condition: "150/150", active: true, ability: "Dancer", moves: ["Hurricane"], stats: {hp: 150, atk: 80, def: 90, spa: 120, spd: 90, spe: 120}},
+      ],
+    },
+  };
+  const teraBlastSnapshot = {
+    ...aiSnapshot("gen9", "singles", teraBlastRequest),
+    requests: {p1: oricorioRequest, p2: teraBlastRequest},
+    active: [
+      {ident: "p1a: Oricorio", playerId: "p1", slot: "p1a", species: "Oricorio", details: "Oricorio, L50", condition: "150/150", hp: 150, maxHp: 150, status: "", fainted: false},
+      {ident: "p2a: Porygon-Z", playerId: "p2", slot: "p2a", species: "Porygon-Z", details: "Porygon-Z, L50", condition: "150/150", hp: 150, maxHp: 150, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const teraBlastIntoSensu = estimateBattleAiActionOutcomeV4({request: teraBlastRequest, snapshot: teraBlastSnapshot, playerId: "p2", activeIndex: 0, move: teraBlastRequest.active![0]!.moves![0]!});
+  const teraBlastTargetSpecies = Array.isArray(teraBlastIntoSensu.evaluation.diagnostics.targetSpeciesIds)
+    ? teraBlastIntoSensu.evaluation.diagnostics.targetSpeciesIds.map(String)
+    : [];
+  if (teraBlastIntoSensu.damageBucket !== "immune" || teraBlastIntoSensu.expectedDamageRange.average !== 0 || teraBlastTargetSpecies[0] !== "oricoriosensu") {
+    throw new Error(`Tera Blast should respect side-row Oricorio-Sensu forme typing: ${JSON.stringify(teraBlastIntoSensu)}`);
   }
   const priority = estimateBattleAiActionOutcomeV4({request, snapshot, playerId: "p2", activeIndex: 0, move: request.active![0]!.moves![1]!});
   if (priority.priority !== 1) {
@@ -3610,6 +3780,7 @@ void smoke()
   .then(aiValueFunctionResourceSmoke)
   .then(aiValueFunctionV2Smoke)
   .then(aiValueFunctionV3StabilitySmoke)
+  .then(aiStrategicContextSmoke)
   .then(aiOutcomeBucketsSmoke)
   .then(aiActionOutcomeEstimatorSmoke)
   .then(aiSinglesSpeedStateSmoke)

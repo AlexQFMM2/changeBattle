@@ -52,6 +52,7 @@ export type BattleAiSearchDebugV4 = {
     estimatedNodes: number;
   };
   outcomeBuckets?: Array<{choice: string; buckets: BattleAiOutcomeBucketV4[]; score: number}>;
+  reasonTags?: Array<{choice: string; tags: string[]; score: number}>;
   valueBreakdown?: Record<string, number>;
   targetOverrideEstimates?: Array<{
     switchChoice: string;

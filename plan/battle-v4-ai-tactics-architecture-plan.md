@@ -343,9 +343,9 @@
 - [x] 撒场推进额外加分。
 - [x] 异常推进额外加分。
 - [x] 危险换人扣分。
-- [ ] 击杀高威胁目标额外加分。
-- [ ] 我方速度权加分。
-- [ ] 对方速度权扣分。
+- [x] 击杀高威胁目标额外加分。
+- [x] 我方速度权加分。
+- [x] 对方速度权扣分。
 - [ ] 我方有利天气加分。
 - [ ] 对方有利天气扣分。
 - [ ] 我方有利场地加分。
@@ -360,7 +360,7 @@
 - [ ] 对方异常加分。
 - [x] 风险项单独输出。
 - [x] 输出 selected leaf `valueBreakdown`。
-- [ ] reasons 可解释。
+- [x] reasons 可解释。
 
 ## 11.1 Singles Role-Aware Switch Value
 
@@ -382,6 +382,24 @@
 - [x] 当前 active 是 win condition 且暴露在高伤害或稳定 KO 下时扣分。
 - [x] safe-switch 在 stability 中加分，unsafe-switch 在 stability 中继续扣分。
 - [x] setup / weather / terrain / speed-control 在会被稳定 KO 时额外扣分。
+
+## 11.3 Singles Strategic Context v1
+
+- [x] 新增 `aiStrategicContextV4.ts`。
+- [x] 基于可见队伍、角色标签、HP、速度/进攻 stats 构建 `selfWinConditions`。
+- [x] 基于可见队伍、角色标签、HP、速度/进攻 stats 构建 `foeThreats`。
+- [x] 标记 `currentFoeThreat`，用于当前回合击杀/压低威胁加分。
+- [x] 新增 `resourceAdvice`，后排存在健康 win condition 且当前 active 不是资源持有目标时，倾向保留极巨/太晶。
+- [x] Value Function 新增 `strategic` breakdown 分项。
+- [x] 击杀当前高威胁目标加分。
+- [x] 压低当前高威胁目标加分。
+- [x] 当前 active 是 win condition 且面临稳定反杀时继续扣分。
+- [x] 低收益太晶/极巨在有健康后排 win condition 时扣分。
+- [x] 明确收益的极巨/太晶保留正向提交分。
+- [x] 新增 debug `reasonTags`。
+- [x] 首批 reason tags：`ko-current-threat`、`pressure-current-threat`、`preserve-wincon`、`avoid-wincon-sacrifice`、`safe-switch`、`unsafe-switch`。
+- [x] 首批资源 tags：`commit-dynamax`、`hold-dynamax`、`commit-tera`、`hold-tera`。
+- [x] 首批防犯病 tags：`avoid-immune-move`、`avoid-low-value-setup`、`revenge-kill`、`speed-control-value`。
 
 ## 12. Minimax
 
@@ -515,6 +533,7 @@
 - [x] 输出 principal variation。
 - [x] 输出每个候选的 outcome bucket。
 - [x] 输出 selected leaf value breakdown。
+- [x] 输出 selected/high-score candidate reason tags。
 - [ ] 输出每个候选的 score parts。
 - [ ] 输出 ally combo reasons。
 - [ ] 输出 fallback reason。
@@ -547,6 +566,7 @@
 - [ ] 四倍克制测试。
 - [x] STAB 测试。
 - [x] 季节形态 fallback：`Sawsbuck-Winter` 应识别为一般系，不被幽灵招反复命中。
+- [x] 形态优先级 fallback：`active.species` 为基础名但 side row 为 `Oricorio-Sensu` 时，Tera Blast/普通系应识别幽灵免疫。
 - [x] 物理伤害读取 atk/def。
 - [x] 特殊伤害读取 spa/spd。
 - [ ] 命中低但可 KO 的招式测试。
@@ -563,6 +583,11 @@
 - [x] value function：对手后排数量影响撒场收益测试。
 - [x] value function：对方多个残血时收割压力测试。
 - [x] value function v3：免疫攻击、核心暴露、safe switch 稳定性测试。
+- [x] strategic context：识别当前威胁和我方 win condition。
+- [x] strategic context：低收益太晶输出 `hold-tera`。
+- [x] strategic context：Max Airstream 明确收益输出 `commit-dynamax` + `speed-control-value`。
+- [x] strategic context：免疫招输出 `avoid-immune-move`。
+- [x] strategic context：选中稳定 KO 当前威胁输出 `ko-current-threat`。
 - [x] Max Lightning / Max Geyser 输出特殊系统战略 tags。
 - [x] Max Guard 不生成非法 target suffix，并输出 `max-guard` tag。
 - [x] 太晶同属性 STAB 从 `1.5` 提升到 `2`。
@@ -576,6 +601,10 @@
 - [x] 20 题 warning 保持可分析范围：`warning=5`。
 - [x] 20 题平均决策时间约 `1.29s`，低于单回合 `10s` 指令预算。
 - [x] 20 题队伍核心完整率：rain/sun/trick-room/balanced/setup-offense 均为 `100%`。
+- [x] Strategic Context 首次 20 题验收报告：`test/ai-self-play-strategic-20-20260715/report.md`。
+- [x] Strategic Context 首次 20 题：`severe=2` 集中在 q017 `Tera Blast` 重复打 Oricorio-Sensu 免疫，已定位为 active species 基础名覆盖 side row 形态。
+- [x] q017 targeted rerun 报告：`test/ai-self-play-strategic-q017-rerun-20260715/report.md`。
+- [x] q017 targeted rerun：2 题全部正常结束，`severe=0`，`warning=0`，平均决策约 `1.57s`。
 
 ## 19. 双打测试
 

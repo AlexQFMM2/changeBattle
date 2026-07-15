@@ -12,7 +12,7 @@ import type {
   ShowdownPlayerIdV4,
   TrainingModeV4,
 } from "./types.js";
-import type {BattleAiRoleTagSubtypeV4, BattleAiTeamRoleAnalysisV4} from "./aiTeamRoleAnalyzerV4.js";
+import {analyzeBattleAiTeamRolesV4, type BattleAiRoleTagSubtypeV4, type BattleAiTeamRoleAnalysisV4} from "./aiTeamRoleAnalyzerV4.js";
 import {evaluateBattleAiMoveV4} from "./aiMoveEvaluator.js";
 import {parseShowdownChoiceCommandV4, type ShowdownSpecialChoiceV4} from "./showdownCommand.js";
 import {
@@ -23,6 +23,11 @@ import {
 } from "./aiValueFunctionV4.js";
 import {battleAiOutcomeBucketScoreV4} from "./aiOutcomeBucketsV4.js";
 import {buildBattleAiSpeedFieldStateV4, buildBattleAiSpeedStateV4} from "./aiSpeedStateV4.js";
+import {
+  battleAiReasonTagsForCandidateV4,
+  buildBattleAiStrategicContextV4,
+  type BattleAiStrategicContextV4,
+} from "./aiStrategicContextV4.js";
 
 export type BattleAiCandidateV4 = {
   choice: string;
@@ -253,6 +258,13 @@ function searchSinglesDepth2(
   if (!state || !foePlayerId || !foeRequest || foeRequest.active?.length !== 1 || foeRequest.teamPreview || foeRequest.forceSwitch?.some(Boolean)) {
     return null;
   }
+  const strategicContext = buildBattleAiStrategicContextV4({
+    request,
+    snapshot,
+    playerId,
+    roleAnalysis: input.roleAnalysis,
+    foeRoleAnalysis: analyzeBattleAiTeamRolesV4({playerId: foePlayerId, request: foeRequest, snapshot}),
+  });
   const foeCandidates = input.generateCandidatesForPlayer!(foePlayerId, foeRequest)
     .slice()
     .sort((a, b) => b.score - a.score)
@@ -286,7 +298,7 @@ function searchSinglesDepth2(
     let worstBuckets: BattleAiOutcomeBucketV4[] = ownOutcome.buckets;
     if (afterSelf.foe.fainted) {
       worstReply = foeCandidates[0] || null;
-      const leaf = scoreSinglesLeafState(afterSelf, candidate, worstReply || candidate, input, state, ownOutcome.buckets, capabilities);
+      const leaf = scoreSinglesLeafState(afterSelf, candidate, worstReply || candidate, input, state, ownOutcome.buckets, capabilities, strategicContext);
       worstLeaf = leaf.score;
       worstBuckets = ownOutcome.buckets;
     }
@@ -321,6 +333,7 @@ function searchSinglesDepth2(
         budget,
         startedAt,
         runtime,
+        strategicContext,
         depthRemaining: Math.max(0, dynamicDepth.depth - 2),
         nextActor: "self",
       });
@@ -333,7 +346,7 @@ function searchSinglesDepth2(
       }
     }
     if (worstReply && (!best || worstLeaf > best.leafScore)) {
-      const leaf = scoreSinglesLeafState(worstState, candidate, worstReply, input, state, worstBuckets, capabilities);
+      const leaf = scoreSinglesLeafState(worstState, candidate, worstReply, input, state, worstBuckets, capabilities, strategicContext);
       searchedOutcomes.push({choice: candidate.choice, buckets: worstBuckets, score: battleAiOutcomeBucketScoreV4(worstBuckets)});
       best = {candidate, reply: worstReply, leafScore: worstLeaf, breakdown: leaf.breakdown, buckets: worstBuckets};
     } else if (worstReply) {
@@ -370,6 +383,7 @@ function searchSinglesDepth2(
             ...searchedOutcomes,
           ])
         : undefined,
+      reasonTags: debugReasonTags(ownCandidates, best.candidate, best.reply, best.buckets, strategicContext, input.roleAnalysis),
       targetOverrideEstimates: targetOverrideEstimates.length
         ? targetOverrideEstimates.map(estimate => ({
             ...estimate,
@@ -687,6 +701,7 @@ function scoreSinglesLeafState(
   initialState: BattleAiNumericStateV4,
   buckets: BattleAiOutcomeBucketV4[],
   capabilities: BattleAiCapabilityProfileV4,
+  strategicContext?: BattleAiStrategicContextV4,
 ): {score: number; breakdown: BattleAiValueBreakdownV4} {
   return evaluateBattleAiSinglesLeafValueV4({
     state,
@@ -697,6 +712,7 @@ function scoreSinglesLeafState(
     capabilities,
     roleAnalysis: input.roleAnalysis,
     currentWeather: currentWeather(input.snapshot),
+    strategicContext,
   });
 }
 
@@ -713,6 +729,7 @@ function scoreSinglesContinuation(input: {
   budget: BattleAiSearchBudgetV4;
   startedAt: number;
   runtime: BattleAiSearchRuntimeV4;
+  strategicContext?: BattleAiStrategicContextV4;
   depthRemaining: number;
   nextActor: "self" | "foe";
 }): {score: number; breakdown: BattleAiValueBreakdownV4} {
@@ -722,19 +739,19 @@ function scoreSinglesContinuation(input: {
     input.state.foe.fainted ||
     input.runtime.truncatedReason
   ) {
-    return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities);
+    return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities, input.strategicContext);
   }
   if (Date.now() - input.startedAt > input.budget.maxMs) {
     input.runtime.truncatedReason = "timeout";
-    return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities);
+    return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities, input.strategicContext);
   }
   if (input.runtime.visitedNodes >= input.budget.maxNodes) {
     input.runtime.truncatedReason = "max-nodes";
-    return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities);
+    return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities, input.strategicContext);
   }
 
   const candidates = input.nextActor === "self" ? input.ownCandidates : input.foeCandidates;
-  if (!candidates.length) return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities);
+  if (!candidates.length) return scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities, input.strategicContext);
 
   let best: {score: number; breakdown: BattleAiValueBreakdownV4} | null = null;
   for (const candidate of candidates) {
@@ -772,7 +789,7 @@ function scoreSinglesContinuation(input: {
       best = leaf;
     }
   }
-  return best || scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities);
+  return best || scoreSinglesLeafState(input.state, input.own, input.foe, input.input, input.initialState, input.buckets, input.capabilities, input.strategicContext);
 }
 
 function singlesSearchComplexity(
@@ -903,6 +920,40 @@ function debugOutcomeBuckets(outcomes: BattleAiCandidateOutcomeV4[]): BattleAiSe
     .sort((a, b) => b.score - a.score)
     .slice(0, 8)
     .map(outcome => ({...outcome, score: roundSearchScore(outcome.score)}));
+}
+
+function debugReasonTags(
+  candidates: BattleAiCandidateV4[],
+  selected: BattleAiCandidateV4,
+  reply: BattleAiCandidateV4 | null,
+  selectedBuckets: BattleAiOutcomeBucketV4[],
+  strategicContext: BattleAiStrategicContextV4,
+  roleAnalysis: BattleAiTeamRoleAnalysisV4 | undefined,
+): BattleAiSearchDebugV4["reasonTags"] {
+  const activeWincon = roleAnalysis ? activeIsWinCondition(roleAnalysis) : false;
+  const byChoice = new Map<string, {choice: string; tags: string[]; score: number}>();
+  const add = (candidate: BattleAiCandidateV4, buckets: BattleAiOutcomeBucketV4[]) => {
+    const reason = battleAiReasonTagsForCandidateV4({
+      candidate,
+      reply,
+      buckets,
+      strategicContext,
+      activeIsWinCondition: activeWincon,
+    });
+    byChoice.set(candidate.choice, {
+      choice: candidate.choice,
+      tags: reason.tags,
+      score: roundSearchScore(reason.score),
+    });
+  };
+  add(selected, selectedBuckets);
+  for (const candidate of candidates.slice(0, 6)) {
+    if (candidate.choice !== selected.choice) add(candidate, []);
+  }
+  return [...byChoice.values()]
+    .filter(entry => entry.choice === selected.choice || entry.tags.length)
+    .sort((a, b) => (a.choice === selected.choice ? -1 : b.choice === selected.choice ? 1 : b.score - a.score))
+    .slice(0, 8);
 }
 
 function uniqueBuckets(buckets: BattleAiOutcomeBucketV4[]): BattleAiOutcomeBucketV4[] {

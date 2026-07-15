@@ -12,6 +12,7 @@ import {
   battleAiOutcomeBucketScoreV4,
   type BattleAiDamageBucketV4,
 } from "./aiOutcomeBucketsV4.js";
+import type {BattleAiStrategicContextV4} from "./aiStrategicContextV4.js";
 
 export type BattleAiValueCandidateV4 = {
   choice: string;
@@ -76,6 +77,7 @@ export type BattleAiSinglesLeafValueInputV4 = {
   capabilities: BattleAiCapabilityProfileV4;
   roleAnalysis?: BattleAiTeamRoleAnalysisV4;
   currentWeather?: BattleAiRoleTagSubtypeV4;
+  strategicContext?: BattleAiStrategicContextV4;
 };
 
 export type BattleAiSinglesLeafValueResultV4 = {
@@ -114,6 +116,7 @@ export function evaluateBattleAiSinglesLeafValueV4(input: BattleAiSinglesLeafVal
   const threat = threatValue(input);
   const specialMove = specialMoveValue(input);
   const stability = stabilityValue(input);
+  const strategic = strategicValue(input);
   const breakdown = {
     activeHp,
     teamHp,
@@ -130,12 +133,65 @@ export function evaluateBattleAiSinglesLeafValueV4(input: BattleAiSinglesLeafVal
     threat,
     specialMove,
     stability,
+    strategic,
     candidateTieBreak,
   };
   return {
     score: Object.values(breakdown).reduce((sum, value) => sum + value, 0),
     breakdown,
   };
+}
+
+function strategicValue(input: BattleAiSinglesLeafValueInputV4): number {
+  const context = input.strategicContext;
+  if (!context) return 0;
+  const currentThreat = context.currentFoeThreat;
+  const ownDamage = expectedDamageRatio(input.own);
+  const ownKo = candidateKoChance(input.own) >= 1 || input.state.foe.fainted || input.buckets.includes("ko");
+  const foeDamage = expectedDamageRatio(input.foe);
+  const foeStableKo = input.state.self.fainted || input.buckets.includes("self-ko-risk") || candidateKoChance(input.foe) >= 1 && candidateAccuracy(input.foe) >= 90;
+  const specialTags = candidateSpecialSystemTags(input.own);
+  let value = 0;
+
+  if (currentThreat?.active) {
+    const threatScale = Math.max(0.75, Math.min(1.5, currentThreat.score / 48));
+    if (ownKo) value += 24 * threatScale;
+    else if (ownDamage >= 0.55 || input.buckets.includes("threaten-ko")) value += 11 * threatScale;
+  }
+  if (currentThreat && !currentThreat.active && context.foeThreats[0]?.ident === currentThreat.ident && ownKo && input.initialState.foeResources?.aliveCount && input.initialState.foeResources.aliveCount > 1) {
+    value -= 4;
+  }
+
+  if (input.initialState.selfResources?.activeIsWinCondition) {
+    if (foeStableKo && !ownKo && input.own.kind !== "switch") value -= 26;
+    if (input.own.kind === "switch" && input.buckets.includes("safe-switch")) value += 14;
+  }
+  if (input.state.selfResources?.winConditionHealthy) value += 8;
+  if (input.initialState.selfResources?.winConditionHealthy && !input.state.selfResources?.winConditionHealthy) value -= 14;
+
+  if (specialTags.includes("dynamax")) {
+    const clearDynamaxValue = ownKo ||
+      specialTags.includes("dynamax-survival") && (foeStableKo || foeDamage >= 0.55) ||
+      specialTags.some(tag => ["max-speed", "max-weather", "max-defense-boost", "max-special-defense-boost", "gmax-aurora-veil", "gmax-residual", "gmax-hazard", "gmax-ignore-protect"].includes(tag));
+    if (clearDynamaxValue) {
+      value += 12;
+    } else if (context.resourceAdvice.holdDynamax) {
+      value -= 24;
+    }
+  }
+  if (specialTags.includes("terastallize")) {
+    const clearTeraValue = ownKo ||
+      specialTags.includes("tera-defensive") && (foeStableKo || foeDamage >= 0.45) ||
+      specialTags.includes("tera-wincon") && ownDamage >= 0.45 ||
+      specialTags.includes("tera-offense") && ownDamage >= 0.65;
+    if (clearTeraValue) {
+      value += 10;
+    } else if (context.resourceAdvice.holdTera || lowValueSpecial(input.own)) {
+      value -= 22;
+    }
+  }
+
+  return value;
 }
 
 function speedValue(input: BattleAiSinglesLeafValueInputV4): number {
@@ -401,6 +457,11 @@ function damageBucketForCandidate(candidate: BattleAiValueCandidateV4): BattleAi
 
 function candidateSpecialSystemTags(candidate: BattleAiValueCandidateV4): string[] {
   return flattenedDiagnostics(candidate.diagnostics).flatMap(entry => Array.isArray(entry.specialSystemTags) ? entry.specialSystemTags.map(String) : []);
+}
+
+function lowValueSpecial(candidate: BattleAiValueCandidateV4): boolean {
+  return flattenedDiagnostics(candidate.diagnostics)
+    .some(entry => isRecord(entry.specialSystemBreakdown) && Number(entry.specialSystemBreakdown.teraLowValuePenalty || 0) < 0);
 }
 
 function movePriority(moveId: string): number {
