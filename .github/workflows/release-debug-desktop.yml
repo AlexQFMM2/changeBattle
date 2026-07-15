@@ -258,6 +258,22 @@ jobs:
             -OutputDir "${{ github.workspace }}\release\desktop-launcher" `
             -MingwBin "$env:CHANGEBATTLE_MINGW_BIN"
 
+      - name: Fetch previous update manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          $previousManifest = "${{ github.workspace }}\release\changebattle\previous-current.json"
+          New-Item -ItemType Directory -Force -Path (Split-Path $previousManifest) | Out-Null
+          $manifestUrl = (New-Object System.Uri((New-Object System.Uri("$env:CHANGEBATTLE_OFFICIAL_SITE_URL")), "manifests/current.json")).AbsoluteUri
+          Write-Host "Fetching previous file manifest: $manifestUrl"
+          try {
+            Invoke-WebRequest -Uri $manifestUrl -OutFile $previousManifest -TimeoutSec 15
+            "CHANGEBATTLE_PREVIOUS_FILE_MANIFEST=$previousManifest" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            Write-Host "Previous file manifest saved to $previousManifest"
+          } catch {
+            Write-Warning "Previous file manifest unavailable; this build will stage every managed object. $($_.Exception.Message)"
+          }
+
       - name: Package portable release
         shell: pwsh
         run: |
@@ -295,8 +311,10 @@ jobs:
           path: |
             release/changebattle/latest.json
             release/changebattle/index.html
-            release/changebattle/manifests/v${{ inputs.version }}/files.json
-            release/changebattle/files/v${{ inputs.version }}/
+            release/changebattle/object-update-summary.json
+            release/changebattle/manifests/v${{ inputs.version }}.json
+            release/changebattle/manifests/current.json
+            release/changebattle/objects/
           if-no-files-found: error
           retention-days: 14
 

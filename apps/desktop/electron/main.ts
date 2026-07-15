@@ -6,7 +6,7 @@ import {Worker} from "node:worker_threads";
 import {app, BrowserWindow, ipcMain, protocol, shell, type IpcMainInvokeEvent} from "electron";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
 import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopUpdateStatusV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4, PlayerVaultV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
-import {CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4, changeBattleDesktopUpdateIsNewerV4, changeBattleDesktopUpdateManifestUrlsV4, changeBattleDesktopUpdateOfficialSiteUrlV4, compareDesktopUpdateFileManifestsV4, isDesktopUpdateIncrementalManagedPathV4, normalizeChangeBattleDesktopVersionV4, parseChangeBattleDesktopUpdateManifestV4, parseDesktopUpdateFileManifestV4, validateDesktopUpdateManagedPathV4, type ChangeBattleDesktopUpdateCheckResultV4, type ChangeBattleDesktopUpdateManifestV4, type DesktopUpdateFileManifestV4, type DesktopUpdateManagedFileV4} from "@changebattle-v2/core";
+import {CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4, changeBattleDesktopUpdateIsNewerV4, changeBattleDesktopUpdateManifestUrlsV4, changeBattleDesktopUpdateOfficialSiteUrlV4, compareDesktopUpdateFileManifestsV4, desktopUpdateObjectUrlForFileV4, isDesktopUpdateIncrementalManagedPathV4, normalizeChangeBattleDesktopVersionV4, parseChangeBattleDesktopUpdateManifestV4, parseDesktopUpdateFileManifestV4, validateDesktopUpdateManagedPathV4, type ChangeBattleDesktopUpdateCheckResultV4, type ChangeBattleDesktopUpdateManifestV4, type DesktopUpdateFileDiffV4, type DesktopUpdateFileManifestV4, type DesktopUpdateManagedFileV4} from "@changebattle-v2/core";
 import type {BattleServiceApiV4} from "@changebattle-v2/showdown-battle-core";
 import {DesktopSaveStoreV2} from "./desktopSaveStore.js";
 import {rendererAssetFilePath} from "./rendererAssetResolver.js";
@@ -364,7 +364,7 @@ async function checkDesktopUpdate(signal?: AbortSignal): Promise<ChangeBattleDes
         lastReason = `更新清单格式无效：${manifestUrl}`;
         continue;
       }
-      const updateAvailable = changeBattleDesktopUpdateIsNewerV4(currentVersion, manifest.version);
+      const updateAvailable = manifest.manifestVersion >= 2 || changeBattleDesktopUpdateIsNewerV4(currentVersion, manifest.version);
       return {
         ok: true,
         currentVersion,
@@ -439,7 +439,7 @@ async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Pro
     const {manifest} = result;
     activeManifest = manifest;
     const officialSiteUrl = changeBattleDesktopUpdateOfficialSiteUrlV4(manifest);
-    if (!result.updateAvailable) {
+    if (manifest.manifestVersion < 2 && !result.updateAvailable) {
       console.info(`[changebattle-v2:desktop] desktop is up to date: ${result.currentVersion}`);
       publishDesktopUpdateStatus({phase: "up-to-date", currentVersion: result.currentVersion, officialSiteUrl});
       return desktopUpdateStatus;
@@ -461,7 +461,9 @@ async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Pro
       return desktopUpdateStatus;
     }
 
-    if (manifest.requiresFullPackage || !manifest.fileManifestUrl || !manifest.incrementalBaseUrl) {
+    const objectStoreUpdate = Boolean(manifest.objectBaseUrl);
+    const incrementalBaseUrl = manifest.objectBaseUrl || manifest.incrementalBaseUrl;
+    if (manifest.requiresFullPackage || !manifest.fileManifestUrl || !incrementalBaseUrl) {
       publishDesktopUpdateStatus({
         phase: "full-package-required",
         currentVersion: result.currentVersion,
@@ -475,25 +477,27 @@ async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Pro
     }
 
     const localManifest = await readDesktopLocalFileManifest();
-    if (!localManifest) {
+    const remoteManifest = await fetchDesktopFileManifest(manifest.fileManifestUrl, controller.signal);
+    if (remoteManifest.version !== manifest.version) {
+      throw new Error(`远端文件清单版本不匹配：latest=${manifest.version}, files=${remoteManifest.version}`);
+    }
+    const protectedRemoteFiles = remoteManifest.files.filter(file => !isDesktopUpdateIncrementalManagedPathV4(file.path));
+    if (protectedRemoteFiles.length) {
       publishDesktopUpdateStatus({
         phase: "full-package-required",
         currentVersion: result.currentVersion,
         remoteVersion: manifest.version,
         officialSiteUrl,
-        reason: "当前安装包缺少本地更新基线，无法安全增量更新。",
+        reason: `该版本包含启动链路文件变更，需要下载完整包：${protectedRemoteFiles.map(file => file.path).join(", ")}`,
         notes: manifest.notes,
         fullPackageSize: manifest.fullPackage?.size,
       });
       return desktopUpdateStatus;
     }
-
-    const remoteManifest = await fetchDesktopFileManifest(manifest.fileManifestUrl, controller.signal);
-    if (remoteManifest.version !== manifest.version) {
-      throw new Error(`远端文件清单版本不匹配：latest=${manifest.version}, files=${remoteManifest.version}`);
-    }
-    const diff = compareDesktopUpdateFileManifestsV4(localManifest, remoteManifest);
-    if (!diff.changedFiles.length) {
+    const portableRoot = desktopPortableRoot();
+    const actualLocalManifest = await buildDesktopActualLocalFileManifest(portableRoot, localManifest, remoteManifest);
+    const diff = compareDesktopUpdateFileManifestsV4(actualLocalManifest, remoteManifest);
+    if (!diff.changedFiles.length && !diff.deletedFiles.length) {
       publishDesktopUpdateStatus({phase: "up-to-date", currentVersion: result.currentVersion, officialSiteUrl});
       return desktopUpdateStatus;
     }
@@ -508,12 +512,12 @@ async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Pro
       fullPackageSize: manifest.fullPackage?.size,
     });
 
-    const portableRoot = desktopPortableRoot();
     const stagingRoot = path.join(portableRoot, ".update-staging", `v${remoteManifest.version}`);
     const backupRoot = path.join(portableRoot, ".update-backup", `v${remoteManifest.version}`);
     await downloadDesktopIncrementalFiles({
       files: diff.changedFiles,
-      baseUrl: manifest.incrementalBaseUrl,
+      baseUrl: incrementalBaseUrl,
+      objectStore: objectStoreUpdate,
       stagingRoot,
       statusBase: {
         currentVersion: result.currentVersion,
@@ -543,7 +547,7 @@ async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Pro
       notes: manifest.notes,
       fullPackageSize: manifest.fullPackage?.size,
     });
-    await replaceDesktopManagedFiles({portableRoot, stagingRoot, backupRoot, files: diff.changedFiles});
+    await replaceDesktopManagedFiles({portableRoot, stagingRoot, backupRoot, diff});
     await writeDesktopLocalFileManifest(remoteManifest);
     await fs.rm(stagingRoot, {recursive: true, force: true});
     publishDesktopUpdateStatus({
@@ -595,9 +599,43 @@ async function writeDesktopLocalFileManifest(manifest: DesktopUpdateFileManifest
   await fs.writeFile(path.join(desktopPortableRoot(), "update-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 }
 
+async function buildDesktopActualLocalFileManifest(
+  portableRoot: string,
+  localManifest: DesktopUpdateFileManifestV4 | null,
+  remoteManifest: DesktopUpdateFileManifestV4,
+): Promise<DesktopUpdateFileManifestV4> {
+  const paths = new Set<string>();
+  for (const file of remoteManifest.files) {
+    if (isDesktopUpdateIncrementalManagedPathV4(file.path)) paths.add(file.path);
+  }
+  for (const file of localManifest?.files || []) {
+    if (isDesktopUpdateIncrementalManagedPathV4(file.path)) paths.add(file.path);
+  }
+
+  const files: DesktopUpdateManagedFileV4[] = [];
+  for (const relativePath of [...paths].sort()) {
+    const absolutePath = resolveDesktopManagedPath(portableRoot, relativePath);
+    if (!(await pathExists(absolutePath))) continue;
+    const stats = await fs.stat(absolutePath);
+    if (!stats.isFile()) continue;
+    files.push({
+      path: relativePath,
+      sha256: await sha256Path(absolutePath),
+      size: stats.size,
+    });
+  }
+
+  return {
+    manifestVersion: remoteManifest.manifestVersion,
+    version: localManifest?.version || desktopAppVersion(),
+    files,
+  };
+}
+
 async function downloadDesktopIncrementalFiles(input: {
   files: DesktopUpdateManagedFileV4[];
   baseUrl: string;
+  objectStore: boolean;
   stagingRoot: string;
   statusBase: Omit<Extract<DesktopUpdateStatusV4, {phase: "downloading"}>, "phase" | "downloadedSize" | "totalSize">;
   signal: AbortSignal;
@@ -607,7 +645,9 @@ async function downloadDesktopIncrementalFiles(input: {
   const totalSize = input.files.reduce((sum, file) => sum + file.size, 0);
   publishDesktopUpdateStatus({phase: "downloading", ...input.statusBase, downloadedSize, totalSize});
   for (const file of input.files) {
-    const response = await fetch(new URL(file.url || file.path, input.baseUrl).toString(), {signal: input.signal});
+    const downloadUrl = input.objectStore ? desktopUpdateObjectUrlForFileV4(input.baseUrl, file) : new URL(file.url || file.path, input.baseUrl).toString();
+    if (!downloadUrl) throw new Error(`增量对象地址无效：${file.path}`);
+    const response = await fetch(downloadUrl, {signal: input.signal});
     if (!response.ok) throw new Error(`下载失败 ${file.path}: HTTP ${response.status}`);
     const buffer = Buffer.from(await response.arrayBuffer());
     const target = resolveDesktopManagedPath(input.stagingRoot, file.path);
@@ -626,11 +666,11 @@ async function verifyDesktopStagedFiles(stagingRoot: string, files: DesktopUpdat
   }
 }
 
-async function replaceDesktopManagedFiles(input: {portableRoot: string; stagingRoot: string; backupRoot: string; files: DesktopUpdateManagedFileV4[]}) {
+async function replaceDesktopManagedFiles(input: {portableRoot: string; stagingRoot: string; backupRoot: string; diff: DesktopUpdateFileDiffV4}) {
   await fs.rm(input.backupRoot, {recursive: true, force: true});
   const replaced: string[] = [];
   try {
-    for (const file of input.files) {
+    for (const file of input.diff.changedFiles) {
       const target = resolveDesktopManagedPath(input.portableRoot, file.path);
       const staged = resolveDesktopManagedPath(input.stagingRoot, file.path);
       const backup = resolveDesktopManagedPath(input.backupRoot, file.path);
@@ -640,6 +680,15 @@ async function replaceDesktopManagedFiles(input: {portableRoot: string; stagingR
       }
       await fs.mkdir(path.dirname(target), {recursive: true});
       await fs.copyFile(staged, target);
+      replaced.push(file.path);
+    }
+    for (const file of input.diff.deletedFiles) {
+      const target = resolveDesktopManagedPath(input.portableRoot, file.path);
+      if (!(await pathExists(target))) continue;
+      const backup = resolveDesktopManagedPath(input.backupRoot, file.path);
+      await fs.mkdir(path.dirname(backup), {recursive: true});
+      await fs.copyFile(target, backup);
+      await fs.rm(target, {force: true});
       replaced.push(file.path);
     }
   } catch (error) {

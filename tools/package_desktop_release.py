@@ -431,10 +431,11 @@ def main() -> int:
     copy_launcher_outputs(launcher_output_root, stage_dir)
     write_windows_scripts(stage_dir)
     write_release_notes(stage_dir, showdown_root, runtime_version)
-    subprocess.check_call(
-        ["node", "tools/generate_desktop_file_manifest.mjs", version, "--portable-root", str(stage_dir)],
-        cwd=PROJECT_ROOT,
-    )
+    manifest_command = ["node", "tools/generate_desktop_file_manifest.mjs", version, "--portable-root", str(stage_dir)]
+    previous_file_manifest = os.environ.get("CHANGEBATTLE_PREVIOUS_FILE_MANIFEST")
+    if previous_file_manifest:
+        manifest_command.extend(["--previous-manifest", previous_file_manifest])
+    subprocess.check_call(manifest_command, cwd=PROJECT_ROOT)
     zip_dir(stage_dir, zip_path)
     validate_zip(zip_path, package_name)
 

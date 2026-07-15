@@ -31,22 +31,26 @@ if [[ -z "$VERSION" ]]; then
   VERSION="$(node -p "require('./package.json').version")"
 fi
 
-mkdir -p "$ROOT_DIR/release/changebattle"
-PREVIOUS_LATEST_JSON="$ROOT_DIR/release/changebattle/previous-latest-$CHANNEL.json"
-rm -f "$PREVIOUS_LATEST_JSON"
-if curl -fsSL "${OFFICIAL_SITE_URL%/}/latest.json" -o "$PREVIOUS_LATEST_JSON"; then
-  export CHANGEBATTLE_PREVIOUS_LATEST_JSON="$PREVIOUS_LATEST_JSON"
-  echo "Fetched previous latest.json for $CHANNEL link inheritance."
-else
+LOCAL_DIR="${CHANGEBATTLE_UPDATE_LOCAL_DIR:-$ROOT_DIR/release/changebattle}"
+if [[ -z "${CHANGEBATTLE_UPDATE_LOCAL_DIR:-}" ]]; then
+  mkdir -p "$ROOT_DIR/release/changebattle"
+  PREVIOUS_LATEST_JSON="$ROOT_DIR/release/changebattle/previous-latest-$CHANNEL.json"
   rm -f "$PREVIOUS_LATEST_JSON"
-  unset CHANGEBATTLE_PREVIOUS_LATEST_JSON
-  echo "Previous latest.json unavailable; download mirrors must be supplied explicitly if needed."
+  if curl -fsSL "${OFFICIAL_SITE_URL%/}/latest.json" -o "$PREVIOUS_LATEST_JSON"; then
+    export CHANGEBATTLE_PREVIOUS_LATEST_JSON="$PREVIOUS_LATEST_JSON"
+    echo "Fetched previous latest.json for $CHANNEL link inheritance."
+  else
+    rm -f "$PREVIOUS_LATEST_JSON"
+    unset CHANGEBATTLE_PREVIOUS_LATEST_JSON
+    echo "Previous latest.json unavailable; download mirrors must be supplied explicitly if needed."
+  fi
+
+  node tools/generate_desktop_update_manifest.mjs "$VERSION" --channel "$CHANNEL" --official-site-url "$OFFICIAL_SITE_URL"
+else
+  LOCAL_DIR="$(cd "$LOCAL_DIR" && pwd)"
+  echo "Publishing prebuilt update artifact from $LOCAL_DIR"
 fi
-
-node tools/generate_desktop_update_manifest.mjs "$VERSION" --channel "$CHANNEL" --official-site-url "$OFFICIAL_SITE_URL"
-
-LOCAL_DIR="$ROOT_DIR/release/changebattle"
-if [[ ! -f "$LOCAL_DIR/latest.json" || ! -f "$LOCAL_DIR/index.html" ]]; then
+if [[ ! -f "$LOCAL_DIR/latest.json" || ! -f "$LOCAL_DIR/index.html" || ! -f "$LOCAL_DIR/manifests/current.json" ]]; then
   echo "Generated update files are missing in $LOCAL_DIR" >&2
   exit 1
 fi
@@ -70,16 +74,34 @@ if [[ -d "$LOCAL_DIR/manifests" ]]; then
   rm -f "$REMOTE_TMP_DIR-manifests.tar.gz"
   ssh "$UPDATE_HOST" "cd '$REMOTE_TMP_DIR' && tar -xzf manifests.tar.gz"
 fi
-if [[ -d "$LOCAL_DIR/files" ]]; then
-  echo "Uploading incremental files..."
-  tar -C "$LOCAL_DIR" -czf "$REMOTE_TMP_DIR-files.tar.gz" files
-  scp "$REMOTE_TMP_DIR-files.tar.gz" "${UPDATE_HOST}:${REMOTE_TMP_DIR}/files.tar.gz"
-  rm -f "$REMOTE_TMP_DIR-files.tar.gz"
-  ssh "$UPDATE_HOST" "cd '$REMOTE_TMP_DIR' && tar -xzf files.tar.gz"
+if [[ -d "$LOCAL_DIR/objects" ]]; then
+  echo "Uploading content-addressed update objects..."
+  tar -C "$LOCAL_DIR" -czf "$REMOTE_TMP_DIR-objects.tar.gz" objects
+  scp "$REMOTE_TMP_DIR-objects.tar.gz" "${UPDATE_HOST}:${REMOTE_TMP_DIR}/objects.tar.gz"
+  rm -f "$REMOTE_TMP_DIR-objects.tar.gz"
+  ssh "$UPDATE_HOST" "cd '$REMOTE_TMP_DIR' && tar -xzf objects.tar.gz"
 fi
 
 echo "Publishing update metadata to $UPDATE_WEB_ROOT..."
-ssh "$UPDATE_HOST" "sudo mkdir -p '$UPDATE_WEB_ROOT' && if [ -d '$REMOTE_TMP_DIR/image' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/image' && sudo cp -a '$REMOTE_TMP_DIR/image/.' '$UPDATE_WEB_ROOT/image/'; fi && if [ -d '$REMOTE_TMP_DIR/manifests' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/manifests' && sudo cp -a '$REMOTE_TMP_DIR/manifests/.' '$UPDATE_WEB_ROOT/manifests/'; fi && if [ -d '$REMOTE_TMP_DIR/files' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/files' && sudo cp -a '$REMOTE_TMP_DIR/files/.' '$UPDATE_WEB_ROOT/files/'; fi && sudo install -m 0644 '$REMOTE_TMP_DIR/latest.json' '$UPDATE_WEB_ROOT/latest.json' && sudo install -m 0644 '$REMOTE_TMP_DIR/index.html' '$UPDATE_WEB_ROOT/index.html'"
+ssh "$UPDATE_HOST" "sudo mkdir -p '$UPDATE_WEB_ROOT' '$UPDATE_WEB_ROOT/manifests' '$UPDATE_WEB_ROOT/objects' && if [ -d '$REMOTE_TMP_DIR/image' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/image' && sudo cp -a '$REMOTE_TMP_DIR/image/.' '$UPDATE_WEB_ROOT/image/'; fi && if [ -d '$REMOTE_TMP_DIR/objects' ]; then sudo cp -an '$REMOTE_TMP_DIR/objects/.' '$UPDATE_WEB_ROOT/objects/'; fi && if [ -d '$REMOTE_TMP_DIR/manifests' ]; then find '$REMOTE_TMP_DIR/manifests' -maxdepth 1 -type f ! -name current.json -exec sudo cp -a {} '$UPDATE_WEB_ROOT/manifests/' \\; fi && python3 - '$REMOTE_TMP_DIR/manifests/current.json' '$UPDATE_WEB_ROOT/objects' <<'PY'
+import json, pathlib, sys
+manifest_path = pathlib.Path(sys.argv[1])
+objects_root = pathlib.Path(sys.argv[2])
+data = json.loads(manifest_path.read_text(encoding='utf-8'))
+missing = []
+for entry in data.get('files', []):
+    sha = entry.get('sha256', '')
+    if len(sha) != 64:
+        missing.append(f'invalid-sha:{entry.get(\"path\", \"\")}')
+        continue
+    if not (objects_root / sha[:2] / sha).is_file():
+        missing.append(f'{entry.get(\"path\", \"\")}:{sha}')
+if missing:
+    print('Missing update objects:', file=sys.stderr)
+    print('\\n'.join(missing[:50]), file=sys.stderr)
+    sys.exit(1)
+PY
+sudo install -m 0644 '$REMOTE_TMP_DIR/manifests/current.json' '$UPDATE_WEB_ROOT/manifests/current.json' && sudo install -m 0644 '$REMOTE_TMP_DIR/latest.json' '$UPDATE_WEB_ROOT/latest.json' && sudo install -m 0644 '$REMOTE_TMP_DIR/index.html' '$UPDATE_WEB_ROOT/index.html'"
 
 echo "Published:"
 echo "  ${OFFICIAL_SITE_URL%/}/latest.json"

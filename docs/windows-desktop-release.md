@@ -1,6 +1,6 @@
 # ChangeBattle V2 Windows Desktop Release
 
-本文档记录 ChangeBattle V2 Windows Desktop 便携包的发布流程。范围只包含 V2 Desk portable zip，不包含 Web、Android、安装器、签名发布或自动覆盖安装。桌面端支持启动时检查远端 `latest.json` 并提示玩家打开下载页，但不会在本机自动下载/替换程序。
+本文档记录 ChangeBattle V2 Windows Desktop 便携包的发布流程。范围只包含 V2 Desk portable zip，不包含 Web、Android、安装器或签名发布。桌面端支持启动时检查远端 `latest.json`，并在 portable 环境内按文件 sha256 自动增量替换普通运行文件；启动器/runtime 变化仍要求下载完整包。
 
 当前已验证 release：
 
@@ -129,7 +129,7 @@ https://65h26i.top/changebattle/latest.json
 https://65h26i.top/changebattle/
 ```
 
-发布脚本只上传 `latest.json` 和下载页，不上传约 600 MiB 的 portable zip。真实下载链接应放到 `downloadPageUrl` 或 `mirrors`，例如网盘、GitHub Release 或其它下载页。
+发布脚本会上传 `latest.json`、下载页、文件目标清单和内容哈希对象，不上传约 600 MiB 的 portable zip。真实完整包下载链接应放到 `downloadPageUrl` 或 `mirrors`，例如网盘、GitHub Release 或其它下载页。
 
 常用环境变量：
 
@@ -146,6 +146,16 @@ CHANGEBATTLE_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle"
 ```bash
 ./tools/publish_desktop_update_manifest.sh 0.1.0
 ```
+
+如果使用 GitHub Actions 构建 debug 桌面端，先把 `changebattle-beta-update-metadata-vX.Y.Z` artifact 下载到本地目录，例如 `tmp/changebattle-beta-update-vX.Y.Z`，再发布该目录：
+
+```bash
+CHANGEBATTLE_RELEASE_CHANNEL=beta \
+CHANGEBATTLE_UPDATE_LOCAL_DIR=/home/alexqfmm/workPlace/pokemon/changeBattleV2/tmp/changebattle-beta-update-vX.Y.Z \
+./tools/publish_desktop_update_manifest.sh X.Y.Z
+```
+
+v2 增量更新不再上传 `files/vX.Y.Z/` 完整镜像。服务器目录以 `manifests/current.json` 表示目标文件状态，以 `objects/<sha前2位>/<完整sha256>` 存储内容对象。客户端会重新计算本地实际文件 sha256，按 `path + sha256` 判断新增、修改、删除。
 
 如果只想本地生成清单并检查内容：
 

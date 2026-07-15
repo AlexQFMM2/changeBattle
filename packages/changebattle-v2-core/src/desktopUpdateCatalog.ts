@@ -11,8 +11,10 @@ export type ChangeBattleDesktopUpdateFullPackageV4 = {
   size?: number;
 };
 
+export type ChangeBattleDesktopUpdateManifestVersionV4 = 1 | 2;
+
 export type ChangeBattleDesktopUpdateManifestV4 = {
-  manifestVersion: 1;
+  manifestVersion: ChangeBattleDesktopUpdateManifestVersionV4;
   channel: ChangeBattleDesktopUpdateChannelV4;
   version: string;
   date?: string;
@@ -23,6 +25,8 @@ export type ChangeBattleDesktopUpdateManifestV4 = {
   fullPackage?: ChangeBattleDesktopUpdateFullPackageV4;
   fileManifestUrl?: string;
   incrementalBaseUrl?: string;
+  objectBaseUrl?: string;
+  requiresFullObjectUpload?: boolean;
   requiresFullPackage?: boolean;
   requiresFullPackageReason?: string;
   mirrors?: ChangeBattleDesktopUpdateMirrorV4[];
@@ -38,13 +42,14 @@ export type DesktopUpdateManagedFileV4 = {
 };
 
 export type DesktopUpdateFileManifestV4 = {
-  manifestVersion: 1;
+  manifestVersion: ChangeBattleDesktopUpdateManifestVersionV4;
   version: string;
   files: DesktopUpdateManagedFileV4[];
 };
 
 export type DesktopUpdateFileDiffV4 = {
   changedFiles: DesktopUpdateManagedFileV4[];
+  deletedFiles: DesktopUpdateManagedFileV4[];
   totalSize: number;
 };
 
@@ -63,7 +68,8 @@ export type ChangeBattleDesktopUpdateCheckResultV4 =
       reason: string;
     };
 
-export const CHANGEBATTLE_DESKTOP_UPDATE_MANIFEST_VERSION_V4 = 1;
+export const CHANGEBATTLE_DESKTOP_UPDATE_MANIFEST_VERSION_V4 = 2;
+export const CHANGEBATTLE_DESKTOP_UPDATE_LEGACY_MANIFEST_VERSION_V4 = 1;
 
 export const CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_MANIFEST_URLS_V4 = [
   "https://65h26i.top/changebattle/latest.json",
@@ -73,7 +79,9 @@ export const CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_DOWNLOAD_PAGE_URL_V4 = "https:/
 export const CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4 = CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_DOWNLOAD_PAGE_URL_V4;
 
 export const DESKTOP_UPDATE_ALLOWED_PATH_PREFIXES_V4 = ["apps/", "assets/", "resources/", "vendor/"] as const;
-export const DESKTOP_UPDATE_ALLOWED_ROOT_FILES_V4 = ["ChangeBattle V2.exe", "ChangeBattle-V2-Desk.cmd", "ChangeBattle-V2-Desk.launcher.env", "package.json", "update-manifest.json"] as const;
+export const DESKTOP_UPDATE_INCREMENTAL_ALLOWED_ROOT_FILES_V4 = ["package.json"] as const;
+export const DESKTOP_UPDATE_PROTECTED_ROOT_FILES_V4 = ["ChangeBattle V2.exe", "ChangeBattle-V2-Desk.cmd", "ChangeBattle-V2-Desk.launcher.env", "update-manifest.json"] as const;
+export const DESKTOP_UPDATE_ALLOWED_ROOT_FILES_V4 = [...DESKTOP_UPDATE_PROTECTED_ROOT_FILES_V4, ...DESKTOP_UPDATE_INCREMENTAL_ALLOWED_ROOT_FILES_V4] as const;
 
 export function changeBattleDesktopUpdateManifestUrlsV4(raw?: string): string[] {
   const parsed = (raw || "")
@@ -113,7 +121,7 @@ export function changeBattleDesktopUpdateOfficialSiteUrlV4(manifest: ChangeBattl
 export function parseChangeBattleDesktopUpdateManifestV4(value: unknown): ChangeBattleDesktopUpdateManifestV4 | null {
   if (!value || typeof value !== "object") return null;
   const manifest = value as Partial<ChangeBattleDesktopUpdateManifestV4>;
-  if (manifest.manifestVersion !== CHANGEBATTLE_DESKTOP_UPDATE_MANIFEST_VERSION_V4) return null;
+  if (!isSupportedDesktopUpdateManifestVersionV4(manifest.manifestVersion)) return null;
   if (typeof manifest.channel !== "string" || !manifest.channel.trim()) return null;
   if (typeof manifest.version !== "string" || !isChangeBattleDesktopVersionLikeV4(manifest.version)) return null;
   if (manifest.date !== undefined && typeof manifest.date !== "string") return null;
@@ -123,6 +131,8 @@ export function parseChangeBattleDesktopUpdateManifestV4(value: unknown): Change
   if (manifest.downloadPageUrl !== undefined && typeof manifest.downloadPageUrl !== "string") return null;
   if (manifest.fileManifestUrl !== undefined && typeof manifest.fileManifestUrl !== "string") return null;
   if (manifest.incrementalBaseUrl !== undefined && typeof manifest.incrementalBaseUrl !== "string") return null;
+  if (manifest.objectBaseUrl !== undefined && typeof manifest.objectBaseUrl !== "string") return null;
+  if (manifest.requiresFullObjectUpload !== undefined && typeof manifest.requiresFullObjectUpload !== "boolean") return null;
   if (manifest.requiresFullPackage !== undefined && typeof manifest.requiresFullPackage !== "boolean") return null;
   if (manifest.requiresFullPackageReason !== undefined && typeof manifest.requiresFullPackageReason !== "string") return null;
   if (manifest.mandatory !== undefined && typeof manifest.mandatory !== "boolean") return null;
@@ -138,7 +148,7 @@ export function parseChangeBattleDesktopUpdateManifestV4(value: unknown): Change
     if (manifest.mirrors.some(mirror => !mirror || typeof mirror.name !== "string" || typeof mirror.url !== "string")) return null;
   }
   return {
-    manifestVersion: CHANGEBATTLE_DESKTOP_UPDATE_MANIFEST_VERSION_V4,
+    manifestVersion: manifest.manifestVersion,
     channel: manifest.channel.trim(),
     version: normalizeChangeBattleDesktopVersionV4(manifest.version),
     date: manifest.date,
@@ -149,6 +159,8 @@ export function parseChangeBattleDesktopUpdateManifestV4(value: unknown): Change
     fullPackage: manifest.fullPackage,
     fileManifestUrl: manifest.fileManifestUrl,
     incrementalBaseUrl: manifest.incrementalBaseUrl,
+    objectBaseUrl: manifest.objectBaseUrl,
+    requiresFullObjectUpload: manifest.requiresFullObjectUpload,
     requiresFullPackage: manifest.requiresFullPackage,
     requiresFullPackageReason: manifest.requiresFullPackageReason,
     mirrors: manifest.mirrors,
@@ -160,7 +172,7 @@ export function parseChangeBattleDesktopUpdateManifestV4(value: unknown): Change
 export function parseDesktopUpdateFileManifestV4(value: unknown): DesktopUpdateFileManifestV4 | null {
   if (!value || typeof value !== "object") return null;
   const manifest = value as Partial<DesktopUpdateFileManifestV4>;
-  if (manifest.manifestVersion !== CHANGEBATTLE_DESKTOP_UPDATE_MANIFEST_VERSION_V4) return null;
+  if (!isSupportedDesktopUpdateManifestVersionV4(manifest.manifestVersion)) return null;
   if (typeof manifest.version !== "string" || !isChangeBattleDesktopVersionLikeV4(manifest.version)) return null;
   if (!Array.isArray(manifest.files)) return null;
   const files: DesktopUpdateManagedFileV4[] = [];
@@ -172,7 +184,7 @@ export function parseDesktopUpdateFileManifestV4(value: unknown): DesktopUpdateF
     files.push(parsed);
   }
   return {
-    manifestVersion: CHANGEBATTLE_DESKTOP_UPDATE_MANIFEST_VERSION_V4,
+    manifestVersion: manifest.manifestVersion,
     version: normalizeChangeBattleDesktopVersionV4(manifest.version),
     files,
   };
@@ -189,8 +201,20 @@ export function validateDesktopUpdateManagedPathV4(filePath: string): boolean {
 export function isDesktopUpdateIncrementalManagedPathV4(filePath: string): boolean {
   const normalized = normalizeDesktopUpdateManagedPathV4(filePath);
   if (!validateDesktopUpdateManagedPathV4(normalized)) return false;
+  if ((DESKTOP_UPDATE_INCREMENTAL_ALLOWED_ROOT_FILES_V4 as readonly string[]).includes(normalized)) return true;
+  return DESKTOP_UPDATE_ALLOWED_PATH_PREFIXES_V4.some(prefix => normalized.startsWith(prefix));
+}
+
+export function isDesktopUpdateManifestManagedPathV4(filePath: string): boolean {
+  const normalized = normalizeDesktopUpdateManagedPathV4(filePath);
+  if (!validateDesktopUpdateManagedPathV4(normalized)) return false;
   if ((DESKTOP_UPDATE_ALLOWED_ROOT_FILES_V4 as readonly string[]).includes(normalized)) return true;
   return DESKTOP_UPDATE_ALLOWED_PATH_PREFIXES_V4.some(prefix => normalized.startsWith(prefix));
+}
+
+export function isDesktopUpdateProtectedManagedPathV4(filePath: string): boolean {
+  const normalized = normalizeDesktopUpdateManagedPathV4(filePath);
+  return (DESKTOP_UPDATE_PROTECTED_ROOT_FILES_V4 as readonly string[]).includes(normalized);
 }
 
 export function compareDesktopUpdateFileManifestsV4(
@@ -198,12 +222,17 @@ export function compareDesktopUpdateFileManifestsV4(
   remoteManifest: DesktopUpdateFileManifestV4,
 ): DesktopUpdateFileDiffV4 {
   const localByPath = new Map((localManifest?.files || []).map(file => [file.path, file]));
+  const remoteByPath = new Map(remoteManifest.files.map(file => [file.path, file]));
   const changedFiles = remoteManifest.files.filter(file => {
     const localFile = localByPath.get(file.path);
     return !localFile || localFile.sha256 !== file.sha256;
   });
+  const deletedFiles = (localManifest?.files || []).filter(file => {
+    return isDesktopUpdateIncrementalManagedPathV4(file.path) && !remoteByPath.has(file.path);
+  });
   return {
     changedFiles,
+    deletedFiles,
     totalSize: changedFiles.reduce((sum, file) => sum + file.size, 0),
   };
 }
@@ -213,6 +242,18 @@ export function estimateDesktopIncrementalDownloadSizeV4(
   remoteManifest: DesktopUpdateFileManifestV4,
 ): number {
   return compareDesktopUpdateFileManifestsV4(localManifest, remoteManifest).totalSize;
+}
+
+export function desktopUpdateObjectPathForShaV4(sha256: string): string {
+  const normalized = sha256.trim().toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(normalized)) return "";
+  return `${normalized.slice(0, 2)}/${normalized}`;
+}
+
+export function desktopUpdateObjectUrlForFileV4(baseUrl: string, file: DesktopUpdateManagedFileV4): string {
+  const objectPath = desktopUpdateObjectPathForShaV4(file.sha256);
+  if (!objectPath) return "";
+  return new URL(objectPath, withTrailingSlashV4(baseUrl)).toString();
 }
 
 export function isChangeBattleDesktopVersionLikeV4(version: string): boolean {
@@ -232,7 +273,7 @@ function parseDesktopUpdateManagedFileV4(value: unknown): DesktopUpdateManagedFi
   const file = value as Partial<DesktopUpdateManagedFileV4>;
   if (typeof file.path !== "string") return null;
   const normalizedPath = normalizeDesktopUpdateManagedPathV4(file.path);
-  if (!isDesktopUpdateIncrementalManagedPathV4(normalizedPath)) return null;
+  if (!isDesktopUpdateManifestManagedPathV4(normalizedPath)) return null;
   if (typeof file.sha256 !== "string" || !/^[a-f0-9]{64}$/i.test(file.sha256)) return null;
   if (typeof file.size !== "number" || !Number.isFinite(file.size) || file.size < 0) return null;
   if (file.url !== undefined && typeof file.url !== "string") return null;
@@ -246,4 +287,12 @@ function parseDesktopUpdateManagedFileV4(value: unknown): DesktopUpdateManagedFi
 
 function normalizeDesktopUpdateManagedPathV4(filePath: string): string {
   return filePath.trim().replaceAll("\\", "/").replace(/^\.\/+/, "");
+}
+
+function isSupportedDesktopUpdateManifestVersionV4(value: unknown): value is ChangeBattleDesktopUpdateManifestVersionV4 {
+  return value === CHANGEBATTLE_DESKTOP_UPDATE_LEGACY_MANIFEST_VERSION_V4 || value === CHANGEBATTLE_DESKTOP_UPDATE_MANIFEST_VERSION_V4;
+}
+
+function withTrailingSlashV4(url: string): string {
+  return url.endsWith("/") ? url : `${url}/`;
 }

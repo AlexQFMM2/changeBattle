@@ -28,6 +28,7 @@ const downloadPageUrl = officialSiteUrl;
 const downloadPageTemplatePath = options.template || process.env.CHANGEBATTLE_DOWNLOAD_PAGE_TEMPLATE || path.join(rootDir, "tools", "release", "download-page-template.html");
 const downloadPageImageDir = process.env.CHANGEBATTLE_DOWNLOAD_PAGE_IMAGE_DIR || path.join(rootDir, "tools", "release", "download-page-images");
 const previousManifest = readPreviousManifest(options.previousLatestJson || process.env.CHANGEBATTLE_PREVIOUS_LATEST_JSON || path.join(changebattleReleaseDir, "latest.json"), channel);
+const objectSummary = readObjectUpdateSummary(path.join(changebattleReleaseDir, "object-update-summary.json"), version);
 const sha256 = packagedSha256 || (previousManifest?.version === version ? previousManifest.sha256 || "" : "");
 const envMirrors = parseMirrors(process.env.CHANGEBATTLE_RELEASE_MIRRORS || "");
 const explicitMirrors = options.mirrors.length ? options.mirrors : envMirrors;
@@ -44,7 +45,7 @@ const fullPackage = buildFullPackage({
 const requiresFullPackage = options.requiresFullPackage || parseBooleanEnv(process.env.CHANGEBATTLE_REQUIRES_FULL_PACKAGE);
 
 const manifest = {
-  manifestVersion: 1,
+  manifestVersion: 2,
   channel,
   version,
   date,
@@ -56,8 +57,9 @@ const manifest = {
   officialSiteUrl,
   downloadPageUrl,
   ...(fullPackage ? {fullPackage} : {}),
-  fileManifestUrl: new URL(`manifests/v${version}/files.json`, officialSiteUrl).toString(),
-  incrementalBaseUrl: new URL(`files/v${version}/`, officialSiteUrl).toString(),
+  fileManifestUrl: new URL("manifests/current.json", officialSiteUrl).toString(),
+  objectBaseUrl: new URL("objects/", officialSiteUrl).toString(),
+  ...(objectSummary?.requiresFullObjectUpload ? {requiresFullObjectUpload: true} : {}),
   requiresFullPackage,
   ...(options.requiresFullPackageReason ? {requiresFullPackageReason: options.requiresFullPackageReason} : {}),
   mirrors,
@@ -153,6 +155,18 @@ function readPreviousManifest(filePath, channel) {
     const parsed = JSON.parse(readFileSync(filePath, "utf8"));
     if (!parsed || typeof parsed !== "object") return null;
     if (parsed.channel && parsed.channel !== channel) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function readObjectUpdateSummary(filePath, version) {
+  if (!existsSync(filePath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, "utf8"));
+    if (!parsed || typeof parsed !== "object") return null;
+    if (parsed.version !== version) return null;
     return parsed;
   } catch {
     return null;
