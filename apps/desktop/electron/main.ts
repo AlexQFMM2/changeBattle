@@ -364,7 +364,7 @@ async function checkDesktopUpdate(signal?: AbortSignal): Promise<ChangeBattleDes
         lastReason = `更新清单格式无效：${manifestUrl}`;
         continue;
       }
-      const updateAvailable = manifest.manifestVersion >= 2 || changeBattleDesktopUpdateIsNewerV4(currentVersion, manifest.version);
+      const updateAvailable = Boolean(manifest.objectBaseUrl) || manifest.manifestVersion >= 2 || changeBattleDesktopUpdateIsNewerV4(currentVersion, manifest.version);
       return {
         ok: true,
         currentVersion,
@@ -439,7 +439,7 @@ async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Pro
     const {manifest} = result;
     activeManifest = manifest;
     const officialSiteUrl = changeBattleDesktopUpdateOfficialSiteUrlV4(manifest);
-    if (manifest.manifestVersion < 2 && !result.updateAvailable) {
+    if (!manifest.objectBaseUrl && manifest.manifestVersion < 2 && !result.updateAvailable) {
       console.info(`[changebattle-v2:desktop] desktop is up to date: ${result.currentVersion}`);
       publishDesktopUpdateStatus({phase: "up-to-date", currentVersion: result.currentVersion, officialSiteUrl});
       return desktopUpdateStatus;

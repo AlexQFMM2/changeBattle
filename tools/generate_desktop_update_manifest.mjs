@@ -45,7 +45,7 @@ const fullPackage = buildFullPackage({
 const requiresFullPackage = options.requiresFullPackage || parseBooleanEnv(process.env.CHANGEBATTLE_REQUIRES_FULL_PACKAGE);
 
 const manifest = {
-  manifestVersion: 2,
+  manifestVersion: 1,
   channel,
   version,
   date,
