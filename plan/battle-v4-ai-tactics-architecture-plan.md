@@ -446,6 +446,7 @@
 - [x] 双打 v2：对手 reply 候选同样来自现有 request / validator / candidate generator。
 - [x] 双打 v2：lightweight leaf 使用双方 joint value、伤害压力、KO 压力和少量原始候选分。
 - [x] 双打 v2：champion depth 3 先用轻量续手项表达，不做完整 Showdown 三回合模拟。
+- [x] 双打 v2：特殊招式 value 覆盖 Fake Out / Sucker Punch / Max Guard / Tera defensive。
 
 ## 13.1 合作 Coop Strategy
 
@@ -485,9 +486,9 @@
 - [x] Protect：残血会被击杀或被双点时加分。
 - [x] Protect：己方稳定 KO 且不需要保护时扣分。
 - [ ] Fake Out：仅首回合/可用时保留高权重。
-- [ ] Fake Out：不可用时剪枝或强扣分。
-- [ ] Sucker Punch：目标高概率攻击时加分。
-- [ ] Sucker Punch：目标高概率变化招时扣分。
+- [x] Fake Out：不可用时剪枝或强扣分。
+- [x] Sucker Punch：目标高概率攻击时加分。
+- [x] Sucker Punch：目标高概率变化招时扣分。
 - [x] Tailwind：我方无顺风且速度线收益明显时加分。
 - [ ] Tailwind：我方已有顺风时扣分或剪枝。
 - [x] Trick Room：低速队收益时加分。
@@ -647,6 +648,10 @@
 - [x] doubles v2：gymLeader 双打保持 depth 1 safety shell。
 - [x] doubles v2：eliteFour 双打启用 depth 2 reply search。
 - [x] doubles v2：champion 双打启用 depth 3 lightweight reply search。
+- [x] doubles v2：Fake Out 不可用时强扣分。
+- [x] doubles v2：Sucker Punch 区分攻击目标和变化目标。
+- [x] doubles v2：Max Guard 在高压双点下提高。
+- [x] doubles v2：防守太晶在高压承伤下提高。
 
 ## 20. 性能测试
 

@@ -3424,6 +3424,42 @@ function aiDoublesStrategyV0Smoke() {
   if (!fakeOutStopSetup.tags.includes("fake-out-stop-setup") || !(fakeOutStopSetup.valueBreakdown.disruption > 0)) {
     throw new Error(`Fake Out should gain disruption value against likely setup: ${JSON.stringify(fakeOutStopSetup)}`);
   }
+  const fakeOutUnavailable = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 1 +1, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "fakeout", target: "normal", category: "physical", expectedDamageRatio: 0.08, fakeOutAvailable: false},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!fakeOutUnavailable.tags.includes("fake-out-low-value") || !(fakeOutUnavailable.valueBreakdown.disruption < 0)) {
+    throw new Error(`Unavailable Fake Out should be strongly discounted: ${JSON.stringify(fakeOutUnavailable)}`);
+  }
+  const suckerPunchAttack = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 1 +1, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "suckerpunch", target: "normal", category: "physical", expectedDamageRatio: 0.5, targetLikelyAttack: true},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  const suckerPunchSetup = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 1 +1, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "suckerpunch", target: "normal", category: "physical", expectedDamageRatio: 0.5, targetLikelyMove: "tailwind"},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!suckerPunchAttack.tags.includes("priority-pressure") || !suckerPunchSetup.tags.includes("sucker-punch-risk") || !(suckerPunchAttack.valueBreakdown.priority > suckerPunchSetup.valueBreakdown.priority)) {
+    throw new Error(`Sucker Punch should prefer attacking targets over setup targets: ${JSON.stringify({suckerPunchAttack, suckerPunchSetup})}`);
+  }
   const tailwindValue = scoreBattleAiDoublesJointCandidateV4(request, {
     choice: "move 1, move 3",
     score: 100,
@@ -3473,6 +3509,32 @@ function aiDoublesStrategyV0Smoke() {
   });
   if (!dynamaxValue.tags.includes("commit-dynamax") || !(dynamaxValue.valueBreakdown.resource > 0)) {
     throw new Error(`Dynamax speed/resource value should be visible in doubles scoring: ${JSON.stringify(dynamaxValue)}`);
+  }
+  const maxGuardValue = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 3, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "maxguard", target: "self", category: "status", expectedDamageRatio: 0, incomingDoubleTarget: true, incomingPressureRatio: 0.8, specialSystemTags: ["dynamax", "max-guard"]},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!maxGuardValue.tags.includes("commit-dynamax") || !(maxGuardValue.valueBreakdown.protect > 0) || !(maxGuardValue.valueBreakdown.resource > 0)) {
+    throw new Error(`Max Guard should gain value when protecting from high pressure: ${JSON.stringify(maxGuardValue)}`);
+  }
+  const teraDefenseValue = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 3 +1, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "dragonclaw", target: "normal", category: "physical", expectedDamageRatio: 0.35, incomingPressureRatio: 0.7, specialSystemTags: ["terastallize", "tera-defensive"]},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!teraDefenseValue.tags.includes("commit-tera") || !(teraDefenseValue.valueBreakdown.resource > 0)) {
+    throw new Error(`Defensive tera should gain value under high incoming pressure: ${JSON.stringify(teraDefenseValue)}`);
   }
 
   const flashFireRequest: BattleServiceRequestV4 = {

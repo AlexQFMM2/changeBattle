@@ -21,6 +21,7 @@ export type BattleAiDoublesReasonTagV4 =
   | "protect-from-double-target"
   | "fake-out-stop-setup"
   | "fake-out-low-value"
+  | "sucker-punch-risk"
   | "tailwind-speed-control"
   | "trick-room-value"
   | "trick-room-self-harm"
@@ -190,7 +191,10 @@ export function evaluateBattleAiDoublesJointValueV4(input: BattleAiDoublesValueI
     }
 
     if (FAKE_OUT_MOVES.has(moveId)) {
-      if (foeSetupPressure > 0 || pressure >= 0.25 || diagnosticIndicatesSetupTarget(diagnostics)) {
+      if (diagnostics.fakeOutAvailable === false || moveRequestForPart(input.request, part)?.disabled) {
+        tags.add("fake-out-low-value");
+        breakdown.disruption -= 42;
+      } else if (foeSetupPressure > 0 || pressure >= 0.25 || diagnosticIndicatesSetupTarget(diagnostics)) {
         tags.add("fake-out-stop-setup");
         breakdown.disruption += 28 + Math.min(14, foeSetupPressure);
       } else {
@@ -221,13 +225,28 @@ export function evaluateBattleAiDoublesJointValueV4(input: BattleAiDoublesValueI
       breakdown.field += 10;
     }
     if (PRIORITY_MOVES.has(moveId)) {
-      tags.add("priority-pressure");
-      breakdown.priority += koChance >= 1 || expectedDamageRatio >= 0.45 ? 18 : 5;
+      if (moveId === "suckerpunch" && diagnosticIndicatesSetupTarget(diagnostics) && koChance < 1) {
+        tags.add("sucker-punch-risk");
+        breakdown.priority -= 18;
+      } else {
+        tags.add("priority-pressure");
+        breakdown.priority += koChance >= 1 || expectedDamageRatio >= 0.45 || diagnostics.targetLikelyAttack === true ? 18 : 5;
+      }
     }
 
     const specialTags = specialSystemTags(diagnostics);
     if (specialTags.includes("dynamax")) {
-      if (specialTags.some(tag => ["max-speed", "max-weather", "max-defense-boost", "max-special-defense-boost", "max-attack-boost", "max-special-attack-boost"].includes(tag)) || koChance >= 1 || expectedDamageRatio >= 0.7) {
+      if (specialTags.includes("max-guard")) {
+        const pressure = Math.max(finiteNumber(diagnostics.incomingPressureRatio, 0), Boolean(diagnostics.incomingDoubleTarget) ? 0.7 : 0);
+        if (pressure >= 0.45) {
+          tags.add("commit-dynamax");
+          breakdown.resource += 20;
+          breakdown.protect += 22;
+        } else {
+          tags.add("hold-dynamax");
+          breakdown.resource -= 18;
+        }
+      } else if (specialTags.some(tag => ["dynamax-survival", "max-speed", "max-weather", "max-defense-boost", "max-special-defense-boost", "max-attack-boost", "max-special-attack-boost", "max-terrain"].includes(tag)) || koChance >= 1 || expectedDamageRatio >= 0.7) {
         tags.add("commit-dynamax");
         breakdown.resource += 24;
       } else {
@@ -236,9 +255,10 @@ export function evaluateBattleAiDoublesJointValueV4(input: BattleAiDoublesValueI
       }
     }
     if (specialTags.includes("terastallize")) {
-      if (specialTags.some(tag => ["tera-defensive", "tera-wincon"].includes(tag)) || koChance >= 1 || expectedDamageRatio >= 0.7) {
+      const incomingPressure = finiteNumber(diagnostics.incomingPressureRatio, 0);
+      if (specialTags.some(tag => ["tera-defensive", "tera-wincon"].includes(tag)) && incomingPressure >= 0.45 || koChance >= 1 || expectedDamageRatio >= 0.7) {
         tags.add("commit-tera");
-        breakdown.resource += 18;
+        breakdown.resource += specialTags.includes("tera-defensive") ? 24 : 18;
       } else {
         tags.add("hold-tera");
         breakdown.resource -= 14;
