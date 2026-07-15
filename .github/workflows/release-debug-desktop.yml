@@ -1,0 +1,215 @@
+name: Release Debug Desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, must match package.json"
+        required: true
+        type: string
+      source_ref:
+        description: "Git ref to build"
+        required: true
+        default: "v2"
+        type: string
+      create_github_release:
+        description: "Create or update a GitHub prerelease"
+        required: true
+        default: true
+        type: boolean
+      update_manifest_url:
+        description: "Beta latest.json URL baked into the portable launcher"
+        required: true
+        default: "http://119.45.240.157/changebattle-beta/latest.json"
+        type: string
+      official_site_url:
+        description: "Beta download/update page URL used in generated latest.json"
+        required: true
+        default: "http://119.45.240.157/changebattle-beta/"
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-debug-desktop:
+    name: Build Debug Desktop
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      CHANGEBATTLE_RELEASE_CHANNEL: beta
+      CHANGEBATTLE_UPDATE_MANIFEST_URLS: ${{ inputs.update_manifest_url }}
+      CHANGEBATTLE_OFFICIAL_SITE_URL: ${{ inputs.official_site_url }}
+      CHANGEBATTLE_DOWNLOAD_PAGE_URL: ${{ inputs.official_site_url }}
+      CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT: ${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown-client\js
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup MinGW
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+
+      - name: Verify version
+        shell: pwsh
+        run: |
+          if ("${{ inputs.source_ref }}" -ne "v2") {
+            throw "Debug desktop release must build from source_ref=v2, got: ${{ inputs.source_ref }}"
+          }
+          $packageVersion = node -p "require('./package.json').version"
+          if ($packageVersion -ne $env:RELEASE_VERSION) {
+            throw "package.json version is $packageVersion, expected $env:RELEASE_VERSION"
+          }
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download release assets
+        shell: pwsh
+        env:
+          ASSETS_URL: ${{ secrets.CHANGEBATTLE_RELEASE_ASSETS_URL }}
+          ASSETS_SHA256: ${{ secrets.CHANGEBATTLE_RELEASE_ASSETS_SHA256 }}
+          ASSETS_AUTHORIZATION: ${{ secrets.CHANGEBATTLE_RELEASE_ASSETS_AUTHORIZATION }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:ASSETS_URL)) {
+            throw "Missing secret CHANGEBATTLE_RELEASE_ASSETS_URL. Upload assets.tgz to your server and configure this secret first."
+          }
+          $headers = @{}
+          if (-not [string]::IsNullOrWhiteSpace($env:ASSETS_AUTHORIZATION)) {
+            $headers["Authorization"] = $env:ASSETS_AUTHORIZATION
+          }
+          Invoke-WebRequest -Uri $env:ASSETS_URL -Headers $headers -OutFile assets.tgz
+          if (-not [string]::IsNullOrWhiteSpace($env:ASSETS_SHA256)) {
+            $actual = (Get-FileHash assets.tgz -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actual -ne ($env:ASSETS_SHA256).ToLowerInvariant()) {
+              throw "assets.tgz sha256 mismatch: expected $env:ASSETS_SHA256, got $actual"
+            }
+          }
+          tar -xzf assets.tgz
+          $required = @(
+            "assets\board\rest-panel-frame.png",
+            "assets\title\spritesaurus-transition.mp4",
+            "assets\ui\button-gold.png",
+            "assets\npc\staff\nurse.png",
+            "assets\music\battle\trainer.ogg",
+            "assets\music\rest\pokemon-center.ogg"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path $path)) {
+              throw "Release asset missing after extraction: $path"
+            }
+          }
+
+      - name: Run release checks
+        shell: pwsh
+        run: |
+          pnpm --filter @changebattle-v2/core typecheck
+          pnpm --filter @changebattle-v2/api typecheck
+          pnpm --filter @changebattle-v2/web typecheck
+          pnpm --filter @changebattle-v2/desktop typecheck
+          pnpm --filter @changebattle-v2/api test:formal-game
+          pnpm typecheck
+
+      - name: Build desktop
+        shell: pwsh
+        run: |
+          $env:CHANGEBATTLE_PROJECT_ROOT = "${{ github.workspace }}"
+          pnpm --filter @changebattle-v2/desktop build
+          pnpm --filter @changebattle-v2/desktop test:ipc-bundle
+          pnpm --filter @changebattle-v2/desktop test:renderer-assets
+          pnpm --filter @changebattle-v2/desktop test:formal-worker
+
+      - name: Build launcher
+        shell: pwsh
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\windows\build-desktop-launcher.ps1 `
+            -SourceRoot "${{ github.workspace }}" `
+            -OutputDir "${{ github.workspace }}\release\desktop-launcher" `
+            -MingwBin "C:\msys64\mingw64\bin"
+
+      - name: Package portable release
+        shell: pwsh
+        run: |
+          $env:ELECTRON_RUNTIME_PATH = "${{ github.workspace }}\apps\desktop\node_modules\electron\dist"
+          $env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT = "${{ github.workspace }}\release\desktop-launcher"
+          $env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT = "${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown"
+          $env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = "${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown-client"
+          $env:CHANGEBATTLE_COMMIT = "${{ github.sha }}"
+          python tools\package_desktop_release.py `
+            --electron-runtime-path "$env:ELECTRON_RUNTIME_PATH" `
+            --launcher-output-path "$env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT" `
+            --showdown-path "$env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT" `
+            --showdown-client-path "$env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT"
+
+      - name: Generate update metadata
+        shell: pwsh
+        env:
+          RELEASE_MIRROR_URL: https://github.com/${{ github.repository }}/releases/download/desk-debug-v${{ inputs.version }}/ChangeBattle-V2-Desk-portable-debug-v${{ inputs.version }}.zip
+        run: |
+          $env:CHANGEBATTLE_RELEASE_MIRRORS = "GitHub Release=$env:RELEASE_MIRROR_URL"
+          node tools\generate_desktop_update_manifest.mjs $env:RELEASE_VERSION --channel beta --official-site-url "$env:CHANGEBATTLE_OFFICIAL_SITE_URL"
+
+      - name: Upload portable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChangeBattle-V2-Desk-portable-debug-v${{ inputs.version }}
+          path: release/ChangeBattle-V2-Desk-portable-debug-v${{ inputs.version }}.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload update metadata artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: changebattle-beta-update-metadata-v${{ inputs.version }}
+          path: |
+            release/changebattle/latest.json
+            release/changebattle/index.html
+            release/changebattle/manifests/v${{ inputs.version }}/files.json
+            release/changebattle/files/v${{ inputs.version }}/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create GitHub prerelease
+        if: ${{ inputs.create_github_release }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "desk-debug-v$env:RELEASE_VERSION"
+          $zip = "release\ChangeBattle-V2-Desk-portable-debug-v$env:RELEASE_VERSION.zip"
+          $title = "ChangeBattle V2 Desk Debug v$env:RELEASE_VERSION"
+          $notes = "Debug desktop build from $env:GITHUB_SHA.`n`nUpdate metadata remains hosted on the ChangeBattle beta server."
+          $releaseExists = $false
+          try {
+            gh release view $tag --repo "${{ github.repository }}" *> $null
+            $releaseExists = $LASTEXITCODE -eq 0
+          } catch {
+            $releaseExists = $false
+          }
+          if ($releaseExists) {
+            gh release upload $tag $zip --repo "${{ github.repository }}" --clobber
+          } else {
+            gh release create $tag $zip --repo "${{ github.repository }}" --target "${{ github.sha }}" --title $title --notes $notes --prerelease
+          }
