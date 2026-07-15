@@ -3596,6 +3596,43 @@ function aiDoublesStrategyV0Smoke() {
   if (result.debug.search?.dynamicDepthReason !== "doubles-v0-joint-action-safety" || !result.debug.search.reasonTags?.length) {
     throw new Error(`doubles strategy v0 should expose debug reason tags: ${JSON.stringify(result.debug.search)}`);
   }
+  const foeRequest: BattleServiceRequestV4 = {
+    ...request,
+    side: {
+      id: "p1",
+      name: "A",
+      pokemon: [
+        {ident: "p1: Arcanine", details: "Arcanine, L50", condition: "160/160", active: true, ability: "Intimidate", moves: ["Flare Blitz", "Snarl", "Protect"], stats: {hp: 160, atk: 150, def: 100, spa: 95, spd: 100, spe: 115}},
+        {ident: "p1: Kilowattrel", details: "Kilowattrel, L50", condition: "145/145", active: true, ability: "Competitive", moves: ["Thunderbolt", "Tailwind", "Protect"], stats: {hp: 145, atk: 80, def: 80, spa: 145, spd: 80, spe: 170}},
+      ],
+    },
+  };
+  const replySnapshot = {
+    ...snapshot,
+    requests: {...snapshot.requests, p1: foeRequest, p2: request},
+  } satisfies BattleServiceSnapshotV4;
+  const eliteFourResult = chooseAiBattleChoiceV4({
+    request,
+    snapshot: replySnapshot,
+    playerId: "p2",
+    aiProfile: {level: "eliteFour", preference: "balanced"},
+    rngSeed: "doubles-reply-search-elite-four",
+  });
+  const eliteFourValidation = validateShowdownChoiceCommandV4({request, choice: eliteFourResult.choice});
+  if (!eliteFourValidation.ok || eliteFourResult.debug.search?.strategy !== "minimax" || eliteFourResult.debug.search.searchedDepth !== 2 || !eliteFourResult.debug.search.replyCount) {
+    throw new Error(`eliteFour doubles should run legal depth 2 reply search: ${JSON.stringify({choice: eliteFourResult.choice, validation: eliteFourValidation, search: eliteFourResult.debug.search})}`);
+  }
+  const championResult = chooseAiBattleChoiceV4({
+    request,
+    snapshot: replySnapshot,
+    playerId: "p2",
+    aiProfile: {level: "champion", preference: "balanced"},
+    rngSeed: "doubles-reply-search-champion",
+  });
+  const championValidation = validateShowdownChoiceCommandV4({request, choice: championResult.choice});
+  if (!championValidation.ok || championResult.debug.search?.strategy !== "minimax" || championResult.debug.search.searchedDepth !== 3 || championResult.debug.search.dynamicDepthReason !== "doubles-depth-3-lightweight-reply") {
+    throw new Error(`champion doubles should run legal depth 3 lightweight reply search: ${JSON.stringify({choice: championResult.choice, validation: championValidation, search: championResult.debug.search})}`);
+  }
   console.log("showdown-battle-core ai doubles strategy v0 smoke ok");
 }
 

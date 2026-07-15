@@ -442,7 +442,10 @@
 - [x] 双打 v1：实现 Weakness Policy / Contrary / 吸收特性首批 combo。
 - [x] 双打 v1：抽出 `aiDoublesValueFunctionV4.ts`，输出 bounded value breakdown。
 - [x] 双打 v1：value breakdown 覆盖 targeting / spread / friendlyFire / combo / protect / disruption / speedControl / field / priority / resource / risk。
-- [ ] 双打 v2：引入对手 joint reply，馆主/四天王/冠军按 `1/2/3` 搜索。
+- [x] 双打 v2：引入对手 joint reply，馆主/四天王/冠军按 `1/2/3` 搜索。
+- [x] 双打 v2：对手 reply 候选同样来自现有 request / validator / candidate generator。
+- [x] 双打 v2：lightweight leaf 使用双方 joint value、伤害压力、KO 压力和少量原始候选分。
+- [x] 双打 v2：champion depth 3 先用轻量续手项表达，不做完整 Showdown 三回合模拟。
 
 ## 13.1 合作 Coop Strategy
 
@@ -641,6 +644,9 @@
 - [x] doubles v1：Contrary + stat drop 队友触发获得正向 combo。
 - [x] doubles v1：Flash Fire 队友触发获得正向 combo。
 - [x] doubles v1：Storm Drain / Water spread 队友触发获得正向 combo。
+- [x] doubles v2：gymLeader 双打保持 depth 1 safety shell。
+- [x] doubles v2：eliteFour 双打启用 depth 2 reply search。
+- [x] doubles v2：champion 双打启用 depth 3 lightweight reply search。
 
 ## 20. 性能测试
 

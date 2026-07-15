@@ -23,7 +23,12 @@ import {
 } from "./aiValueFunctionV4.js";
 import {battleAiOutcomeBucketScoreV4} from "./aiOutcomeBucketsV4.js";
 import {buildBattleAiSpeedFieldStateV4, buildBattleAiSpeedStateV4} from "./aiSpeedStateV4.js";
-import {battleAiDoublesReasonTagsForDebugV4, chooseBattleAiDoublesActionV4} from "./aiDoublesStrategyV4.js";
+import {
+  battleAiDoublesReasonTagsForDebugV4,
+  chooseBattleAiDoublesActionV4,
+  scoreBattleAiDoublesJointCandidateV4,
+  type BattleAiDoublesJointScoreV4,
+} from "./aiDoublesStrategyV4.js";
 import {
   battleAiReasonTagsForCandidateV4,
   buildBattleAiStrategicContextV4,
@@ -87,6 +92,14 @@ type BattleAiSinglesComplexityV4 = NonNullable<BattleAiSearchDebugV4["complexity
 type BattleAiSearchRuntimeV4 = {
   visitedNodes: number;
   truncatedReason?: BattleAiSearchDebugV4["truncatedReason"];
+};
+
+type BattleAiDoublesSearchNodeV4 = {
+  candidate: BattleAiCandidateV4;
+  ownScore: BattleAiDoublesJointScoreV4;
+  reply: BattleAiCandidateV4;
+  replyScore: BattleAiDoublesJointScoreV4;
+  leafScore: number;
 };
 
 const AI_SEARCH_BUDGETS: Record<BattleAiLevelV4, BattleAiSearchBudgetV4> = {
@@ -215,6 +228,10 @@ export function chooseBattleAiActionBySearchV4(input: BattleAiSearchInputV4): Ba
     const result = searchSinglesDepth2(input, budget, capabilities, startedAt);
     if (result) return result;
   }
+  if (canRunDoublesReplySearchV1(input, budget, capabilities)) {
+    const result = searchDoublesReplyV1(input, budget, capabilities, startedAt);
+    if (result) return result;
+  }
   if (canRunDoublesStrategyV0(input, capabilities)) {
     const result = chooseBattleAiDoublesActionByStrategyV0(input, budget, capabilities, startedAt);
     if (result) return result;
@@ -243,6 +260,116 @@ function canRunDoublesStrategyV0(input: BattleAiSearchInputV4, capabilities: Bat
     !input.request.teamPreview &&
     !input.request.forceSwitch?.some(Boolean),
   );
+}
+
+function canRunDoublesReplySearchV1(input: BattleAiSearchInputV4, budget: BattleAiSearchBudgetV4, capabilities: BattleAiCapabilityProfileV4): boolean {
+  return Boolean(
+    capabilities.useMinimax &&
+    capabilities.useOpponentSwitchReply &&
+    budget.maxDepth >= 2 &&
+    input.request &&
+    input.snapshot &&
+    input.playerId &&
+    input.generateCandidatesForPlayer &&
+    input.snapshot.mode === "doubles" &&
+    input.request.active &&
+    input.request.active.length > 1 &&
+    !input.request.teamPreview &&
+    !input.request.forceSwitch?.some(Boolean),
+  );
+}
+
+function searchDoublesReplyV1(
+  input: BattleAiSearchInputV4,
+  budget: BattleAiSearchBudgetV4,
+  capabilities: BattleAiCapabilityProfileV4,
+  startedAt: number,
+): BattleAiSearchResultV4 | null {
+  const request = input.request!;
+  const snapshot = input.snapshot!;
+  const playerId = input.playerId!;
+  const foePlayerId = opponentPlayerId(snapshot, playerId);
+  const foeRequest = foePlayerId ? snapshot.requests[foePlayerId] : undefined;
+  if (!foePlayerId || !foeRequest || foeRequest.teamPreview || foeRequest.forceSwitch?.some(Boolean) || (foeRequest.active?.length || 0) <= 1) {
+    return null;
+  }
+  const ownCandidates = input.candidates
+    .slice()
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(1, budget.maxJointActions || budget.ownTopK));
+  const foeCandidates = input.generateCandidatesForPlayer!(foePlayerId, foeRequest)
+    .slice()
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.max(1, Math.min(budget.maxJointActions, budget.foeTopK * 2)));
+  if (!ownCandidates.length || !foeCandidates.length) return null;
+
+  const ownScores = ownCandidates.map(candidate => ({
+    candidate,
+    score: scoreBattleAiDoublesJointCandidateV4(request, candidate),
+  }));
+  const foeScores = foeCandidates.map(candidate => ({
+    candidate,
+    score: scoreBattleAiDoublesJointCandidateV4(foeRequest, candidate),
+  }));
+  let best: BattleAiDoublesSearchNodeV4 | null = null;
+  let visitedNodes = 0;
+  let truncatedReason: BattleAiSearchDebugV4["truncatedReason"];
+
+  for (const own of ownScores) {
+    if (Date.now() - startedAt > budget.maxMs) {
+      truncatedReason = "timeout";
+      break;
+    }
+    let worst: BattleAiDoublesSearchNodeV4 | null = null;
+    for (const reply of foeScores) {
+      visitedNodes += 1;
+      if (visitedNodes >= budget.maxNodes) {
+        truncatedReason = "max-nodes";
+        break;
+      }
+      if (Date.now() - startedAt > budget.maxMs) {
+        truncatedReason = "timeout";
+        break;
+      }
+      const leafScore = doublesLeafScoreV1(own.candidate, own.score, reply.candidate, reply.score, budget.maxDepth >= 3 ? ownScores : undefined);
+      const node: BattleAiDoublesSearchNodeV4 = {candidate: own.candidate, ownScore: own.score, reply: reply.candidate, replyScore: reply.score, leafScore};
+      if (!worst || leafScore < worst.leafScore) worst = node;
+    }
+    if (worst && (!best || worst.leafScore > best.leafScore)) best = worst;
+    if (truncatedReason) break;
+  }
+
+  if (!best) return null;
+  const elapsedMs = Date.now() - startedAt;
+  const scoredForDebug = ownScores.map(entry => entry.score);
+  const reasonTags = battleAiDoublesReasonTagsForDebugV4(scoredForDebug);
+  const breakdown = {
+    ...prefixBreakdown("doubles.", best.ownScore.valueBreakdown),
+    ...prefixBreakdown("foeReply.", best.replyScore.valueBreakdown),
+    leaf: best.leafScore,
+  };
+  return {
+    candidate: best.candidate,
+    debug: {
+      strategy: "minimax",
+      maxDepth: budget.maxDepth,
+      searchedDepth: Math.min(budget.maxDepth, budget.maxDepth >= 3 ? 3 : 2),
+      visitedNodes,
+      elapsedMs,
+      truncatedReason,
+      candidateCount: ownCandidates.length,
+      replyCount: foeCandidates.length,
+      capabilities,
+      dynamicDepthReason: budget.maxDepth >= 3 ? "doubles-depth-3-lightweight-reply" : "doubles-depth-2-reply-search",
+      leafScore: roundSearchScore(best.leafScore),
+      principalVariation: [
+        {role: "self", choice: best.candidate.choice, score: roundSearchScore(best.candidate.score + best.ownScore.adjustment)},
+        {role: "foe", choice: best.reply.choice, score: roundSearchScore(best.reply.score + best.replyScore.adjustment)},
+      ],
+      valueBreakdown: roundValueBreakdown(breakdown),
+      reasonTags: reasonTags.length ? reasonTags : undefined,
+    },
+  };
 }
 
 function chooseBattleAiDoublesActionByStrategyV0(
@@ -274,6 +401,41 @@ function chooseBattleAiDoublesActionByStrategyV0(
       reasonTags: reasonTags.length ? reasonTags : undefined,
     },
   };
+}
+
+function doublesLeafScoreV1(
+  own: BattleAiCandidateV4,
+  ownScore: BattleAiDoublesJointScoreV4,
+  reply: BattleAiCandidateV4,
+  replyScore: BattleAiDoublesJointScoreV4,
+  continuations?: Array<{candidate: BattleAiCandidateV4; score: BattleAiDoublesJointScoreV4}>,
+): number {
+  const ownPressure = doublesDamagePressure(own);
+  const replyPressure = doublesDamagePressure(reply);
+  const ownKo = doublesKoPressure(own);
+  const replyKo = doublesKoPressure(reply);
+  const ownTotal = own.score * 0.24 + ownScore.adjustment + ownPressure * 84 + ownKo * 58;
+  const replyTotal = reply.score * 0.18 + replyScore.adjustment + replyPressure * 88 + replyKo * 66;
+  const continuation = continuations?.length
+    ? Math.max(...continuations.map(entry => entry.candidate.score * 0.08 + entry.score.adjustment * 0.18 + doublesDamagePressure(entry.candidate) * 20))
+    : 0;
+  return ownTotal - replyTotal + continuation;
+}
+
+function doublesDamagePressure(candidate: BattleAiCandidateV4): number {
+  return flattenedDiagnostics(candidate.diagnostics).reduce((sum, diagnostics) => {
+    const category = String(diagnostics.category || "").toLowerCase();
+    if (category === "status") return sum;
+    return sum + Math.max(0, Number(diagnostics.expectedDamageRatio || 0));
+  }, 0);
+}
+
+function doublesKoPressure(candidate: BattleAiCandidateV4): number {
+  return flattenedDiagnostics(candidate.diagnostics).reduce((sum, diagnostics) => sum + Math.max(0, Number(diagnostics.koChance || 0)), 0);
+}
+
+function prefixBreakdown(prefix: string, breakdown: Record<string, number>): Record<string, number> {
+  return Object.fromEntries(Object.entries(breakdown).map(([key, value]) => [`${prefix}${key}`, value]));
 }
 
 function canRunSinglesDepth2(input: BattleAiSearchInputV4, budget: BattleAiSearchBudgetV4, capabilities: BattleAiCapabilityProfileV4): boolean {
