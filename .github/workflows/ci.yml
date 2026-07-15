@@ -45,6 +45,9 @@ jobs:
       - name: Showdown battle core tests
         run: pnpm --filter @changebattle-v2/showdown-battle-core test
 
+      - name: Core build
+        run: pnpm --filter @changebattle-v2/core build
+
       - name: API battle preference smoke
         run: pnpm --filter @changebattle-v2/api test:battle-preference
 
