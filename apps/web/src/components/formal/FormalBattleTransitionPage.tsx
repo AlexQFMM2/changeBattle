@@ -17,7 +17,7 @@ export function FormalBattleTransitionPage({api, formalGameBridge, run, onRunCha
     void (async () => {
       const prepared = formalGameBridge
         ? await formalGameBridge.prepareFormalBattleSession(run)
-        : api.prepareFormalBattleSession(run);
+        : await api.prepareFormalBattleSession(run);
       const preparingRestRun = markFormalRestBattleState(prepared.restRunSnapshot, prepared.sessionInput.nodeId, "preparing", prepared.battleGame.id);
       const preparingRun = await api.saveFormalGameRun({
         ...run,

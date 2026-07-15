@@ -21,7 +21,7 @@ assert(normalized.legendaryBattle === true, "legendaryBattle should persist");
 assert(normalized.battleBagEnabled === false, "battleBagEnabled false should persist");
 
 const fallback = normalizeBattlePreferenceV4({allowedGenerations: [9], ruleSet: "gen9"});
-assert(JSON.stringify(fallback.allowedGenerations) === JSON.stringify([1, 2, 3, 4, 5, 6, 7]), "less than three generations should fall back");
+assert(JSON.stringify(fallback.allowedGenerations) === JSON.stringify([9]), "single generation restriction should persist");
 assert(normalizeBattlePreferenceV4({competitionMode: "single"}).competitionMode === "single", "single competition mode should persist");
 assert(normalizeBattlePreferenceV4({competitionMode: "leagueLoop"}).competitionMode === "leagueLoop", "league loop competition mode should normalize for future use");
 assert(JSON.stringify(battleSystemsForRuleSetV4("gen8")) === JSON.stringify(["dynamax"]), "gen8 should enable dynamax");

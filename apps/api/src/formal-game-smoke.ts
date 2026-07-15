@@ -1013,7 +1013,7 @@ assert(selected.status === "roundPlanPending", "selected run should wait for rou
 assert(selected.playerTeam?.pokemon.length === 3, "selected player team should contain 3 pokemon");
 assert(selected.playerTeam.pokemon.every(pokemon => pokemon.itemId === ""), "selected player team should stay itemless");
 
-const roundPlanned = api.prepareFormalRoundPlan(selected);
+const roundPlanned = await api.prepareFormalRoundPlan(selected);
 const economyReadyRun = {...roundPlanned, money: 3000};
 const rookieOpponent = roundPlanned.roundPlan[0]!.participants.p2!.localTeam.pokemon;
 assert(roundPlanned.status === "resting", "formal round plan should enter resting status");
@@ -1032,15 +1032,15 @@ assert(roundPlanned.restRunSnapshot?.currentNodeId === roundPlanned.restRunSnaps
 assert(roundPlanned.roundPlan[0]?.participants.p1?.localTeam.pokemon.every(pokemon => pokemon.itemId === ""), "formal player team should remain itemless in round plan");
 const singleProfile = {...profile, battlePreference: normalizeBattlePreferenceV4({...profile.battlePreference, competitionMode: "single"})};
 const singleSelected = api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(singleProfile, {mode: "singles", seed: "formal-smoke-single-mode-seed"})), [0, 1, 2]);
-const singlePlanned = api.prepareFormalRoundPlan(singleSelected);
+const singlePlanned = await api.prepareFormalRoundPlan(singleSelected);
 assert(singlePlanned.competitionMode === "single", "single formal run should snapshot competition mode");
 assert(singlePlanned.roundPlan.length === 1, "single formal run should create one round");
 assert(singlePlanned.restRunSnapshot?.gameMap.length === 1, "single formal rest snapshot should expose one map node");
 assert(singlePlanned.restRunSnapshot?.scenario.battleCount === 1, "single formal rest scenario should expose one battle");
 const championFundProfile = unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4(unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, TRAVEL_FUND_NODE_ID), ELITE_FUND_NODE_ID), CHAMPION_FUND_NODE_ID);
-const championFundRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(championFundProfile, {mode: "singles", seed: "formal-smoke-champion-fund-seed"})), [0, 1, 2]));
+const championFundRun = await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(championFundProfile, {mode: "singles", seed: "formal-smoke-champion-fund-seed"})), [0, 1, 2]));
 assert(championFundRun.money === 1500, "champion fund formal run should start with 1500 money");
-const giftRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", seed: "formal-smoke-starter-gifts-seed"})), [0, 1, 2]));
+const giftRun = await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", seed: "formal-smoke-starter-gifts-seed"})), [0, 1, 2]));
 const giftItems = giftRun.restRunSnapshot!.players.p1!.bag.items;
 assert(giftItems.filter(item => item.itemID === "superpotion").length === 0, "starter gift super potions should be removed");
 assert(["muscleband", "wiseglasses", "shellbell"].every(itemID => !giftItems.some(item => item.itemID === itemID)), "starter held item gifts should be removed");
@@ -1054,7 +1054,7 @@ assert(roundPlanned.roundPlan.filter(round => round.participants.p2).every(round
 rookieOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `rookie NPC ${index + 1}`, ["rookie"]));
 rookieOpponent.forEach((pokemon, index) => assert(pokemon.level === 48, `rookie NPC ${index + 1} should use player max level minus two`));
 assert(rookieOpponent.every(pokemon => !["choicescarf", "choiceband", "choicespecs", "lifeorb", "focussash", "assaultvest", "heavydutyboots"].includes(pokemon.itemId)), "rookie NPC should not hold strong battle items");
-const eliteNpcRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", streak: 2, seed: "formal-smoke-elite-npc-seed"})), [0, 1, 2]));
+const eliteNpcRun = await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", streak: 2, seed: "formal-smoke-elite-npc-seed"})), [0, 1, 2]));
 const eliteOpponent = eliteNpcRun.roundPlan[0]!.participants.p2!.localTeam.pokemon;
 eliteOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `elite NPC ${index + 1}`, ["elite"], {checkLevel: false}));
 eliteOpponent.forEach((pokemon, index) => assert(pokemon.level === 50, `elite NPC ${index + 1} should use player max level without a dynamic level bonus`));
@@ -1091,7 +1091,7 @@ assert(!pendingShopProducts.some(product => ["rarecandy", "ppup", "ppmax"].inclu
 const insuranceBlocked = api.chooseFormalMedicalInsurance(roundPlanned, "basic");
 assert(!insuranceBlocked.ok && insuranceBlocked.run.money === roundPlanned.money, "medical insurance should require star chart unlock");
 const insuranceProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, FREE_MEDICAL_CARE_NODE_ID);
-const insuranceRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(insuranceProfile, {mode: "singles", seed: "formal-smoke-insurance-seed"})), [0, 1, 2]));
+const insuranceRun = await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(insuranceProfile, {mode: "singles", seed: "formal-smoke-insurance-seed"})), [0, 1, 2]));
 const insurancePoor = api.chooseFormalMedicalInsurance({...insuranceRun, money: 199}, "basic");
 assert(!insurancePoor.ok && insurancePoor.run.money === 199, "medical insurance should reject insufficient money without deduction");
 const insuranceDeclined = api.chooseFormalMedicalInsurance({...insuranceRun, money: 500}, "decline");
@@ -1139,10 +1139,10 @@ assert(healResult.run.restRunSnapshot?.coinLog?.some(entry => entry.source === "
 const poorHealResult = api.healFormalRestTeam({...damagedInsuranceRun, money: 199});
 assert(!poorHealResult.ok && poorHealResult.run.money === 199, "formal full team heal should reject insufficient money without mutation");
 const counterOneProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, "shop_luxury_counter_1");
-const counterOneRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(counterOneProfile, {mode: "singles", seed: "formal-smoke-counter-one-seed"})), [0, 1, 2]));
+const counterOneRun = await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(counterOneProfile, {mode: "singles", seed: "formal-smoke-counter-one-seed"})), [0, 1, 2]));
 assert(api.getFormalRestShopProducts(counterOneRun).length === standardShopProductCount(2), "luxury counter I should expose two shop rows on active standard shelves");
 const counterTwoProfile = unlockStarChartNodeForProfileV4(counterOneProfile, "shop_luxury_counter_2");
-const counterTwoRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(counterTwoProfile, {mode: "singles", seed: "formal-smoke-counter-two-seed"})), [0, 1, 2]));
+const counterTwoRun = await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(counterTwoProfile, {mode: "singles", seed: "formal-smoke-counter-two-seed"})), [0, 1, 2]));
 assert(api.getFormalRestShopProducts(counterTwoRun).length === standardShopProductCount(3), "luxury counter II should expose three shop rows on active standard shelves");
 const tmProduct = shopProducts.find(product => product.type === "tm");
 assert(tmProduct && !/^技能机器[：:]/.test(tmProduct.name), "formal shop TM product should display move name instead of TM item prefix");
@@ -1281,7 +1281,7 @@ const pendingFundSecondProduct = api.getFormalRestShopProducts(pendingFundBuy.ru
 const pendingFundSecondBuy = api.buyFormalRestShopItem(pendingFundBuy.run, pendingFundSecondProduct.slotId);
 assert(pendingFundSecondBuy.ok && pendingFundSecondBuy.run.money === pendingFundBuy.run.money - pendingFundSecondProduct.price, "childcare fund should not trigger twice in one run");
 
-const autoRestockRun = api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", seed: "formal-smoke-auto-restock-seed"})), [0, 1, 2]));
+const autoRestockRun = await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", seed: "formal-smoke-auto-restock-seed"})), [0, 1, 2]));
 const autoRestockProduct = api.getFormalRestShopProducts(autoRestockRun)[0]!;
 const autoRestockResult = api.buyFormalRestShopItem({...autoRestockRun, money: 3000}, autoRestockProduct.slotId);
 const autoRestockedProduct = api.getFormalRestShopProducts(autoRestockResult.run).find(product => product.slotId === autoRestockProduct.slotId);
@@ -1308,7 +1308,7 @@ const previewUnlockKey = `${previewNode.id}:p2:${previewOpponent.localPokemonId}
 const previewWithoutStar = api.unlockFormalRestOpponentPreview(roundPlanned, {unlockKey: previewUnlockKey});
 assert(!previewWithoutStar.ok && previewWithoutStar.run.money === roundPlanned.money, "formal opponent preview should require opponent rumor star chart");
 const rumorProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, OPPONENT_RUMOR_NODE_ID);
-const rumorRun = {...api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(rumorProfile, {mode: "singles", seed: "formal-smoke-opponent-rumor-seed"})), [0, 1, 2])), money: 100};
+const rumorRun = {...(await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(rumorProfile, {mode: "singles", seed: "formal-smoke-opponent-rumor-seed"})), [0, 1, 2]))), money: 100};
 const rumorNode = rumorRun.restRunSnapshot!.gameMap.find(node => node.id === rumorRun.restRunSnapshot!.currentNodeId)!;
 const rumorPokemon = rumorNode.participants.p2!.localTeam.pokemon[0]!;
 const rumorUnlockKey = `${rumorNode.id}:p2:${rumorPokemon.localPokemonId}`;
@@ -1327,7 +1327,7 @@ const trainingLesson = api.getFormalTrainingGroundLesson(roundPlanned);
 const trainingLessonAgain = api.getFormalTrainingGroundLesson(roundPlanned);
 assert(trainingLesson && trainingLesson.lessonId === trainingLessonAgain?.lessonId, "formal training ground lesson should be stable for same run node and roll");
 assert(!trainingLesson || trainingLesson.fee === expectedTrainingGroundLessonFee(trainingLesson.kind), "formal training ground lesson should use balanced fee table");
-const soulmateVaultRestRun = {...api.prepareFormalRoundPlan(soulmateSelectedRun), money: 500};
+const soulmateVaultRestRun = {...(await api.prepareFormalRoundPlan(soulmateSelectedRun)), money: 500};
 const protectedSoulmatePokemon = soulmateVaultRestRun.restRunSnapshot!.players.p1!.localTeam.pokemon.find(pokemon => pokemon.formalSourceKind === "soulmate-vault")!;
 const protectedSoulmateHeldItem = soulmateVaultRestRun.restRunSnapshot!.players.p1!.bag.items.find(item => item.id === protectedSoulmatePokemon.heldItemInstanceId);
 assert(protectedSoulmatePokemon.heldItemInstanceId && protectedSoulmateHeldItem?.itemID === "leftovers", "selected soulmate held item should be copied into formal rest bag");
@@ -1432,7 +1432,7 @@ assert((nextTrainingRun.trainingGroundByNodeId?.[roundPlanned.restRunSnapshot!.c
 assert(nextTrainingLesson && nextTrainingLesson.lessonId !== trainingLesson?.lessonId, "formal training ground advance should draw next lesson");
 assert(!nextTrainingLesson || nextTrainingLesson.fee === expectedTrainingGroundLessonFee(nextTrainingLesson.kind), "formal training ground next lesson should use balanced fee table");
 const compulsoryProfile = unlockStarChartNodeForProfileV4({...profile, battlePoints: 100}, COMPULSORY_EDUCATION_NODE_ID);
-const compulsoryRun = {...api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(compulsoryProfile, {mode: "singles", seed: "formal-smoke-compulsory-education-seed"})), [0, 1, 2])), money: 500};
+const compulsoryRun = {...(await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(compulsoryProfile, {mode: "singles", seed: "formal-smoke-compulsory-education-seed"})), [0, 1, 2]))), money: 500};
 const compulsoryLesson = api.getFormalTrainingGroundLesson(compulsoryRun);
 assert(compulsoryLesson?.fee === 100, "compulsory education should halve group-stage lesson display fee");
 const compulsorySelfStudyPokemon = compulsoryRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
@@ -1539,7 +1539,7 @@ assert(secondSelfStudyResult.ok, "formal training ground should allow a second s
 assert((secondSelfStudyResult.run.trainingGroundByNodeId?.[selfStudyNodeId]?.selfStudyRoll || 0) === 2, "formal training ground self-study should use a fresh roll for every study");
 assert(secondSelfStudyResult.run.money === selfStudyResult.run.money - selfStudyLesson.fee, "formal training ground second self-study should deduct fee");
 const eastAsiaProfile = unlockStarChartNodeForProfileV4(compulsoryProfile, "rest_east_asia_education");
-const eastAsiaSelfStudyRun = {...api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(eastAsiaProfile, {mode: "singles", seed: "formal-smoke-east-asia-self-study-seed"})), [0, 1, 2])), money: 500};
+const eastAsiaSelfStudyRun = {...(await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(eastAsiaProfile, {mode: "singles", seed: "formal-smoke-east-asia-self-study-seed"})), [0, 1, 2]))), money: 500};
 const eastAsiaSelfStudyPokemon = eastAsiaSelfStudyRun.restRunSnapshot!.players.p1!.localTeam.pokemon[0]!;
 const eastAsiaSelfStudyBeforeIvTotal = statTotal(eastAsiaSelfStudyPokemon.ivs);
 const eastAsiaSelfStudyBeforeEvTotal = statTotal(eastAsiaSelfStudyPokemon.evs);
@@ -1983,12 +1983,12 @@ const withSettlementBattleLog = {
     ],
   },
 };
-const finalizedBattleResult = api.finalizeFormalBattleResultV4(withPartialBattleLog, battleSnapshot);
+const finalizedBattleResult = await api.finalizeFormalBattleResultV4(withPartialBattleLog, battleSnapshot);
 assert(finalizedBattleResult.destination === "rest", "formal battle finalize should route won non-final rounds back to rest");
 assert(finalizedBattleResult.run.money === withPartialBattleLog.money + 500, "formal battle finalize should apply round reward once");
 assert(finalizedBattleResult.run.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id], "formal battle finalize should write round settlement");
 assert((finalizedBattleResult.run.restRunSnapshot?.battleLog?.length || 0) >= 3, "formal battle finalize should append final battle log entries");
-const finalizedBattleResultAgain = api.finalizeFormalBattleResultV4(finalizedBattleResult.run, battleSnapshot);
+const finalizedBattleResultAgain = await api.finalizeFormalBattleResultV4(finalizedBattleResult.run, battleSnapshot);
 assert(finalizedBattleResultAgain.destination === "rest", "formal battle finalize retry should keep won non-final rounds on rest route");
 assert(finalizedBattleResultAgain.run.money === finalizedBattleResult.run.money, "formal battle finalize should not duplicate rewards on retry");
 assert(Object.keys(finalizedBattleResultAgain.run.roundSettlementByNodeId || {}).length === Object.keys(finalizedBattleResult.run.roundSettlementByNodeId || {}).length, "formal battle finalize should not duplicate settlement records on retry");
@@ -2006,7 +2006,7 @@ const singleBattleSnapshot = {
     "|win|P1",
   ],
 } as never;
-const singleFinalizedBattleResult = api.finalizeFormalBattleResultV4(singlePlanned, singleBattleSnapshot);
+const singleFinalizedBattleResult = await api.finalizeFormalBattleResultV4(singlePlanned, singleBattleSnapshot);
 assert(singleFinalizedBattleResult.destination === "rest", "final formal battle should route to pending settlement rest page");
 assert(singleFinalizedBattleResult.run.restRunSnapshot?.status === "battleEndedPendingSettlement", "final formal battle should mark rest snapshot as pending settlement");
 assert(singleFinalizedBattleResult.run.roundSettlementByNodeId?.[singlePlanned.roundPlan[0]!.id], "final formal battle should write round settlement before pending settlement rest");
@@ -2029,7 +2029,7 @@ const faintedSettlementRestRun = {
     },
   },
 };
-const roundSettlementNoStar = api.settleFormalBattleRoundV4({...withBattleLog, restRunSnapshot: faintedSettlementRestRun});
+const roundSettlementNoStar = await api.settleFormalBattleRoundV4({...withBattleLog, restRunSnapshot: faintedSettlementRestRun});
 const noStarSettlement = roundSettlementNoStar.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id];
 assert(noStarSettlement?.rewardCoins === 500, "round settlement should award 500 coins");
 assert(noStarSettlement?.reviveCost === 50, "round settlement should charge 50 coins per fainted pokemon without free care");
@@ -2045,7 +2045,7 @@ assert(!roundSettlementNoStar.roundPlan.flatMap(round => round.diagnostics).some
 const normalOpponent = roundSettlementNoStar.roundPlan[1]!.participants.p2!.localTeam.pokemon;
 normalOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `normal NPC ${index + 1}`, ["normal"]));
 normalOpponent.forEach((pokemon, index) => assertRecommendedMoveCount(pokemon, 2, `normal NPC ${index + 1}`));
-const roundSettlementNoStarAgain = api.settleFormalBattleRoundV4(roundSettlementNoStar);
+const roundSettlementNoStarAgain = await api.settleFormalBattleRoundV4(roundSettlementNoStar);
 assert(roundSettlementNoStarAgain.money === roundSettlementNoStar.money, "round settlement should be idempotent");
 assert(Object.keys(roundSettlementNoStarAgain.roundSettlementByNodeId || {}).length === Object.keys(roundSettlementNoStar.roundSettlementByNodeId || {}).length, "round settlement should not duplicate settlement records");
 const medicalBattlePokemon = battleLogP1Team.map((pokemon, index) => index === 0
@@ -2067,7 +2067,7 @@ const medicalSettlementRestRun = {
     },
   },
 };
-const roundSettlementMedical = api.settleFormalBattleRoundV4({...withBattleLog, starChartSnapshot: starProfile.starChart, restRunSnapshot: medicalSettlementRestRun});
+const roundSettlementMedical = await api.settleFormalBattleRoundV4({...withBattleLog, starChartSnapshot: starProfile.starChart, restRunSnapshot: medicalSettlementRestRun});
 const medicalSettlement = roundSettlementMedical.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id];
 assert(medicalSettlement?.reviveCost === 50, "medical insurance star alone should not waive revive cost without purchase");
 assert(medicalSettlement?.emergencyHealedPokemonIds.length === 1, "emergency care should record half-hp revive targets");
@@ -2078,7 +2078,7 @@ const medicalAfterTeam = roundSettlementMedical.restRunSnapshot!.players.p1!.loc
 assert(medicalAfterTeam[1]!.entryHp === 75, "emergency care should revive fainted pokemon to half HP");
 assert(medicalAfterTeam[0]!.level === medicalBattlePokemon[0]!.level, "removed battle practice mastery should keep level unchanged");
 assert(medicalAfterTeam[0]!.entryHp > 20, "outpatient care should still heal alive pokemon");
-const premiumSettlementRun = api.settleFormalBattleRoundV4({
+const premiumSettlementRun = await api.settleFormalBattleRoundV4({
   ...withBattleLog,
   starChartSnapshot: starProfile.starChart,
   medicalInsurance: {
@@ -2097,7 +2097,7 @@ const lostSettlementRestRun = {
   ...withBattleLog.restRunSnapshot!,
   gameMap: withBattleLog.restRunSnapshot!.gameMap.map((node, index) => index === 0 ? {...node, state: "lost" as const} : node),
 };
-const lostRoundSettlement = api.settleFormalBattleRoundV4({...withBattleLog, restRunSnapshot: lostSettlementRestRun});
+const lostRoundSettlement = await api.settleFormalBattleRoundV4({...withBattleLog, restRunSnapshot: lostSettlementRestRun});
 assert(!lostRoundSettlement.roundSettlementByNodeId?.[withBattleLog.roundPlan[0]!.id], "round settlement should not run for lost battles");
 assert(lostRoundSettlement.money === withBattleLog.money, "lost battle should not grant round settlement coins");
 const wonRestRun = {
@@ -2211,26 +2211,30 @@ assert(settlementRunAgain.settlement?.id === settlementRun.settlement?.id, "sett
 
 const doublesPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "doubles", seed: "formal-smoke-doubles-seed"}));
 const doublesSelected = api.selectFormalStarterPokemon(doublesPrepared, [0, 1, 2, 3]);
-const doublesPlanned = api.prepareFormalRoundPlan(doublesSelected);
+const doublesPlanned = await api.prepareFormalRoundPlan(doublesSelected);
 assert(doublesPlanned.roundPlan[0]?.participants.p2?.localTeam.pokemon.length === 4, "doubles formal first opponent should bring four pokemon");
 assert(!doublesPlanned.roundPlan[1]?.participants.p2, "doubles formal future opponents should be deferred");
 
 const gen9Profile = {...profile, battlePreference: normalizeBattlePreferenceV4({...profile.battlePreference, ruleSet: "gen9"})};
 const gen9Prepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(gen9Profile, {mode: "singles", seed: "formal-smoke-gen9-seed"}));
 const gen9Selected = api.selectFormalStarterPokemon(gen9Prepared, [0, 1, 2]);
-const gen9Planned = api.prepareFormalRoundPlan(gen9Selected);
+const gen9Planned = await api.prepareFormalRoundPlan(gen9Selected);
 assert(gen9Planned.roundPlan[0]?.participants.p2?.bag.items.some(item => item.itemID === "system-tera-orb"), "gen9 formal NPC should receive tera system item");
+const gen9OpponentDiagnostics = gen9Planned.roundPlan[0]?.npcs[0]?.diagnostics || [];
+assert(gen9OpponentDiagnostics.some(entry => entry === "formal-team-generator:showdown"), "gen9 formal NPC should try Showdown structured team generation");
+assert(gen9OpponentDiagnostics.some(entry => entry === "formal-team-generator:generations:9"), "gen9 formal NPC generation should preserve single-generation restriction");
+assert(gen9OpponentDiagnostics.some(entry => entry === "formal-team-generator:systems:terastal"), "gen9 formal NPC generation should record terastal system context");
 const gen8Profile = {...profile, battlePreference: normalizeBattlePreferenceV4({...profile.battlePreference, ruleSet: "gen8"})};
 const gen8Prepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(gen8Profile, {mode: "singles", seed: "formal-smoke-gen8-seed"}));
 const gen8Selected = api.selectFormalStarterPokemon(gen8Prepared, [0, 1, 2]);
-const gen8Planned = api.prepareFormalRoundPlan(gen8Selected);
+const gen8Planned = await api.prepareFormalRoundPlan(gen8Selected);
 assert(gen8Planned.roundPlan[0]?.participants.p2?.bag.items.some(item => item.itemID === "system-dynamax-band"), "gen8 formal NPC should receive Dynamax Band");
 const gen7Profile = {...profile, battlePreference: normalizeBattlePreferenceV4({...profile.battlePreference, ruleSet: "gen7"})};
 const gen7Prepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(gen7Profile, {mode: "singles", seed: "formal-smoke-gen7-seed"}));
 const gen7StarterMegaCount = gen7Prepared.starterCandidates.filter(candidate => MOCK_MEGA_CAPABLE_SPECIES.has(candidate.pokemon.speciesId)).length;
 assert(gen7StarterMegaCount >= 2, "gen7 formal starter candidates should include at least two Mega-capable pokemon");
 const gen7Selected = api.selectFormalStarterPokemon(gen7Prepared, [0, 1, 2]);
-const gen7Planned = api.prepareFormalRoundPlan(gen7Selected);
+const gen7Planned = await api.prepareFormalRoundPlan(gen7Selected);
 const gen7NpcItems = gen7Planned.roundPlan[0]?.participants.p2?.bag.items || [];
 assert(gen7NpcItems.some(item => item.itemID === "system-mega-stone"), "gen7 formal NPC should receive Mega system item");
 assert(gen7NpcItems.some(item => item.itemID === "system-z-crystal"), "gen7 formal NPC should receive Z system item");
@@ -2249,12 +2253,12 @@ if (gen7NpcZItem?.mappedItemId === "pikaniumz") {
 
 const championPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", streak: 3, seed: "formal-smoke-champion-seed"}));
 const championSelected = api.selectFormalStarterPokemon(championPrepared, [0, 1, 2]);
-const championPlanned = api.prepareFormalRoundPlan(championSelected);
+const championPlanned = await api.prepareFormalRoundPlan(championSelected);
 assert(["champion", "villain"].includes(championPlanned.roundPlan[6]!.difficulty), "late formal skeleton should reserve champion/villain final battle");
 
 const coopPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "coop", seed: "formal-smoke-coop-seed"}));
 const coopSelected = api.selectFormalStarterPokemon(coopPrepared, [0, 1]);
-const coopPlanned = api.prepareFormalRoundPlan(coopSelected);
+const coopPlanned = await api.prepareFormalRoundPlan(coopSelected);
 assert(coopPlanned.roundPlan.length === 7, "coop formal plan should still create seven rounds");
 assert(coopPlanned.roundPlan[0]!.npcs.length === 2, "coop formal first round should create two opponents before battle ally dispatch");
 assert(coopPlanned.roundPlan.slice(1).every(round => round.npcs.length === 0), "coop formal future opponents should be deferred");
@@ -2264,7 +2268,7 @@ assert(
   && (coopPlanned.roundPlan[0]!.participants.p4?.localTeam.pokemon.length || 0) === 2,
   "coop formal first opponent participants should bring two pokemon each",
 );
-const coopBattlePrepared = api.prepareFormalBattleSession(coopPlanned);
+const coopBattlePrepared = await api.prepareFormalBattleSession(coopPlanned);
 assert(coopBattlePrepared.restRunSnapshot.players.p3?.controller === "script", "coop battle preparation should dispatch script ally p3");
 assert(coopBattlePrepared.restRunSnapshot.gameMap[0]?.participants.p3?.localTeam.pokemon.length === 2, "coop battle ally should bring two pokemon");
 assert(coopBattlePrepared.sessionInput.players.some(player => player.playerId === "p3" && player.controller === "script"), "coop battle session input should include script ally p3");

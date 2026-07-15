@@ -33,7 +33,7 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
         }
         const settled = formalGameBridge
           ? await formalGameBridge.settleFormalBattleRound(run)
-          : api.settleFormalBattleRoundV4(run);
+          : await api.settleFormalBattleRoundV4(run);
         const saved = await api.saveFormalGameRun(settled);
         if (cancelled) return;
         routeFormalBattleResult(saved, onRestReady, onSettlementReady);
@@ -42,7 +42,7 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
       const timeline = await loadFormalBattlePlaybackTimeline(api, sessionId);
       const result = formalGameBridge
         ? await formalGameBridge.finalizeFormalBattleResult(run, sessionId, reason, {playbackTimeline: timeline})
-        : api.finalizeFormalBattleResultV4(run, await api.battleService.getSnapshot(sessionId), reason, {playbackTimeline: timeline});
+        : await api.finalizeFormalBattleResultV4(run, await api.battleService.getSnapshot(sessionId), reason, {playbackTimeline: timeline});
       const soulmateSettlement = api.applyFormalSoulmateBattleFriendshipSettlement(result.run, playerVault);
       const honorSettlement = api.applyFormalSoulmateHonorSettlement(soulmateSettlement.run, playerVault);
       const savedVault = honorSettlement.playerVault === playerVault

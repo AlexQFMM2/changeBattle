@@ -62,7 +62,7 @@ export function normalizeBattlePreferenceV4(input?: Partial<BattlePreferenceV4> 
     : DEFAULT_BATTLE_PREFERENCE_V4.ruleSet;
   const competitionMode = normalizeFormalCompetitionModeV4(input?.competitionMode);
   return {
-    allowedGenerations: allowedGenerations.length >= 3 ? allowedGenerations : [...DEFAULT_BATTLE_PREFERENCE_V4.allowedGenerations],
+    allowedGenerations: allowedGenerations.length ? allowedGenerations : [...DEFAULT_BATTLE_PREFERENCE_V4.allowedGenerations],
     ruleSet,
     enabledBattleSystems: battleSystemsForRuleSetV4(ruleSet),
     competitionMode,

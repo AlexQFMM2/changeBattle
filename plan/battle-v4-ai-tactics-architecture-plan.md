@@ -261,6 +261,18 @@
 - [x] doubles self-play 默认使用 4v4、strict、ai-exam、rain / sun / trick-room / tailwind / balanced。
 - [x] doubles self-play 报告输出 doubles metrics、reason tags 和队伍结构 diagnostics。
 
+## 5.3 Formal Team Generation Integration
+
+- [x] 正式流程采用混合优先：先尝试 `generateShowdownRandomTeamV4`，失败时回退旧本地生成器。
+- [x] NPC 强度映射到新生成器 `aiLevel` 与 `quality`：rookie 宽松，普通结构化，Gym / Elite4 / Champion / Boss 严格。
+- [x] 玩家画像转换为 `playerProfileHints`，包括弱点类型、常用招式/效果、速度风格和体系倾向。
+- [x] 正式偏好传入新生成器：battle mode、ruleSet、teamSize、allowed generations、legendary toggle 和 battle systems diagnostics。
+- [x] 单地区 / 单世代限制保留，不再因少于 3 个世代回退默认池。
+- [x] Boss / Villain 优先尝试 strict Showdown 结构化队伍，失败后回退 preset / local。
+- [x] coop 敌方队伍复用 doubles / coop 结构评分，ally 分队后续再用 recommended lead pairs 优化。
+- [x] diagnostics 输出生成路径、质量、AI 等级、规则、世代、神战开关、战斗系统、画像 hints 和 fallback 原因。
+- [x] 正式 round / battle / settlement 链路支持 async，为新生成器和后续远端/重型生成留出空间。
+
 ## 6. 合法行动枚举
 
 - [ ] 新增 `BattleAiSingleActionV4`。
