@@ -31,7 +31,7 @@ let lastStatus: DesktopUpdateStatusV4 | null = null;
 
 runDesktopUpdaterCli()
   .then(status => {
-    if (status.phase === "failed" || status.phase === "cancelled") process.exitCode = 1;
+    process.exit(status.phase === "failed" || status.phase === "cancelled" ? 1 : 0);
   })
   .catch(error => {
     const reason = error instanceof Error ? error.message : String(error);
@@ -41,7 +41,7 @@ runDesktopUpdaterCli()
       officialSiteUrl: lastStatus?.officialSiteUrl || CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4,
       reason,
     });
-    process.exitCode = 1;
+    process.exit(1);
   });
 
 async function runDesktopUpdaterCli(): Promise<DesktopUpdateStatusV4> {
