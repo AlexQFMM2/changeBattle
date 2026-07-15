@@ -1,4 +1,5 @@
 import {createHash} from "node:crypto";
+import {spawn, type ChildProcess} from "node:child_process";
 import {existsSync, readFileSync, promises as fs} from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
@@ -32,7 +33,7 @@ let desktopUpdateStatus: DesktopUpdateStatusV4 = {
   officialSiteUrl: CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4,
 };
 let desktopUpdateRunning = false;
-let desktopUpdateAbortController: AbortController | null = null;
+let desktopUpdateChild: ChildProcess | null = null;
 
 type FormalComputeMethodMap = {
   createFormalGameWithStarterCandidates: {
@@ -155,7 +156,7 @@ ipcMain.handle("desktopApp:checkForUpdates", async () => {
 ipcMain.handle("desktopApp:getUpdateStatus", async () => desktopUpdateStatus);
 
 ipcMain.handle("desktopApp:cancelUpdate", async () => {
-  desktopUpdateAbortController?.abort();
+  desktopUpdateChild?.kill();
 });
 
 ipcMain.handle("playerVault:load", async () => {
@@ -384,12 +385,10 @@ async function fetchDesktopUpdateJson(manifestUrl: string, parentSignal?: AbortS
   }
 }
 
-async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Promise<DesktopUpdateStatusV4> {
+async function runDesktopUpdaterCliUpdate(options: {manual?: boolean} = {}): Promise<DesktopUpdateStatusV4> {
   if (desktopUpdateDisabledForRuntime()) return desktopUpdateDisabledStatus();
   if (desktopUpdateRunning) return desktopUpdateStatus;
   desktopUpdateRunning = true;
-  const controller = new AbortController();
-  desktopUpdateAbortController = controller;
   const currentVersion = desktopAppVersion();
   publishDesktopUpdateStatus({
     phase: "checking",
@@ -397,183 +396,93 @@ async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Pro
     officialSiteUrl: desktopUpdateStatus.officialSiteUrl || CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4,
   });
 
-  let activeManifest: ChangeBattleDesktopUpdateManifestV4 | null = null;
-  try {
-    const result = await checkDesktopUpdate(controller.signal);
-    if (!result.ok) {
-      console.warn(`[changebattle-v2:desktop] desktop update check unavailable: ${result.reason}`);
-      if (options.manual) {
+  const updaterScript = path.join(__dirname, "desktopUpdaterCli.js");
+  const child = spawn(process.execPath, [updaterScript], {
+    cwd: desktopPortableRoot(),
+    env: {
+      ...process.env,
+      CHANGEBATTLE_UPDATE_VERBOSE: options.manual ? "1" : process.env.CHANGEBATTLE_UPDATE_VERBOSE,
+    },
+    stdio: ["ignore", "pipe", "pipe"],
+    windowsHide: true,
+  });
+  desktopUpdateChild = child;
+
+  return new Promise(resolve => {
+    let stdoutBuffer = "";
+    let sawStatus = false;
+    child.stdout?.setEncoding("utf8");
+    child.stdout?.on("data", chunk => {
+      stdoutBuffer += chunk;
+      const lines = stdoutBuffer.split(/\r?\n/);
+      stdoutBuffer = lines.pop() || "";
+      for (const line of lines) {
+        const status = parseDesktopUpdaterCliStatus(line);
+        if (!status) continue;
+        sawStatus = true;
+        publishDesktopUpdateStatus(status);
+      }
+    });
+    child.stderr?.setEncoding("utf8");
+    child.stderr?.on("data", chunk => {
+      for (const line of String(chunk).split(/\r?\n/)) {
+        if (line.trim()) console.info(line);
+      }
+    });
+    child.on("error", error => {
+      publishDesktopUpdateStatus({
+        phase: "failed",
+        currentVersion,
+        officialSiteUrl: desktopUpdateStatus.officialSiteUrl || CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4,
+        reason: error.message,
+      });
+    });
+    child.on("close", (code, signal) => {
+      if (desktopUpdateChild === child) desktopUpdateChild = null;
+      desktopUpdateRunning = false;
+      const pendingStatus = parseDesktopUpdaterCliStatus(stdoutBuffer);
+      if (pendingStatus) {
+        sawStatus = true;
+        publishDesktopUpdateStatus(pendingStatus);
+      }
+      if (!sawStatus) {
         publishDesktopUpdateStatus({
           phase: "failed",
-          currentVersion: result.currentVersion,
-          officialSiteUrl: CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4,
-          reason: result.reason,
+          currentVersion,
+          officialSiteUrl: desktopUpdateStatus.officialSiteUrl || CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4,
+          reason: `更新脚本没有返回状态：exit=${code ?? "null"}, signal=${signal ?? "null"}`,
         });
-      } else {
+      } else if (code && desktopUpdateStatus.phase !== "failed" && desktopUpdateStatus.phase !== "cancelled") {
         publishDesktopUpdateStatus({
-          phase: "idle",
-          currentVersion: result.currentVersion,
-          officialSiteUrl: CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4,
+          phase: "failed",
+          currentVersion,
+          remoteVersion: "remoteVersion" in desktopUpdateStatus ? desktopUpdateStatus.remoteVersion : undefined,
+          officialSiteUrl: desktopUpdateStatus.officialSiteUrl || CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4,
+          reason: `更新脚本异常退出：exit=${code}, signal=${signal ?? "null"}`,
+          notes: "notes" in desktopUpdateStatus ? desktopUpdateStatus.notes : undefined,
+          fullPackageSize: "fullPackageSize" in desktopUpdateStatus ? desktopUpdateStatus.fullPackageSize : undefined,
         });
       }
-      return desktopUpdateStatus;
-    }
-
-    const {manifest} = result;
-    activeManifest = manifest;
-    const officialSiteUrl = changeBattleDesktopUpdateOfficialSiteUrlV4(manifest);
-    if (!manifest.objectBaseUrl && manifest.manifestVersion < 2 && !result.updateAvailable) {
-      console.info(`[changebattle-v2:desktop] desktop is up to date: ${result.currentVersion}`);
-      publishDesktopUpdateStatus({
-        phase: "up-to-date",
-        currentVersion: result.currentVersion,
-        remoteVersion: manifest.version,
-        officialSiteUrl,
-        notes: manifest.notes,
-        fullPackageSize: manifest.fullPackage?.size,
-      });
-      return desktopUpdateStatus;
-    }
-
-    if (!desktopPortableUpdateEnabled()) {
-      console.info("[changebattle-v2:desktop] portable file replacement skipped outside release package");
-      publishDesktopUpdateStatus(options.manual
-        ? {
-            phase: "full-package-required",
-            currentVersion: result.currentVersion,
-            remoteVersion: manifest.version,
-            officialSiteUrl,
-            reason: "当前不是 portable 更新环境，无法自动替换文件。",
-            notes: manifest.notes,
-            fullPackageSize: manifest.fullPackage?.size,
-          }
-        : {phase: "idle", currentVersion: result.currentVersion, officialSiteUrl});
-      return desktopUpdateStatus;
-    }
-
-    const objectStoreUpdate = Boolean(manifest.objectBaseUrl);
-    const incrementalBaseUrl = manifest.objectBaseUrl || manifest.incrementalBaseUrl;
-    if (manifest.requiresFullPackage || !manifest.fileManifestUrl || !incrementalBaseUrl) {
-      publishDesktopUpdateStatus({
-        phase: "full-package-required",
-        currentVersion: result.currentVersion,
-        remoteVersion: manifest.version,
-        officialSiteUrl,
-        reason: manifest.requiresFullPackageReason || "该版本需要下载完整包。",
-        notes: manifest.notes,
-        fullPackageSize: manifest.fullPackage?.size,
-      });
-      return desktopUpdateStatus;
-    }
-
-    const localManifest = await readDesktopLocalFileManifest();
-    const remoteManifest = await fetchDesktopFileManifest(manifest.fileManifestUrl, controller.signal);
-    if (remoteManifest.version !== manifest.version) {
-      throw new Error(`远端文件清单版本不匹配：latest=${manifest.version}, files=${remoteManifest.version}`);
-    }
-    const protectedRemoteFiles = remoteManifest.files.filter(file => !isDesktopUpdateIncrementalManagedPathV4(file.path));
-    if (protectedRemoteFiles.length) {
-      publishDesktopUpdateStatus({
-        phase: "full-package-required",
-        currentVersion: result.currentVersion,
-        remoteVersion: manifest.version,
-        officialSiteUrl,
-        reason: `该版本包含启动链路文件变更，需要下载完整包：${protectedRemoteFiles.map(file => file.path).join(", ")}`,
-        notes: manifest.notes,
-        fullPackageSize: manifest.fullPackage?.size,
-      });
-      return desktopUpdateStatus;
-    }
-    const portableRoot = desktopPortableRoot();
-    const actualLocalManifest = await buildDesktopActualLocalFileManifest(portableRoot, localManifest, remoteManifest);
-    const diff = compareDesktopUpdateFileManifestsV4(actualLocalManifest, remoteManifest);
-    if (!diff.changedFiles.length && !diff.deletedFiles.length) {
-      publishDesktopUpdateStatus({
-        phase: "up-to-date",
-        currentVersion: result.currentVersion,
-        remoteVersion: manifest.version,
-        officialSiteUrl,
-        notes: manifest.notes,
-        fullPackageSize: manifest.fullPackage?.size,
-      });
-      return desktopUpdateStatus;
-    }
-
-    publishDesktopUpdateStatus({
-      phase: "available",
-      currentVersion: result.currentVersion,
-      remoteVersion: manifest.version,
-      officialSiteUrl,
-      notes: manifest.notes,
-      incrementalSize: diff.totalSize,
-      fullPackageSize: manifest.fullPackage?.size,
+      resolve(desktopUpdateStatus);
     });
+  });
+}
 
-    const stagingRoot = path.join(portableRoot, ".update-staging", `v${remoteManifest.version}`);
-    const backupRoot = path.join(portableRoot, ".update-backup", `v${remoteManifest.version}`);
-    await downloadDesktopIncrementalFiles({
-      files: diff.changedFiles,
-      baseUrl: incrementalBaseUrl,
-      objectStore: objectStoreUpdate,
-      stagingRoot,
-      statusBase: {
-        currentVersion: result.currentVersion,
-        remoteVersion: manifest.version,
-        officialSiteUrl,
-        notes: manifest.notes,
-        fullPackageSize: manifest.fullPackage?.size,
-      },
-      signal: controller.signal,
-    });
-    publishDesktopUpdateStatus({
-      phase: "verifying",
-      currentVersion: result.currentVersion,
-      remoteVersion: manifest.version,
-      officialSiteUrl,
-      totalSize: diff.totalSize,
-      notes: manifest.notes,
-      fullPackageSize: manifest.fullPackage?.size,
-    });
-    await verifyDesktopStagedFiles(stagingRoot, diff.changedFiles);
-    publishDesktopUpdateStatus({
-      phase: "replacing",
-      currentVersion: result.currentVersion,
-      remoteVersion: manifest.version,
-      officialSiteUrl,
-      totalSize: diff.totalSize,
-      notes: manifest.notes,
-      fullPackageSize: manifest.fullPackage?.size,
-    });
-    await replaceDesktopManagedFiles({portableRoot, stagingRoot, backupRoot, diff});
-    await writeDesktopLocalFileManifest(remoteManifest);
-    await fs.rm(stagingRoot, {recursive: true, force: true});
-    publishDesktopUpdateStatus({
-      phase: "complete",
-      currentVersion: result.currentVersion,
-      remoteVersion: manifest.version,
-      officialSiteUrl,
-      totalSize: diff.totalSize,
-      notes: manifest.notes,
-      fullPackageSize: manifest.fullPackage?.size,
-    });
-    return desktopUpdateStatus;
-  } catch (error) {
-    const officialSiteUrl = activeManifest ? changeBattleDesktopUpdateOfficialSiteUrlV4(activeManifest) : CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4;
-    const reason = error instanceof Error ? error.message : String(error);
-    publishDesktopUpdateStatus({
-      phase: isAbortError(error) ? "cancelled" : "failed",
-      currentVersion,
-      remoteVersion: activeManifest?.version,
-      officialSiteUrl,
-      reason: isAbortError(error) ? "已取消更新下载。" : reason,
-      notes: activeManifest?.notes,
-      fullPackageSize: activeManifest?.fullPackage?.size,
-    });
-    return desktopUpdateStatus;
-  } finally {
-    desktopUpdateRunning = false;
-    if (desktopUpdateAbortController === controller) desktopUpdateAbortController = null;
+function parseDesktopUpdaterCliStatus(line: string): DesktopUpdateStatusV4 | null {
+  if (!line.trim()) return null;
+  try {
+    const parsed = JSON.parse(line) as {type?: unknown; status?: unknown};
+    if (parsed?.type !== "status" || !parsed.status || typeof parsed.status !== "object") return null;
+    const status = parsed.status as Partial<DesktopUpdateStatusV4>;
+    if (typeof status.phase !== "string" || typeof status.currentVersion !== "string" || typeof status.officialSiteUrl !== "string") return null;
+    return status as DesktopUpdateStatusV4;
+  } catch {
+    return null;
   }
+}
+
+async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Promise<DesktopUpdateStatusV4> {
+  return runDesktopUpdaterCliUpdate(options);
 }
 
 async function fetchDesktopFileManifest(fileManifestUrl: string, signal: AbortSignal): Promise<DesktopUpdateFileManifestV4> {

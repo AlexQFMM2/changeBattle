@@ -22,8 +22,7 @@ const requiredSnippets = [
       "training_run.dat",
       "formal_run.dat",
       "formalComputeWorker.js",
-      ".update-staging",
-      ".update-backup",
+      "desktopUpdaterCli.js",
     ],
   },
   {
@@ -54,6 +53,16 @@ const requiredSnippets = [
       'request.method === "createFormalGameWithStarterCandidates"',
       "STAR_CHART_NODES_V4",
       "rest_opponent_rumor",
+    ],
+  },
+  {
+    file: "main/desktopUpdaterCli.js",
+    includeSiblingChunks: true,
+    snippets: [
+      "scan local managed files and calculate sha256",
+      ".update-staging",
+      ".update-backup",
+      "desktopUpdateObjectUrlForFileV4",
     ],
   },
 ];

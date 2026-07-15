@@ -17,6 +17,7 @@ export default defineConfig({
         input: {
           main: resolve(__dirname, "electron/main.ts"),
           formalComputeWorker: resolve(__dirname, "electron/formalComputeWorker.ts"),
+          desktopUpdaterCli: resolve(__dirname, "electron/desktopUpdaterCli.ts"),
         },
       },
     },
