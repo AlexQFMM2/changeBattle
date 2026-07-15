@@ -4,6 +4,8 @@ import {
   generateShowdownRandomTeamV4,
   type ShowdownRandomTeamGeneratorDiagnosticsV4,
   type ShowdownRandomTeamPokemonSetV4,
+  type ShowdownTeamGenerationPurposeV4,
+  type ShowdownTeamGenerationQualityV4,
   type ShowdownTeamArchetypeV4,
 } from "./index.js";
 import type {
@@ -28,11 +30,13 @@ export type BattleAiSelfPlayQuestionV4 = {
   id: string;
   seed: string;
   ruleSet: TrainingRuleSetV4;
-  mode: Extract<TrainingModeV4, "singles">;
+  mode: Extract<TrainingModeV4, "singles" | "doubles">;
   teamSize: number;
   forceLevel: number;
   archetypeAttempts: number;
   strictArchetype: boolean;
+  purpose: ShowdownTeamGenerationPurposeV4;
+  quality: ShowdownTeamGenerationQualityV4;
   maxTurns: number;
   p1: BattleAiSelfPlaySideSpecV4;
   p2: BattleAiSelfPlaySideSpecV4;
@@ -60,6 +64,15 @@ export type BattleAiSelfPlayQuestionResultV4 = {
     setupCount: number;
     hazardCount: number;
     weatherCount: number;
+    doubleTargetCount: number;
+    spreadMoveCount: number;
+    friendlyFireRiskCount: number;
+    allyComboCount: number;
+    tailwindCount: number;
+    trickRoomCount: number;
+    fakeOutCount: number;
+    teraCommitCount: number;
+    dynamaxCommitCount: number;
     maxSearchedDepth: number;
   };
   notableChoices: Array<{
@@ -71,6 +84,7 @@ export type BattleAiSelfPlayQuestionResultV4 = {
     strategy?: string;
     searchedDepth?: number;
     valueBreakdown?: Record<string, number>;
+    reasonTags?: string[];
   }>;
   blunderDiagnostics: BattleAiBlunderDiagnosticsV4;
   finalSnapshotSummary: {
@@ -90,7 +104,10 @@ export type BattleAiBlunderFindingV4 = {
     | "negative-choice-score"
     | "ineffective-move"
     | "repeat-ineffective-move"
-    | "high-switch-rate";
+    | "high-switch-rate"
+    | "doubles-core-incomplete"
+    | "friendly-fire-risk"
+    | "low-value-fake-out";
   playerId?: ShowdownPlayerIdV4;
   turn?: number;
   choice?: string;
@@ -110,10 +127,13 @@ export type BattleAiBlunderDiagnosticsV4 = {
 export type BattleAiSelfPlayExamInputV4 = {
   seed?: string;
   ruleSet?: TrainingRuleSetV4;
+  mode?: Extract<TrainingModeV4, "singles" | "doubles">;
   teamSize?: number;
   forceLevel?: number;
   archetypeAttempts?: number;
   strictArchetype?: boolean;
+  purpose?: ShowdownTeamGenerationPurposeV4;
+  quality?: ShowdownTeamGenerationQualityV4;
   maxTurns?: number;
   archetypes?: ShowdownTeamArchetypeV4[];
   gamesPerPair?: number;
@@ -155,13 +175,17 @@ export type BattleAiSelfPlayExamReportV4 = {
 };
 
 const DEFAULT_ARCHETYPES: ShowdownTeamArchetypeV4[] = ["rain", "sun", "trick-room", "balanced"];
+const DEFAULT_DOUBLES_ARCHETYPES: ShowdownTeamArchetypeV4[] = ["rain", "sun", "trick-room", "tailwind", "balanced"];
 const DEFAULT_INPUT: Required<BattleAiSelfPlayExamInputV4> = {
   seed: "ai-self-play",
   ruleSet: "gen9",
+  mode: "singles",
   teamSize: 3,
   forceLevel: 50,
   archetypeAttempts: 64,
   strictArchetype: false,
+  purpose: "ai-exam",
+  quality: "strict",
   maxTurns: 40,
   archetypes: DEFAULT_ARCHETYPES,
   gamesPerPair: 1,
@@ -182,11 +206,13 @@ export function generateBattleAiSelfPlayQuestionsV4(input: BattleAiSelfPlayExamI
         id: `q${String(questions.length + 1).padStart(3, "0")}-${p1Archetype}-vs-${p2Archetype}`,
         seed: `${normalized.seed}:${p1Archetype}:vs:${p2Archetype}:${game + 1}`,
         ruleSet: normalized.ruleSet,
-        mode: "singles",
+        mode: normalized.mode,
         teamSize: normalized.teamSize,
         forceLevel: normalized.forceLevel,
         archetypeAttempts: normalized.archetypeAttempts,
         strictArchetype: normalized.strictArchetype,
+        purpose: normalized.purpose,
+        quality: normalized.quality,
         maxTurns: normalized.maxTurns,
         p1: {archetype: p1Archetype, aiLevel: normalized.p1Level, preference: normalized.p1Preference},
         p2: {archetype: p2Archetype, aiLevel: normalized.p2Level, preference: normalized.p2Preference},
@@ -225,7 +251,8 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
       archetypeAttempts: question.archetypeAttempts,
       strictArchetype: question.strictArchetype,
       aiLevel: question.p1.aiLevel,
-      purpose: "ai-exam",
+      purpose: question.purpose,
+      quality: question.quality,
     }),
     generateShowdownRandomTeamV4({
       ruleSet: question.ruleSet,
@@ -237,24 +264,26 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
       archetypeAttempts: question.archetypeAttempts,
       strictArchetype: question.strictArchetype,
       aiLevel: question.p2.aiLevel,
-      purpose: "ai-exam",
+      purpose: question.purpose,
+      quality: question.quality,
     }),
   ]);
+  const generatedTeams = {
+    p1: teamSummary(question.p1.archetype, p1Team.pokemonSets, p1Team.diagnostics, question.forceLevel),
+    p2: teamSummary(question.p2.archetype, p2Team.pokemonSets, p2Team.diagnostics, question.forceLevel),
+  };
   const emptySummary = {
     status: "team-generation-failed" as const,
     winner: null,
     turns: 0,
     elapsedMs: Date.now() - startedAt,
-    teams: {
-      p1: teamSummary(question.p1.archetype, p1Team.pokemonSets, p1Team.diagnostics, question.forceLevel),
-      p2: teamSummary(question.p2.archetype, p2Team.pokemonSets, p2Team.diagnostics, question.forceLevel),
-    },
+    teams: generatedTeams,
     metrics: emptyMetrics(),
     notableChoices: [],
-    blunderDiagnostics: emptyBlunderDiagnostics(),
+    blunderDiagnostics: analyzeTeamGenerationBlunders(question, generatedTeams),
     finalSnapshotSummary: {status: "blocked" as const, rawLogTail: [], inputLogTail: []},
   };
-  if (!p1Team.diagnostics.ok || !p2Team.diagnostics.ok) {
+  if (!p1Team.diagnostics.ok || !p2Team.diagnostics.ok || strictDoublesCoreIncomplete(question, p1Team.diagnostics) || strictDoublesCoreIncomplete(question, p2Team.diagnostics)) {
     return {question, ...emptySummary};
   }
 
@@ -279,13 +308,10 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
     winner: snapshot.winner,
     turns: snapshot.turn,
     elapsedMs: Date.now() - startedAt,
-    teams: {
-      p1: teamSummary(question.p1.archetype, p1Team.pokemonSets, p1Team.diagnostics, question.forceLevel),
-      p2: teamSummary(question.p2.archetype, p2Team.pokemonSets, p2Team.diagnostics, question.forceLevel),
-    },
+    teams: generatedTeams,
     metrics,
     notableChoices: notableChoicesFromSnapshot(snapshot),
-    blunderDiagnostics: analyzeBlundersFromSnapshot(snapshot, status, metrics),
+    blunderDiagnostics: analyzeBlundersFromSnapshot(snapshot, status, metrics, question, generatedTeams),
     finalSnapshotSummary: {
       status: snapshot.status,
       rawLogTail: (snapshot.rawLog || []).slice(-40),
@@ -301,10 +327,13 @@ export function renderBattleAiSelfPlayExamMarkdownV4(report: BattleAiSelfPlayExa
     `- generatedAt: ${report.generatedAt}`,
     `- seed: ${report.input.seed}`,
     `- ruleSet: ${report.input.ruleSet}`,
+    `- mode: ${report.input.mode}`,
     `- teamSize: ${report.input.teamSize}`,
     `- forceLevel: ${report.input.forceLevel}`,
     `- archetypeAttempts: ${report.input.archetypeAttempts}`,
     `- strictArchetype: ${report.input.strictArchetype}`,
+    `- purpose: ${report.input.purpose}`,
+    `- quality: ${report.input.quality}`,
     `- games: ${report.summary.total}`,
     `- ended/maxTurns/stalled/failed: ${report.summary.ended}/${report.summary.maxTurns}/${report.summary.stalled}/${report.summary.teamGenerationFailed}`,
     `- wins p1/p2: ${report.summary.p1Wins}/${report.summary.p2Wins}`,
@@ -336,17 +365,20 @@ export function renderBattleAiSelfPlayExamMarkdownV4(report: BattleAiSelfPlayExa
     lines.push(`- elapsedMs: ${round(result.elapsedMs)}`);
     lines.push(`- p1 team: ${result.teams.p1.pokemon.join(", ")}`);
     lines.push(`- p2 team: ${result.teams.p2.pokemon.join(", ")}`);
+    lines.push(`- p1 doubles: ${doublesDiagnosticsSummary(result.teams.p1.diagnostics)}`);
+    lines.push(`- p2 doubles: ${doublesDiagnosticsSummary(result.teams.p2.diagnostics)}`);
     lines.push(`- metrics: decisions=${result.metrics.aiDecisionCount}, timeouts=${result.metrics.timeoutCount}, switches=${result.metrics.switchCount}, protect=${result.metrics.protectCount}, setup=${result.metrics.setupCount}, hazard=${result.metrics.hazardCount}, weather=${result.metrics.weatherCount}`);
+    lines.push(`- doubles metrics: doubleTarget=${result.metrics.doubleTargetCount}, spread=${result.metrics.spreadMoveCount}, friendlyFireRisk=${result.metrics.friendlyFireRiskCount}, allyCombo=${result.metrics.allyComboCount}, fakeOut=${result.metrics.fakeOutCount}, tailwind=${result.metrics.tailwindCount}, trickRoom=${result.metrics.trickRoomCount}, tera=${result.metrics.teraCommitCount}, dynamax=${result.metrics.dynamaxCommitCount}`);
     lines.push(`- blunders: severe=${result.blunderDiagnostics.summary.severe}, warning=${result.blunderDiagnostics.summary.warning}, info=${result.blunderDiagnostics.summary.info}, score=${result.blunderDiagnostics.summary.score}`);
     const findings = result.blunderDiagnostics.findings.slice(0, 5);
     if (findings.length) {
       lines.push(`- blunderFindings: ${findings.map(formatBlunderFinding).join("; ")}`);
     }
     lines.push("");
-    lines.push("| player | choice | level | strategy | depth | score | value highlights |");
-    lines.push("| --- | --- | --- | --- | ---: | ---: | --- |");
+    lines.push("| player | choice | level | strategy | depth | score | value highlights | reason tags |");
+    lines.push("| --- | --- | --- | --- | ---: | ---: | --- | --- |");
     for (const choice of result.notableChoices.slice(0, 8)) {
-      lines.push(`| ${choice.playerId} | ${choice.choice} | ${choice.level} | ${choice.strategy || "-"} | ${choice.searchedDepth || 0} | ${round(choice.score)} | ${valueHighlights(choice.valueBreakdown)} |`);
+      lines.push(`| ${choice.playerId} | ${choice.choice} | ${choice.level} | ${choice.strategy || "-"} | ${choice.searchedDepth || 0} | ${round(choice.score)} | ${valueHighlights(choice.valueBreakdown)} | ${(choice.reasonTags || []).join(", ") || "-"} |`);
     }
     lines.push("");
   }
@@ -354,16 +386,23 @@ export function renderBattleAiSelfPlayExamMarkdownV4(report: BattleAiSelfPlayExa
 }
 
 function normalizeExamInput(input: BattleAiSelfPlayExamInputV4): Required<BattleAiSelfPlayExamInputV4> {
+  const mode = input.mode || DEFAULT_INPUT.mode;
+  const modeDefaults = mode === "doubles"
+    ? {teamSize: 4, maxTurns: 20, archetypes: DEFAULT_DOUBLES_ARCHETYPES}
+    : {teamSize: DEFAULT_INPUT.teamSize, maxTurns: DEFAULT_INPUT.maxTurns, archetypes: DEFAULT_ARCHETYPES};
   return {
     ...DEFAULT_INPUT,
     ...input,
-    archetypes: input.archetypes?.length ? input.archetypes : DEFAULT_INPUT.archetypes,
+    mode,
+    archetypes: input.archetypes?.length ? input.archetypes : modeDefaults.archetypes,
     gamesPerPair: Math.max(1, Math.min(20, Math.floor(input.gamesPerPair || DEFAULT_INPUT.gamesPerPair))),
-    teamSize: Math.max(1, Math.min(6, Math.floor(input.teamSize || DEFAULT_INPUT.teamSize))),
+    teamSize: Math.max(1, Math.min(6, Math.floor(input.teamSize || modeDefaults.teamSize))),
     forceLevel: Math.max(1, Math.min(100, Math.floor(input.forceLevel || DEFAULT_INPUT.forceLevel))),
     archetypeAttempts: Math.max(1, Math.min(64, Math.floor(input.archetypeAttempts || DEFAULT_INPUT.archetypeAttempts))),
     strictArchetype: input.strictArchetype ?? DEFAULT_INPUT.strictArchetype,
-    maxTurns: Math.max(1, Math.min(200, Math.floor(input.maxTurns || DEFAULT_INPUT.maxTurns))),
+    purpose: input.purpose || DEFAULT_INPUT.purpose,
+    quality: input.quality || DEFAULT_INPUT.quality,
+    maxTurns: Math.max(1, Math.min(200, Math.floor(input.maxTurns || modeDefaults.maxTurns))),
   };
 }
 
@@ -446,6 +485,50 @@ function teamSummary(
   };
 }
 
+function strictDoublesCoreIncomplete(question: BattleAiSelfPlayQuestionV4, diagnostics: ShowdownRandomTeamGeneratorDiagnosticsV4): boolean {
+  return question.mode === "doubles" && question.quality === "strict" && diagnostics.ok && diagnostics.archetype?.coreComplete === false;
+}
+
+function analyzeTeamGenerationBlunders(
+  question: BattleAiSelfPlayQuestionV4,
+  teams: BattleAiSelfPlayQuestionResultV4["teams"],
+): BattleAiBlunderDiagnosticsV4 {
+  return summarizeBlunderFindings(teamCoreFindings(question, teams));
+}
+
+function teamCoreFindings(
+  question: BattleAiSelfPlayQuestionV4,
+  teams: BattleAiSelfPlayQuestionResultV4["teams"],
+): BattleAiBlunderFindingV4[] {
+  if (question.mode !== "doubles" || question.quality !== "strict") return [];
+  const findings: BattleAiBlunderFindingV4[] = [];
+  for (const side of ["p1", "p2"] as const) {
+    const archetype = teams[side].diagnostics.archetype;
+    if (!archetype || archetype.coreComplete !== false) continue;
+    findings.push({
+      severity: "warning",
+      kind: "doubles-core-incomplete",
+      playerId: side,
+      detail: `${side} ${question[side].archetype} strict doubles core incomplete; missing=${(archetype.missingRequirements || []).join(", ") || "-"}; anti=${archetype.doubles?.antiSynergy.join(", ") || "-"}`,
+    });
+  }
+  return findings;
+}
+
+function doublesDiagnosticsSummary(diagnostics: ShowdownRandomTeamGeneratorDiagnosticsV4): string {
+  const doubles = diagnostics.archetype?.doubles;
+  if (!doubles) return "-";
+  return [
+    `protect=${doubles.protectCount}`,
+    `speed=${doubles.speedControlCount}`,
+    `spread=${doubles.spreadAttackerCount}`,
+    `utility=${doubles.utilityControlCount}`,
+    `lead=${round(doubles.leadPairScore)}`,
+    `anti=${doubles.antiSynergy.join(",") || "-"}`,
+    `leads=${doubles.recommendedLeadPairs.slice(0, 2).map(pair => `${pair.species.join("+")}(${round(pair.score)})`).join(";") || "-"}`,
+  ].join(", ");
+}
+
 function emptyMetrics(): BattleAiSelfPlayQuestionResultV4["metrics"] {
   return {
     aiDecisionCount: 0,
@@ -458,6 +541,15 @@ function emptyMetrics(): BattleAiSelfPlayQuestionResultV4["metrics"] {
     setupCount: 0,
     hazardCount: 0,
     weatherCount: 0,
+    doubleTargetCount: 0,
+    spreadMoveCount: 0,
+    friendlyFireRiskCount: 0,
+    allyComboCount: 0,
+    tailwindCount: 0,
+    trickRoomCount: 0,
+    fakeOutCount: 0,
+    teraCommitCount: 0,
+    dynamaxCommitCount: 0,
     maxSearchedDepth: 0,
   };
 }
@@ -471,17 +563,75 @@ function metricsFromSnapshot(snapshot: BattleServiceSnapshotV4): BattleAiSelfPla
   metrics.minimaxDecisionCount = decisions.filter(decision => decision.search?.strategy === "minimax").length;
   metrics.numericGuardDecisionCount = decisions.filter(decision => decision.search?.strategy === "numeric-guard").length;
   metrics.switchCount = decisions.filter(decision => decision.selectedChoice.includes("switch")).length;
-  metrics.protectCount = decisions.filter(decision => decision.topCandidates.some(candidate => candidate.choice === decision.selectedChoice && candidate.diagnostics?.moveId === "protect")).length;
+  metrics.protectCount = countMoveIds(decisions, ["protect", "detect", "spikyshield", "kingsshield", "banefulbunker", "silktrap", "burningbulwark"]);
   metrics.setupCount = countMoveIds(decisions, ["swordsdance", "nastyplot", "dragondance", "calmmind", "bulkup", "quiverdance", "shellsmash"]);
   metrics.hazardCount = countMoveIds(decisions, ["stealthrock", "spikes", "toxicspikes", "stickyweb"]);
   metrics.weatherCount = countMoveIds(decisions, ["raindance", "sunnyday", "sandstorm", "snowscape", "hail"]);
+  metrics.doubleTargetCount = countSelectedReasonTag(decisions, "double-target-foe");
+  metrics.spreadMoveCount = decisions.filter(decision => selectedMoveTargets(decision).some(target => target === "alladjacent" || target === "alladjacentfoes") || selectedReasonTags(decision).some(tag => tag === "spread-foes" || tag === "spread-pressure")).length;
+  metrics.friendlyFireRiskCount = countSelectedReasonTag(decisions, "avoid-ally-damage") + countSelectedReasonTag(decisions, "spread-friendly-fire-risk");
+  metrics.allyComboCount = countSelectedReasonTag(decisions, "ally-combo");
+  metrics.tailwindCount = countMoveIds(decisions, ["tailwind"]);
+  metrics.trickRoomCount = countMoveIds(decisions, ["trickroom"]);
+  metrics.fakeOutCount = countMoveIds(decisions, ["fakeout"]);
+  metrics.teraCommitCount = countSelectedReasonTag(decisions, "commit-tera");
+  metrics.dynamaxCommitCount = countSelectedReasonTag(decisions, "commit-dynamax");
   metrics.maxSearchedDepth = Math.max(0, ...decisions.map(decision => decision.search?.searchedDepth || 0));
   return metrics;
 }
 
 function countMoveIds(decisions: BattleAiDecisionDebugV4[], moveIds: string[]): number {
   const moveSet = new Set(moveIds);
-  return decisions.filter(decision => decision.topCandidates.some(candidate => candidate.choice === decision.selectedChoice && moveSet.has(String(candidate.diagnostics?.moveId || "")))).length;
+  return decisions.filter(decision => selectedMoveIds(decision).some(moveId => moveSet.has(moveId))).length;
+}
+
+function countSelectedReasonTag(decisions: BattleAiDecisionDebugV4[], tag: string): number {
+  return selectedDecisionCountWithReasonTag(decisions, tag);
+}
+
+function selectedDecisionCountWithReasonTag(decisions: BattleAiDecisionDebugV4[], tag: string): number {
+  return decisions.filter(decision => selectedReasonTags(decision).includes(tag)).length;
+}
+
+function selectedReasonTags(decision: BattleAiDecisionDebugV4): string[] {
+  const selected = decision.search?.reasonTags?.find(entry => entry.choice === decision.selectedChoice);
+  return selected?.tags || [];
+}
+
+function selectedTopCandidate(decision: BattleAiDecisionDebugV4): BattleAiDecisionDebugV4["topCandidates"][number] | undefined {
+  return decision.topCandidates.find(candidate => candidate.choice === decision.selectedChoice);
+}
+
+function selectedMoveIds(decision: BattleAiDecisionDebugV4): string[] {
+  const diagnostics = selectedTopCandidate(decision)?.diagnostics;
+  if (!diagnostics) return [];
+  const ids = new Set<string>();
+  const moveId = normalizeId(diagnostics.moveId);
+  if (moveId) ids.add(moveId);
+  for (const part of diagnosticParts(diagnostics)) {
+    const partMoveId = normalizeId(part.moveId);
+    if (partMoveId) ids.add(partMoveId);
+  }
+  return [...ids];
+}
+
+function selectedMoveTargets(decision: BattleAiDecisionDebugV4): string[] {
+  const diagnostics = selectedTopCandidate(decision)?.diagnostics;
+  if (!diagnostics) return [];
+  const targets = new Set<string>();
+  const target = normalizeId(diagnostics.target);
+  if (target) targets.add(target);
+  for (const part of diagnosticParts(diagnostics)) {
+    const partTarget = normalizeId(part.target);
+    if (partTarget) targets.add(partTarget);
+  }
+  return [...targets];
+}
+
+function diagnosticParts(diagnostics: Record<string, unknown>): Array<Record<string, unknown>> {
+  return Array.isArray(diagnostics.parts)
+    ? diagnostics.parts.filter((part): part is Record<string, unknown> => Boolean(part) && typeof part === "object" && !Array.isArray(part))
+    : [];
 }
 
 function notableChoicesFromSnapshot(snapshot: BattleServiceSnapshotV4): BattleAiSelfPlayQuestionResultV4["notableChoices"] {
@@ -496,6 +646,7 @@ function notableChoicesFromSnapshot(snapshot: BattleServiceSnapshotV4): BattleAi
       strategy: decision.search?.strategy,
       searchedDepth: decision.search?.searchedDepth,
       valueBreakdown: decision.search?.valueBreakdown,
+      reasonTags: selectedReasonTags(decision),
     }));
 }
 
@@ -572,8 +723,10 @@ function analyzeBlundersFromSnapshot(
   snapshot: BattleServiceSnapshotV4,
   status: BattleAiSelfPlayQuestionResultV4["status"],
   metrics: BattleAiSelfPlayQuestionResultV4["metrics"],
+  question: BattleAiSelfPlayQuestionV4,
+  teams: BattleAiSelfPlayQuestionResultV4["teams"],
 ): BattleAiBlunderDiagnosticsV4 {
-  const findings: BattleAiBlunderFindingV4[] = [];
+  const findings: BattleAiBlunderFindingV4[] = [...teamCoreFindings(question, teams)];
   if (status === "stalled") {
     findings.push({severity: "severe", kind: "stalled", detail: "battle progress stopped for multiple auto-advance cycles"});
   } else if (status === "max-turns") {
@@ -587,6 +740,20 @@ function analyzeBlundersFromSnapshot(
       severity: "warning",
       kind: "high-switch-rate",
       detail: `${metrics.switchCount} AI switches across ${snapshot.turn} turns; review for switch loops or forced-switch churn`,
+    });
+  }
+  if (metrics.friendlyFireRiskCount >= 2) {
+    findings.push({
+      severity: "warning",
+      kind: "friendly-fire-risk",
+      detail: `${metrics.friendlyFireRiskCount} selected doubles actions carried ally-damage or spread-friendly-fire risk tags`,
+    });
+  }
+  if (metrics.fakeOutCount >= 2 && selectedDecisionCountWithReasonTag(snapshot.debug.aiDecisions || [], "fake-out-low-value") >= 2) {
+    findings.push({
+      severity: "warning",
+      kind: "low-value-fake-out",
+      detail: "AI repeatedly selected Fake Out while value function marked it as low value",
     });
   }
   for (const finding of ineffectiveMoveFindings(snapshot.rawLog || [])) {
@@ -604,7 +771,8 @@ function analyzeBlundersFromSnapshot(
     }
     const breakdown = decision.search?.valueBreakdown || {};
     for (const [key, value] of Object.entries(breakdown)) {
-      if (Math.abs(Number(value)) > 1000) {
+      const threshold = key === "leaf" ? 5_000 : 1_000;
+      if (Math.abs(Number(value)) > threshold) {
         findings.push({
           severity: "severe",
           kind: "value-explosion",
@@ -660,6 +828,10 @@ function playerIdFromSlot(slot: string | undefined): ShowdownPlayerIdV4 | undefi
   const match = String(slot || "").match(/^p([1-4])/);
   if (!match) return undefined;
   return `p${match[1]}` as ShowdownPlayerIdV4;
+}
+
+function normalizeId(value: unknown): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 function emptyBlunderDiagnostics(): BattleAiBlunderDiagnosticsV4 {

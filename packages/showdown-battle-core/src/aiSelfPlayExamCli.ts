@@ -8,21 +8,25 @@ import {
   type BattleAiSelfPlayExamReportV4,
   type BattleAiSelfPlayExamInputV4,
 } from "./aiSelfPlayExamV4.js";
-import type {BattleAiLevelV4, BattleAiPreferenceV4, TrainingRuleSetV4} from "./types.js";
-import type {ShowdownTeamArchetypeV4} from "./teamGenerator.js";
+import type {BattleAiLevelV4, BattleAiPreferenceV4, TrainingModeV4, TrainingRuleSetV4} from "./types.js";
+import type {ShowdownTeamArchetypeV4, ShowdownTeamGenerationPurposeV4, ShowdownTeamGenerationQualityV4} from "./teamGenerator.js";
 
 const args = parseArgs(process.argv.slice(2));
 const startedAt = Date.now();
+const mode = asExamMode(args.mode || "singles");
 const input: BattleAiSelfPlayExamInputV4 = {
   seed: args.seed || "ai-self-play",
   ruleSet: asRuleSet(args.ruleSet || "gen9"),
-  teamSize: numberArg(args.teamSize, 3),
+  mode,
+  teamSize: numberArg(args.teamSize, mode === "doubles" ? 4 : 3),
   forceLevel: numberArg(args.forceLevel, 50),
   archetypeAttempts: numberArg(args.archetypeAttempts, 64),
   strictArchetype: booleanArg(args.strictArchetype, false),
-  maxTurns: numberArg(args.maxTurns, 40),
+  purpose: asPurpose(args.purpose || "ai-exam"),
+  quality: asQuality(args.quality || "strict"),
+  maxTurns: numberArg(args.maxTurns, mode === "doubles" ? 20 : 40),
   gamesPerPair: numberArg(args.games, 1),
-  archetypes: csv(args.archetypes).map(asArchetype),
+  archetypes: csv(args.archetypes, mode).map(asArchetype),
   p1Level: asAiLevel(args.p1Level || "champion"),
   p2Level: asAiLevel(args.p2Level || "gymLeader"),
   p1Preference: asPreference(args.p1Preference || "balanced"),
@@ -72,8 +76,9 @@ function parseArgs(argv: string[]): Record<string, string> {
   return parsed;
 }
 
-function csv(value: string | undefined): string[] {
-  return String(value || "rain,sun,trick-room,balanced")
+function csv(value: string | undefined, mode: Extract<TrainingModeV4, "singles" | "doubles">): string[] {
+  const fallback = mode === "doubles" ? "rain,sun,trick-room,tailwind,balanced" : "rain,sun,trick-room,balanced";
+  return String(value || fallback)
     .split(",")
     .map(entry => entry.trim())
     .filter(Boolean);
@@ -96,6 +101,11 @@ function asRuleSet(value: string): TrainingRuleSetV4 {
   throw new Error(`invalid --ruleSet ${value}`);
 }
 
+function asExamMode(value: string): Extract<TrainingModeV4, "singles" | "doubles"> {
+  if (value === "singles" || value === "doubles") return value;
+  throw new Error(`invalid --mode ${value}`);
+}
+
 function asAiLevel(value: string): BattleAiLevelV4 {
   if (value === "rookie" || value === "normal" || value === "elite" || value === "gymLeader" || value === "eliteFour" || value === "champion") return value;
   throw new Error(`invalid ai level ${value}`);
@@ -104,6 +114,16 @@ function asAiLevel(value: string): BattleAiLevelV4 {
 function asPreference(value: string): BattleAiPreferenceV4 {
   if (value === "offense" || value === "defense" || value === "support" || value === "balanced") return value;
   throw new Error(`invalid preference ${value}`);
+}
+
+function asPurpose(value: string): ShowdownTeamGenerationPurposeV4 {
+  if (value === "player-starter" || value === "npc-battle" || value === "boss-battle" || value === "ai-exam") return value;
+  throw new Error(`invalid --purpose ${value}`);
+}
+
+function asQuality(value: string): ShowdownTeamGenerationQualityV4 {
+  if (value === "loose" || value === "structured" || value === "strict") return value;
+  throw new Error(`invalid --quality ${value}`);
 }
 
 function asArchetype(value: string): ShowdownTeamArchetypeV4 {

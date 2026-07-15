@@ -4009,6 +4009,14 @@ async function aiSelfPlayExamSmoke() {
   if (!questions.every(question => question.forceLevel === 50 && !question.strictArchetype && question.archetypeAttempts === 64)) {
     throw new Error(`self-play questions should default to L50 high-attempt archetype generation: ${JSON.stringify(questions)}`);
   }
+  const doublesQuestions = generateBattleAiSelfPlayQuestionsV4({
+    seed: "self-play-doubles-smoke",
+    mode: "doubles",
+    gamesPerPair: 1,
+  });
+  if (doublesQuestions.length !== 5 || !doublesQuestions.every(question => question.mode === "doubles" && question.teamSize === 4 && question.maxTurns === 20 && question.quality === "strict")) {
+    throw new Error(`doubles self-play question generator should use doubles defaults: ${JSON.stringify(doublesQuestions)}`);
+  }
   const report = await runBattleAiSelfPlayExamV4({
     seed: "self-play-smoke",
     archetypes: ["balanced"],
@@ -4034,6 +4042,26 @@ async function aiSelfPlayExamSmoke() {
   const markdown = renderBattleAiSelfPlayExamMarkdownV4(report);
   if (!markdown.includes("Battle V4 AI Self-Play Exam Report") || !markdown.includes(result.question.id) || !markdown.includes("blunders:")) {
     throw new Error(`self-play markdown report missing expected content: ${markdown}`);
+  }
+  const doublesReport = await runBattleAiSelfPlayExamV4({
+    seed: "self-play-doubles-smoke",
+    mode: "doubles",
+    archetypes: ["balanced"],
+    gamesPerPair: 1,
+    maxTurns: 2,
+    p1Level: "gymLeader",
+    p2Level: "gymLeader",
+  });
+  const doublesResult = doublesReport.results[0];
+  if (doublesReport.input.mode !== "doubles" || doublesReport.input.teamSize !== 4 || doublesReport.summary.total !== 1 || !doublesResult) {
+    throw new Error(`doubles self-play report should use doubles defaults: ${JSON.stringify(doublesReport.summary)}`);
+  }
+  if (doublesResult.status === "team-generation-failed" || !doublesResult.teams.p1.diagnostics.archetype?.doubles || !doublesResult.teams.p2.diagnostics.archetype?.doubles) {
+    throw new Error(`doubles self-play report should include doubles team diagnostics: ${JSON.stringify(doublesResult.teams)}`);
+  }
+  const doublesMarkdown = renderBattleAiSelfPlayExamMarkdownV4(doublesReport);
+  if (!doublesMarkdown.includes("- mode: doubles") || !doublesMarkdown.includes("doubles metrics:")) {
+    throw new Error(`doubles self-play markdown report missing doubles fields: ${doublesMarkdown}`);
   }
   console.log("showdown-battle-core ai self-play exam smoke ok");
 }

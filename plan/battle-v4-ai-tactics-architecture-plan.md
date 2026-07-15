@@ -58,6 +58,20 @@
 - [x] 已有 Tyranitar vs Ceruledge 回归：馆主级以上不应点 Ice Beam。
 - [x] 跑一次现有测试，确认当前 NumericGuard 基线稳定。
 
+## 0.1 估伤模块替换方向
+
+- [ ] 引入 Pokemon Showdown / Smogon damage-calc 作为 AI 估伤模块依据。
+- [ ] 当前 `aiMoveEvaluator` 保留为 fallback。
+- [ ] 新增 `aiDamageCalcAdapterV4.ts`，负责把 Battle V4 snapshot / request 转成 calc 所需的 `Pokemon` / `Move` / `Field`。
+- [ ] `evaluateBattleAiMoveV4` 优先使用 calc adapter；构造失败时回退现有 heuristic。
+- [ ] diagnostics 标记 `damageEngine: "smogon-calc" | "heuristic"`。
+- [ ] 输出继续保持现有字段：`expectedDamageRange` / `expectedDamageRatio` / `typeMultiplier` / `stab` / `accuracy` / `koChance` / `diagnostics`。
+- [ ] Gen 9 优先接入。
+- [ ] 支持 singles / doubles damaging move。
+- [ ] 支持当前 active target、explicit targetLoc、targetOverride。
+- [ ] 支持 weather / terrain / spread / Protect / Dynamax / Terastallize 基础输入。
+- [ ] 不在第一版接完整隐藏信息、完整回合模拟、完整状态推进。
+
 ## 1. 算法依据
 
 - [x] 总架构明确为：`Minimax 搜索框架` + `估值函数` + `剪枝优化`。
@@ -243,7 +257,9 @@
 - [x] `ai:teams` doubles 默认 teamSize 为 4，报告 summary 输出 doubles 平均指标。
 - [x] 10 样本 strict doubles 报告：rain / sun / trick-room / tailwind / balanced 均为 `coreComplete=10/10`。
 - [x] 10 样本 strict weather doubles 复查：rain / sun 均为 `coreComplete=10/10` 且包含 `*-distinct-core`。
-- [x] 本阶段不创建 doubles exam/self-play 出卷脚本。
+- [x] `ai:selfplay --mode doubles` 支持双打出卷、答题、评估和 JSON / Markdown 报告。
+- [x] doubles self-play 默认使用 4v4、strict、ai-exam、rain / sun / trick-room / tailwind / balanced。
+- [x] doubles self-play 报告输出 doubles metrics、reason tags 和队伍结构 diagnostics。
 
 ## 6. 合法行动枚举
 
@@ -342,6 +358,10 @@
 - [ ] 支持 `near-ko`。
 - [ ] 支持 `possible-ko`。
 - [ ] 支持 `guaranteed-ko`。
+- [ ] Damage bucket 改用 calc damage rolls / range 推导。
+- [ ] `guaranteed-ko` / `possible-ko` / `two-hit-ko` / `near-ko` 基于真实 roll 判断。
+- [ ] 双打 spread damage 使用 calc 的 `gameType: "Doubles"` 修正。
+- [ ] Protect / Max / Z / Tera 相关伤害修正优先由 calc 处理。
 - [ ] 支持 `selfRiskBucket`。
 - [ ] 支持 `speedBucket`。
 - [ ] 支持 `fieldBucket`。
@@ -366,6 +386,11 @@
 - [x] 击杀高威胁目标额外加分。
 - [x] 我方速度权加分。
 - [x] 对方速度权扣分。
+- [ ] Value Function 不直接实现伤害公式，只消费估伤模块输出。
+- [ ] singles / doubles / coop 共用同一估伤 adapter。
+- [ ] targetOverride 换人承伤改用 calc adapter 重新估伤。
+- [ ] Dynamax / Terastallize / Max Move 的进攻与防守收益基于 calc 输出校准。
+- [ ] 估值函数继续负责资源、风险、队伍角色、局面价值；damage-calc 只负责伤害 oracle。
 - [ ] 我方有利天气加分。
 - [ ] 对方有利天气扣分。
 - [ ] 我方有利场地加分。
