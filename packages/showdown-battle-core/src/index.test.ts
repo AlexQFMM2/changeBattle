@@ -2722,6 +2722,56 @@ function aiActionOutcomeEstimatorSmoke() {
   if (immune.damageBucket !== "immune" || immune.expectedDamageRange.average !== 0) {
     throw new Error(`Tackle into Gengar should be immune: ${JSON.stringify(immune)}`);
   }
+  const levitateRequest: BattleServiceRequestV4 = {
+    rqid: 66,
+    active: [{moves: [{move: "Earthquake", id: "earthquake", pp: 10, maxpp: 10, target: "allAdjacent"}]}],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Ho-Oh", details: "Ho-Oh, L50", condition: "192/192", active: true, ability: "Regenerator", moves: ["Earthquake"], stats: {hp: 192, atk: 150, def: 110, spa: 120, spd: 160, spe: 110}},
+      ],
+    },
+  };
+  const levitateSnapshot = {
+    ...aiSnapshot("gen9", "singles", levitateRequest),
+    active: [
+      {ident: "p1a: Bronzong", playerId: "p1", slot: "p1a", species: "Bronzong", details: "Bronzong, L50", condition: "153/153", hp: 153, maxHp: 153, status: "", fainted: false},
+      {ident: "p2a: Ho-Oh", playerId: "p2", slot: "p2a", species: "Ho-Oh", details: "Ho-Oh, L50", condition: "192/192", hp: 192, maxHp: 192, status: "", fainted: false},
+    ],
+    debug: {
+      ...aiSnapshot("gen9", "singles", levitateRequest).debug,
+      latestSidePokemon: {
+        p1: [{ident: "p1: Bronzong", details: "Bronzong, L50", condition: "153/153", active: true, ability: "Levitate", moves: ["Iron Head"], stats: {hp: 153, atk: 110, def: 140, spa: 90, spd: 140, spe: 50}}],
+      },
+    },
+  } satisfies BattleServiceSnapshotV4;
+  const levitateImmune = estimateBattleAiActionOutcomeV4({request: levitateRequest, snapshot: levitateSnapshot, playerId: "p2", activeIndex: 0, move: levitateRequest.active![0]!.moves![0]!});
+  if (levitateImmune.damageBucket !== "immune" || levitateImmune.expectedDamageRange.average !== 0 || levitateImmune.evaluation.diagnostics.abilityImmunity !== "Levitate") {
+    throw new Error(`Earthquake into Levitate Bronzong should be immune: ${JSON.stringify(levitateImmune)}`);
+  }
+  const revelationRequest: BattleServiceRequestV4 = {
+    rqid: 67,
+    active: [{moves: [{move: "Revelation Dance", id: "revelationdance", pp: 15, maxpp: 15, target: "normal"}]}],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Oricorio", details: "Oricorio-Sensu, L50", condition: "150/150", active: true, ability: "Dancer", moves: ["Revelation Dance"], stats: {hp: 150, atk: 80, def: 90, spa: 120, spd: 90, spe: 120}},
+      ],
+    },
+  };
+  const revelationSnapshot = {
+    ...aiSnapshot("gen9", "singles", revelationRequest),
+    active: [
+      {ident: "p1a: Porygon-Z", playerId: "p1", slot: "p1a", species: "Porygon-Z", details: "Porygon-Z, L50", condition: "171/171", hp: 171, maxHp: 171, status: "", fainted: false},
+      {ident: "p2a: Oricorio", playerId: "p2", slot: "p2a", species: "Oricorio-Sensu", details: "Oricorio-Sensu, L50", condition: "150/150", hp: 150, maxHp: 150, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const revelationImmune = estimateBattleAiActionOutcomeV4({request: revelationRequest, snapshot: revelationSnapshot, playerId: "p2", activeIndex: 0, move: revelationRequest.active![0]!.moves![0]!});
+  if (revelationImmune.damageBucket !== "immune" || revelationImmune.expectedDamageRange.average !== 0 || revelationImmune.evaluation.diagnostics.moveType !== "Ghost") {
+    throw new Error(`Revelation Dance from Oricorio-Sensu into Porygon-Z should be Ghost immune: ${JSON.stringify(revelationImmune)}`);
+  }
   const priority = estimateBattleAiActionOutcomeV4({request, snapshot, playerId: "p2", activeIndex: 0, move: request.active![0]!.moves![1]!});
   if (priority.priority !== 1) {
     throw new Error(`Quick Attack should report priority 1: ${JSON.stringify(priority)}`);
@@ -3065,11 +3115,14 @@ async function aiSelfPlayExamSmoke() {
   if (result.status === "team-generation-failed") {
     throw new Error(`self-play smoke team generation failed: ${JSON.stringify(result.teams)}`);
   }
+  if (!result.blunderDiagnostics || !report.summary.blunders) {
+    throw new Error(`self-play should include blunder diagnostics: ${JSON.stringify(report.summary)}`);
+  }
   if (!result.metrics.aiDecisionCount && result.status !== "ended") {
     throw new Error(`self-play should produce AI decisions or end immediately: ${JSON.stringify(result)}`);
   }
   const markdown = renderBattleAiSelfPlayExamMarkdownV4(report);
-  if (!markdown.includes("Battle V4 AI Self-Play Exam Report") || !markdown.includes(result.question.id)) {
+  if (!markdown.includes("Battle V4 AI Self-Play Exam Report") || !markdown.includes(result.question.id) || !markdown.includes("blunders:")) {
     throw new Error(`self-play markdown report missing expected content: ${markdown}`);
   }
   console.log("showdown-battle-core ai self-play exam smoke ok");

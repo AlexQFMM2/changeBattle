@@ -4,6 +4,7 @@ import {
   generateBattleAiSelfPlayQuestionsV4,
   renderBattleAiSelfPlayExamMarkdownV4,
   runBattleAiSelfPlayQuestionV4,
+  summarizeBattleAiSelfPlayResultsV4,
   type BattleAiSelfPlayExamReportV4,
   type BattleAiSelfPlayExamInputV4,
 } from "./aiSelfPlayExamV4.js";
@@ -37,29 +38,14 @@ for (const [index, question] of questions.entries()) {
   console.log(`[ai-self-play] question ${index + 1}/${questions.length} ${question.id} started`);
   const result = await runBattleAiSelfPlayQuestionV4(question);
   results.push(result);
-  console.log(`[ai-self-play] question ${index + 1}/${questions.length} ${question.id} status=${result.status} winner=${result.winner || "-"} turns=${result.turns} elapsedMs=${result.elapsedMs} avgDecisionMs=${Math.round(result.metrics.averageDecisionMs * 100) / 100} maxDepth=${result.metrics.maxSearchedDepth}`);
+  console.log(`[ai-self-play] question ${index + 1}/${questions.length} ${question.id} status=${result.status} winner=${result.winner || "-"} turns=${result.turns} elapsedMs=${result.elapsedMs} avgDecisionMs=${Math.round(result.metrics.averageDecisionMs * 100) / 100} maxDepth=${result.metrics.maxSearchedDepth} blunders=${result.blunderDiagnostics.summary.severe}/${result.blunderDiagnostics.summary.warning}/${result.blunderDiagnostics.summary.info}`);
 }
 const report: BattleAiSelfPlayExamReportV4 = {
   generatedAt: new Date().toISOString(),
   input: input as Required<BattleAiSelfPlayExamInputV4>,
   questions,
   results,
-  summary: {
-    total: results.length,
-    ended: results.filter(result => result.status === "ended").length,
-    maxTurns: results.filter(result => result.status === "max-turns").length,
-    stalled: results.filter(result => result.status === "stalled").length,
-    teamGenerationFailed: results.filter(result => result.status === "team-generation-failed").length,
-    p1Wins: results.filter(result => result.winner === "p1").length,
-    p2Wins: results.filter(result => result.winner === "p2").length,
-    averageTurns: average(results.map(result => result.turns)),
-    averageQuestionElapsedMs: average(results.map(result => result.elapsedMs)),
-    averageDecisionMs: average(results.map(result => result.metrics.averageDecisionMs).filter(Boolean)),
-    timeoutCount: results.reduce((sum, result) => sum + result.metrics.timeoutCount, 0),
-    maxSearchedDepth: Math.max(0, ...results.map(result => result.metrics.maxSearchedDepth)),
-    slowestQuestion: slowestResult(results),
-    teamCoreCompleteByArchetype: summarizeTeamCoreComplete(results),
-  },
+  summary: summarizeBattleAiSelfPlayResultsV4(results),
 };
 const jsonFile = path.join(outDir, "report.json");
 const mdFile = path.join(outDir, "report.md");
@@ -137,31 +123,4 @@ function asArchetype(value: string): ShowdownTeamArchetypeV4 {
   ]);
   if (valid.has(value)) return value as ShowdownTeamArchetypeV4;
   throw new Error(`invalid archetype ${value}`);
-}
-
-function average(values: number[]): number {
-  const filtered = values.filter(value => Number.isFinite(value));
-  return filtered.length ? filtered.reduce((sum, value) => sum + value, 0) / filtered.length : 0;
-}
-
-function slowestResult(results: BattleAiSelfPlayExamReportV4["results"]): BattleAiSelfPlayExamReportV4["summary"]["slowestQuestion"] {
-  const slowest = results.slice().sort((a, b) => b.elapsedMs - a.elapsedMs)[0];
-  return slowest ? {id: slowest.question.id, elapsedMs: slowest.elapsedMs} : undefined;
-}
-
-function summarizeTeamCoreComplete(results: BattleAiSelfPlayExamReportV4["results"]): BattleAiSelfPlayExamReportV4["summary"]["teamCoreCompleteByArchetype"] {
-  const summary: BattleAiSelfPlayExamReportV4["summary"]["teamCoreCompleteByArchetype"] = {};
-  for (const result of results) {
-    for (const side of ["p1", "p2"] as const) {
-      const archetype = result.question[side].archetype;
-      const bucket = summary[archetype] ||= {total: 0, complete: 0, missing: 0, rate: 0};
-      bucket.total += 1;
-      if (result.teams[side].diagnostics.archetype?.coreComplete) bucket.complete += 1;
-      else bucket.missing += 1;
-    }
-  }
-  for (const bucket of Object.values(summary)) {
-    bucket.rate = bucket.total ? bucket.complete / bucket.total : 0;
-  }
-  return summary;
 }

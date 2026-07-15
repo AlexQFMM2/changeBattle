@@ -72,11 +72,39 @@ export type BattleAiSelfPlayQuestionResultV4 = {
     searchedDepth?: number;
     valueBreakdown?: Record<string, number>;
   }>;
+  blunderDiagnostics: BattleAiBlunderDiagnosticsV4;
   finalSnapshotSummary: {
     status: BattleServiceSnapshotV4["status"];
     rawLogTail: string[];
     inputLogTail: string[];
   };
+};
+
+export type BattleAiBlunderFindingV4 = {
+  severity: "info" | "warning" | "severe";
+  kind:
+    | "timeout"
+    | "stalled"
+    | "max-turns"
+    | "value-explosion"
+    | "negative-choice-score"
+    | "ineffective-move"
+    | "repeat-ineffective-move"
+    | "high-switch-rate";
+  playerId?: ShowdownPlayerIdV4;
+  turn?: number;
+  choice?: string;
+  detail: string;
+};
+
+export type BattleAiBlunderDiagnosticsV4 = {
+  summary: {
+    severe: number;
+    warning: number;
+    info: number;
+    score: number;
+  };
+  findings: BattleAiBlunderFindingV4[];
 };
 
 export type BattleAiSelfPlayExamInputV4 = {
@@ -115,6 +143,14 @@ export type BattleAiSelfPlayExamReportV4 = {
     maxSearchedDepth: number;
     slowestQuestion?: {id: string; elapsedMs: number};
     teamCoreCompleteByArchetype: Record<string, {total: number; complete: number; missing: number; rate: number}>;
+    blunders: {
+      severe: number;
+      warning: number;
+      info: number;
+      questionsWithSevere: number;
+      questionsWithWarnings: number;
+      topKinds: Array<{kind: BattleAiBlunderFindingV4["kind"]; count: number}>;
+    };
   };
 };
 
@@ -172,7 +208,7 @@ export async function runBattleAiSelfPlayExamV4(input: BattleAiSelfPlayExamInput
     input: normalized,
     questions,
     results,
-    summary: summarizeResults(results),
+    summary: summarizeBattleAiSelfPlayResultsV4(results),
   };
 }
 
@@ -215,6 +251,7 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
     },
     metrics: emptyMetrics(),
     notableChoices: [],
+    blunderDiagnostics: emptyBlunderDiagnostics(),
     finalSnapshotSummary: {status: "blocked" as const, rawLogTail: [], inputLogTail: []},
   };
   if (!p1Team.diagnostics.ok || !p2Team.diagnostics.ok) {
@@ -235,6 +272,7 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
   }
   await service.closeSession(snapshot.id);
   const status = snapshot.status === "ended" ? "ended" : stableCount >= 3 ? "stalled" : "max-turns";
+  const metrics = metricsFromSnapshot(snapshot);
   return {
     question,
     status,
@@ -245,8 +283,9 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
       p1: teamSummary(question.p1.archetype, p1Team.pokemonSets, p1Team.diagnostics, question.forceLevel),
       p2: teamSummary(question.p2.archetype, p2Team.pokemonSets, p2Team.diagnostics, question.forceLevel),
     },
-    metrics: metricsFromSnapshot(snapshot),
+    metrics,
     notableChoices: notableChoicesFromSnapshot(snapshot),
+    blunderDiagnostics: analyzeBlundersFromSnapshot(snapshot, status, metrics),
     finalSnapshotSummary: {
       status: snapshot.status,
       rawLogTail: (snapshot.rawLog || []).slice(-40),
@@ -276,6 +315,8 @@ export function renderBattleAiSelfPlayExamMarkdownV4(report: BattleAiSelfPlayExa
     `- maxSearchedDepth: ${report.summary.maxSearchedDepth}`,
     `- slowestQuestion: ${report.summary.slowestQuestion ? `${report.summary.slowestQuestion.id} (${round(report.summary.slowestQuestion.elapsedMs)}ms)` : "-"}`,
     `- teamCoreCompleteByArchetype: ${coreCompleteSummary(report.summary.teamCoreCompleteByArchetype)}`,
+    `- blunders: severe=${report.summary.blunders.severe}, warning=${report.summary.blunders.warning}, info=${report.summary.blunders.info}, questionsWithSevere=${report.summary.blunders.questionsWithSevere}, questionsWithWarnings=${report.summary.blunders.questionsWithWarnings}`,
+    `- blunderTopKinds: ${report.summary.blunders.topKinds.map(entry => `${entry.kind}:${entry.count}`).join(", ") || "-"}`,
     "",
     "## Questions",
     "",
@@ -296,6 +337,11 @@ export function renderBattleAiSelfPlayExamMarkdownV4(report: BattleAiSelfPlayExa
     lines.push(`- p1 team: ${result.teams.p1.pokemon.join(", ")}`);
     lines.push(`- p2 team: ${result.teams.p2.pokemon.join(", ")}`);
     lines.push(`- metrics: decisions=${result.metrics.aiDecisionCount}, timeouts=${result.metrics.timeoutCount}, switches=${result.metrics.switchCount}, protect=${result.metrics.protectCount}, setup=${result.metrics.setupCount}, hazard=${result.metrics.hazardCount}, weather=${result.metrics.weatherCount}`);
+    lines.push(`- blunders: severe=${result.blunderDiagnostics.summary.severe}, warning=${result.blunderDiagnostics.summary.warning}, info=${result.blunderDiagnostics.summary.info}, score=${result.blunderDiagnostics.summary.score}`);
+    const findings = result.blunderDiagnostics.findings.slice(0, 5);
+    if (findings.length) {
+      lines.push(`- blunderFindings: ${findings.map(formatBlunderFinding).join("; ")}`);
+    }
     lines.push("");
     lines.push("| player | choice | level | strategy | depth | score | value highlights |");
     lines.push("| --- | --- | --- | --- | ---: | ---: | --- |");
@@ -453,7 +499,7 @@ function notableChoicesFromSnapshot(snapshot: BattleServiceSnapshotV4): BattleAi
     }));
 }
 
-function summarizeResults(results: BattleAiSelfPlayQuestionResultV4[]): BattleAiSelfPlayExamReportV4["summary"] {
+export function summarizeBattleAiSelfPlayResultsV4(results: BattleAiSelfPlayQuestionResultV4[]): BattleAiSelfPlayExamReportV4["summary"] {
   return {
     total: results.length,
     ended: results.filter(result => result.status === "ended").length,
@@ -469,6 +515,7 @@ function summarizeResults(results: BattleAiSelfPlayQuestionResultV4[]): BattleAi
     maxSearchedDepth: Math.max(0, ...results.map(result => result.metrics.maxSearchedDepth)),
     slowestQuestion: slowestResult(results),
     teamCoreCompleteByArchetype: summarizeTeamCoreComplete(results),
+    blunders: summarizeBlunders(results),
   };
 }
 
@@ -497,6 +544,8 @@ function slowestResult(results: BattleAiSelfPlayQuestionResultV4[]): BattleAiSel
 function reportNotes(result: BattleAiSelfPlayQuestionResultV4): string {
   const notes: string[] = [];
   if (result.metrics.timeoutCount) notes.push(`timeouts:${result.metrics.timeoutCount}`);
+  if (result.blunderDiagnostics.summary.severe) notes.push(`severe:${result.blunderDiagnostics.summary.severe}`);
+  if (result.blunderDiagnostics.summary.warning) notes.push(`warnings:${result.blunderDiagnostics.summary.warning}`);
   if (result.metrics.switchCount) notes.push(`switch:${result.metrics.switchCount}`);
   if (result.metrics.hazardCount) notes.push(`hazard:${result.metrics.hazardCount}`);
   if (result.metrics.weatherCount) notes.push(`weather:${result.metrics.weatherCount}`);
@@ -517,6 +566,144 @@ function valueHighlights(breakdown: Record<string, number> | undefined): string 
     .slice(0, 4)
     .map(([key, value]) => `${key}:${round(Number(value))}`)
     .join(", ") || "-";
+}
+
+function analyzeBlundersFromSnapshot(
+  snapshot: BattleServiceSnapshotV4,
+  status: BattleAiSelfPlayQuestionResultV4["status"],
+  metrics: BattleAiSelfPlayQuestionResultV4["metrics"],
+): BattleAiBlunderDiagnosticsV4 {
+  const findings: BattleAiBlunderFindingV4[] = [];
+  if (status === "stalled") {
+    findings.push({severity: "severe", kind: "stalled", detail: "battle progress stopped for multiple auto-advance cycles"});
+  } else if (status === "max-turns") {
+    findings.push({severity: "warning", kind: "max-turns", detail: `battle reached max turn limit at turn ${snapshot.turn}`});
+  }
+  if (metrics.timeoutCount > 0) {
+    findings.push({severity: "warning", kind: "timeout", detail: `${metrics.timeoutCount} AI decisions hit their search timeout`});
+  }
+  if (metrics.switchCount >= 10 && snapshot.turn > 0 && metrics.switchCount > snapshot.turn * 1.2) {
+    findings.push({
+      severity: "warning",
+      kind: "high-switch-rate",
+      detail: `${metrics.switchCount} AI switches across ${snapshot.turn} turns; review for switch loops or forced-switch churn`,
+    });
+  }
+  for (const finding of ineffectiveMoveFindings(snapshot.rawLog || [])) {
+    findings.push(finding);
+  }
+  for (const decision of snapshot.debug.aiDecisions || []) {
+    if (decision.selectedScore <= -100) {
+      findings.push({
+        severity: "warning",
+        kind: "negative-choice-score",
+        playerId: decision.playerId,
+        choice: decision.selectedChoice,
+        detail: `selected ${decision.selectedChoice} with strongly negative score ${round(decision.selectedScore)}`,
+      });
+    }
+    const breakdown = decision.search?.valueBreakdown || {};
+    for (const [key, value] of Object.entries(breakdown)) {
+      if (Math.abs(Number(value)) > 1000) {
+        findings.push({
+          severity: "severe",
+          kind: "value-explosion",
+          playerId: decision.playerId,
+          choice: decision.selectedChoice,
+          detail: `valueBreakdown.${key}=${round(Number(value))} exceeded diagnostic bound`,
+        });
+      }
+    }
+  }
+  return summarizeBlunderFindings(findings);
+}
+
+function ineffectiveMoveFindings(rawLog: string[]): BattleAiBlunderFindingV4[] {
+  const findings: BattleAiBlunderFindingV4[] = [];
+  const repeated = new Map<string, number>();
+  let turn = 0;
+  let lastMove: {playerId?: ShowdownPlayerIdV4; moveName: string; target?: string; turn: number} | null = null;
+  for (const line of rawLog) {
+    const parts = line.split("|");
+    if (parts[1] === "turn") {
+      turn = Number(parts[2] || turn) || turn;
+      lastMove = null;
+      continue;
+    }
+    if (parts[1] === "move") {
+      lastMove = {
+        playerId: playerIdFromSlot(parts[2]),
+        moveName: parts[3] || "unknown move",
+        target: parts[4] || undefined,
+        turn,
+      };
+      continue;
+    }
+    if (parts[1] !== "-immune" || !lastMove) continue;
+    const target = parts[2] || lastMove.target || "target";
+    const key = `${lastMove.playerId || "?"}:${lastMove.moveName}:${target}`;
+    const count = (repeated.get(key) || 0) + 1;
+    repeated.set(key, count);
+    findings.push({
+      severity: count >= 2 ? "severe" : "warning",
+      kind: count >= 2 ? "repeat-ineffective-move" : "ineffective-move",
+      playerId: lastMove.playerId,
+      turn: lastMove.turn,
+      choice: lastMove.moveName,
+      detail: `${lastMove.moveName} had no effect on ${target}${count >= 2 ? ` (${count} repeats for same target)` : ""}`,
+    });
+  }
+  return findings;
+}
+
+function playerIdFromSlot(slot: string | undefined): ShowdownPlayerIdV4 | undefined {
+  const match = String(slot || "").match(/^p([1-4])/);
+  if (!match) return undefined;
+  return `p${match[1]}` as ShowdownPlayerIdV4;
+}
+
+function emptyBlunderDiagnostics(): BattleAiBlunderDiagnosticsV4 {
+  return summarizeBlunderFindings([]);
+}
+
+function summarizeBlunderFindings(findings: BattleAiBlunderFindingV4[]): BattleAiBlunderDiagnosticsV4 {
+  const severe = findings.filter(finding => finding.severity === "severe").length;
+  const warning = findings.filter(finding => finding.severity === "warning").length;
+  const info = findings.filter(finding => finding.severity === "info").length;
+  return {
+    summary: {
+      severe,
+      warning,
+      info,
+      score: severe * 100 + warning * 10 + info,
+    },
+    findings,
+  };
+}
+
+function summarizeBlunders(results: BattleAiSelfPlayQuestionResultV4[]): BattleAiSelfPlayExamReportV4["summary"]["blunders"] {
+  const allFindings = results.flatMap(result => result.blunderDiagnostics.findings);
+  const kindCounts = new Map<BattleAiBlunderFindingV4["kind"], number>();
+  for (const finding of allFindings) {
+    kindCounts.set(finding.kind, (kindCounts.get(finding.kind) || 0) + 1);
+  }
+  return {
+    severe: allFindings.filter(finding => finding.severity === "severe").length,
+    warning: allFindings.filter(finding => finding.severity === "warning").length,
+    info: allFindings.filter(finding => finding.severity === "info").length,
+    questionsWithSevere: results.filter(result => result.blunderDiagnostics.summary.severe > 0).length,
+    questionsWithWarnings: results.filter(result => result.blunderDiagnostics.summary.warning > 0 || result.blunderDiagnostics.summary.severe > 0).length,
+    topKinds: [...kindCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([kind, count]) => ({kind, count})),
+  };
+}
+
+function formatBlunderFinding(finding: BattleAiBlunderFindingV4): string {
+  const prefix = `${finding.severity}/${finding.kind}`;
+  const subject = [finding.playerId, finding.turn ? `t${finding.turn}` : "", finding.choice].filter(Boolean).join(" ");
+  return `${prefix}${subject ? ` (${subject})` : ""}: ${finding.detail}`;
 }
 
 function average(values: number[]): number {

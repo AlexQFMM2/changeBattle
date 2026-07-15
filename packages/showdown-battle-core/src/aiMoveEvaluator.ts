@@ -89,6 +89,7 @@ export function evaluateBattleAiMoveV4(input: BattleAiMoveEvaluatorContextV4): B
   const combined = combineTargetEvaluations(targetEvaluations, best, move);
   const utilityScore = utilityScoreForMove(move, input.request, input.activeIndex, user);
   const finalScore = combined.finalScore + utilityScore;
+  const moveType = move ? effectiveMoveType(move, input.special, user) : "";
   return {
     expectedDamageRange: combined.expectedDamageRange,
     expectedDamageRatio: combined.expectedDamageRatio,
@@ -101,7 +102,7 @@ export function evaluateBattleAiMoveV4(input: BattleAiMoveEvaluatorContextV4): B
     finalScore,
     diagnostics: {
       moveId: move?.id || toDexId(input.move.id || input.move.move),
-      moveType: move?.type || "",
+      moveType,
       category: move?.categoryId || "",
       target: move?.target || input.move.target || "",
       targetLoc: input.targetLoc || "",
@@ -115,6 +116,7 @@ export function evaluateBattleAiMoveV4(input: BattleAiMoveEvaluatorContextV4): B
       accuracy: moveAccuracy(move),
       koChance: combined.koChance,
       expectedDamageRatio: combined.expectedDamageRatio,
+      abilityImmunity: best?.diagnostics.abilityImmunity || undefined,
       estimatedStats: user.estimatedStats || targets.some(target => target.estimatedStats),
       special: input.special || null,
     },
@@ -139,7 +141,8 @@ function evaluateAgainstTarget(input: {
   const basePower = effectiveBasePower(move, input.special);
   const defenderTypes = target.species?.types || [];
   const effectiveness = getShowdownTypeEffectivenessV4(moveType, defenderTypes);
-  const typeMultiplier = effectiveness.multiplier;
+  const immunity = abilityImmunity(target, moveType);
+  const typeMultiplier = immunity ? 0 : effectiveness.multiplier;
   const stab = user.species?.types.map(toDexId).includes(toDexId(moveType)) || user.row?.teraType && input.special === "terastallize" && toDexId(user.row.teraType) === toDexId(moveType) ? 1.5 : 1;
   const accuracy = moveAccuracy(move);
   const category = move.categoryId === "special" ? "special" : "physical";
@@ -174,6 +177,7 @@ function evaluateAgainstTarget(input: {
     diagnostics: {
       targetSpeciesId: target.speciesId,
       defenderTypes,
+      abilityImmunity: immunity || undefined,
       attack,
       defense,
       basePower,
@@ -225,7 +229,7 @@ function targetCombatantsForMove(
   const target = move?.target || "";
   if (target === "self") return [combatantForActive(request, snapshot, playerId, activeIndex, dex)];
   if (target === "allAdjacent" || target === "allAdjacentFoes") {
-    return foeActives.map((active, index) => combatantFromSnapshotActive(active, index, dex));
+    return foeActives.map((active, index) => combatantFromSnapshotActive(active, index, dex, snapshot));
   }
   if (targetOverride && targetAllowsOverride(target)) {
     return [combatantFromRow(targetOverride.row, targetOverride.playerId, targetOverride.activeIndex ?? activeIndex, dex)];
@@ -233,7 +237,7 @@ function targetCombatantsForMove(
   const parsedLoc = targetLoc?.startsWith("+") ? Number(targetLoc.slice(1)) - 1 : Number.NaN;
   const targetIndex = Number.isFinite(parsedLoc) && parsedLoc >= 0 ? parsedLoc : Math.min(activeIndex, activeCount - 1);
   const active = foeActives[targetIndex] || foeActives[0];
-  if (active) return [combatantFromSnapshotActive(active, targetIndex, dex)];
+  if (active) return [combatantFromSnapshotActive(active, targetIndex, dex, snapshot)];
   const fallbackRow = request.side?.pokemon?.find(row => !row.active && !row.fainted && !row.condition.includes("fnt"));
   return [combatantFromRow(fallbackRow, "p1", 0, dex)];
 }
@@ -249,8 +253,8 @@ function combatantForActive(request: BattleServiceRequestV4, snapshot: BattleSer
   return combatantFromRowAndActive(row, active, playerId, activeIndex, dex);
 }
 
-function combatantFromSnapshotActive(active: BattleServiceActivePokemonV4, activeIndex: number, dex: ShowdownDexService): BattleAiCombatantV4 {
-  return combatantFromRowAndActive(undefined, active, active.playerId, activeIndex, dex);
+function combatantFromSnapshotActive(active: BattleServiceActivePokemonV4, activeIndex: number, dex: ShowdownDexService, snapshot?: BattleServiceSnapshotV4): BattleAiCombatantV4 {
+  return combatantFromRowAndActive(sideRowForActive(snapshot, active), active, active.playerId, activeIndex, dex);
 }
 
 function combatantFromRow(row: BattleServiceSidePokemonV4 | undefined, playerId: ShowdownPlayerIdV4, activeIndex: number, dex: ShowdownDexService): BattleAiCombatantV4 {
@@ -290,6 +294,14 @@ function activeSidePokemonRow(request: BattleServiceRequestV4, activeIndex: numb
   return activeRows[activeIndex] || request.side?.pokemon?.[activeIndex];
 }
 
+function sideRowForActive(snapshot: BattleServiceSnapshotV4 | undefined, active: BattleServiceActivePokemonV4): BattleServiceSidePokemonV4 | undefined {
+  const rows = snapshot?.requests?.[active.playerId]?.side?.pokemon || snapshot?.debug.latestSidePokemon?.[active.playerId] || [];
+  const activeSpecies = toDexId(active.species || speciesIdFromDetails(active.details));
+  return rows.find(row => row.active && toDexId(speciesIdFromDetails(row.details)) === activeSpecies)
+    || rows.find(row => row.active)
+    || rows.find(row => toDexId(speciesIdFromDetails(row.details)) === activeSpecies);
+}
+
 function safeMoveDetail(dex: ShowdownDexService, raw: string | undefined): DexMoveDetail | null {
   const id = toDexId(raw);
   if (!id) return null;
@@ -324,7 +336,25 @@ function effectiveStats(combatant: BattleAiCombatantV4): Record<DexStatId, numbe
 
 function effectiveMoveType(move: DexMoveDetail, special: ShowdownSpecialChoiceV4 | null | undefined, user: BattleAiCombatantV4): string {
   if (special === "terastallize" && user.row?.teraType) return user.row.teraType;
-  return move.type || move.typeId || "Normal";
+  if (move.id === "revelationdance") return user.species?.types[0] || move.typeId || move.type || "Normal";
+  return move.typeId || move.type || "Normal";
+}
+
+function abilityImmunity(target: BattleAiCombatantV4, moveType: string): string | null {
+  const ability = toDexId(target.ability);
+  const type = toDexId(moveType);
+  if (ability === "levitate" && type === "ground") return "Levitate";
+  if (ability === "flashfire" && type === "fire") return "Flash Fire";
+  if (ability === "voltabsorb" && type === "electric") return "Volt Absorb";
+  if (ability === "lightningrod" && type === "electric") return "Lightning Rod";
+  if (ability === "motordrive" && type === "electric") return "Motor Drive";
+  if (ability === "waterabsorb" && type === "water") return "Water Absorb";
+  if (ability === "stormdrain" && type === "water") return "Storm Drain";
+  if (ability === "dryskin" && type === "water") return "Dry Skin";
+  if (ability === "sapsipper" && type === "grass") return "Sap Sipper";
+  if (ability === "eartheater" && type === "ground") return "Earth Eater";
+  if (ability === "wellbakedbody" && type === "fire") return "Well-Baked Body";
+  return null;
 }
 
 function effectiveBasePower(move: DexMoveDetail, special: ShowdownSpecialChoiceV4 | null | undefined): number {
