@@ -33,6 +33,7 @@ import {
 } from "./index.js";
 import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
 import {generateBattleAiSelfPlayQuestionsV4, renderBattleAiSelfPlayExamMarkdownV4, runBattleAiSelfPlayExamV4} from "./aiSelfPlayExamV4.js";
+import {battleAiImmunityMemoryMatchForMoveV4, buildBattleAiImmunityMemoryV4} from "./aiImmunityMemoryV4.js";
 import type {BattleAiTeamArchetypeV4} from "./aiTeamRoleAnalyzerV4.js";
 import type {BattleAiLevelV4, BattleAiPreferenceV4, BattleServiceRequestV4, BattleServiceSessionInputV4, BattleServiceSidePokemonV4, BattleServiceSnapshotV4} from "./types.js";
 
@@ -3347,6 +3348,74 @@ function aiDoublesStrategyV0Smoke() {
   });
   if (!allyDamage.tags.includes("avoid-ally-damage") || !(allyDamage.adjustment < earthquake.adjustment)) {
     throw new Error(`Direct ally damage should be strongly punished without combo: ${JSON.stringify(allyDamage)}`);
+  }
+  const immuneDragonClaw = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 3 +1, move 1 +1",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "dragonclaw", target: "normal", targetLoc: "+1", category: "physical", expectedDamageRatio: 0, typeMultiplier: 0, targetSpeciesIds: ["magearna"]},
+      {moveId: "thunderbolt", target: "normal", targetLoc: "+1", category: "special", expectedDamageRatio: 0.7, typeMultiplier: 1, koChance: 0},
+    ]},
+  });
+  const effectiveFireHit = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 3 +1, move 1 +1",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "heatcrash", target: "normal", targetLoc: "+1", category: "physical", expectedDamageRatio: 0.7, typeMultiplier: 2, targetSpeciesIds: ["magearna"]},
+      {moveId: "thunderbolt", target: "normal", targetLoc: "+1", category: "special", expectedDamageRatio: 0.7, typeMultiplier: 1, koChance: 0},
+    ]},
+  });
+  if (!immuneDragonClaw.tags.includes("avoid-immune-move") || !(immuneDragonClaw.adjustment < effectiveFireHit.adjustment)) {
+    throw new Error(`Single-target immune doubles part should be strongly discounted: ${JSON.stringify({immuneDragonClaw, effectiveFireHit})}`);
+  }
+  const repeatedImmune = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 3 +1, move 1 +1",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "dragonclaw", target: "normal", targetLoc: "+1", category: "physical", expectedDamageRatio: 0, typeMultiplier: 0, targetSpeciesIds: ["magearna"], immunityMemoryPenalty: -240, previouslyImmuneTarget: "p1a: Magearna"},
+      {moveId: "thunderbolt", target: "normal", targetLoc: "+1", category: "special", expectedDamageRatio: 1.2, typeMultiplier: 1, koChance: 1},
+    ]},
+  });
+  if (!repeatedImmune.tags.includes("avoid-repeat-immune-move") || !(repeatedImmune.valueBreakdown.risk < immuneDragonClaw.valueBreakdown.risk)) {
+    throw new Error(`Repeated immune move should carry memory penalty: ${JSON.stringify({repeatedImmune, immuneDragonClaw})}`);
+  }
+  const memorySnapshot = {
+    ...aiSnapshot("gen9", "doubles", request),
+    players: [
+      {playerId: "p1", name: "A", controller: "local", alliance: "near", team: [pikachu, eevee], draft: null as any},
+      {playerId: "p2", name: "B", controller: "ai", alliance: "far", team: [pikachu, eevee], draft: null as any},
+    ],
+    active: [
+      {ident: "p1a: Magearna", playerId: "p1", slot: "p1a", species: "Magearna", details: "Magearna, L50", condition: "166/166", hp: 166, maxHp: 166, status: "", fainted: false},
+      {ident: "p1b: Kingdra", playerId: "p1", slot: "p1b", species: "Kingdra", details: "Kingdra, L50", condition: "150/150", hp: 150, maxHp: 150, status: "", fainted: false},
+      {ident: "p2a: Gouging Fire", playerId: "p2", slot: "p2a", species: "Gouging Fire", details: "Gouging Fire, L50", condition: "180/180", hp: 180, maxHp: 180, status: "", fainted: false},
+      {ident: "p2b: Raichu", playerId: "p2", slot: "p2b", species: "Raichu", details: "Raichu, L50", condition: "140/140", hp: 140, maxHp: 140, status: "", fainted: false},
+    ],
+    rawLog: [
+      "|turn|2",
+      "|move|p2a: Gouging Fire|Dragon Claw|p1a: Magearna",
+      "|-immune|p1a: Magearna",
+      "|move|p2b: Raichu|Thunderbolt|p1b: Kingdra",
+      "|-damage|p1b: Kingdra|50/150",
+      "|turn|3",
+      "|move|p2b: Raichu|Discharge|p1a: Magearna",
+      "|-immune|p1a: Magearna",
+      "|-damage|p1b: Kingdra|30/150",
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const memory = buildBattleAiImmunityMemoryV4(memorySnapshot);
+  const dragonMemory = battleAiImmunityMemoryMatchForMoveV4({memory, snapshot: memorySnapshot, playerId: "p2", targetLoc: "+1", move: {move: "Dragon Claw", id: "dragonclaw", pp: 15, maxpp: 15, target: "normal"}});
+  const retargetedDragonMemory = battleAiImmunityMemoryMatchForMoveV4({memory, snapshot: memorySnapshot, playerId: "p2", targetLoc: "+2", move: {move: "Dragon Claw", id: "dragonclaw", pp: 15, maxpp: 15, target: "normal"}});
+  const unresolvedDragonMemory = battleAiImmunityMemoryMatchForMoveV4({memory, snapshot: memorySnapshot, playerId: "p2", targetLoc: "+3", move: {move: "Dragon Claw", id: "dragonclaw", pp: 15, maxpp: 15, target: "normal"}});
+  const spreadMemory = battleAiImmunityMemoryMatchForMoveV4({memory, snapshot: memorySnapshot, playerId: "p2", targetLoc: "+1", move: {move: "Discharge", id: "discharge", pp: 15, maxpp: 15, target: "allAdjacent"}});
+  if (!dragonMemory || !retargetedDragonMemory || retargetedDragonMemory.confidence !== "move-active-foe" || !unresolvedDragonMemory || spreadMemory) {
+    throw new Error(`Immunity memory should retain single-target enemy immunity but ignore spread partial immunity: ${JSON.stringify({memory, dragonMemory, retargetedDragonMemory, unresolvedDragonMemory, spreadMemory})}`);
   }
   const weaknessPolicy = scoreBattleAiDoublesJointCandidateV4(request, {
     choice: "move 3 -2, move 3",

@@ -108,6 +108,8 @@ export function evaluateBattleAiMoveV4(input: BattleAiMoveEvaluatorContextV4): B
       targetLoc: input.targetLoc || "",
       userSpeciesId: user.speciesId,
       targetSpeciesIds: targets.map(target => target.speciesId),
+      targetSlots: targets.map(target => target.active?.slot || ""),
+      targetIdents: targets.map(target => target.active?.ident || target.row?.ident || ""),
       targetCount: targets.length,
       targetOverride: targetOverrideApplied || undefined,
       targetOverrideIdent: targetOverrideApplied ? input.targetOverride?.row.ident || null : undefined,

@@ -85,6 +85,15 @@ export type BattleAiSelfPlayQuestionResultV4 = {
     searchedDepth?: number;
     valueBreakdown?: Record<string, number>;
     reasonTags?: string[];
+    selectedParts?: Array<{
+      moveId?: string;
+      targetLoc?: string;
+      targetSpeciesIds?: string[];
+      typeMultiplier?: number;
+      expectedDamageRatio?: number;
+      immunityMemoryPenalty?: number;
+      previouslyImmuneTarget?: string;
+    }>;
   }>;
   blunderDiagnostics: BattleAiBlunderDiagnosticsV4;
   finalSnapshotSummary: {
@@ -104,6 +113,8 @@ export type BattleAiBlunderFindingV4 = {
     | "negative-choice-score"
     | "ineffective-move"
     | "repeat-ineffective-move"
+    | "spread-partial-immune"
+    | "ally-immune-combo"
     | "high-switch-rate"
     | "doubles-core-incomplete"
     | "friendly-fire-risk"
@@ -375,10 +386,10 @@ export function renderBattleAiSelfPlayExamMarkdownV4(report: BattleAiSelfPlayExa
       lines.push(`- blunderFindings: ${findings.map(formatBlunderFinding).join("; ")}`);
     }
     lines.push("");
-    lines.push("| player | choice | level | strategy | depth | score | value highlights | reason tags |");
-    lines.push("| --- | --- | --- | --- | ---: | ---: | --- | --- |");
+    lines.push("| player | choice | level | strategy | depth | score | value highlights | reason tags | selected parts |");
+    lines.push("| --- | --- | --- | --- | ---: | ---: | --- | --- | --- |");
     for (const choice of result.notableChoices.slice(0, 8)) {
-      lines.push(`| ${choice.playerId} | ${choice.choice} | ${choice.level} | ${choice.strategy || "-"} | ${choice.searchedDepth || 0} | ${round(choice.score)} | ${valueHighlights(choice.valueBreakdown)} | ${(choice.reasonTags || []).join(", ") || "-"} |`);
+      lines.push(`| ${choice.playerId} | ${choice.choice} | ${choice.level} | ${choice.strategy || "-"} | ${choice.searchedDepth || 0} | ${round(choice.score)} | ${valueHighlights(choice.valueBreakdown)} | ${(choice.reasonTags || []).join(", ") || "-"} | ${selectedPartsSummary(choice.selectedParts)} |`);
     }
     lines.push("");
   }
@@ -628,10 +639,54 @@ function selectedMoveTargets(decision: BattleAiDecisionDebugV4): string[] {
   return [...targets];
 }
 
+function selectedPartDiagnostics(
+  decision: BattleAiDecisionDebugV4,
+): NonNullable<BattleAiSelfPlayQuestionResultV4["notableChoices"][number]["selectedParts"]> {
+  const diagnostics = selectedTopCandidate(decision)?.diagnostics;
+  if (!diagnostics) return [];
+  const parts = diagnosticParts(diagnostics);
+  const entries = parts.length ? parts : [diagnostics];
+  return entries.map(part => ({
+    moveId: stringValue(part.moveId),
+    targetLoc: stringValue(part.targetLoc),
+    targetSpeciesIds: stringArrayValue(part.targetSpeciesIds),
+    typeMultiplier: finiteOptionalNumber(part.typeMultiplier),
+    expectedDamageRatio: finiteOptionalNumber(part.expectedDamageRatio),
+    immunityMemoryPenalty: finiteOptionalNumber(part.immunityMemoryPenalty),
+    previouslyImmuneTarget: stringValue(part.previouslyImmuneTarget),
+  }));
+}
+
+function selectedPartsSummary(parts: BattleAiSelfPlayQuestionResultV4["notableChoices"][number]["selectedParts"]): string {
+  if (!parts?.length) return "-";
+  return parts.map(part => {
+    const target = part.targetSpeciesIds?.join("+") || part.targetLoc || "?";
+    const mult = part.typeMultiplier === undefined ? "?" : round(part.typeMultiplier);
+    const ratio = part.expectedDamageRatio === undefined ? "?" : round(part.expectedDamageRatio);
+    const memory = part.immunityMemoryPenalty ? ` memory:${part.immunityMemoryPenalty}` : "";
+    return `${part.moveId || "move"}->${target} x${mult} r${ratio}${memory}`;
+  }).join("; ");
+}
+
 function diagnosticParts(diagnostics: Record<string, unknown>): Array<Record<string, unknown>> {
   return Array.isArray(diagnostics.parts)
     ? diagnostics.parts.filter((part): part is Record<string, unknown> => Boolean(part) && typeof part === "object" && !Array.isArray(part))
     : [];
+}
+
+function stringValue(value: unknown): string | undefined {
+  const text = String(value || "");
+  return text || undefined;
+}
+
+function stringArrayValue(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.map(entry => String(entry)).filter(Boolean);
+}
+
+function finiteOptionalNumber(value: unknown): number | undefined {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function notableChoicesFromSnapshot(snapshot: BattleServiceSnapshotV4): BattleAiSelfPlayQuestionResultV4["notableChoices"] {
@@ -647,6 +702,7 @@ function notableChoicesFromSnapshot(snapshot: BattleServiceSnapshotV4): BattleAi
       searchedDepth: decision.search?.searchedDepth,
       valueBreakdown: decision.search?.valueBreakdown,
       reasonTags: selectedReasonTags(decision),
+      selectedParts: selectedPartDiagnostics(decision),
     }));
 }
 
@@ -790,38 +846,120 @@ function ineffectiveMoveFindings(rawLog: string[]): BattleAiBlunderFindingV4[] {
   const findings: BattleAiBlunderFindingV4[] = [];
   const repeated = new Map<string, number>();
   let turn = 0;
-  let lastMove: {playerId?: ShowdownPlayerIdV4; moveName: string; target?: string; turn: number} | null = null;
+  let currentMove: BattleAiLoggedMoveV4 | null = null;
+  const flushMove = () => {
+    if (!currentMove || !currentMove.immuneTargets.length) {
+      currentMove = null;
+      return;
+    }
+    findings.push(...classifyIneffectiveLoggedMoveV4(currentMove, repeated));
+    currentMove = null;
+  };
   for (const line of rawLog) {
     const parts = line.split("|");
     if (parts[1] === "turn") {
+      flushMove();
       turn = Number(parts[2] || turn) || turn;
-      lastMove = null;
       continue;
     }
     if (parts[1] === "move") {
-      lastMove = {
+      flushMove();
+      currentMove = {
         playerId: playerIdFromSlot(parts[2]),
+        userSlot: parts[2],
         moveName: parts[3] || "unknown move",
         target: parts[4] || undefined,
         turn,
+        immuneTargets: [],
+        effectiveTargets: [],
       };
       continue;
     }
-    if (parts[1] !== "-immune" || !lastMove) continue;
-    const target = parts[2] || lastMove.target || "target";
-    const key = `${lastMove.playerId || "?"}:${lastMove.moveName}:${target}`;
+    if (!currentMove) continue;
+    if (parts[1] === "upkeep" || parts[1] === "faint" || parts[1] === "win") {
+      continue;
+    }
+    if (parts[1] === "-immune") {
+      currentMove.immuneTargets.push(parts[2] || currentMove.target || "target");
+      continue;
+    }
+    if (isPositiveMoveEffectLine(parts)) {
+      const target = parts[2] || currentMove.target;
+      if (target) currentMove.effectiveTargets.push(target);
+    }
+  }
+  flushMove();
+  return findings;
+}
+
+type BattleAiLoggedMoveV4 = {
+  playerId?: ShowdownPlayerIdV4;
+  userSlot?: string;
+  moveName: string;
+  target?: string;
+  turn: number;
+  immuneTargets: string[];
+  effectiveTargets: string[];
+};
+
+function classifyIneffectiveLoggedMoveV4(
+  move: BattleAiLoggedMoveV4,
+  repeated: Map<string, number>,
+): BattleAiBlunderFindingV4[] {
+  const findings: BattleAiBlunderFindingV4[] = [];
+  const enemyImmuneTargets = move.immuneTargets.filter(target => !sameSideBattleSlot(move.userSlot, target));
+  const allyImmuneTargets = move.immuneTargets.filter(target => sameSideBattleSlot(move.userSlot, target));
+  const enemyEffectiveTargets = unique(move.effectiveTargets.filter(target => !sameSideBattleSlot(move.userSlot, target) && !move.immuneTargets.includes(target)));
+  if (allyImmuneTargets.length && !enemyImmuneTargets.length) {
+    findings.push({
+      severity: "info",
+      kind: "ally-immune-combo",
+      playerId: move.playerId,
+      turn: move.turn,
+      choice: move.moveName,
+      detail: `${move.moveName} had no effect on ally ${allyImmuneTargets.join(", ")}; ignored as possible doubles immunity/combo context`,
+    });
+    return findings;
+  }
+  if (enemyImmuneTargets.length && enemyEffectiveTargets.length) {
+    findings.push({
+      severity: "info",
+      kind: "spread-partial-immune",
+      playerId: move.playerId,
+      turn: move.turn,
+      choice: move.moveName,
+      detail: `${move.moveName} had no effect on ${enemyImmuneTargets.join(", ")} but affected ${enemyEffectiveTargets.join(", ")}`,
+    });
+    return findings;
+  }
+  for (const target of enemyImmuneTargets) {
+    const key = `${move.playerId || "?"}:${move.moveName}:${target}`;
     const count = (repeated.get(key) || 0) + 1;
     repeated.set(key, count);
     findings.push({
       severity: count >= 2 ? "severe" : "warning",
       kind: count >= 2 ? "repeat-ineffective-move" : "ineffective-move",
-      playerId: lastMove.playerId,
-      turn: lastMove.turn,
-      choice: lastMove.moveName,
-      detail: `${lastMove.moveName} had no effect on ${target}${count >= 2 ? ` (${count} repeats for same target)` : ""}`,
+      playerId: move.playerId,
+      turn: move.turn,
+      choice: move.moveName,
+      detail: `${move.moveName} had no effect on ${target}${count >= 2 ? ` (${count} repeats for same target)` : ""}`,
     });
   }
   return findings;
+}
+
+function isPositiveMoveEffectLine(parts: string[]): boolean {
+  return parts[1] === "-damage" || parts[1] === "-boost" || parts[1] === "-unboost" || parts[1] === "-status" || parts[1] === "-start";
+}
+
+function sameSideBattleSlot(left: string | undefined, right: string | undefined): boolean {
+  const leftMatch = String(left || "").match(/^p([1-4])/);
+  const rightMatch = String(right || "").match(/^p([1-4])/);
+  return Boolean(leftMatch && rightMatch && leftMatch[1] === rightMatch[1]);
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values)];
 }
 
 function playerIdFromSlot(slot: string | undefined): ShowdownPlayerIdV4 | undefined {

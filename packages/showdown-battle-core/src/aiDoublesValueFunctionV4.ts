@@ -31,7 +31,9 @@ export type BattleAiDoublesReasonTagV4 =
   | "commit-dynamax"
   | "hold-dynamax"
   | "commit-tera"
-  | "hold-tera";
+  | "hold-tera"
+  | "avoid-immune-move"
+  | "avoid-repeat-immune-move";
 
 export type BattleAiDoublesJointPartV4 = {
   slotIndex: number;
@@ -107,6 +109,16 @@ export function evaluateBattleAiDoublesJointValueV4(input: BattleAiDoublesValueI
     const koChance = finiteNumber(diagnostics.koChance, 0);
     const damaging = category !== "status" && expectedDamageRatio > 0;
     const pressure = damagingPressure(part);
+    const singleFoeImmune = Boolean(part.parsed.target?.startsWith("+")) && !isSpreadMoveTarget(moveTarget) && category !== "status" && finiteNumber(diagnostics.typeMultiplier, 1) <= 0 && expectedDamageRatio <= 0;
+    if (singleFoeImmune) {
+      tags.add("avoid-immune-move");
+      breakdown.risk -= 95;
+    }
+    const immunityMemoryPenalty = finiteNumber(diagnostics.immunityMemoryPenalty, 0);
+    if (immunityMemoryPenalty < 0) {
+      tags.add("avoid-repeat-immune-move");
+      breakdown.risk += immunityMemoryPenalty;
+    }
 
     if (part.parsed.target?.startsWith("+")) {
       tags.add("foe-target");
@@ -352,6 +364,10 @@ function weatherFromMove(moveId: string): "rain" | "sun" | "sand" | "snow" | nul
   if (moveId === "sandstorm") return "sand";
   if (moveId === "snowscape" || moveId === "hail") return "snow";
   return null;
+}
+
+function isSpreadMoveTarget(target: string): boolean {
+  return target === "alladjacent" || target === "alladjacentfoes";
 }
 
 function specialSystemTags(diagnostics: Record<string, unknown>): string[] {

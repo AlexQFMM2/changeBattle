@@ -32,6 +32,7 @@ import {evaluateBattleAiMoveV4, type BattleAiMoveEvaluationV4} from "./aiMoveEva
 import {battleAiCapabilityForLevelV4, chooseBattleAiActionBySearchV4, type BattleAiCandidateV4} from "./aiSearchEngineV4.js";
 import {analyzeBattleAiTeamRolesV4, type BattleAiTeamRoleAnalysisV4} from "./aiTeamRoleAnalyzerV4.js";
 import {scoreBattleAiSpecialSystemV4, type BattleAiSpecialSystemScoreV4} from "./aiSpecialSystemScorerV4.js";
+import {battleAiImmunityMemoryMatchForMoveV4, buildBattleAiImmunityMemoryV4} from "./aiImmunityMemoryV4.js";
 
 export type BattleAiChoiceContextV4 = {
   request?: BattleServiceRequestV4 | null;
@@ -384,6 +385,7 @@ function generateMoveTurnCandidates(
   rng: () => number,
 ): AiCandidate[] {
   const activeRequests = fixedActiveRequests(request);
+  const immunityMemory = buildBattleAiImmunityMemoryV4(context.snapshot);
   const slotCandidates = activeRequests.map((active, activeIndex) => {
     if (!active) return [passCandidate(context, profile, rng, activeIndex)];
     const actions: AiCandidate[] = [];
@@ -416,6 +418,14 @@ function generateMoveTurnCandidates(
             evaluation,
             roleAnalysis: context.roleAnalysis,
           });
+          const immunityMemoryMatch = battleAiImmunityMemoryMatchForMoveV4({
+            memory: immunityMemory,
+            snapshot: context.snapshot,
+            playerId: context.playerId,
+            targetLoc: target,
+            move: targetMove,
+            diagnostics: evaluation.diagnostics,
+          });
           actions.push(scoreCandidate({
             choice: stringifyShowdownChoiceCommandV4(parsed),
             kind: "move",
@@ -426,8 +436,12 @@ function generateMoveTurnCandidates(
               specialSystemScore: specialSystem.score || undefined,
               specialSystemTags: specialSystem.tags.length ? specialSystem.tags : undefined,
               specialSystemBreakdown: Object.keys(specialSystem.breakdown).length ? specialSystem.breakdown : undefined,
+              immunityMemoryPenalty: immunityMemoryMatch?.penalty,
+              previouslyImmuneTarget: immunityMemoryMatch?.targetLabel,
+              immunityMemoryTurn: immunityMemoryMatch?.turn,
+              immunityMemoryConfidence: immunityMemoryMatch?.confidence,
             },
-          }, context, profile, rng));
+          }, context, profile, rng, immunityMemoryMatch?.penalty || 0));
         }
       }
     }
