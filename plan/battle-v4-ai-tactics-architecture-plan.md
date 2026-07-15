@@ -440,6 +440,8 @@
 - [x] 双打 v0：debug 输出 doubles reason tags。
 - [x] 双打 v1：引入 ally combo detector 后，打队友才允许正收益。
 - [x] 双打 v1：实现 Weakness Policy / Contrary / 吸收特性首批 combo。
+- [x] 双打 v1：抽出 `aiDoublesValueFunctionV4.ts`，输出 bounded value breakdown。
+- [x] 双打 v1：value breakdown 覆盖 targeting / spread / friendlyFire / combo / protect / disruption / speedControl / field / priority / resource / risk。
 - [ ] 双打 v2：引入对手 joint reply，馆主/四天王/冠军按 `1/2/3` 搜索。
 
 ## 13.1 合作 Coop Strategy
@@ -477,18 +479,18 @@
 
 ## 15. 特殊招式第一批
 
-- [ ] Protect：残血会被击杀或被双点时加分。
-- [ ] Protect：己方稳定 KO 且不需要保护时扣分。
+- [x] Protect：残血会被击杀或被双点时加分。
+- [x] Protect：己方稳定 KO 且不需要保护时扣分。
 - [ ] Fake Out：仅首回合/可用时保留高权重。
 - [ ] Fake Out：不可用时剪枝或强扣分。
 - [ ] Sucker Punch：目标高概率攻击时加分。
 - [ ] Sucker Punch：目标高概率变化招时扣分。
-- [ ] Tailwind：我方无顺风且速度线收益明显时加分。
+- [x] Tailwind：我方无顺风且速度线收益明显时加分。
 - [ ] Tailwind：我方已有顺风时扣分或剪枝。
-- [ ] Trick Room：低速队收益时加分。
-- [ ] Trick Room：高速队自毁时扣分。
-- [ ] Weather move：能抢天气且己方收益高时加分。
-- [ ] Terrain move：能抢场地且己方收益高时加分。
+- [x] Trick Room：低速队收益时加分。
+- [x] Trick Room：高速队自毁时扣分。
+- [x] Weather move：能抢天气且己方收益高时加分。
+- [x] Terrain move：能抢场地且己方收益高时加分。
 - [ ] Recovery：能脱离 KO 线时加分。
 - [ ] Setup move：有存活窗口和后续收益时加分。
 
@@ -618,16 +620,16 @@
 - [ ] 不攻击 fainted 目标。
 - [ ] spread move 命中多个目标。
 - [x] spread move 计算队友误伤。
-- [ ] 双点 KO 威胁下 Protect 分提高。
-- [ ] Fake Out 阻止 Trick Room。
-- [ ] Tailwind mirror 场景。
-- [ ] Trick Room vs 高速队场景。
+- [x] 双点 KO 威胁下 Protect 分提高。
+- [x] Fake Out 阻止 Trick Room。
+- [x] Tailwind mirror 场景。
+- [x] Trick Room vs 高速队场景。
 - [ ] Weather war 场景。
-- [ ] Weakness Policy 打队友触发场景。
-- [ ] Contrary + stat drop 打队友强化场景。
-- [ ] Flash Fire 队友触发场景。
-- [ ] Lightning Rod / Storm Drain 队友吸收场景。
-- [ ] Surf / Discharge / Earthquake 配合免疫场景。
+- [x] Weakness Policy 打队友触发场景。
+- [x] Contrary + stat drop 打队友强化场景。
+- [x] Flash Fire 队友触发场景。
+- [x] Lightning Rod / Storm Drain 队友吸收场景。
+- [x] Surf / Discharge / Earthquake 配合免疫场景。
 - [ ] joint action 不能生成非法 target suffix。
 - [x] doubles v0：`Earthquake/allAdjacent` 输出 `spread-friendly-fire-risk`。
 - [x] doubles v0：`Rock Slide/allAdjacentFoes` 输出 `spread-foes`。

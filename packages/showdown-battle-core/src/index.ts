@@ -41,6 +41,7 @@ export * from "./ai.js";
 export * from "./aiActionOutcomeEstimatorV4.js";
 export * from "./aiAllyComboDetectorV4.js";
 export * from "./aiDoublesStrategyV4.js";
+export * from "./aiDoublesValueFunctionV4.js";
 export * from "./aiMoveEvaluator.js";
 export * from "./aiSearchEngineV4.js";
 export * from "./aiSpeedStateV4.js";

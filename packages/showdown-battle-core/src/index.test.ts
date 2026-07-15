@@ -3332,6 +3332,9 @@ function aiDoublesStrategyV0Smoke() {
   if (!rockSlide.tags.includes("spread-foes") || !(rockSlide.adjustment > earthquake.adjustment)) {
     throw new Error(`Rock Slide should be recognized as foe-only spread: ${JSON.stringify({rockSlide, earthquake})}`);
   }
+  if (!(rockSlide.valueBreakdown.spread > 0) || !(earthquake.valueBreakdown.friendlyFire < 0)) {
+    throw new Error(`Doubles value breakdown should expose spread and friendly-fire parts: ${JSON.stringify({rockSlide, earthquake})}`);
+  }
   const allyDamage = scoreBattleAiDoublesJointCandidateV4(request, {
     choice: "move 3 -2, move 3",
     score: 100,
@@ -3394,6 +3397,82 @@ function aiDoublesStrategyV0Smoke() {
   });
   if (!doubleTarget.tags.includes("double-target-foe") || !(doubleTarget.adjustment > 0)) {
     throw new Error(`Double targeting the same foe should be recognized: ${JSON.stringify(doubleTarget)}`);
+  }
+  const protectFromDoubleTarget = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 3, move 1 +1",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0, incomingDoubleTarget: true, incomingPressureRatio: 0.9},
+      {moveId: "thunderbolt", target: "normal", category: "special", expectedDamageRatio: 0.45},
+    ]},
+  });
+  if (!protectFromDoubleTarget.tags.includes("protect-from-double-target") || !(protectFromDoubleTarget.valueBreakdown.protect > 0)) {
+    throw new Error(`Protect should gain value when the slot is under double-target pressure: ${JSON.stringify(protectFromDoubleTarget)}`);
+  }
+  const fakeOutStopSetup = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 1 +1, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "fakeout", target: "normal", category: "physical", expectedDamageRatio: 0.08, targetLikelyMove: "trickroom"},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!fakeOutStopSetup.tags.includes("fake-out-stop-setup") || !(fakeOutStopSetup.valueBreakdown.disruption > 0)) {
+    throw new Error(`Fake Out should gain disruption value against likely setup: ${JSON.stringify(fakeOutStopSetup)}`);
+  }
+  const tailwindValue = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 1, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "tailwind", target: "self", category: "status", expectedDamageRatio: 0},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!tailwindValue.tags.includes("tailwind-speed-control") || !(tailwindValue.valueBreakdown.speedControl > 0)) {
+    throw new Error(`Tailwind should expose speed-control value: ${JSON.stringify(tailwindValue)}`);
+  }
+  const slowRoomRequest: BattleServiceRequestV4 = {
+    ...request,
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Hatterene", details: "Hatterene, L50", condition: "150/150", active: true, ability: "Magic Bounce", moves: ["Trick Room"], stats: {hp: 150, atk: 80, def: 120, spa: 170, spd: 130, spe: 30}},
+        {ident: "p2: Torkoal", details: "Torkoal, L50", condition: "170/170", active: true, ability: "Drought", moves: ["Protect"], stats: {hp: 170, atk: 105, def: 160, spa: 150, spd: 90, spe: 25}},
+      ],
+    },
+  };
+  const trickRoomValue = scoreBattleAiDoublesJointCandidateV4(slowRoomRequest, {
+    choice: "move 1, move 1",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "trickroom", target: "self", category: "status", expectedDamageRatio: 0},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!trickRoomValue.tags.includes("trick-room-value") || !(trickRoomValue.valueBreakdown.speedControl > 0)) {
+    throw new Error(`Trick Room should gain value for a slow doubles pair: ${JSON.stringify(trickRoomValue)}`);
+  }
+  const dynamaxValue = scoreBattleAiDoublesJointCandidateV4(request, {
+    choice: "move 3 +1, move 3",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "maxairstream", target: "normal", category: "physical", expectedDamageRatio: 0.7, koChance: 0.5, specialSystemTags: ["dynamax", "max-speed"]},
+      {moveId: "protect", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!dynamaxValue.tags.includes("commit-dynamax") || !(dynamaxValue.valueBreakdown.resource > 0)) {
+    throw new Error(`Dynamax speed/resource value should be visible in doubles scoring: ${JSON.stringify(dynamaxValue)}`);
   }
 
   const flashFireRequest: BattleServiceRequestV4 = {
