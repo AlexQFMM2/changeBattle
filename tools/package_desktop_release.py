@@ -55,7 +55,6 @@ REQUIRED_SHOWDOWN_PATHS = [
     "sim/teams.js",
     "data/pokedex.js",
     "lib/index.js",
-    "node_modules/ts-chacha20/package.json",
 ]
 REQUIRED_SHOWDOWN_CLIENT_PATHS = [
     "js/battle-dex-data.js",
@@ -184,9 +183,30 @@ def copy_showdown_vendor(showdown_root: Path, dst_root: Path) -> None:
         src = showdown_root / dirname
         if src.exists():
             shutil.copytree(src, dst_root / dirname, ignore=ignore_showdown_path)
-    module_src = showdown_root / "node_modules" / "ts-chacha20"
+    module_src = resolve_ts_chacha20_package(showdown_root)
     module_dst = dst_root / "node_modules" / "ts-chacha20"
+    module_dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(module_src, module_dst, ignore=ignore_showdown_path)
+
+
+def resolve_ts_chacha20_package(showdown_root: Path) -> Path:
+    local_vendor_module = showdown_root / "node_modules" / "ts-chacha20"
+    if (local_vendor_module / "package.json").exists():
+        return local_vendor_module
+
+    output = subprocess.check_output(
+        [
+            "node",
+            "-e",
+            "console.log(require.resolve('ts-chacha20/package.json'))",
+        ],
+        cwd=PROJECT_ROOT,
+        text=True,
+    ).strip()
+    module_src = Path(output).parent
+    if not (module_src / "package.json").exists():
+        raise RuntimeError("Cannot resolve ts-chacha20 package for portable Showdown vendor.")
+    return module_src
 
 
 def copy_showdown_client_vendor(showdown_client_root: Path, dst_root: Path) -> None:
