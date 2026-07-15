@@ -540,8 +540,14 @@ function RoutedApp({runtime}: AppProps) {
 
   async function checkDesktopUpdatesFromVersionBadge() {
     if (!desktopAppBridge || desktopUpdateChecking) return;
+    const currentVersion = String(import.meta.env.VITE_CHANGEBATTLE_DESKTOP_VERSION || "").trim() || "unknown";
     setDesktopUpdateChecking(true);
     setDesktopManualUpdateCheckActive(true);
+    setDesktopUpdateStatus({
+      phase: "checking",
+      currentVersion,
+      officialSiteUrl: desktopUpdateStatus?.officialSiteUrl || "",
+    });
     setDesktopUpdateModalDismissed(false);
     try {
       const status = await desktopAppBridge.checkForUpdates();
