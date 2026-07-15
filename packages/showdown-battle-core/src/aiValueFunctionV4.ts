@@ -194,30 +194,75 @@ function specialMoveValue(input: BattleAiSinglesLeafValueInputV4): number {
   const selfHp = hpRatio(input.initialState.self);
   const foeKoChance = candidateKoChance(input.foe);
   const ownKoChance = candidateKoChance(input.own);
+  const specialTags = candidateSpecialSystemTags(input.own);
   const actsBefore = input.initialState.fieldSpeed
     ? battleAiActsBeforeBySpeedV4(input.initialState.self.speed, input.initialState.foe.speed, input.initialState.fieldSpeed)
     : null;
+  let specialValue = specialSystemContextValue(input, specialTags, actsBefore);
   if (PROTECT_MOVES.has(moveId)) {
-    if (foeKoChance >= 1 || input.buckets.includes("self-ko-risk")) return 22;
-    if (ownKoChance >= 1) return -18;
-    return selfHp < 0.35 ? 8 : -8;
+    if (foeKoChance >= 1 || input.buckets.includes("self-ko-risk")) return specialValue + 22;
+    if (ownKoChance >= 1) return specialValue - 18;
+    return specialValue + (selfHp < 0.35 ? 8 : -8);
   }
   if (RECOVERY_MOVES.has(moveId)) {
-    if (selfHp > 0.75) return -14;
-    if (foeKoChance < 1 && selfHp <= 0.5) return 24;
-    return selfHp <= 0.65 ? 10 : -4;
+    if (selfHp > 0.75) return specialValue - 14;
+    if (foeKoChance < 1 && selfHp <= 0.5) return specialValue + 24;
+    return specialValue + (selfHp <= 0.65 ? 10 : -4);
   }
   if (SETUP_MOVES.has(moveId)) {
-    if (selfHp <= 0.35 || foeKoChance >= 1 || actsBefore === false && expectedDamageRatio(input.foe) >= 0.45) return -24;
-    return 18 + (input.state.selfResources?.winConditionHealthy ? 8 : 0);
+    if (selfHp <= 0.35 || foeKoChance >= 1 || actsBefore === false && expectedDamageRatio(input.foe) >= 0.45) return specialValue - 24;
+    return specialValue + 18 + (input.state.selfResources?.winConditionHealthy ? 8 : 0);
   }
   if (moveId === "suckerpunch") {
     const foeMoveId = candidateMoveId(input.foe);
     const foeAttacks = expectedDamageRatio(input.foe) > 0 || candidateKoChance(input.foe) > 0;
-    return foeAttacks && !PROTECT_MOVES.has(foeMoveId) && !SETUP_MOVES.has(foeMoveId) ? 18 : -16;
+    return specialValue + (foeAttacks && !PROTECT_MOVES.has(foeMoveId) && !SETUP_MOVES.has(foeMoveId) ? 18 : -16);
   }
-  if (movePriority(moveId) > 0 && ownKoChance >= 1) return 18;
-  return 0;
+  if (movePriority(moveId) > 0 && ownKoChance >= 1) specialValue += 18;
+  return specialValue;
+}
+
+function specialSystemContextValue(
+  input: BattleAiSinglesLeafValueInputV4,
+  tags: string[],
+  actsBefore: boolean | null,
+): number {
+  if (!tags.length) return 0;
+  let value = 0;
+  const foeKoChance = candidateKoChance(input.foe);
+  const ownKoChance = candidateKoChance(input.own);
+  const foeDamage = expectedDamageRatio(input.foe);
+  if (tags.includes("dynamax")) value += 6;
+  if (tags.includes("dynamax-survival")) {
+    if (foeKoChance >= 1 || input.buckets.includes("self-ko-risk")) value += 28;
+    else if (foeDamage >= 0.55) value += 16;
+    else value += 6;
+  }
+  if (tags.includes("max-guard")) {
+    if (foeKoChance >= 1 || input.buckets.includes("self-ko-risk")) value += 26;
+    if (ownKoChance >= 1) value -= 22;
+  }
+  if (tags.includes("max-speed")) {
+    if (actsBefore === false) value += 28;
+    else if (ownKoChance >= 1) value += 16;
+    else value += 10;
+  }
+  if (tags.includes("max-physical-boost") || tags.includes("max-special-boost")) {
+    value += setupWindow(input) ? 16 : 8;
+  }
+  if (tags.includes("max-defense-boost") || tags.includes("max-special-defense-boost")) {
+    value += foeDamage >= 0.45 || foeKoChance > 0 ? 18 : 8;
+  }
+  if (tags.includes("max-weather") || tags.includes("max-terrain")) value += 8;
+  if (tags.includes("max-defense-drop") || tags.includes("max-special-defense-drop") || tags.includes("max-speed-drop")) value += expectedDamageRatio(input.own) >= 0.35 ? 10 : 4;
+  if (tags.includes("max-offense-drop")) value += foeDamage >= 0.35 ? 10 : 4;
+  if (tags.includes("gmax-residual") || tags.includes("gmax-hazard")) value += (input.state.foeResources?.aliveCount || 1) > 1 ? 12 : 4;
+  if (tags.includes("gmax-aurora-veil")) value += foeDamage >= 0.35 ? 18 : 10;
+  if (tags.includes("gmax-status") || tags.includes("gmax-ignore-protect") || tags.includes("gmax-clear-field")) value += 8;
+  if (tags.includes("tera-offense")) value += ownKoChance >= 1 ? 14 : expectedDamageRatio(input.own) >= 0.5 ? 8 : 2;
+  if (tags.includes("tera-defensive")) value += foeKoChance >= 1 || input.buckets.includes("self-ko-risk") ? 22 : foeDamage >= 0.45 ? 10 : 0;
+  if (tags.includes("tera-wincon")) value += input.state.selfResources?.activeIsWinCondition ? 8 : 0;
+  return value;
 }
 
 function roleValueBonus(input: BattleAiSinglesLeafValueInputV4): number {
@@ -301,6 +346,10 @@ function candidateKoChance(candidate: BattleAiValueCandidateV4): number {
 
 function expectedDamageRatio(candidate: BattleAiValueCandidateV4): number {
   return firstFiniteNumber(flattenedDiagnostics(candidate.diagnostics).map(entry => Number(entry.expectedDamageRatio))) ?? 0;
+}
+
+function candidateSpecialSystemTags(candidate: BattleAiValueCandidateV4): string[] {
+  return flattenedDiagnostics(candidate.diagnostics).flatMap(entry => Array.isArray(entry.specialSystemTags) ? entry.specialSystemTags.map(String) : []);
 }
 
 function movePriority(moveId: string): number {

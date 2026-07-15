@@ -30,7 +30,8 @@ import {
 } from "./showdownCommand.js";
 import {evaluateBattleAiMoveV4, type BattleAiMoveEvaluationV4} from "./aiMoveEvaluator.js";
 import {battleAiCapabilityForLevelV4, chooseBattleAiActionBySearchV4, type BattleAiCandidateV4} from "./aiSearchEngineV4.js";
-import {analyzeBattleAiTeamRolesV4} from "./aiTeamRoleAnalyzerV4.js";
+import {analyzeBattleAiTeamRolesV4, type BattleAiTeamRoleAnalysisV4} from "./aiTeamRoleAnalyzerV4.js";
+import {scoreBattleAiSpecialSystemV4, type BattleAiSpecialSystemScoreV4} from "./aiSpecialSystemScorerV4.js";
 
 export type BattleAiChoiceContextV4 = {
   request?: BattleServiceRequestV4 | null;
@@ -39,6 +40,7 @@ export type BattleAiChoiceContextV4 = {
   aiProfile?: BattleAiProfileV4 | null;
   rngSeed?: string;
   timeBudgetMs?: number;
+  roleAnalysis?: BattleAiTeamRoleAnalysisV4;
 };
 
 export type BattleAiChoiceResultV4 = {
@@ -188,7 +190,8 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
   const rng = createSeededRng(`${context.rngSeed || context.snapshot.id}:${context.playerId}:${requestKey}:${profile.level}:${profile.preference}`);
   const capabilities = battleAiCapabilityForLevelV4(profile.level);
   const roleAnalysis = capabilities.useRoleAnalysis && request ? analyzeBattleAiTeamRolesV4({playerId: context.playerId, request, snapshot: context.snapshot}) : undefined;
-  const candidates = generateTurnCandidates(request, context, profile, rng);
+  const contextWithRoleAnalysis: BattleAiChoiceContextV4 = {...context, request, roleAnalysis};
+  const candidates = generateTurnCandidates(request, contextWithRoleAnalysis, profile, rng);
   const legalCandidates = candidates.map(candidate => ({
     ...candidate,
     choice: sanitizeAiChoice(candidate.choice, context.snapshot.ruleSet, context.snapshot.mode, allowedSpecialSystemsForPlayer(context)),
@@ -207,7 +210,12 @@ export function chooseAiBattleChoiceV4(context: BattleAiChoiceContextV4): Battle
     generateCandidatesForPlayer: (playerId, playerRequest) => {
       const requestKeyForPlayer = battleAiRequestKeyV4(playerId, playerRequest);
       const playerRng = createSeededRng(`${context.rngSeed || context.snapshot.id}:${playerId}:${requestKeyForPlayer}:${profile.level}:${profile.preference}:search-reply`);
-      const playerContext: BattleAiChoiceContextV4 = {...context, playerId, request: playerRequest};
+      const playerContext: BattleAiChoiceContextV4 = {
+        ...context,
+        playerId,
+        request: playerRequest,
+        roleAnalysis: capabilities.useRoleAnalysis ? analyzeBattleAiTeamRolesV4({playerId, request: playerRequest, snapshot: context.snapshot}) : undefined,
+      };
       return generateTurnCandidates(playerRequest, playerContext, profile, playerRng)
         .map(candidate => ({
           ...candidate,
@@ -398,12 +406,27 @@ function generateMoveTurnCandidates(
             aiProfile: profile,
             timeBudgetMs: context.timeBudgetMs,
           });
+          const specialSystem = scoreBattleAiSpecialSystemV4({
+            request,
+            snapshot: context.snapshot,
+            playerId: context.playerId,
+            activeIndex,
+            move: targetMove,
+            special,
+            evaluation,
+            roleAnalysis: context.roleAnalysis,
+          });
           actions.push(scoreCandidate({
             choice: stringifyShowdownChoiceCommandV4(parsed),
             kind: "move",
             activeIndex,
-            features: featuresForMove(request, activeIndex, targetMove, special, evaluation),
-            diagnostics: evaluation.diagnostics,
+            features: featuresForMove(request, activeIndex, targetMove, special, evaluation, specialSystem),
+            diagnostics: {
+              ...evaluation.diagnostics,
+              specialSystemScore: specialSystem.score || undefined,
+              specialSystemTags: specialSystem.tags.length ? specialSystem.tags : undefined,
+              specialSystemBreakdown: Object.keys(specialSystem.breakdown).length ? specialSystem.breakdown : undefined,
+            },
           }, context, profile, rng));
         }
       }
@@ -537,6 +560,7 @@ function featuresForMove(
   move: BattleServiceMoveRequestV4,
   special: ShowdownSpecialChoiceV4 | null,
   evaluation: BattleAiMoveEvaluationV4,
+  specialSystem: BattleAiSpecialSystemScoreV4,
 ): BattleAiFeatureVectorV4 {
   const features = emptyFeatures();
   const id = normalizeId(move.id || move.move);
@@ -548,13 +572,18 @@ function featuresForMove(
   features.ko = evaluation.koChance >= 1 ? 100 : evaluation.koChance > 0 ? 55 * evaluation.koChance : 0;
   features.stab = evaluation.stab > 1 ? 18 : 0;
   features.typeAdvantage = typeMultiplierFeatureScore(evaluation.typeMultiplier);
+  if (evaluation.typeMultiplier <= 0 && Number(evaluation.diagnostics.expectedDamageRatio || 0) <= 0 && !statusMove) {
+    features.damage = -60;
+    features.ko = 0;
+    features.typeAdvantage = -180;
+  }
   features.accuracy = evaluation.accuracy >= 100 ? 8 : evaluation.accuracy >= 90 ? 4 : evaluation.accuracy >= 80 ? -4 : -12;
   features.survival = hpRatio < 0.35 ? 20 : hpRatio < 0.6 ? 8 : 0;
   features.protect = protectMove ? (hpRatio < 0.5 ? 42 : 18) : 0;
   features.recovery = recoveryMove ? (hpRatio < 0.5 ? 46 : 8) : 0;
   features.support = statusMove ? Math.max(24, evaluation.utilityScore) : evaluation.utilityScore;
   features.switch = 0;
-  features.special = special ? specialScore(special, features) : 0;
+  features.special = special ? specialSystem.score || specialScore(special, features) : 0;
   features.targeting = evaluation.diagnostics.targetLoc ? 8 : 0;
   features.weather = moveIsWeather(id) ? 24 : 0;
   features.terrain = moveIsTerrain(id) ? 24 : 0;

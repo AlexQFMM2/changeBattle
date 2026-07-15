@@ -13,6 +13,7 @@ import {
   buildBattleAiSpeedFieldStateV4,
   buildBattleAiSpeedStateV4,
   estimateBattleAiActionOutcomeV4,
+  evaluateBattleAiMoveV4,
   evaluateBattleAiSinglesLeafValueV4,
   parseShowdownChoiceCommandV4,
   randomLegalChoice,
@@ -1763,8 +1764,39 @@ function aiSpecialSystemSmoke() {
   if (!gen8.debug.selectedChoice.includes("max")) {
     throw new Error(`AI did not select a Gen8 max choice: ${JSON.stringify(gen8.debug)}`);
   }
+  const gen8MaxTags = gen8.debug.topCandidates.flatMap(entry =>
+    Array.isArray(entry.diagnostics?.specialSystemTags) ? entry.diagnostics.specialSystemTags.map(String) : [],
+  );
+  if (!gen8MaxTags.includes("dynamax") || !gen8MaxTags.includes("max-terrain")) {
+    throw new Error(`Gen8 max candidate should expose strategic terrain tags: ${JSON.stringify(gen8.debug.topCandidates)}`);
+  }
   if (gen8.debug.topCandidates.some(entry => entry.choice.includes("mega") || entry.choice.includes("zmove") || entry.choice.includes("terastallize"))) {
     throw new Error(`AI leaked Gen7 special candidates in Gen8: ${JSON.stringify(gen8.debug.topCandidates)}`);
+  }
+
+  const maxGeyserRequest: BattleServiceRequestV4 = {
+    rqid: 12,
+    active: [
+      {
+        canDynamax: true,
+        maxMoves: [{move: "Max Geyser", id: "maxgeyser", pp: 10, maxpp: 10, target: "normal"}],
+        moves: [{move: "Water Gun", id: "watergun", pp: 25, maxpp: 25, target: "normal"}],
+      },
+    ],
+    side: {id: "p2", name: "B", pokemon: [{ident: "p2: Pelipper", details: "Pelipper, L50", condition: "65/100", active: true, ability: "Drizzle"}]},
+  };
+  const maxGeyser = chooseAiBattleChoiceV4({
+    request: maxGeyserRequest,
+    snapshot: aiSnapshot("gen8", "singles", maxGeyserRequest, ["max"]),
+    playerId: "p2",
+    aiProfile: {level: "champion", preference: "offense"},
+    rngSeed: "gen8-max-geyser",
+  });
+  const maxGeyserTags = maxGeyser.debug.topCandidates.flatMap(entry =>
+    Array.isArray(entry.diagnostics?.specialSystemTags) ? entry.diagnostics.specialSystemTags.map(String) : [],
+  );
+  if (!maxGeyserTags.includes("max-weather")) {
+    throw new Error(`Max Geyser should expose weather momentum tag: ${JSON.stringify(maxGeyser.debug.topCandidates)}`);
   }
 
   const gen9 = chooseAiBattleChoiceV4({
@@ -1784,6 +1816,105 @@ function aiSpecialSystemSmoke() {
     throw new Error(`AI leaked non-Gen9 special candidates in Gen9: ${JSON.stringify(gen9.debug.topCandidates)}`);
   }
   console.log("showdown-battle-core ai special system smoke ok");
+}
+
+function aiTeraMoveEvaluatorSmoke() {
+  const request: BattleServiceRequestV4 = {
+    rqid: 13,
+    active: [
+      {
+        canTerastallize: true,
+        moves: [
+          {move: "Flamethrower", id: "flamethrower", pp: 15, maxpp: 15, target: "normal"},
+          {move: "Tera Blast", id: "terablast", pp: 10, maxpp: 10, target: "normal"},
+        ],
+      },
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {
+          ident: "p2: Charizard",
+          details: "Charizard, L50",
+          condition: "150/150",
+          active: true,
+          ability: "Blaze",
+          teraType: "Fire",
+          stats: {hp: 150, atk: 90, def: 90, spa: 150, spd: 105, spe: 120},
+        },
+      ],
+    },
+  };
+  const fireSnapshot = {
+    ...aiSnapshot("gen9", "singles", request, ["terastallize"]),
+    active: [
+      {ident: "p1a: Ferrothorn", playerId: "p1", slot: "p1a", species: "Ferrothorn", details: "Ferrothorn, L50", condition: "181/181", hp: 181, maxHp: 181, status: "", fainted: false},
+      {ident: "p2a: Charizard", playerId: "p2", slot: "p2a", species: "Charizard", details: "Charizard, L50", condition: "150/150", hp: 150, maxHp: 150, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const normalFire = evaluateBattleAiMoveV4({
+    request,
+    snapshot: fireSnapshot,
+    playerId: "p2",
+    activeIndex: 0,
+    move: request.active![0]!.moves![0]!,
+    special: null,
+  });
+  const teraFire = evaluateBattleAiMoveV4({
+    request,
+    snapshot: fireSnapshot,
+    playerId: "p2",
+    activeIndex: 0,
+    move: request.active![0]!.moves![0]!,
+    special: "terastallize",
+  });
+  if (normalFire.stab !== 1.5 || teraFire.stab !== 2 || teraFire.expectedDamageRange.average <= normalFire.expectedDamageRange.average) {
+    throw new Error(`same-type tera should upgrade STAB from 1.5 to 2: ${JSON.stringify({normalFire, teraFire})}`);
+  }
+
+  const teraBlastRequest: BattleServiceRequestV4 = {
+    ...request,
+    side: {
+      ...request.side!,
+      pokemon: [
+        {
+          ...request.side!.pokemon[0]!,
+          teraType: "Electric",
+        },
+      ],
+    },
+  };
+  const electricSnapshot = {
+    ...aiSnapshot("gen9", "singles", teraBlastRequest, ["terastallize"]),
+    active: [
+      {ident: "p1a: Gyarados", playerId: "p1", slot: "p1a", species: "Gyarados", details: "Gyarados, L50", condition: "65/170", hp: 65, maxHp: 170, status: "", fainted: false},
+      {ident: "p2a: Charizard", playerId: "p2", slot: "p2a", species: "Charizard", details: "Charizard, L50", condition: "150/150", hp: 150, maxHp: 150, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const teraBlast = evaluateBattleAiMoveV4({
+    request: teraBlastRequest,
+    snapshot: electricSnapshot,
+    playerId: "p2",
+    activeIndex: 0,
+    move: teraBlastRequest.active![0]!.moves![1]!,
+    special: "terastallize",
+  });
+  const teraFlamethrower = evaluateBattleAiMoveV4({
+    request: teraBlastRequest,
+    snapshot: electricSnapshot,
+    playerId: "p2",
+    activeIndex: 0,
+    move: teraBlastRequest.active![0]!.moves![0]!,
+    special: "terastallize",
+  });
+  if (teraBlast.diagnostics.moveType !== "Electric" || teraBlast.stab !== 1.5) {
+    throw new Error(`Tera Blast should become tera type and gain tera STAB: ${JSON.stringify(teraBlast)}`);
+  }
+  if (teraFlamethrower.diagnostics.moveType !== "Fire") {
+    throw new Error(`non-Tera Blast moves should keep their original type under tera: ${JSON.stringify(teraFlamethrower)}`);
+  }
+  console.log("showdown-battle-core ai tera move evaluator smoke ok");
 }
 
 function aiMaxGuardTargetSmoke() {
@@ -1828,6 +1959,12 @@ function aiMaxGuardTargetSmoke() {
   });
   if (result.debug.topCandidates.some(candidate => candidate.choice.includes("move 3 max +"))) {
     throw new Error(`AI generated illegal target suffix for Max Guard: ${JSON.stringify(result.debug.topCandidates)}`);
+  }
+  const maxGuardTags = result.debug.topCandidates.flatMap(candidate =>
+    Array.isArray(candidate.diagnostics?.specialSystemTags) ? candidate.diagnostics.specialSystemTags.map(String) : [],
+  );
+  if (!maxGuardTags.includes("max-guard")) {
+    throw new Error(`Max Guard should expose survival/stall tag: ${JSON.stringify(result.debug.topCandidates)}`);
   }
   console.log("showdown-battle-core ai max guard target smoke ok");
 }
@@ -1980,6 +2117,52 @@ function aiDexDamageEvaluatorSmoke() {
     if (!best || !["knockoff", "stoneedge"].includes(String(best.diagnostics?.moveId || ""))) {
       throw new Error(`AI should rank Knock Off or Stone Edge above Ice Beam: ${JSON.stringify(result.debug.topCandidates)}`);
     }
+  }
+
+  const immuneRequest: BattleServiceRequestV4 = {
+    rqid: 42,
+    active: [
+      {
+        moves: [
+          {move: "Moongeist Beam", id: "moongeistbeam", pp: 5, maxpp: 5, target: "normal"},
+          {move: "Moonblast", id: "moonblast", pp: 15, maxpp: 15, target: "normal"},
+          {move: "Calm Mind", id: "calmmind", pp: 20, maxpp: 20, target: "self"},
+        ],
+      },
+    ],
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {
+          ident: "p2: Lunala",
+          details: "Lunala, L50",
+          condition: "220/220",
+          active: true,
+          ability: "Shadow Shield",
+          item: "Leftovers",
+          stats: {hp: 220, atk: 120, def: 110, spa: 185, spd: 135, spe: 117},
+        },
+      ],
+    },
+  };
+  const immuneSnapshot = {
+    ...aiSnapshot("gen9", "singles", immuneRequest),
+    active: [
+      {ident: "p1a: Sawsbuck", playerId: "p1", slot: "p1a", species: "Sawsbuck-Winter", details: "Sawsbuck-Winter, L50", condition: "140/140", hp: 140, maxHp: 140, status: "", fainted: false},
+      {ident: "p2a: Lunala", playerId: "p2", slot: "p2a", species: "Lunala", details: "Lunala, L50", condition: "220/220", hp: 220, maxHp: 220, status: "", fainted: false},
+    ],
+  } satisfies BattleServiceSnapshotV4;
+  const immuneResult = chooseAiBattleChoiceV4({
+    request: immuneRequest,
+    snapshot: immuneSnapshot,
+    playerId: "p2",
+    aiProfile: {level: "gymLeader", preference: "offense"},
+    rngSeed: "lunala-sawsbuck-immune",
+    timeBudgetMs: 10_000,
+  });
+  if (immuneResult.debug.selectedChoice.startsWith("move 1")) {
+    throw new Error(`AI should not repeat an immune Ghost move into Normal Sawsbuck: ${JSON.stringify(immuneResult.debug)}`);
   }
   console.log("showdown-battle-core ai dex damage evaluator smoke ok");
 }
@@ -3345,6 +3528,7 @@ void smoke()
   .then(humanInvalidChoicePreflightSmoke)
   .then(aiPureChoiceSmoke)
   .then(aiSpecialSystemSmoke)
+  .then(aiTeraMoveEvaluatorSmoke)
   .then(aiMaxGuardTargetSmoke)
   .then(aiLockedMoveMissingTargetSmoke)
   .then(aiForceSwitchSmoke)

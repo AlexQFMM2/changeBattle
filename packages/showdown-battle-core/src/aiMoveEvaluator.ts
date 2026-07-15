@@ -143,7 +143,7 @@ function evaluateAgainstTarget(input: {
   const effectiveness = getShowdownTypeEffectivenessV4(moveType, defenderTypes);
   const immunity = abilityImmunity(target, moveType);
   const typeMultiplier = immunity ? 0 : effectiveness.multiplier;
-  const stab = user.species?.types.map(toDexId).includes(toDexId(moveType)) || user.row?.teraType && input.special === "terastallize" && toDexId(user.row.teraType) === toDexId(moveType) ? 1.5 : 1;
+  const stab = stabModifier(user, moveType, input.special);
   const accuracy = moveAccuracy(move);
   const category = move.categoryId === "special" ? "special" : "physical";
   const userStats = effectiveStats(user);
@@ -272,7 +272,7 @@ function combatantFromRowAndActive(row: BattleServiceSidePokemonV4 | undefined, 
     activeIndex,
     row,
     active,
-    speciesId,
+    speciesId: species?.id || speciesId,
     details,
     condition,
     level: levelFromDetails(details),
@@ -315,11 +315,23 @@ function safeMoveDetail(dex: ShowdownDexService, raw: string | undefined): DexMo
 function safeSpeciesDetail(dex: ShowdownDexService, raw: string): DexPokemonDetail | null {
   const id = toDexId(raw);
   if (!id) return null;
-  try {
-    return dex.getPokemonDetail(id);
-  } catch {
-    return null;
+  for (const candidate of speciesIdCandidates(raw, id)) {
+    try {
+      return dex.getPokemonDetail(candidate);
+    } catch {
+      // Try the next cosmetic/base forme fallback.
+    }
   }
+  return null;
+}
+
+function speciesIdCandidates(raw: string, id: string): string[] {
+  const candidates = [id];
+  const seasonalBase = id.replace(/(spring|summer|autumn|winter)$/i, "");
+  if (seasonalBase && seasonalBase !== id) candidates.push(seasonalBase);
+  const baseFromHyphen = toDexId(String(raw || "").split(",")[0]?.split("-")[0] || "");
+  if (baseFromHyphen && baseFromHyphen !== id) candidates.push(baseFromHyphen);
+  return [...new Set(candidates)];
 }
 
 function effectiveStats(combatant: BattleAiCombatantV4): Record<DexStatId, number> {
@@ -335,9 +347,21 @@ function effectiveStats(combatant: BattleAiCombatantV4): Record<DexStatId, numbe
 }
 
 function effectiveMoveType(move: DexMoveDetail, special: ShowdownSpecialChoiceV4 | null | undefined, user: BattleAiCombatantV4): string {
-  if (special === "terastallize" && user.row?.teraType) return user.row.teraType;
+  if (special === "terastallize" && move.id === "terablast" && user.row?.teraType) return user.row.teraType;
   if (move.id === "revelationdance") return user.species?.types[0] || move.typeId || move.type || "Normal";
   return move.typeId || move.type || "Normal";
+}
+
+function stabModifier(user: BattleAiCombatantV4, moveType: string, special: ShowdownSpecialChoiceV4 | null | undefined): number {
+  const moveTypeId = toDexId(moveType);
+  const originalTypes = user.species?.types.map(toDexId) || [];
+  const teraType = toDexId(user.row?.teraType || "");
+  if (special === "terastallize" && teraType) {
+    if (moveTypeId === teraType && originalTypes.includes(moveTypeId)) return 2;
+    if (moveTypeId === teraType || originalTypes.includes(moveTypeId)) return 1.5;
+    return 1;
+  }
+  return originalTypes.includes(moveTypeId) ? 1.5 : 1;
 }
 
 function abilityImmunity(target: BattleAiCombatantV4, moveType: string): string | null {

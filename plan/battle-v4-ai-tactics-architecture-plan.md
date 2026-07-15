@@ -4,6 +4,8 @@
 
 - [x] 算法主线：Battle V4 AI 采用 **极小极大 / Minimax 实时搜索**。
 - [x] 核心战力：持续完善 **估值函数 / Value Function**，让 AI 选择稳定收益而不是只追最高伤害。
+- [x] 深度档位固定：单打/双打/合作采用 `2/1/1 -> 4/2/2 -> 6/3/3`，不再把继续变强的主方向放在加深搜索。
+- [x] 优先保证前 1-3 步稳定性：第一步不犯低级错，第二步能看反制，第三步只做方向判断和资源规划。
 - [x] 性能优化：当搜索深度或双打 joint action 超时时，再引入 **剪枝算法**。
 - [x] 默认剪枝方向：优先考虑 **Alpha-Beta pruning**，同时保留 topK / maxNodes / time budget。
 - [x] 不做实时出招模型训练。
@@ -32,6 +34,7 @@
 - [x] 单打特点：选择少、战线长，适合更长视野和残局深搜。
 - [x] 双打特点：分支宽、回合短，最快两回合结束，多数局不需要看到第六回合。
 - [x] 合作特点：队伍规模为 2+2 vs 2+2，分支受限，但必须额外约束玩家体验。
+- [x] 搜索预算原则：深度上限不继续膨胀，预算优先给候选质量、对手 reply 质量、估值函数和特殊系统资源判断。
 - [x] `chooseAiBattleChoiceV4` 保持唯一外部入口，由 search engine 根据 battle mode 分发到对应 strategy。
 - [ ] 后续拆分 `aiSinglesStrategyV4.ts`。
 - [ ] 后续拆分 `aiDoublesStrategyV4.ts`。
@@ -58,8 +61,10 @@
 ## 1. 算法依据
 
 - [x] 总架构明确为：`Minimax 搜索框架` + `估值函数` + `剪枝优化`。
-- [x] 当前优先级：先完善估值函数，再扩大搜索深度，最后按性能需要加剪枝。
+- [x] 当前优先级：固定搜索深度档位，优先完善估值函数和候选宽度压缩，最后按性能需要加剪枝。
 - [x] 高等级 AI 倾向稳定收益：考虑 worst-case / risk penalty，不盲目赌低概率高收益。
+- [x] Battle V4 不追求围棋式长线深搜；宝可梦重点是宽度、资源、换人和前三步稳定性。
+- [x] 单回合价值最高，双回合反制价值高，三回合以后仅作为趋势判断，四回合以上显著衰减。
 - [x] 本地保存 PokéChamp 论文：`docs/reference/pokechamp-paper.pdf`。
 - [x] 记录 PokéChamp 使用 minimax tree search 的思路。
 - [x] 记录论文中的 one-step world model / damage estimator 思路。
@@ -134,10 +139,23 @@
 - [x] singles effective depth：馆主 2、四天王 4、冠军/反派头目 6。
 - [x] doubles effective depth：馆主 1、四天王 2、冠军/反派头目 3。
 - [x] coop effective depth：馆主 1、四天王 2、冠军/反派头目 3。
+- [x] 上述 effective depth 作为正式档位，不再继续上调到 depth 8/10。
+- [x] 单打 depth 6 是冠军/反派头目的上限，不要求所有局面强行搜满。
+- [x] 双打/合作 depth 3 是高等级上限，重点放在 joint action 宽度压缩和队友协同。
+- [x] 超时或复杂度过高时，优先返回当前 best-so-far，不为了搜满深度牺牲稳定性。
 - [ ] singles dynamic depth：在 `min(levelMaxDepth, dynamicDepthFromComplexity)` 内随减员加深。
 - [ ] doubles dynamic depth：开局默认不超过 2-3，残局再上调。
 - [ ] coop dynamic depth：默认不超过 doubles，同时保留玩家体验约束。
 - [ ] complexity 输入：legalActionCount / alivePokemonCount / switchOptionCount / activeCount / targetOptionCount。
+
+## 3.3 前三步稳定性原则
+
+- [x] 第一步稳定性优先：不能打免疫、不能送核心、不能低收益乱交极巨/太晶、不能放弃稳定 KO。
+- [x] 第二步反制优先：重点看对方最强 reply、先制、速度线、换入承伤和我方安全换人。
+- [x] 第三步只做趋势判断：判断能否形成收割、保住 win condition、极巨/太晶后续价值、天气/空间/顺风能否转化收益。
+- [x] 三回合以后不作为主要决策依据，只保留低权重趋势信息，避免远期幻觉带偏当前选择。
+- [x] 后续变强方向：候选生成更稳、对手回复更准、估值函数更懂资源、特殊系统不乱交、无效行动直接压死。
+- [x] Alpha-Beta 定位为宽度/性能优化，不是为了追求更长搜索。
 
 ## 4. Budget 参数
 
@@ -439,6 +457,29 @@
 - [ ] Recovery：能脱离 KO 线时加分。
 - [ ] Setup move：有存活窗口和后续收益时加分。
 
+## 15.1 特殊系统评分
+
+- [x] 新增 `aiSpecialSystemScorerV4.ts`。
+- [x] Mega / Z 保持轻量评分，不作为本轮战略重点。
+- [x] Dynamax 不再只按固定增伤处理。
+- [x] Dynamax 评分包含 HP 翻倍后的生存收益。
+- [x] Dynamax 评分识别 Max Guard 保命/拖关键回合价值。
+- [x] Dynamax 评分识别 Max Airstream 速度线收益。
+- [x] Dynamax 评分识别 Max Knuckle / Max Ooze 攻击滚雪球收益。
+- [x] Dynamax 评分识别 Max Steelspike / Max Quake 防守站场收益。
+- [x] Dynamax 评分识别 Max Geyser / Max Flare / Max Rockfall / Max Hailstorm 天气收益。
+- [x] Dynamax 评分识别 Max Lightning / Max Mindstorm / Max Overgrowth / Max Starfall 场地收益。
+- [x] Dynamax 评分识别 Max Phantasm / Max Darkness / Max Strike / Max Wyrmwind / Max Flutterby 降低对手能力收益。
+- [x] G-Max 第一版识别残留伤害、极光幕、撒场、清场、无视守住、群体状态等高价值特例。
+- [x] Terastallize 评分包含同属性 STAB `1.5 -> 2` 的进攻收益。
+- [x] Terastallize 评分包含非本系变本系 STAB 的进攻收益。
+- [x] Terastallize 评分包含 Tera Blast 按 teraType 变属性。
+- [x] Terastallize 评分包含低血防守太晶和 win condition 太晶启发。
+- [x] 低收益太晶加入轻量扣分，避免冠军级 AI 乱交资源。
+- [x] 特殊系统评分写入 candidate diagnostics：`specialSystemScore` / `specialSystemTags` / `specialSystemBreakdown`。
+- [x] Value Function 读取特殊系统 tags 做上下文加减分。
+- [x] 本轮仍不做完整三回合 Dynamax 模拟，只用启发式 momentum 表达后续价值。
+
 ## 16. 接入 chooseAiBattleChoiceV4
 
 - [x] 保留原入口。
@@ -489,11 +530,12 @@
 - [x] 队伍类型：强化手 + 进攻核心 -> `setup-offense`。
 - [x] 队伍类型：无明显组件 -> `balanced`。
 - [x] 雨天已开，场上 setter 无 KO 机会，后排 rain abuser 健康：switch abuser 分提高。
-- [ ] 免疫测试。
+- [x] 免疫测试。
 - [ ] 抵抗测试。
 - [ ] 克制测试。
 - [ ] 四倍克制测试。
-- [ ] STAB 测试。
+- [x] STAB 测试。
+- [x] 季节形态 fallback：`Sawsbuck-Winter` 应识别为一般系，不被幽灵招反复命中。
 - [x] 物理伤害读取 atk/def。
 - [x] 特殊伤害读取 spa/spd。
 - [ ] 命中低但可 KO 的招式测试。
@@ -509,6 +551,19 @@
 - [x] value function：win condition 健康/送死测试。
 - [x] value function：对手后排数量影响撒场收益测试。
 - [x] value function：对方多个残血时收割压力测试。
+- [x] Max Lightning / Max Geyser 输出特殊系统战略 tags。
+- [x] Max Guard 不生成非法 target suffix，并输出 `max-guard` tag。
+- [x] 太晶同属性 STAB 从 `1.5` 提升到 `2`。
+- [x] Tera Blast 按 teraType 估算属性，非 Tera Blast 招式保持原属性。
+
+## 18.1 自博弈验收
+
+- [x] 20 题 singles self-play 验收报告：`test/ai-self-play-special-20-20260715/report.md`。
+- [x] 20 题全部正常结束：`ended=20`，`maxTurns=0`，`teamGenerationFailed=0`。
+- [x] 20 题严重失误清零：`severe=0`。
+- [x] 20 题 warning 保持可分析范围：`warning=5`。
+- [x] 20 题平均决策时间约 `1.29s`，低于单回合 `10s` 指令预算。
+- [x] 20 题队伍核心完整率：rain/sun/trick-room/balanced/setup-offense 均为 `100%`。
 
 ## 19. 双打测试
 
