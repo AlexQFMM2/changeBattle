@@ -16,17 +16,27 @@ $IconPng = Join-Path $OutputDir "app-icon.png"
 $IconIco = Join-Path $OutputDir "app-icon.ico"
 $ResourceObject = Join-Path $OutputDir "launcher.res.o"
 $LauncherExe = Join-Path $OutputDir "ChangeBattle V2.exe"
-$Gxx = Join-Path $MingwBin "x86_64-w64-mingw32-g++.exe"
-$Windres = Join-Path $MingwBin "windres.exe"
+
+function Resolve-FirstExistingFile {
+  param(
+    [string]$Root,
+    [string[]]$Names,
+    [string]$Label
+  )
+  foreach ($Name in $Names) {
+    $Candidate = Join-Path $Root $Name
+    if (Test-Path $Candidate) {
+      return $Candidate
+    }
+  }
+  throw "$Label missing under $Root. Tried: $($Names -join ', ')"
+}
+
+$Gxx = Resolve-FirstExistingFile $MingwBin @("x86_64-w64-mingw32-g++.exe", "g++.exe") "MinGW compiler"
+$Windres = Resolve-FirstExistingFile $MingwBin @("windres.exe", "x86_64-w64-mingw32-windres.exe") "windres"
 
 if (-not (Test-Path $IconSource)) {
   throw "Launcher icon source missing: $IconSource"
-}
-if (-not (Test-Path $Gxx)) {
-  throw "MinGW compiler missing: $Gxx"
-}
-if (-not (Test-Path $Windres)) {
-  throw "windres missing: $Windres"
 }
 
 New-Item -ItemType Directory -Force $OutputDir | Out-Null
