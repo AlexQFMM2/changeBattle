@@ -1,0 +1,61 @@
+name: ChangeBattle V2 CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - v2
+      - main
+      - master
+  pull_request:
+    branches:
+      - v2
+      - main
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Showdown battle core tests
+        run: pnpm --filter @changebattle-v2/showdown-battle-core test
+
+      - name: API battle preference smoke
+        run: pnpm --filter @changebattle-v2/api test:battle-preference
+
+      - name: API formal game smoke
+        run: pnpm --filter @changebattle-v2/api test:formal-game
+
+      - name: API typecheck
+        run: pnpm --filter @changebattle-v2/api typecheck
+
+      - name: Web typecheck
+        run: pnpm --filter @changebattle-v2/web typecheck
+
+      - name: Whitespace check
+        run: git diff --check
