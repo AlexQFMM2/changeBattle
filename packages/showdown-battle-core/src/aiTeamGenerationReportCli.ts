@@ -4,6 +4,8 @@ import {
   generateShowdownRandomTeamV4,
   type ShowdownRandomTeamGeneratorDiagnosticsV4,
   type ShowdownRandomTeamPokemonSetV4,
+  type ShowdownTeamGenerationPurposeV4,
+  type ShowdownTeamGenerationQualityV4,
   type ShowdownTeamArchetypeV4,
 } from "./teamGenerator.js";
 import type {BattleAiLevelV4, TrainingModeV4, TrainingRuleSetV4} from "./types.js";
@@ -16,6 +18,8 @@ type TeamGenerationReportInputV4 = {
   samplesPerArchetype: number;
   archetypeAttempts: number;
   aiLevel: BattleAiLevelV4;
+  purpose: ShowdownTeamGenerationPurposeV4;
+  quality?: ShowdownTeamGenerationQualityV4;
   includeLoose: boolean;
   includeStrict: boolean;
   archetypes: ShowdownTeamArchetypeV4[];
@@ -48,6 +52,8 @@ type TeamGenerationReportV4 = {
       total: number;
       ok: number;
       failed: number;
+      coreComplete: number;
+      coreCompleteRate: number;
       averageBestScore: number;
       averageStructureScore: number;
       fulfilledRequirements: string[];
@@ -65,6 +71,8 @@ const input: TeamGenerationReportInputV4 = {
   samplesPerArchetype: numberArg(args.samples, 3),
   archetypeAttempts: numberArg(args.archetypeAttempts, 64),
   aiLevel: asAiLevel(args.aiLevel || "champion"),
+  purpose: asPurpose(args.purpose || "ai-exam"),
+  quality: args.quality ? asQuality(args.quality) : undefined,
   includeLoose: booleanArg(args.includeLoose, true),
   includeStrict: booleanArg(args.includeStrict, true),
   archetypes: csv(args.archetypes).map(asArchetype),
@@ -93,6 +101,8 @@ for (const archetype of input.archetypes) {
         archetypeAttempts: input.archetypeAttempts,
         strictArchetype,
         aiLevel: input.aiLevel,
+        purpose: input.purpose,
+        quality: strictArchetype ? "strict" : input.quality || "structured",
       });
       const elapsedMs = Date.now() - resultStartedAt;
       const result: TeamGenerationReportResultV4 = {
@@ -177,6 +187,16 @@ function asAiLevel(value: string): BattleAiLevelV4 {
   throw new Error(`invalid --aiLevel ${value}`);
 }
 
+function asPurpose(value: string): ShowdownTeamGenerationPurposeV4 {
+  if (value === "player-starter" || value === "npc-battle" || value === "boss-battle" || value === "ai-exam") return value;
+  throw new Error(`invalid --purpose ${value}`);
+}
+
+function asQuality(value: string): ShowdownTeamGenerationQualityV4 {
+  if (value === "loose" || value === "structured" || value === "strict") return value;
+  throw new Error(`invalid --quality ${value}`);
+}
+
 function asArchetype(value: string): ShowdownTeamArchetypeV4 {
   const valid = new Set([
     "balanced",
@@ -208,6 +228,8 @@ function summarize(results: TeamGenerationReportResultV4[]): TeamGenerationRepor
       total: 0,
       ok: 0,
       failed: 0,
+      coreComplete: 0,
+      coreCompleteRate: 0,
       averageBestScore: 0,
       averageStructureScore: 0,
       fulfilledRequirements: [],
@@ -216,12 +238,14 @@ function summarize(results: TeamGenerationReportResultV4[]): TeamGenerationRepor
     bucket.total += 1;
     if (result.ok) bucket.ok += 1;
     else bucket.failed += 1;
+    if (result.diagnostics.archetype?.coreComplete) bucket.coreComplete += 1;
   }
   for (const archetype of Object.keys(byArchetype)) {
     const matching = results.filter(result => result.archetype === archetype);
     const bucket = byArchetype[archetype]!;
     bucket.averageBestScore = average(matching.map(result => result.diagnostics.archetype?.bestScore || 0));
     bucket.averageStructureScore = average(matching.map(result => result.diagnostics.archetype?.structureScore || 0));
+    bucket.coreCompleteRate = bucket.total ? bucket.coreComplete / bucket.total : 0;
     bucket.fulfilledRequirements = uniqueFlat(matching.map(result => result.diagnostics.archetype?.fulfilledRequirements || []));
     bucket.missingRequirements = uniqueFlat(matching.map(result => result.diagnostics.archetype?.missingRequirements || []));
   }
@@ -246,6 +270,8 @@ function renderMarkdown(report: TeamGenerationReportV4): string {
     `- ruleSet/mode: ${report.input.ruleSet}/${report.input.mode}`,
     `- teamSize: ${report.input.teamSize}`,
     `- aiLevel: ${report.input.aiLevel}`,
+    `- purpose: ${report.input.purpose}`,
+    `- quality: ${report.input.quality || "(derived)"}`,
     `- samplesPerArchetype: ${report.input.samplesPerArchetype}`,
     `- archetypeAttempts: ${report.input.archetypeAttempts}`,
     `- includeLoose/includeStrict: ${report.input.includeLoose}/${report.input.includeStrict}`,
@@ -255,11 +281,11 @@ function renderMarkdown(report: TeamGenerationReportV4): string {
     "",
     "## Archetype Summary",
     "",
-    "| archetype | ok/total | avg best | avg structure | fulfilled | missing |",
-    "| --- | ---: | ---: | ---: | --- | --- |",
+    "| archetype | ok/total | core complete | avg best | avg structure | fulfilled | missing |",
+    "| --- | ---: | ---: | ---: | ---: | --- | --- |",
   ];
   for (const [archetype, summary] of Object.entries(report.summary.byArchetype)) {
-    lines.push(`| ${archetype} | ${summary.ok}/${summary.total} | ${round(summary.averageBestScore)} | ${round(summary.averageStructureScore)} | ${summary.fulfilledRequirements.join(", ") || "-"} | ${summary.missingRequirements.join(", ") || "-"} |`);
+    lines.push(`| ${archetype} | ${summary.ok}/${summary.total} | ${summary.coreComplete}/${summary.total} (${round(summary.coreCompleteRate * 100)}%) | ${round(summary.averageBestScore)} | ${round(summary.averageStructureScore)} | ${summary.fulfilledRequirements.join(", ") || "-"} | ${summary.missingRequirements.join(", ") || "-"} |`);
   }
   lines.push("", "## Samples", "");
   for (const result of report.results) {
@@ -270,6 +296,8 @@ function renderMarkdown(report: TeamGenerationReportV4): string {
     lines.push(`- elapsedMs: ${result.elapsedMs}`);
     lines.push(`- bestScore: ${round(archetype?.bestScore || 0)}`);
     lines.push(`- structureScore: ${round(archetype?.structureScore || 0)}`);
+    lines.push(`- coreComplete: ${archetype?.coreComplete ?? false}`);
+    lines.push(`- purpose/quality: ${archetype?.purpose || "-"} / ${archetype?.quality || "-"}`);
     lines.push(`- fulfilled: ${(archetype?.fulfilledRequirements || []).join(", ") || "-"}`);
     lines.push(`- missing: ${(archetype?.missingRequirements || []).join(", ") || "-"}`);
     lines.push(`- moveQuality: ${result.diagnostics.moveQuality ? `${result.diagnostics.moveQuality.aiLevel}, slots=${result.diagnostics.moveQuality.minMoveSlots}-${result.diagnostics.moveQuality.maxMoveSlots}, adjusted=${result.diagnostics.moveQuality.adjustedPokemon.join(", ") || "-"}` : "-"}`);

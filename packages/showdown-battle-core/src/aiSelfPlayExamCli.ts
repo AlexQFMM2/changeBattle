@@ -58,6 +58,7 @@ const report: BattleAiSelfPlayExamReportV4 = {
     timeoutCount: results.reduce((sum, result) => sum + result.metrics.timeoutCount, 0),
     maxSearchedDepth: Math.max(0, ...results.map(result => result.metrics.maxSearchedDepth)),
     slowestQuestion: slowestResult(results),
+    teamCoreCompleteByArchetype: summarizeTeamCoreComplete(results),
   },
 };
 const jsonFile = path.join(outDir, "report.json");
@@ -146,4 +147,21 @@ function average(values: number[]): number {
 function slowestResult(results: BattleAiSelfPlayExamReportV4["results"]): BattleAiSelfPlayExamReportV4["summary"]["slowestQuestion"] {
   const slowest = results.slice().sort((a, b) => b.elapsedMs - a.elapsedMs)[0];
   return slowest ? {id: slowest.question.id, elapsedMs: slowest.elapsedMs} : undefined;
+}
+
+function summarizeTeamCoreComplete(results: BattleAiSelfPlayExamReportV4["results"]): BattleAiSelfPlayExamReportV4["summary"]["teamCoreCompleteByArchetype"] {
+  const summary: BattleAiSelfPlayExamReportV4["summary"]["teamCoreCompleteByArchetype"] = {};
+  for (const result of results) {
+    for (const side of ["p1", "p2"] as const) {
+      const archetype = result.question[side].archetype;
+      const bucket = summary[archetype] ||= {total: 0, complete: 0, missing: 0, rate: 0};
+      bucket.total += 1;
+      if (result.teams[side].diagnostics.archetype?.coreComplete) bucket.complete += 1;
+      else bucket.missing += 1;
+    }
+  }
+  for (const bucket of Object.values(summary)) {
+    bucket.rate = bucket.total ? bucket.complete / bucket.total : 0;
+  }
+  return summary;
 }

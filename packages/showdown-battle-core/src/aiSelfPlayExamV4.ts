@@ -114,6 +114,7 @@ export type BattleAiSelfPlayExamReportV4 = {
     timeoutCount: number;
     maxSearchedDepth: number;
     slowestQuestion?: {id: string; elapsedMs: number};
+    teamCoreCompleteByArchetype: Record<string, {total: number; complete: number; missing: number; rate: number}>;
   };
 };
 
@@ -188,6 +189,7 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
       archetypeAttempts: question.archetypeAttempts,
       strictArchetype: question.strictArchetype,
       aiLevel: question.p1.aiLevel,
+      purpose: "ai-exam",
     }),
     generateShowdownRandomTeamV4({
       ruleSet: question.ruleSet,
@@ -199,6 +201,7 @@ export async function runBattleAiSelfPlayQuestionV4(question: BattleAiSelfPlayQu
       archetypeAttempts: question.archetypeAttempts,
       strictArchetype: question.strictArchetype,
       aiLevel: question.p2.aiLevel,
+      purpose: "ai-exam",
     }),
   ]);
   const emptySummary = {
@@ -272,6 +275,7 @@ export function renderBattleAiSelfPlayExamMarkdownV4(report: BattleAiSelfPlayExa
     `- timeoutCount: ${report.summary.timeoutCount}`,
     `- maxSearchedDepth: ${report.summary.maxSearchedDepth}`,
     `- slowestQuestion: ${report.summary.slowestQuestion ? `${report.summary.slowestQuestion.id} (${round(report.summary.slowestQuestion.elapsedMs)}ms)` : "-"}`,
+    `- teamCoreCompleteByArchetype: ${coreCompleteSummary(report.summary.teamCoreCompleteByArchetype)}`,
     "",
     "## Questions",
     "",
@@ -464,7 +468,25 @@ function summarizeResults(results: BattleAiSelfPlayQuestionResultV4[]): BattleAi
     timeoutCount: results.reduce((sum, result) => sum + result.metrics.timeoutCount, 0),
     maxSearchedDepth: Math.max(0, ...results.map(result => result.metrics.maxSearchedDepth)),
     slowestQuestion: slowestResult(results),
+    teamCoreCompleteByArchetype: summarizeTeamCoreComplete(results),
   };
+}
+
+function summarizeTeamCoreComplete(results: BattleAiSelfPlayQuestionResultV4[]): BattleAiSelfPlayExamReportV4["summary"]["teamCoreCompleteByArchetype"] {
+  const summary: BattleAiSelfPlayExamReportV4["summary"]["teamCoreCompleteByArchetype"] = {};
+  for (const result of results) {
+    for (const side of ["p1", "p2"] as const) {
+      const archetype = result.question[side].archetype;
+      const bucket = summary[archetype] ||= {total: 0, complete: 0, missing: 0, rate: 0};
+      bucket.total += 1;
+      if (result.teams[side].diagnostics.archetype?.coreComplete) bucket.complete += 1;
+      else bucket.missing += 1;
+    }
+  }
+  for (const bucket of Object.values(summary)) {
+    bucket.rate = bucket.total ? bucket.complete / bucket.total : 0;
+  }
+  return summary;
 }
 
 function slowestResult(results: BattleAiSelfPlayQuestionResultV4[]): BattleAiSelfPlayExamReportV4["summary"]["slowestQuestion"] {
@@ -479,6 +501,12 @@ function reportNotes(result: BattleAiSelfPlayQuestionResultV4): string {
   if (result.metrics.hazardCount) notes.push(`hazard:${result.metrics.hazardCount}`);
   if (result.metrics.weatherCount) notes.push(`weather:${result.metrics.weatherCount}`);
   return notes.join(", ") || "-";
+}
+
+function coreCompleteSummary(summary: BattleAiSelfPlayExamReportV4["summary"]["teamCoreCompleteByArchetype"]): string {
+  return Object.entries(summary)
+    .map(([archetype, bucket]) => `${archetype}:${bucket.complete}/${bucket.total} (${round(bucket.rate * 100)}%)`)
+    .join(", ") || "-";
 }
 
 function valueHighlights(breakdown: Record<string, number> | undefined): string {

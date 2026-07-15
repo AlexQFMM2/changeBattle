@@ -2969,6 +2969,30 @@ async function randomTeamGeneratorSmoke() {
     }
   }
 
+  for (const archetype of ["rain", "sun", "trick-room"] as const) {
+    const strictCore = await generateShowdownRandomTeamV4({
+      ruleSet: "gen9",
+      mode: "singles",
+      seed: `strict-core-${archetype}-team`,
+      teamSize: 3,
+      teamArchetype: archetype,
+      archetypeAttempts: 64,
+      purpose: "ai-exam",
+      quality: "strict",
+      aiLevel: "champion",
+    });
+    const archetypeDiagnostics = strictCore.diagnostics.archetype;
+    if (!strictCore.diagnostics.ok || strictCore.pokemonSets.length !== 3 || !archetypeDiagnostics?.coreComplete) {
+      throw new Error(`strict ${archetype} should produce a complete 3v3 core: ${JSON.stringify({team: strictCore.pokemonSets.map(set => `${set.species}:${set.ability}:${set.moves.join("/")}`), diagnostics: archetypeDiagnostics})}`);
+    }
+    if (archetypeDiagnostics.quality !== "strict" || archetypeDiagnostics.purpose !== "ai-exam") {
+      throw new Error(`strict ${archetype} diagnostics should include purpose/quality: ${JSON.stringify(archetypeDiagnostics)}`);
+    }
+    if ((archetypeDiagnostics.selectedFromCandidateSize || 0) < strictCore.pokemonSets.length || !Number.isFinite(archetypeDiagnostics.selectedSubsetScore)) {
+      throw new Error(`strict ${archetype} diagnostics should include subset selection details: ${JSON.stringify(archetypeDiagnostics)}`);
+    }
+  }
+
   const rookieTeam = await generateShowdownRandomTeamV4({
     ruleSet: "gen9",
     mode: "singles",
@@ -2986,6 +3010,9 @@ async function randomTeamGeneratorSmoke() {
   }
   if (rookieTeam.diagnostics.moveQuality.maxMoveSlots > 2 || !rookieTeam.diagnostics.moveQuality.adjustedPokemon.length) {
     throw new Error(`rookie move-quality diagnostics missing reductions: ${JSON.stringify(rookieTeam.diagnostics.moveQuality)}`);
+  }
+  if (rookieTeam.diagnostics.archetype && rookieTeam.diagnostics.archetype.coreComplete !== !rookieTeam.diagnostics.archetype.missingRequirements?.length) {
+    throw new Error(`rookie team coreComplete should reflect final post-trim missing requirements: ${JSON.stringify(rookieTeam.diagnostics.archetype)}`);
   }
 
   const championTeam = await generateShowdownRandomTeamV4({

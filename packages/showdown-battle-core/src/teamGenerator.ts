@@ -40,6 +40,16 @@ export type ShowdownPokemonFilterV4 = {
   excludedSpeciesIds?: string[];
 };
 
+export type ShowdownTeamGenerationPurposeV4 = "player-starter" | "npc-battle" | "boss-battle" | "ai-exam";
+export type ShowdownTeamGenerationQualityV4 = "loose" | "structured" | "strict";
+
+export type ShowdownTeamGenerationProfileHintsV4 = {
+  preferredArchetypes?: ShowdownTeamArchetypeV4[];
+  weakAgainst?: string[];
+  overusedPatterns?: string[];
+  recentLossReasons?: string[];
+};
+
 export type ShowdownRandomTeamGeneratorInputV4 = {
   ruleSet?: TrainingRuleSetV4;
   mode?: TrainingModeV4;
@@ -53,6 +63,9 @@ export type ShowdownRandomTeamGeneratorInputV4 = {
   archetypeAttempts?: number;
   strictArchetype?: boolean;
   aiLevel?: BattleAiLevelV4;
+  purpose?: ShowdownTeamGenerationPurposeV4;
+  quality?: ShowdownTeamGenerationQualityV4;
+  playerProfileHints?: ShowdownTeamGenerationProfileHintsV4;
 };
 
 export type ShowdownRandomTeamGeneratorDiagnosticsV4 = {
@@ -73,7 +86,13 @@ export type ShowdownRandomTeamGeneratorDiagnosticsV4 = {
     id: ShowdownTeamArchetypeV4;
     attempts: number;
     bestScore: number;
+    purpose?: ShowdownTeamGenerationPurposeV4;
+    quality?: ShowdownTeamGenerationQualityV4;
     structureScore?: number;
+    selectedSubsetScore?: number;
+    candidateTeamScore?: number;
+    selectedFromCandidateSize?: number;
+    coreComplete?: boolean;
     fulfilledRequirements?: string[];
     missingRequirements?: string[];
     matchedPoolSize: number;
@@ -145,8 +164,15 @@ type RandomSetTableNameV4 =
 
 type ShowdownTeamArchetypeStructureV4 = {
   score: number;
+  coreComplete: boolean;
   fulfilledRequirements: string[];
   missingRequirements: string[];
+};
+
+type ShowdownTeamSelectionV4 = {
+  team: ShowdownRandomTeamPokemonSetV4[];
+  score: number;
+  structure: ShowdownTeamArchetypeStructureV4;
 };
 
 const FORMAT_BY_RULESET_MODE: Record<Exclude<TrainingRuleSetV4, "standard">, Record<TrainingModeV4, string | null>> = {
@@ -177,9 +203,12 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
   const seed = normalizeSeed(input.seed);
   const pokemonFilter = normalizePokemonFilter(input.pokemonFilter);
   const teamArchetype = input.teamArchetype || "balanced";
+  const purpose = normalizeGenerationPurpose(input.purpose);
+  const quality = normalizeGenerationQuality(input.quality, purpose, input.strictArchetype);
   const attempts = teamArchetype === "balanced" && !pokemonFilter.requestedSpeciesIds.length && !pokemonFilter.excludedSpeciesIds.length
     ? 1
     : clampInt(input.archetypeAttempts || 16, 1, 64);
+  const targetTeamSize = input.teamSize ? clampInt(input.teamSize, 1, 6) : null;
   const diagnostics: ShowdownRandomTeamGeneratorDiagnosticsV4 = {
     ok: false,
     requestedRuleSet,
@@ -188,7 +217,7 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
     formatId,
     fallbackFormatId: input.formatOverride && input.formatOverride !== nativeFormatId ? input.formatOverride : undefined,
     seed,
-    teamSize: input.teamSize ? clampInt(input.teamSize, 1, 6) : null,
+    teamSize: targetTeamSize,
     pokemonFilter: null,
     archetype: null,
     moveQuality: null,
@@ -207,7 +236,15 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
       diagnostics.messages.push(`${resolvedRuleSet} ${requestedMode} 使用 fallback format: ${input.formatOverride}`);
     }
     const teamsApi = await getShowdownTeams();
-    let best: {team: ShowdownRandomTeamPokemonSetV4[]; score: number; structure: ShowdownTeamArchetypeStructureV4; matchedPoolSize: number} | null = null;
+    let best: {
+      team: ShowdownRandomTeamPokemonSetV4[];
+      score: number;
+      structure: ShowdownTeamArchetypeStructureV4;
+      candidateTeamScore: number;
+      selectedFromCandidateSize: number;
+      matchedPoolSize: number;
+    } | null = null;
+    const accumulatedSets: ShowdownRandomTeamPokemonSetV4[] = [];
     const fallbackMessages = new Set<string>();
     for (let attempt = 0; attempt < attempts; attempt += 1) {
       const attemptSeed = seedForAttempt(seed, attempt);
@@ -216,7 +253,7 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
         mode: requestedMode,
         pokemonFilter,
         teamArchetype,
-        strictArchetype: Boolean(input.strictArchetype),
+        strictArchetype: shouldUseStrictPool(input.strictArchetype, quality),
       });
       if (attempt === 0) {
         diagnostics.pokemonFilter = poolDiagnostics.pokemonFilter;
@@ -224,12 +261,17 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
           id: teamArchetype,
           attempts,
           bestScore: 0,
+          purpose,
+          quality,
           matchedPoolSize: poolDiagnostics.archetypeMatchedPoolSize,
         };
         diagnostics.messages.push(...poolDiagnostics.messages);
       }
+      if (shouldUseStrictPool(input.strictArchetype, quality)) {
+        accumulatedSets.push(...syntheticArchetypeSetsFromGenerator(generator, requestedMode, teamArchetype, input.aiLevel, attemptSeed));
+      }
       let team = safeGenerateTeam(generator);
-      if (!team.length && input.strictArchetype) {
+      if (!team.length && shouldUseStrictPool(input.strictArchetype, quality)) {
         fallbackMessages.add(`${teamArchetype} strict archetype pool could not produce a team; retried with scored soft archetype generation.`);
         const fallbackGenerator = teamsApi.getGenerator(formatId, attemptSeed);
         poolDiagnostics = applyGeneratorPoolFilters(fallbackGenerator, {
@@ -241,17 +283,53 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
         team = safeGenerateTeam(fallbackGenerator);
       }
       const normalizedTeam = team.map(normalizeGeneratedSet);
-      const structure = evaluateTeamStructureForArchetype(normalizedTeam, teamArchetype);
-      const score = scoreTeamForArchetype(normalizedTeam, teamArchetype, structure);
-      if (!best || score > best.score || (score === best.score && team.length > best.team.length)) {
-        best = {team: normalizedTeam, score, structure, matchedPoolSize: poolDiagnostics.archetypeMatchedPoolSize};
+      const candidateTeamStructure = evaluateTeamStructureForArchetype(normalizedTeam, teamArchetype);
+      const candidateTeamScore = scoreTeamForArchetype(normalizedTeam, teamArchetype, candidateTeamStructure, input.playerProfileHints);
+      const qualityAdjustedTeam = applyAiLevelMoveQualityToTeam(normalizedTeam, input.aiLevel, attemptSeed, teamArchetype);
+      accumulatedSets.push(...qualityAdjustedTeam);
+      const selected = selectBestTeamSubsetForArchetype(qualityAdjustedTeam, {
+        teamSize: targetTeamSize,
+        archetype: teamArchetype,
+        quality,
+        playerProfileHints: input.playerProfileHints,
+      });
+      if (!best || compareTeamSelection(selected, best) > 0) {
+        best = {
+          team: selected.team,
+          score: selected.score,
+          structure: selected.structure,
+          candidateTeamScore,
+          selectedFromCandidateSize: normalizedTeam.length,
+          matchedPoolSize: poolDiagnostics.archetypeMatchedPoolSize,
+        };
+      }
+      if (quality === "strict" && selected.structure.coreComplete) {
+        break;
+      }
+    }
+    if (quality === "strict" && targetTeamSize && best && !best.structure.coreComplete) {
+      const pooledCandidates = pooledSubsetCandidates(accumulatedSets, teamArchetype, targetTeamSize, input.playerProfileHints);
+      const pooledSelection = selectBestTeamSubsetForArchetype(pooledCandidates, {
+        teamSize: targetTeamSize,
+        archetype: teamArchetype,
+        quality,
+        playerProfileHints: input.playerProfileHints,
+      });
+      if (compareTeamSelection(pooledSelection, best) > 0) {
+        best = {
+          team: pooledSelection.team,
+          score: pooledSelection.score,
+          structure: pooledSelection.structure,
+          candidateTeamScore: scoreTeamForArchetype(pooledCandidates, teamArchetype, evaluateTeamStructureForArchetype(pooledCandidates, teamArchetype), input.playerProfileHints),
+          selectedFromCandidateSize: pooledCandidates.length,
+          matchedPoolSize: best.matchedPoolSize,
+        };
       }
     }
     diagnostics.messages.push(...fallbackMessages);
-    const generated = applyAiLevelMoveQualityToTeam(best?.team || [], input.aiLevel, seed, teamArchetype);
-    const pokemonSets = input.teamSize ? generated.slice(0, clampInt(input.teamSize, 1, 6)) : generated;
+    const pokemonSets = best?.team || [];
     const finalStructure = evaluateTeamStructureForArchetype(pokemonSets, teamArchetype);
-    const finalScore = scoreTeamForArchetype(pokemonSets, teamArchetype, finalStructure);
+    const finalScore = scoreTeamForArchetype(pokemonSets, teamArchetype, finalStructure, input.playerProfileHints);
     const packedTeam = teamsApi.pack(pokemonSets);
     const exportedTeam = teamsApi.export(pokemonSets);
     diagnostics.ok = pokemonSets.length > 0;
@@ -259,6 +337,10 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
     if (diagnostics.archetype && best) {
       diagnostics.archetype.bestScore = finalScore;
       diagnostics.archetype.structureScore = finalStructure.score;
+      diagnostics.archetype.selectedSubsetScore = best.score;
+      diagnostics.archetype.candidateTeamScore = best.candidateTeamScore;
+      diagnostics.archetype.selectedFromCandidateSize = best.selectedFromCandidateSize;
+      diagnostics.archetype.coreComplete = finalStructure.coreComplete;
       diagnostics.archetype.fulfilledRequirements = finalStructure.fulfilledRequirements;
       diagnostics.archetype.missingRequirements = finalStructure.missingRequirements;
       diagnostics.archetype.matchedPoolSize = best.matchedPoolSize;
@@ -285,6 +367,32 @@ export async function serializeShowdownTeamV4(team: ShowdownRandomTeamPokemonSet
 export function resolveShowdownRandomTeamFormatV4(ruleSet: TrainingRuleSetV4 = "standard", mode: TrainingModeV4 = "singles"): string | null {
   const resolvedRuleSet = ruleSet === "standard" ? "gen9" : ruleSet;
   return FORMAT_BY_RULESET_MODE[resolvedRuleSet][mode];
+}
+
+function normalizeGenerationPurpose(purpose: ShowdownRandomTeamGeneratorInputV4["purpose"]): ShowdownTeamGenerationPurposeV4 {
+  return purpose || "npc-battle";
+}
+
+function normalizeGenerationQuality(
+  quality: ShowdownRandomTeamGeneratorInputV4["quality"],
+  purpose: ShowdownTeamGenerationPurposeV4,
+  strictArchetype: boolean | undefined,
+): ShowdownTeamGenerationQualityV4 {
+  if (quality) return quality;
+  if (strictArchetype) return "strict";
+  switch (purpose) {
+    case "player-starter":
+      return "loose";
+    case "boss-battle":
+    case "ai-exam":
+      return "strict";
+    case "npc-battle":
+      return "structured";
+  }
+}
+
+function shouldUseStrictPool(strictArchetype: boolean | undefined, quality: ShowdownTeamGenerationQualityV4): boolean {
+  return Boolean(strictArchetype || quality === "strict");
 }
 
 function normalizePokemonFilter(filter: ShowdownRandomTeamGeneratorInputV4["pokemonFilter"]): Required<ShowdownPokemonFilterV4> & {requestedSpeciesIds: string[]} {
@@ -327,7 +435,7 @@ function applyGeneratorPoolFilters(
       return true;
     });
     const archetypeEntries = hardFilteredEntries.filter(([speciesId, data]) => {
-      const matched = scoreRandomSetDataForArchetype(speciesId, data, input.teamArchetype) > 0;
+      const matched = randomSetDataMatchesArchetypePool(speciesId, data, input.teamArchetype, input.strictArchetype);
       if (matched) archetypeMatchedSpeciesIds.add(toID(speciesId));
       return matched;
     });
@@ -396,6 +504,131 @@ function normalizeGeneratedSet(set: ShowdownRandomTeamPokemonSetV4): ShowdownRan
     evs: set.evs || {},
     ivs: set.ivs || {},
   };
+}
+
+function selectBestTeamSubsetForArchetype(
+  team: ShowdownRandomTeamPokemonSetV4[],
+  input: {
+    teamSize: number | null;
+    archetype: ShowdownTeamArchetypeV4;
+    quality: ShowdownTeamGenerationQualityV4;
+    playerProfileHints?: ShowdownTeamGenerationProfileHintsV4;
+  },
+): ShowdownTeamSelectionV4 {
+  const targetSize = input.teamSize ? Math.min(input.teamSize, team.length) : team.length;
+  const subsets = targetSize >= team.length ? [team] : combinations(team, targetSize);
+  let best: ShowdownTeamSelectionV4 | null = null;
+  for (const subset of subsets) {
+    const structure = evaluateTeamStructureForArchetype(subset, input.archetype);
+    const baseScore = scoreTeamForArchetype(subset, input.archetype, structure, input.playerProfileHints);
+    const score = baseScore + qualityAdjustmentForStructure(structure, input.quality);
+    const selected = {team: subset, score, structure};
+    if (!best || compareTeamSelection(selected, best) > 0) best = selected;
+  }
+  return best || {
+    team: [],
+    score: Number.NEGATIVE_INFINITY,
+    structure: evaluateTeamStructureForArchetype([], input.archetype),
+  };
+}
+
+function combinations<T>(values: T[], size: number): T[][] {
+  if (size <= 0) return [[]];
+  if (size >= values.length) return [values.slice()];
+  const result: T[][] = [];
+  const walk = (start: number, picked: T[]) => {
+    if (picked.length === size) {
+      result.push(picked.slice());
+      return;
+    }
+    const remaining = size - picked.length;
+    for (let index = start; index <= values.length - remaining; index += 1) {
+      picked.push(values[index]!);
+      walk(index + 1, picked);
+      picked.pop();
+    }
+  };
+  walk(0, []);
+  return result;
+}
+
+function pooledSubsetCandidates(
+  sets: ShowdownRandomTeamPokemonSetV4[],
+  archetype: ShowdownTeamArchetypeV4,
+  teamSize: number,
+  playerProfileHints?: ShowdownTeamGenerationProfileHintsV4,
+): ShowdownRandomTeamPokemonSetV4[] {
+  const unique = new Map<string, ShowdownRandomTeamPokemonSetV4>();
+  for (const set of sets) {
+    const key = `${toID(set.species)}:${toID(set.ability)}:${(set.moves || []).map(toID).sort().join(",")}:${toID(set.item || "")}`;
+    if (!unique.has(key)) unique.set(key, set);
+  }
+  const limit = teamSize <= 3 ? 24 : teamSize <= 4 ? 20 : 16;
+  return Array.from(unique.values())
+    .map((set, index) => {
+      const structure = evaluateTeamStructureForArchetype([set], archetype);
+      return {
+        set,
+        index,
+        score: scoreTeamForArchetype([set], archetype, structure, playerProfileHints) + singleSetCoreSignal(set, archetype),
+      };
+    })
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, Math.max(teamSize, limit))
+    .map(entry => entry.set);
+}
+
+function singleSetCoreSignal(set: ShowdownRandomTeamPokemonSetV4, archetype: ShowdownTeamArchetypeV4): number {
+  switch (archetype) {
+    case "rain":
+      return (isRainSetter(set) ? 40 : 0) + (isRainAbuser(set) ? 28 : 0) + (isRainCoverageMember(set) ? 6 : 0);
+    case "sun":
+      return (isSunSetter(set) ? 40 : 0) + (isSunAbuser(set) ? 28 : 0) + (isSunCoverageMember(set) ? 6 : 0) - (isConflictingWeatherSetter(set, "sun") ? 50 : 0);
+    case "trick-room":
+      return (isTrickRoomSetter(set) ? 52 : 0) + (isBulkyOrSlowAttacker(set) ? 18 : 0) + (isTrickRoomFailsafe(set) ? 8 : 0);
+    case "setup-offense":
+      return (isSetupUser(set) ? 32 : 0) + (isOffensivePressure(set) ? 18 : 0);
+    case "sand":
+      return (isSandSetter(set) ? 30 : 0) + (isSandAbuser(set) ? 18 : 0) + (isSandCoreMember(set) ? 8 : 0);
+    case "snow":
+      return (isSnowSetter(set) ? 30 : 0) + (isSnowAbuser(set) ? 18 : 0);
+    case "tailwind":
+      return hasMove(set, "tailwind") ? 32 : isFastPressure(set) ? 8 : 0;
+    case "terrain":
+      return (isTerrainSetter(set) ? 28 : 0) + (isTerrainAbuser(set) ? 12 : 0);
+    case "hazard-stack":
+      return isHazardSetter(set) ? 26 : 0;
+    case "poison-stall":
+      return (isPoisonProgress(set) ? 16 : 0) + (isStallSustain(set) ? 12 : 0);
+    case "baton-pass":
+      return (hasMove(set, "batonpass") ? 30 : 0) + (isSetupUser(set) ? 10 : 0);
+    case "balanced":
+      return 0;
+  }
+}
+
+function qualityAdjustmentForStructure(
+  structure: ShowdownTeamArchetypeStructureV4,
+  quality: ShowdownTeamGenerationQualityV4,
+): number {
+  if (quality === "loose") return structure.coreComplete ? 8 : 0;
+  if (quality === "structured") return structure.coreComplete ? 24 : -Math.max(0, structure.missingRequirements.length) * 10;
+  return structure.coreComplete ? 60 : -Math.max(1, structure.missingRequirements.length) * 40;
+}
+
+function compareTeamSelection(
+  left: ShowdownTeamSelectionV4,
+  right: Pick<ShowdownTeamSelectionV4, "team" | "score" | "structure">,
+): number {
+  if (left.structure.coreComplete !== right.structure.coreComplete) return left.structure.coreComplete ? 1 : -1;
+  if (left.score !== right.score) return left.score - right.score;
+  if (left.structure.missingRequirements.length !== right.structure.missingRequirements.length) {
+    return right.structure.missingRequirements.length - left.structure.missingRequirements.length;
+  }
+  if (left.structure.fulfilledRequirements.length !== right.structure.fulfilledRequirements.length) {
+    return left.structure.fulfilledRequirements.length - right.structure.fulfilledRequirements.length;
+  }
+  return left.team.length - right.team.length;
 }
 
 function applyAiLevelMoveQualityToTeam(
@@ -549,6 +782,99 @@ function safeGenerateTeam(generator: ShowdownRandomTeamGeneratorLikeV4): Showdow
   }
 }
 
+function syntheticArchetypeSetsFromGenerator(
+  generator: ShowdownRandomTeamGeneratorLikeV4,
+  mode: TrainingModeV4,
+  archetype: ShowdownTeamArchetypeV4,
+  aiLevel: BattleAiLevelV4 | undefined,
+  seed: number[] | null,
+): ShowdownRandomTeamPokemonSetV4[] {
+  const candidates: Array<{set: ShowdownRandomTeamPokemonSetV4; score: number}> = [];
+  for (const tableName of randomSetTableNames(mode)) {
+    const table = generator[tableName];
+    if (!table) continue;
+    for (const [speciesId, data] of Object.entries(table)) {
+      const bestSet = (data.sets || [])
+        .map(set => ({
+          data: set,
+          score: scoreSignalsForArchetype(archetype, {
+            speciesId,
+            ability: (set.abilities || []).join(" "),
+            moves: set.movepool || [],
+            role: set.role || "",
+          }),
+        }))
+        .sort((a, b) => b.score - a.score)[0];
+      if (!bestSet || bestSet.score <= 0) continue;
+      const ability = bestSet.data.abilities?.[0] || "";
+      const allMoves = uniqueIds(bestSet.data.movepool || []);
+      const speciesName = syntheticSpeciesName(speciesId);
+      const draft: ShowdownRandomTeamPokemonSetV4 = {
+        name: speciesName,
+        species: speciesName,
+        item: "Leftovers",
+        ability,
+        moves: allMoves,
+        nature: "Serious",
+        evs: {},
+        ivs: {},
+        level: data.level || 50,
+        teraType: bestSet.data.teraTypes?.[0],
+      };
+      const moveSlots = moveSlotsForAiLevel(aiLevel || "champion");
+      candidates.push({
+        set: {...draft, moves: chooseMovesForAiLevel(draft, allMoves, moveSlots, archetype, `${(seed || []).join(":")}:synthetic:${speciesId}`)},
+        score: bestSet.score + singleSetCoreSignal(draft, archetype),
+      });
+    }
+  }
+  return candidates
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 32)
+    .map(entry => normalizeGeneratedSet(entry.set));
+}
+
+function syntheticSpeciesName(speciesId: string): string {
+  const id = toID(speciesId);
+  const suffixes: Array<[string, string]> = [
+    ["galar", "-Galar"],
+    ["hisui", "-Hisui"],
+    ["alola", "-Alola"],
+    ["paldea", "-Paldea"],
+    ["therian", "-Therian"],
+    ["origin", "-Origin"],
+    ["wellspring", "-Wellspring"],
+    ["hearthflame", "-Hearthflame"],
+    ["cornerstone", "-Cornerstone"],
+  ];
+  for (const [suffix, label] of suffixes) {
+    if (id.endsWith(suffix) && id.length > suffix.length) {
+      return `${titleSpeciesId(id.slice(0, -suffix.length))}${label}`;
+    }
+  }
+  return titleSpeciesId(id);
+}
+
+function titleSpeciesId(id: string): string {
+  return id
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map(part => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join("-");
+}
+
+function randomSetDataMatchesArchetypePool(
+  speciesId: string,
+  data: ShowdownRandomSetDataV4,
+  archetype: ShowdownTeamArchetypeV4,
+  strictArchetype: boolean,
+): boolean {
+  if (strictArchetype && archetype === "trick-room") {
+    return (data.sets || []).some(set => (set.movepool || []).some(move => toID(move) === "trickroom"));
+  }
+  return scoreRandomSetDataForArchetype(speciesId, data, archetype) > 0;
+}
+
 function scoreRandomSetDataForArchetype(speciesId: string, data: ShowdownRandomSetDataV4, archetype: ShowdownTeamArchetypeV4): number {
   if (archetype === "balanced") return 1;
   let score = 0;
@@ -563,20 +889,25 @@ function scoreRandomSetDataForArchetype(speciesId: string, data: ShowdownRandomS
   return score;
 }
 
-function scoreTeamForArchetype(team: ShowdownRandomTeamPokemonSetV4[], archetype: ShowdownTeamArchetypeV4, structure = evaluateTeamStructureForArchetype(team, archetype)): number {
-  if (archetype === "balanced") return team.length;
+function scoreTeamForArchetype(
+  team: ShowdownRandomTeamPokemonSetV4[],
+  archetype: ShowdownTeamArchetypeV4,
+  structure = evaluateTeamStructureForArchetype(team, archetype),
+  playerProfileHints?: ShowdownTeamGenerationProfileHintsV4,
+): number {
+  if (archetype === "balanced") return team.length + scorePlayerProfileHintsForTeam(team, archetype, playerProfileHints);
   const signalScore = team.reduce((total, set) => total + scoreSignalsForArchetype(archetype, {
     speciesId: set.species,
     ability: set.ability,
     moves: set.moves || [],
     role: "",
   }), 0);
-  return signalScore + structure.score;
+  return signalScore + structure.score + scorePlayerProfileHintsForTeam(team, archetype, playerProfileHints);
 }
 
 function evaluateTeamStructureForArchetype(team: ShowdownRandomTeamPokemonSetV4[], archetype: ShowdownTeamArchetypeV4): ShowdownTeamArchetypeStructureV4 {
   if (archetype === "balanced") {
-    return {score: team.length, fulfilledRequirements: ["balanced-team"], missingRequirements: []};
+    return {score: team.length, coreComplete: true, fulfilledRequirements: ["balanced-team"], missingRequirements: []};
   }
   const fulfilled: string[] = [];
   const missing: string[] = [];
@@ -682,9 +1013,35 @@ function evaluateTeamStructureForArchetype(team: ShowdownRandomTeamPokemonSetV4[
   }
   return {
     score,
+    coreComplete: missing.length === 0,
     fulfilledRequirements: fulfilled,
     missingRequirements: missing,
   };
+}
+
+function scorePlayerProfileHintsForTeam(
+  team: ShowdownRandomTeamPokemonSetV4[],
+  archetype: ShowdownTeamArchetypeV4,
+  hints: ShowdownTeamGenerationProfileHintsV4 | undefined,
+): number {
+  if (!hints) return 0;
+  let score = 0;
+  const normalizedPreferred = new Set((hints.preferredArchetypes || []).map(value => String(value)));
+  if (normalizedPreferred.has(archetype)) score += 4;
+  const hintTokens = [
+    ...(hints.weakAgainst || []),
+    ...(hints.overusedPatterns || []),
+    ...(hints.recentLossReasons || []),
+  ].map(toID).filter(Boolean);
+  for (const token of hintTokens) {
+    if (token.includes("speed") || token.includes("fast") || token.includes("tailwind")) score += team.some(isFastPressure) ? 3 : 0;
+    if (token.includes("setup") || token.includes("boost")) score += team.some(set => hasMove(set, "haze", "encore", "roar", "whirlwind", "taunt") || hasAbility(set, "unaware")) ? 4 : 0;
+    if (token.includes("rain")) score += team.some(set => isConflictingWeatherSetter(set, "rain")) ? 3 : 0;
+    if (token.includes("sun")) score += team.some(set => isConflictingWeatherSetter(set, "sun")) ? 3 : 0;
+    if (token.includes("hazard")) score += team.some(set => hasMove(set, "rapidspin", "defog", "courtchange")) ? 3 : 0;
+    if (token.includes("stall") || token.includes("wall")) score += team.some(set => hasMove(set, "taunt", "trick", "knockoff", "encore")) ? 3 : 0;
+  }
+  return Math.min(18, score);
 }
 
 function scoreSignalsForArchetype(
