@@ -7,6 +7,11 @@ on:
         description: "Release version, must match package.json"
         required: true
         type: string
+      source_ref:
+        description: "Git ref to build"
+        required: true
+        default: "v2"
+        type: string
       create_github_release:
         description: "Create or update a GitHub prerelease"
         required: true
@@ -43,6 +48,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
