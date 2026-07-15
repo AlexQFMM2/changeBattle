@@ -194,11 +194,26 @@ def resolve_ts_chacha20_package(showdown_root: Path) -> Path:
     if (local_vendor_module / "package.json").exists():
         return local_vendor_module
 
+    workspace_module = PROJECT_ROOT / "packages" / "showdown-battle-core" / "node_modules" / "ts-chacha20"
+    if (workspace_module / "package.json").exists():
+        return workspace_module
+
+    pnpm_modules = sorted((PROJECT_ROOT / "node_modules" / ".pnpm").glob("ts-chacha20@*/node_modules/ts-chacha20"))
+    for module_src in pnpm_modules:
+        if (module_src / "package.json").exists():
+            return module_src
+
     output = subprocess.check_output(
         [
             "node",
             "-e",
-            "console.log(require.resolve('ts-chacha20/package.json'))",
+            (
+                "const {createRequire}=require('module');"
+                "const path=require('path');"
+                "const root=process.cwd();"
+                "const req=createRequire(path.join(root,'packages/showdown-battle-core/package.json'));"
+                "console.log(req.resolve('ts-chacha20/package.json'));"
+            ),
         ],
         cwd=PROJECT_ROOT,
         text=True,
