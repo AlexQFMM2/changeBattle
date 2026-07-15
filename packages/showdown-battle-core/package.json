@@ -49,6 +49,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@changebattle-v2/showdown-dex-core": "workspace:*"
+    "@changebattle-v2/showdown-dex-core": "workspace:*",
+    "ts-chacha20": "^1.2.0"
   }
 }
