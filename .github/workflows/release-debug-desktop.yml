@@ -75,6 +75,9 @@ jobs:
       - name: Verify version
         shell: pwsh
         run: |
+          if ("${{ inputs.source_ref }}" -ne "v2") {
+            throw "Debug desktop release must build from source_ref=v2, got: ${{ inputs.source_ref }}"
+          }
           $packageVersion = node -p "require('./package.json').version"
           if ($packageVersion -ne $env:RELEASE_VERSION) {
             throw "package.json version is $packageVersion, expected $env:RELEASE_VERSION"
