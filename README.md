@@ -1,6 +1,8 @@
 # ChangeBattle V2
 
-一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证 + 第二轮灵魂伴侣回归测试期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、灵魂伴侣蛋孵化/仓库养成/同行许可/战后成长/战斗内进化、Windows Desktop portable release 和桌面端文件级增量更新都已经接入。下一轮核心开发点是双人局域网 PvE 合作模式。
+一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证 + Battle V4 AI/队伍生成器强化 + 桌面端 GitHub Actions 发版迁移期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、灵魂伴侣蛋孵化/仓库养成/同行许可/战后成长/战斗内进化、Windows Desktop portable release、桌面端内容哈希增量更新都已经接入。
+
+当前新的重点已经从“流程打通”转为“质量验证和 AI 能力闭环”：单打 AI 已完成 depth/value/threat/resource/special-system 等第一轮强化，双打 AI 已完成 joint action/value/reply/免疫防呆和双打队伍生成器优化；下一步聚焦出题/做题/评估报告、人工 debug 对局验收，以及合作 AI 开发。
 
 ## Repository / Branch
 
@@ -23,6 +25,15 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 ```
 
 权威开发和发布流程见 `docs/gitAbout.md`。
+
+## Current Progress Snapshot
+
+- **Battle V4 AI**：单打已经具备深度搜索、换人后重新估伤、队伍角色识别、威胁图、win condition 保护、极巨/太晶资源提交、reason tags 和反低级失误防呆；双打已经具备 joint action 评分、ally combo、reply search、特殊招式价值、友伤/免疫/重复无效招防呆和调试报告字段。
+- **队伍生成器**：随机队伍生成器已从“随机裁剪”升级为按 `purpose / quality / aiLevel / playerProfileHints` 分层生成；单打支持 rain/sun/trick-room 等核心完整度，双打支持 Protect 密度、控速、范围输出、Fake Out、Intimidate、重定向、lead pair 和 coop 后续复用的 doubles diagnostics。
+- **AI 验证流程**：单打和双打都已接入 self-play exam / report 流程，能批量生成题目、AI 自动答题、记录决策耗时、debug/value/reason tags，并按 severe/warning 找明显犯病点。
+- **Release 流程**：debug 桌面端主流程已迁到 GitHub Actions。完整包由 GitHub Release 托管，更新 metadata 由 Actions artifact 生成，本地下载 artifact 后上传到自有服务器；旧 scp 到 Windows 构建机流程已降级为备用方案。
+- **桌面更新**：增量更新从 `files/vX.Y.Z/` 版本镜像迁移为内容哈希对象池：服务器托管 `latest.json`、`manifests/current.json`、`manifests/vX.Y.Z.json` 和 `objects/<sha>`；客户端按本地实际 sha 与远端清单比较新增/修改/删除。
+- **下一步重点**：继续扩大出题/做题/评估样本，做人工 debug 对局验收，完善报告可解释性；在此基础上推进 coop AI 和 coop 队伍/lead pair 分配。
 
 - `packages/showdown-dex-core`：Web/Desktop 共用的 Dex 数据、搜索、详情聚合、图片解析、中文翻译、能力计算、学习面反查。
 - `packages/changebattle-v2-core`：V2 运行时结构、玩家仓库、星图天赋、灵魂伴侣、桌面更新等共享纯规则和 catalog。
@@ -99,7 +110,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：一键 Windows 构建链路已跑通；`0.1.1` 是文件级增量更新初始化版本，`0.1.2` / `0.1.3` 已验证从旧包启动后自动下载增量、校验、替换并提示重启。当前 stable latest 是 `0.1.3`。
+- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.20` 是内容哈希对象池更新的迁移首包；旧 scp 到 Windows 构建机流程只作为备用方案保留。
 
 当前明确不做：
 
@@ -110,24 +121,23 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 
 当前第二轮 / Battle V4 / Rest V4 进度：
 
-- 第二轮灵魂伴侣主体已经落地，当前重点是回归测试：最终胜利带走蛋、仓库养成/技能学习/进化、同行许可带入正式流程、正式休整页禁用态、战后亲密度回写、个人荣誉授章和战斗内低概率进化。
-- 训练场休整页可以进入真实 Battle V4 中转页。
-- Battle service 使用 Showdown `BattleStream` 创建 session，保留 raw protocol/request/debug。
-- 战斗页使用 V2 风格战斗壳展示场景、HP、模型、指令、日志/解说和裁判对话。
-- 单打、双打、合作使用同一 session API 和合法随机 AI 推进；特殊系统 gate 和 AI 选择已有 core smoke 覆盖。
-- Battle V4 AI 特殊系统目标选择已修复：Z/Max/Mega/Tera 等特殊后缀会基于实际执行招式重新判定目标需求，避免 gen7 双打中 `move 1 zmove` 缺目标导致 Showdown 拒绝并 blocked。遇到 release 旧包卡死时，可按 `debug/README.md` 用 diagnostics 里的 `allRequests` 直接复现当前 V2 AI 出招。
+- 第二轮灵魂伴侣主体已经落地，当前重点仍是完整回归：最终胜利带走蛋、仓库养成/技能学习/进化、同行许可带入正式流程、正式休整页禁用态、战后亲密度回写、个人荣誉授章和战斗内低概率进化。
+- 训练场休整页、正式 GameRun 和 Battle V4 中转页已经接入真实 Showdown `BattleStream` session，保留 raw protocol/request/debug，战斗页使用 V2 风格战斗壳展示场景、HP、模型、指令、日志/解说和裁判对话。
+- Battle V4 AI 已从“合法随机推进”升级为 `chooseAiBattleChoiceV4` 的新决策链路：单打侧有深度搜索、估值函数、换人承伤、威胁图、资源提交、防呆和 reason tags；双打侧有 joint action、ally combo、reply search、特殊招式价值、友伤/免疫/重复无效招 guard。
+- 正式流程已经开始接入“玩家画像 -> 结构化 Showdown 队伍生成/调整 -> 正式战斗 -> 新 AI 决策”的链路；新队伍生成器按 `purpose / quality / aiLevel / playerProfileHints` 调整结构完整度、技能质量、NPC 强度和玩家偏好干扰，失败时保留旧本地生成器回退。
+- 单打和双打都已有 self-play exam / report：能批量出题、让 AI 自动做题、记录每次决策耗时、搜索深度、value breakdown、reason tags，并按 severe/warning 发现明显犯病点。
 - 天气/场地持久层会按资源 key 重建 video/image 层，避免沙暴、雨天、晴天、雪天切换时继续播放旧资源。
 - 第三轮联机已进入设计落地准备：计划见 `plan/formal-game/formal-lan-coop-host-mode-plan.md`，第一版目标是 Desktop 双人局域网 PvE，沿用 Showdown coop 的 `p1 + p3` 对 `p2 + p4` 编排，战斗阶段由房主权威计算。
-- 当前主要工作点已经从“打通流程”转到灵魂伴侣回归、正式游戏内容打磨、战斗演出稳定性、NPC 队伍质量、第三轮联机拆分和 Windows portable 体验。
+- 当前主要工作点已经从“流程打通”转到 AI/队伍质量闭环、人工 debug 验收、coop AI、正式游戏内容打磨和 GitHub Actions 桌面发版稳定化。
 
 下一步：
 
-- 优先测试灵魂伴侣完整闭环：最终待结算领取蛋、重复领取幂等、仓库容量满失败、局外道具/技能/进化、同行许可候选、`爱不释手` 携带物复制、正式局内养成 guard、战后亲密度/荣誉幂等、战斗内进化 rawLog 顺序和 request 刷新。
-- 启动第三轮局域网合作开发：先落 core 协议类型和 Desktop host service 骨架；第一版用 HTTP + SSE，不引入 WebSocket；非战斗阶段双方各自本地计算草稿，中转页收集/校验/同步，战斗页由房主统一推进 Showdown session 并分发 snapshot / playbackTimeline。
-- 继续回归 Battle V4：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择、双打/合作 seat 映射，以及灵魂伴侣战斗进化在 singles/doubles/coop 下的播放顺序。
-- 继续打磨正式 GameRun：NPC 配队、特殊系统、商店/训练经济、赛程叙事、最终休整公告栏、结算体验和长期仓库整理体验。
-- 训练家仓库下一步主要是性能/体验回归、组件预览补齐、解锁箱页与 profile BP 扣除的 draft 边界收口；背包手动移动已从新布局中移除，后续不要再按旧格子移动体验扩展。
-- Windows release 后续可做 `ChangeBattle-V2-Desk.exe` launcher，替代当前 `.cmd` 启动入口；安装器、签名仍不在当前范围。
+- 继续扩大 AI 出题/做题/评估闭环：单打和双打都要增加题目覆盖、报告摘要、关键回合解说、决策耗时统计和 severe/warning 归因，优先让“明显犯病”能被稳定抓出来。
+- 做人工 debug 对局验收：挑选 self-play 报告里的高价值局面逐回合讲解，检查 AI 是否像正常玩家一样处理 KO、换人、极巨/太晶、集火、Protect、Fake Out、Tailwind/Trick Room 和友伤。
+- 推进 coop AI：先复用 doubles 队伍生成器和 lead pair diagnostics，把 4v4 doubles 队伍拆成两个 NPC 视角，再做合作场景下的 ally coordination、seat 映射、joint action 调试和出题评估。
+- 继续把正式 GameRun 和新队伍生成器磨稳：玩家画像、地区限制、是否神战、战斗系统、NPC 强度、Boss 偏好、特殊系统道具和旧生成器 fallback 都要在正式流程里可解释、可回退。
+- 继续回归 Battle V4 演出和状态继承：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择、双打/合作 seat 映射，以及灵魂伴侣战斗进化在 singles/doubles/coop 下的播放顺序。
+- 桌面 release 后续继续验证 GitHub Actions + 对象池增量更新链路；`ChangeBattle-V2-Desk.exe` launcher、安装器、签名仍不在当前范围。
 
 详细路线见 `docs/training-and-battle-roadmap.md`、`plan/formal-game/README.md` 和 `plan/formal-game/formal-lan-coop-host-mode-plan.md`。
 
@@ -167,18 +177,20 @@ pnpm typecheck
 
 ## Desktop Release
 
-当前发布形态是 Windows Desktop portable zip，而不是安装器。当前 stable 已发布：
+当前发布形态是 Windows Desktop portable zip，而不是安装器。debug/beta 主流程已经迁到 GitHub Actions：Actions 构建完整 portable zip 并上传 GitHub Release，同时产出 `latest.json + manifests + objects` 更新 artifact；本地下载 artifact 后发布到自有服务器。旧的“scp 到 Windows 构建机再本机构建”流程已经降级为 legacy backup。
+
+当前 debug 迁移基线：
 
 ```txt
-release/ChangeBattle-V2-Desk-portable-v0.1.3.zip
-source: v2@1c8bd4e6
-generated: 2026-07-06 Asia/Shanghai
-size: 约 598 MiB
-stable latest: https://65h26i.top/changebattle/latest.json
-stable site:   https://65h26i.top/changebattle/
-beta latest:   https://65h26i.top/changebattle-beta/latest.json
-beta site:     https://65h26i.top/changebattle-beta/
+latest debug: 0.1.20
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.20
+full package: ChangeBattle-V2-Desk-portable-debug-v0.1.20.zip
+beta latest:  http://119.45.240.157/changebattle-beta/latest.json
+beta site:    http://119.45.240.157/changebattle-beta/
+stable site:  http://119.45.240.157/changebattle/
 ```
+
+`0.1.20` 是内容哈希对象池更新的迁移首包。因为服务器之前没有 v2 `manifests/current.json` 和 `objects/` 基线，首个 artifact 接近全量是预期现象；玩家建议下载一次完整包。后续只改少量文件时，Actions artifact 应只包含新增或变更的 hash object。
 
 玩家解压后运行：
 
@@ -191,42 +203,52 @@ ChangeBattle-V2-Desk.cmd
 桌面端更新能力：
 
 - 启动后后台读取当前通道的 `latest.json`。
-- 普通游戏代码/资源变化会自动下载增量文件、校验、替换，并提示重启后生效。
+- 如果存在 `objectBaseUrl` 和 `fileManifestUrl`，客户端读取远端 `manifests/current.json`。
+- 客户端重新计算本地 managed files 的实际 sha256，不完全信任本地 `update-manifest.json`。
+- 远端有、本地没有则新增；同路径 sha 不同则下载替换；本地 manifest 有、远端没有则删除；非 managed 文件不动。
+- 普通游戏代码/资源变化会从 `objects/<sha前2位>/<sha256>` 下载增量对象、校验、替换，并提示重启后生效。
 - 右下角版本徽标可手动检查更新，已是最新时显示“当前已是最新版本”。
 - Electron runtime、launcher、updater 或 portable 目录结构变化仍要求完整包。
 
 正式/测试通道：
 
 ```txt
-release 分支 -> stable -> https://65h26i.top/changebattle/
-v2 分支      -> beta   -> https://65h26i.top/changebattle-beta/
+release 分支 -> stable -> http://119.45.240.157/changebattle/
+v2 分支      -> beta   -> http://119.45.240.157/changebattle-beta/
 ```
 
-只生成 release 按：
+debug/beta 推荐发版命令：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_on_windows.sh 0.1.4
+git push origin v2
+gh workflow run release-debug-desktop.yml --ref v2
+gh run list --workflow "Release Debug Desktop" --limit 3
+gh run watch <run-id> --exit-status
+gh run download <run-id> --name changebattle-beta-update-metadata-vX.Y.Z -D tmp/gha-beta-update-vX.Y.Z-<run-id>
 ```
 
-生成 release 并同步更新提示清单按：
+下载 artifact 后，本地发布更新 metadata 到 beta 服务器：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-CHANGEBATTLE_RELEASE_CHANNEL=stable ./tools/build_release_and_publish_update.sh 0.1.4
+CHANGEBATTLE_RELEASE_CHANNEL=beta \
+CHANGEBATTLE_UPDATE_LOCAL_DIR=/home/alexqfmm/workPlace/pokemon/changeBattleV2/tmp/gha-beta-update-vX.Y.Z-<run-id> \
+./tools/publish_desktop_update_manifest.sh X.Y.Z
 ```
 
-更新服务器只托管小文件和增量文件：
+更新服务器只托管静态小文件和内容对象：
 
 ```txt
-https://65h26i.top/changebattle/latest.json
-https://65h26i.top/changebattle/manifests/vX.Y.Z/files.json
-https://65h26i.top/changebattle/files/vX.Y.Z/...
+http://119.45.240.157/changebattle/latest.json
+http://119.45.240.157/changebattle/manifests/current.json
+http://119.45.240.157/changebattle/manifests/vX.Y.Z.json
+http://119.45.240.157/changebattle/objects/<sha前2位>/<完整sha256>
 ```
 
-`latest.json`、版本比较、channel URL、文件清单对比和增量路径校验的纯规则在 `packages/changebattle-v2-core/src/desktopUpdateCatalog.ts`；Electron 主进程负责拉取清单、下载增量、校验和替换文件。脚本只发布 manifest/download page/incremental files，不上传约 600 MiB 的 portable zip；完整包下载镜像通过 `CHANGEBATTLE_RELEASE_MIRRORS` 写入 `latest.json` 和游戏官网。
+`latest.json`、版本比较、channel URL、对象池文件清单对比和增量路径校验的纯规则在 `packages/changebattle-v2-core/src/desktopUpdateCatalog.ts`；Electron 主进程负责拉取清单、下载增量、校验和替换文件。脚本只发布 manifest/download page/hash objects，不上传约 600 MiB 的 portable zip；完整包由 GitHub Release 托管，并写入 `latest.json.fullPackage` / `mirrors`。
 
-详细流程、服务器目录、Windows 构建机、检查项和排错见 `release/README.md` 和 `release/docs/windows-desktop-release.md`。
+详细流程、服务器目录、检查项和排错见 `release/README.md`。旧 Windows 构建机流程只作为 fallback 参考，见 `release/docs/windows-desktop-release.md`。
 
 ## Battle Playback Verification
 

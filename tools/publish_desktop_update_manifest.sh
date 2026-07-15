@@ -82,8 +82,11 @@ if [[ -d "$LOCAL_DIR/objects" ]]; then
   ssh "$UPDATE_HOST" "cd '$REMOTE_TMP_DIR' && tar -xzf objects.tar.gz"
 fi
 
-echo "Publishing update metadata to $UPDATE_WEB_ROOT..."
-ssh "$UPDATE_HOST" "sudo mkdir -p '$UPDATE_WEB_ROOT' '$UPDATE_WEB_ROOT/manifests' '$UPDATE_WEB_ROOT/objects' && if [ -d '$REMOTE_TMP_DIR/image' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/image' && sudo cp -a '$REMOTE_TMP_DIR/image/.' '$UPDATE_WEB_ROOT/image/'; fi && if [ -d '$REMOTE_TMP_DIR/objects' ]; then sudo cp -an '$REMOTE_TMP_DIR/objects/.' '$UPDATE_WEB_ROOT/objects/'; fi && if [ -d '$REMOTE_TMP_DIR/manifests' ]; then find '$REMOTE_TMP_DIR/manifests' -maxdepth 1 -type f ! -name current.json -exec sudo cp -a {} '$UPDATE_WEB_ROOT/manifests/' \\; fi && python3 - '$REMOTE_TMP_DIR/manifests/current.json' '$UPDATE_WEB_ROOT/objects' <<'PY'
+echo "Publishing update objects and versioned manifests to $UPDATE_WEB_ROOT..."
+ssh "$UPDATE_HOST" "sudo mkdir -p '$UPDATE_WEB_ROOT' '$UPDATE_WEB_ROOT/manifests' '$UPDATE_WEB_ROOT/objects' && if [ -d '$REMOTE_TMP_DIR/image' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/image' && sudo cp -a '$REMOTE_TMP_DIR/image/.' '$UPDATE_WEB_ROOT/image/'; fi && if [ -d '$REMOTE_TMP_DIR/objects' ]; then sudo cp -an '$REMOTE_TMP_DIR/objects/.' '$UPDATE_WEB_ROOT/objects/'; fi && if [ -d '$REMOTE_TMP_DIR/manifests' ]; then find '$REMOTE_TMP_DIR/manifests' -maxdepth 1 -type f ! -name current.json -exec sudo cp -a {} '$UPDATE_WEB_ROOT/manifests/' \\; fi"
+
+echo "Verifying update objects before switching latest.json..."
+ssh "$UPDATE_HOST" "python3 - '$REMOTE_TMP_DIR/manifests/current.json' '$UPDATE_WEB_ROOT/objects'" <<'PY'
 import json, pathlib, sys
 manifest_path = pathlib.Path(sys.argv[1])
 objects_root = pathlib.Path(sys.argv[2])
@@ -101,7 +104,9 @@ if missing:
     print('\\n'.join(missing[:50]), file=sys.stderr)
     sys.exit(1)
 PY
-sudo install -m 0644 '$REMOTE_TMP_DIR/manifests/current.json' '$UPDATE_WEB_ROOT/manifests/current.json' && sudo install -m 0644 '$REMOTE_TMP_DIR/latest.json' '$UPDATE_WEB_ROOT/latest.json' && sudo install -m 0644 '$REMOTE_TMP_DIR/index.html' '$UPDATE_WEB_ROOT/index.html'"
+
+echo "Switching current manifest and latest.json..."
+ssh "$UPDATE_HOST" "sudo install -m 0644 '$REMOTE_TMP_DIR/manifests/current.json' '$UPDATE_WEB_ROOT/manifests/current.json' && sudo install -m 0644 '$REMOTE_TMP_DIR/latest.json' '$UPDATE_WEB_ROOT/latest.json' && sudo install -m 0644 '$REMOTE_TMP_DIR/index.html' '$UPDATE_WEB_ROOT/index.html'"
 
 echo "Published:"
 echo "  ${OFFICIAL_SITE_URL%/}/latest.json"
