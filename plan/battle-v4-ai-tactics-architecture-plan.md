@@ -372,6 +372,17 @@
 - [x] 天气招式在己方有对应 abuser 时加分。
 - [x] 天气招式在己方无对应 abuser 时降分。
 
+## 11.2 Singles Value Function v3 Stability
+
+- [x] 新增 `stability` value breakdown 分项。
+- [x] 使用 damage bucket 对我方行动和对手 reply 做稳定性加减分。
+- [x] 免疫 / 0 伤害攻击招额外强扣分，避免重复无效行动。
+- [x] negligible 低收益攻击招在无 KO 机会时扣分。
+- [x] 对手稳定 KO 且我方不能先 KO 时，贪伤害/变化招扣分。
+- [x] 当前 active 是 win condition 且暴露在高伤害或稳定 KO 下时扣分。
+- [x] safe-switch 在 stability 中加分，unsafe-switch 在 stability 中继续扣分。
+- [x] setup / weather / terrain / speed-control 在会被稳定 KO 时额外扣分。
+
 ## 12. Minimax
 
 - [x] 新增 singles depth 2 minimax 搜索逻辑。
@@ -551,6 +562,7 @@
 - [x] value function：win condition 健康/送死测试。
 - [x] value function：对手后排数量影响撒场收益测试。
 - [x] value function：对方多个残血时收割压力测试。
+- [x] value function v3：免疫攻击、核心暴露、safe switch 稳定性测试。
 - [x] Max Lightning / Max Geyser 输出特殊系统战略 tags。
 - [x] Max Guard 不生成非法 target suffix，并输出 `max-guard` tag。
 - [x] 太晶同属性 STAB 从 `1.5` 提升到 `2`。

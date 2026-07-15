@@ -2856,6 +2856,73 @@ function aiValueFunctionV2Smoke() {
   console.log("showdown-battle-core ai value function v2 smoke ok");
 }
 
+function aiValueFunctionV3StabilitySmoke() {
+  const capabilities = battleAiCapabilityForLevelV4("gymLeader");
+  const hazards = {stealthRock: 0, spikes: 0, toxicSpikes: 0, stickyWeb: 0};
+  const resources = (overrides: Record<string, unknown> = {}) => ({
+    totalPokemonCount: 3,
+    aliveCount: 3,
+    faintedCount: 0,
+    lowHpCount: 0,
+    totalHpRatio: 0.75,
+    activeHpRatio: 0.75,
+    benchHpRatio: 0.75,
+    winConditionAlive: true,
+    winConditionHealthy: true,
+    activeIsWinCondition: true,
+    hazards,
+    ...overrides,
+  });
+  const state = {
+    self: {playerId: "p2" as const, activeIndex: 0, hp: 80, maxHp: 100, fainted: false},
+    foe: {playerId: "p1" as const, activeIndex: 0, hp: 100, maxHp: 100, fainted: false},
+    selfResources: resources(),
+    foeResources: resources({activeIsWinCondition: false}),
+  };
+  const foeTackle = {choice: "move 1", score: 30, kind: "move", diagnostics: {moveId: "tackle", typeMultiplier: 1, accuracy: 100, koChance: 0, expectedDamageRatio: 0.12}};
+  const immuneAttack = evaluateBattleAiSinglesLeafValueV4({
+    state,
+    initialState: state,
+    own: {choice: "move 1", score: 80, kind: "move", diagnostics: {moveId: "shadowball", typeMultiplier: 0, accuracy: 100, koChance: 0, expectedDamageRatio: 0}},
+    foe: foeTackle,
+    buckets: [],
+    capabilities,
+  });
+  const pressureAttack = evaluateBattleAiSinglesLeafValueV4({
+    state,
+    initialState: state,
+    own: {choice: "move 2", score: 80, kind: "move", diagnostics: {moveId: "moonblast", typeMultiplier: 1, accuracy: 100, koChance: 0, expectedDamageRatio: 0.35}},
+    foe: foeTackle,
+    buckets: ["threaten-ko"],
+    capabilities,
+  });
+  if (!(immuneAttack.breakdown.stability < 0 && pressureAttack.breakdown.stability > immuneAttack.breakdown.stability && pressureAttack.score > immuneAttack.score)) {
+    throw new Error(`stability should strongly punish immune/zero-damage attacks: ${JSON.stringify({immune: immuneAttack.breakdown, pressure: pressureAttack.breakdown})}`);
+  }
+
+  const foeStableKo = {choice: "move 1", score: 120, kind: "move", diagnostics: {moveId: "thunderbolt", typeMultiplier: 1, accuracy: 100, koChance: 1, expectedDamageRatio: 1.1}};
+  const exposedWincon = evaluateBattleAiSinglesLeafValueV4({
+    state: {...state, self: {...state.self, hp: 0, fainted: true}, selfResources: resources({aliveCount: 2, faintedCount: 1, winConditionAlive: false, winConditionHealthy: false, activeIsWinCondition: true})},
+    initialState: state,
+    own: {choice: "move 2", score: 80, kind: "move", diagnostics: {moveId: "moonblast", typeMultiplier: 1, accuracy: 100, koChance: 0, expectedDamageRatio: 0.35}},
+    foe: foeStableKo,
+    buckets: ["self-ko-risk"],
+    capabilities,
+  });
+  const safeSwitch = evaluateBattleAiSinglesLeafValueV4({
+    state: {...state, self: {...state.self, hp: 72, fainted: false}, selfResources: resources({activeIsWinCondition: false})},
+    initialState: state,
+    own: {choice: "switch 2", score: 70, kind: "switch", diagnostics: {}},
+    foe: foeTackle,
+    buckets: ["safe-switch"],
+    capabilities,
+  });
+  if (!(exposedWincon.breakdown.stability < 0 && safeSwitch.breakdown.stability > exposedWincon.breakdown.stability && safeSwitch.score > exposedWincon.score)) {
+    throw new Error(`stability should punish exposing win condition to stable KO and prefer safe switch: ${JSON.stringify({exposed: exposedWincon.breakdown, safeSwitch: safeSwitch.breakdown})}`);
+  }
+  console.log("showdown-battle-core ai value function v3 stability smoke ok");
+}
+
 function aiOutcomeBucketsSmoke() {
   const cases: Array<[ReturnType<typeof battleAiDamageBucketForEstimateV4>, Parameters<typeof battleAiDamageBucketForEstimateV4>[0]]> = [
     ["immune", {typeMultiplier: 0, expectedDamageRatio: 0, koChance: 0}],
@@ -3542,6 +3609,7 @@ void smoke()
   .then(aiSwitchTargetOverrideSmoke)
   .then(aiValueFunctionResourceSmoke)
   .then(aiValueFunctionV2Smoke)
+  .then(aiValueFunctionV3StabilitySmoke)
   .then(aiOutcomeBucketsSmoke)
   .then(aiActionOutcomeEstimatorSmoke)
   .then(aiSinglesSpeedStateSmoke)
