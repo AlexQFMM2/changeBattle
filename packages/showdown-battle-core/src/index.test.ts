@@ -3922,6 +3922,74 @@ async function randomTeamGeneratorSmoke() {
   if (championTeam.diagnostics.moveQuality.maxMoveSlots < 4 || championTeam.pokemonSets.some(set => (set.moves || []).length < 4)) {
     throw new Error(`champion team should keep full move slots: ${championTeam.pokemonSets.map(set => `${set.species}:${set.moves.length}`).join(", ")}`);
   }
+
+  for (const archetype of ["rain", "sun", "trick-room", "tailwind", "balanced"] as const) {
+    const doublesTeam = await generateShowdownRandomTeamV4({
+      ruleSet: "gen9",
+      mode: "doubles",
+      seed: `doubles-strict-${archetype}-team`,
+      teamSize: 4,
+      teamArchetype: archetype,
+      archetypeAttempts: 64,
+      purpose: "ai-exam",
+      quality: "strict",
+      aiLevel: "champion",
+    });
+    const archetypeDiagnostics = doublesTeam.diagnostics.archetype;
+    const doubles = archetypeDiagnostics?.doubles;
+    if (!doublesTeam.diagnostics.ok || doublesTeam.pokemonSets.length !== 4 || !archetypeDiagnostics?.coreComplete || !doubles) {
+      throw new Error(`strict doubles ${archetype} should produce a complete 4v4 doubles core: ${JSON.stringify({team: doublesTeam.pokemonSets.map(set => `${set.species}:${set.ability}:${set.moves.join("/")}`), diagnostics: archetypeDiagnostics})}`);
+    }
+    if (doubles.protectCount < 2 || doubles.speedControlCount < 1 || doubles.spreadAttackerCount < 1 || doubles.utilityControlCount < 1 || !doubles.recommendedLeadPairs.length) {
+      throw new Error(`strict doubles ${archetype} diagnostics missing doubles fundamentals: ${JSON.stringify(doubles)}`);
+    }
+    const fulfilled = archetypeDiagnostics.fulfilledRequirements || [];
+    if (archetype === "rain" && (!fulfilled.includes("rain-setter") || !fulfilled.includes("rain-abuser") || !fulfilled.includes("rain-distinct-core"))) {
+      throw new Error(`strict doubles rain should keep distinct rain setter + abuser: ${JSON.stringify(archetypeDiagnostics)}`);
+    }
+    if (archetype === "sun" && (!fulfilled.includes("sun-setter") || !fulfilled.includes("sun-abuser") || !fulfilled.includes("sun-distinct-core") || doubles.antiSynergy.includes("conflicting-weather"))) {
+      throw new Error(`strict doubles sun should keep distinct sun core without weather conflict: ${JSON.stringify(archetypeDiagnostics)}`);
+    }
+    if (archetype === "trick-room" && (!fulfilled.includes("trick-room-setter") || !fulfilled.includes("trick-room-attacker"))) {
+      throw new Error(`strict doubles trick-room should keep setter + attacker: ${JSON.stringify(archetypeDiagnostics)}`);
+    }
+    if (archetype === "tailwind" && (!fulfilled.includes("tailwind-setter") || !fulfilled.includes("tailwind-pressure"))) {
+      throw new Error(`strict doubles tailwind should keep tailwind setter + pressure: ${JSON.stringify(archetypeDiagnostics)}`);
+    }
+  }
+
+  const coopTeam = await generateShowdownRandomTeamV4({
+    ruleSet: "gen9",
+    mode: "coop",
+    seed: "coop-doubles-structure-team",
+    teamSize: 4,
+    teamArchetype: "balanced",
+    archetypeAttempts: 64,
+    purpose: "ai-exam",
+    quality: "strict",
+    aiLevel: "champion",
+  });
+  if (!coopTeam.diagnostics.ok || !coopTeam.diagnostics.archetype?.doubles?.recommendedLeadPairs.length) {
+    throw new Error(`coop should reuse doubles structure diagnostics: ${JSON.stringify(coopTeam.diagnostics.archetype)}`);
+  }
+
+  const rookieDoubles = await generateShowdownRandomTeamV4({
+    ruleSet: "gen9",
+    mode: "doubles",
+    seed: "rookie-doubles-move-quality-team",
+    teamSize: 4,
+    teamArchetype: "rain",
+    archetypeAttempts: 32,
+    purpose: "ai-exam",
+    quality: "strict",
+    aiLevel: "rookie",
+  });
+  if (!rookieDoubles.diagnostics.ok || rookieDoubles.pokemonSets.some(set => (set.moves || []).length > 2)) {
+    throw new Error(`rookie doubles team should still trim moves to 2 slots: ${JSON.stringify(rookieDoubles.diagnostics)}`);
+  }
+  if (rookieDoubles.diagnostics.archetype && rookieDoubles.diagnostics.archetype.coreComplete !== !rookieDoubles.diagnostics.archetype.missingRequirements?.length) {
+    throw new Error(`rookie doubles coreComplete should reflect final post-trim missing requirements: ${JSON.stringify(rookieDoubles.diagnostics.archetype)}`);
+  }
   console.log("showdown-battle-core random team generator smoke ok");
 }
 

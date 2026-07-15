@@ -56,6 +56,11 @@ type TeamGenerationReportV4 = {
       coreCompleteRate: number;
       averageBestScore: number;
       averageStructureScore: number;
+      averageProtectCount: number;
+      averageSpeedControlCount: number;
+      averageSpreadAttackerCount: number;
+      averageUtilityControlCount: number;
+      averageLeadPairScore: number;
       fulfilledRequirements: string[];
       missingRequirements: string[];
     }>;
@@ -63,11 +68,12 @@ type TeamGenerationReportV4 = {
 };
 
 const args = parseArgs(process.argv.slice(2));
+const reportMode = asMode(args.mode || "singles");
 const input: TeamGenerationReportInputV4 = {
   seed: args.seed || "ai-team-generation",
   ruleSet: asRuleSet(args.ruleSet || "gen9"),
-  mode: asMode(args.mode || "singles"),
-  teamSize: numberArg(args.teamSize, 3),
+  mode: reportMode,
+  teamSize: numberArg(args.teamSize, reportMode === "doubles" || reportMode === "coop" ? 4 : 3),
   samplesPerArchetype: numberArg(args.samples, 3),
   archetypeAttempts: numberArg(args.archetypeAttempts, 64),
   aiLevel: asAiLevel(args.aiLevel || "champion"),
@@ -232,6 +238,11 @@ function summarize(results: TeamGenerationReportResultV4[]): TeamGenerationRepor
       coreCompleteRate: 0,
       averageBestScore: 0,
       averageStructureScore: 0,
+      averageProtectCount: 0,
+      averageSpeedControlCount: 0,
+      averageSpreadAttackerCount: 0,
+      averageUtilityControlCount: 0,
+      averageLeadPairScore: 0,
       fulfilledRequirements: [],
       missingRequirements: [],
     };
@@ -245,6 +256,11 @@ function summarize(results: TeamGenerationReportResultV4[]): TeamGenerationRepor
     const bucket = byArchetype[archetype]!;
     bucket.averageBestScore = average(matching.map(result => result.diagnostics.archetype?.bestScore || 0));
     bucket.averageStructureScore = average(matching.map(result => result.diagnostics.archetype?.structureScore || 0));
+    bucket.averageProtectCount = average(matching.map(result => result.diagnostics.archetype?.doubles?.protectCount || 0));
+    bucket.averageSpeedControlCount = average(matching.map(result => result.diagnostics.archetype?.doubles?.speedControlCount || 0));
+    bucket.averageSpreadAttackerCount = average(matching.map(result => result.diagnostics.archetype?.doubles?.spreadAttackerCount || 0));
+    bucket.averageUtilityControlCount = average(matching.map(result => result.diagnostics.archetype?.doubles?.utilityControlCount || 0));
+    bucket.averageLeadPairScore = average(matching.map(result => result.diagnostics.archetype?.doubles?.leadPairScore || 0));
     bucket.coreCompleteRate = bucket.total ? bucket.coreComplete / bucket.total : 0;
     bucket.fulfilledRequirements = uniqueFlat(matching.map(result => result.diagnostics.archetype?.fulfilledRequirements || []));
     bucket.missingRequirements = uniqueFlat(matching.map(result => result.diagnostics.archetype?.missingRequirements || []));
@@ -281,11 +297,12 @@ function renderMarkdown(report: TeamGenerationReportV4): string {
     "",
     "## Archetype Summary",
     "",
-    "| archetype | ok/total | core complete | avg best | avg structure | fulfilled | missing |",
-    "| --- | ---: | ---: | ---: | ---: | --- | --- |",
+    "| archetype | ok/total | core complete | avg best | avg structure | avg doubles | fulfilled | missing |",
+    "| --- | ---: | ---: | ---: | ---: | ---: | --- | --- |",
   ];
   for (const [archetype, summary] of Object.entries(report.summary.byArchetype)) {
-    lines.push(`| ${archetype} | ${summary.ok}/${summary.total} | ${summary.coreComplete}/${summary.total} (${round(summary.coreCompleteRate * 100)}%) | ${round(summary.averageBestScore)} | ${round(summary.averageStructureScore)} | ${summary.fulfilledRequirements.join(", ") || "-"} | ${summary.missingRequirements.join(", ") || "-"} |`);
+    const doublesSummary = `P${round(summary.averageProtectCount)}/S${round(summary.averageSpeedControlCount)}/A${round(summary.averageSpreadAttackerCount)}/U${round(summary.averageUtilityControlCount)}/L${round(summary.averageLeadPairScore)}`;
+    lines.push(`| ${archetype} | ${summary.ok}/${summary.total} | ${summary.coreComplete}/${summary.total} (${round(summary.coreCompleteRate * 100)}%) | ${round(summary.averageBestScore)} | ${round(summary.averageStructureScore)} | ${doublesSummary} | ${summary.fulfilledRequirements.join(", ") || "-"} | ${summary.missingRequirements.join(", ") || "-"} |`);
   }
   lines.push("", "## Samples", "");
   for (const result of report.results) {
@@ -300,6 +317,10 @@ function renderMarkdown(report: TeamGenerationReportV4): string {
     lines.push(`- purpose/quality: ${archetype?.purpose || "-"} / ${archetype?.quality || "-"}`);
     lines.push(`- fulfilled: ${(archetype?.fulfilledRequirements || []).join(", ") || "-"}`);
     lines.push(`- missing: ${(archetype?.missingRequirements || []).join(", ") || "-"}`);
+    if (archetype?.doubles) {
+      lines.push(`- doubles: protect=${archetype.doubles.protectCount}, speed=${archetype.doubles.speedControlCount}, spread=${archetype.doubles.spreadAttackerCount}, utility=${archetype.doubles.utilityControlCount}, fakeOut=${archetype.doubles.fakeOutCount}, redirection=${archetype.doubles.redirectionCount}, lead=${round(archetype.doubles.leadPairScore)}, anti=${archetype.doubles.antiSynergy.join(", ") || "-"}`);
+      lines.push(`- recommendedLeadPairs: ${archetype.doubles.recommendedLeadPairs.map(pair => `${pair.species.join("+")}(${round(pair.score)}:${pair.reasons.join("/") || "-"})`).join(" | ") || "-"}`);
+    }
     lines.push(`- moveQuality: ${result.diagnostics.moveQuality ? `${result.diagnostics.moveQuality.aiLevel}, slots=${result.diagnostics.moveQuality.minMoveSlots}-${result.diagnostics.moveQuality.maxMoveSlots}, adjusted=${result.diagnostics.moveQuality.adjustedPokemon.join(", ") || "-"}` : "-"}`);
     lines.push(`- messages: ${result.diagnostics.messages.join(" | ") || "-"}`);
     lines.push("");

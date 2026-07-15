@@ -225,6 +225,26 @@
 - [x] 根据角色标签汇总 setters / abusers / pivots / defensiveCore / winConditions。
 - [x] 角色标签只用于 AI 内部评分和测试，不展示给玩家。
 
+## 5.2 Doubles Team Generation
+
+- [x] `mode: "doubles" | "coop"` 使用双打结构评分，不再只复用单打 archetype 裁剪。
+- [x] 旧 `teamArchetype` 在双打下解释为双打版本：rain / sun / trick-room / tailwind / terrain / balanced。
+- [x] strict doubles 4v4 要求 Protect 核心、速度控制、范围输出、utility control。
+- [x] rain strict doubles 要求不同成员组成 rain setter + rain abuser 核心。
+- [x] sun strict doubles 要求不同成员组成 sun setter + sun abuser 核心，并避免反向天气。
+- [x] trick-room strict doubles 要求 Trick Room setter + Trick Room attacker。
+- [x] tailwind strict doubles 要求 Tailwind setter + pressure。
+- [x] balanced strict doubles 要求 goodstuff 基础结构，而不是随机单打队。
+- [x] 新增 doubles diagnostics：Protect / speed control / spread / utility / Fake Out / redirection / weather / Trick Room / lead pair / antiSynergy。
+- [x] 新增 recommended lead pairs，供后续 coop 两两分配 NPC 复用。
+- [x] 双打/合作 4v4 子集选择优先核心完整、lead pair 高、Protect 多、反协同少。
+- [x] 双打 move quality 提高 Protect / Fake Out / Tailwind / Trick Room / Icy Wind / Electroweb / Helping Hand / Follow Me / Rage Powder / Wide Guard / Taunt / Encore / Parting Shot / spread moves。
+- [x] rookie / normal / elite 裁剪招式后重新计算 coreComplete，不假报完整。
+- [x] `ai:teams` doubles 默认 teamSize 为 4，报告 summary 输出 doubles 平均指标。
+- [x] 10 样本 strict doubles 报告：rain / sun / trick-room / tailwind / balanced 均为 `coreComplete=10/10`。
+- [x] 10 样本 strict weather doubles 复查：rain / sun 均为 `coreComplete=10/10` 且包含 `*-distinct-core`。
+- [x] 本阶段不创建 doubles exam/self-play 出卷脚本。
+
 ## 6. 合法行动枚举
 
 - [ ] 新增 `BattleAiSingleActionV4`。
