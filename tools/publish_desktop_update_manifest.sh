@@ -83,7 +83,21 @@ if [[ -d "$LOCAL_DIR/objects" ]]; then
 fi
 
 echo "Publishing update objects and versioned manifests to $UPDATE_WEB_ROOT..."
-ssh "$UPDATE_HOST" "sudo mkdir -p '$UPDATE_WEB_ROOT' '$UPDATE_WEB_ROOT/manifests' '$UPDATE_WEB_ROOT/objects' && if [ -d '$REMOTE_TMP_DIR/image' ]; then sudo mkdir -p '$UPDATE_WEB_ROOT/image' && sudo cp -a '$REMOTE_TMP_DIR/image/.' '$UPDATE_WEB_ROOT/image/'; fi && if [ -d '$REMOTE_TMP_DIR/objects' ]; then sudo cp -an '$REMOTE_TMP_DIR/objects/.' '$UPDATE_WEB_ROOT/objects/'; fi && if [ -d '$REMOTE_TMP_DIR/manifests' ]; then find '$REMOTE_TMP_DIR/manifests' -maxdepth 1 -type f ! -name current.json -exec sudo cp -a {} '$UPDATE_WEB_ROOT/manifests/' \\; fi"
+ssh "$UPDATE_HOST" "sudo mkdir -p '$UPDATE_WEB_ROOT' '$UPDATE_WEB_ROOT/manifests' '$UPDATE_WEB_ROOT/objects'
+if [ -d '$REMOTE_TMP_DIR/image' ]; then
+  sudo mkdir -p '$UPDATE_WEB_ROOT/image'
+  sudo cp -a '$REMOTE_TMP_DIR/image/.' '$UPDATE_WEB_ROOT/image/'
+fi
+if [ -d '$REMOTE_TMP_DIR/objects' ]; then
+  sudo cp -an '$REMOTE_TMP_DIR/objects/.' '$UPDATE_WEB_ROOT/objects/'
+fi
+if [ -d '$REMOTE_TMP_DIR/manifests' ]; then
+  for manifest in '$REMOTE_TMP_DIR'/manifests/*.json; do
+    [ -f \"\$manifest\" ] || continue
+    [ \"\$(basename \"\$manifest\")\" = current.json ] && continue
+    sudo cp -a \"\$manifest\" '$UPDATE_WEB_ROOT/manifests/'
+  done
+fi"
 
 echo "Verifying update objects before switching latest.json..."
 ssh "$UPDATE_HOST" "python3 - '$REMOTE_TMP_DIR/manifests/current.json' '$UPDATE_WEB_ROOT/objects'" <<'PY'
@@ -95,10 +109,10 @@ missing = []
 for entry in data.get('files', []):
     sha = entry.get('sha256', '')
     if len(sha) != 64:
-        missing.append(f'invalid-sha:{entry.get(\"path\", \"\")}')
+        missing.append(f'invalid-sha:{entry.get("path", "")}')
         continue
     if not (objects_root / sha[:2] / sha).is_file():
-        missing.append(f'{entry.get(\"path\", \"\")}:{sha}')
+        missing.append(f'{entry.get("path", "")}:{sha}')
 if missing:
     print('Missing update objects:', file=sys.stderr)
     print('\\n'.join(missing[:50]), file=sys.stderr)
