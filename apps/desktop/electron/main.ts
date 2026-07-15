@@ -19,7 +19,6 @@ let formalComputeRequestId = 0;
 const formalComputePending = new Map<number, {resolve: (value: any) => void; reject: (error: Error) => void}>();
 const rendererReadyRetryMs = 180;
 const rendererReadyTimeoutMs = 90_000;
-const desktopUpdateCheckDelayMs = 1_200;
 const desktopUpdateFetchTimeoutMs = 6_000;
 const desktopAppUserModelId = "com.changebattle.v2";
 
@@ -335,22 +334,6 @@ function rejectFormalComputePending(error: Error) {
   formalComputePending.clear();
 }
 
-function scheduleDesktopUpdateCheck() {
-  if (desktopUpdateDisabledForRuntime()) {
-    console.info("[changebattle-v2:desktop] desktop update check skipped in dev/non-portable runtime");
-    return;
-  }
-  if (process.env.CHANGEBATTLE_DISABLE_UPDATE_CHECK === "1") {
-    console.info("[changebattle-v2:desktop] desktop update check disabled by CHANGEBATTLE_DISABLE_UPDATE_CHECK=1");
-    return;
-  }
-  setTimeout(() => {
-    void runDesktopBackgroundUpdate().catch(error => {
-      console.warn("[changebattle-v2:desktop] desktop background update failed", error instanceof Error ? error.message : error);
-    });
-  }, desktopUpdateCheckDelayMs);
-}
-
 async function checkDesktopUpdate(signal?: AbortSignal): Promise<ChangeBattleDesktopUpdateCheckResultV4> {
   const currentVersion = desktopAppVersion();
   const manifestUrls = changeBattleDesktopUpdateManifestUrlsV4(process.env.CHANGEBATTLE_UPDATE_MANIFEST_URLS);
@@ -441,7 +424,14 @@ async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Pro
     const officialSiteUrl = changeBattleDesktopUpdateOfficialSiteUrlV4(manifest);
     if (!manifest.objectBaseUrl && manifest.manifestVersion < 2 && !result.updateAvailable) {
       console.info(`[changebattle-v2:desktop] desktop is up to date: ${result.currentVersion}`);
-      publishDesktopUpdateStatus({phase: "up-to-date", currentVersion: result.currentVersion, officialSiteUrl});
+      publishDesktopUpdateStatus({
+        phase: "up-to-date",
+        currentVersion: result.currentVersion,
+        remoteVersion: manifest.version,
+        officialSiteUrl,
+        notes: manifest.notes,
+        fullPackageSize: manifest.fullPackage?.size,
+      });
       return desktopUpdateStatus;
     }
 
@@ -498,7 +488,14 @@ async function runDesktopBackgroundUpdate(options: {manual?: boolean} = {}): Pro
     const actualLocalManifest = await buildDesktopActualLocalFileManifest(portableRoot, localManifest, remoteManifest);
     const diff = compareDesktopUpdateFileManifestsV4(actualLocalManifest, remoteManifest);
     if (!diff.changedFiles.length && !diff.deletedFiles.length) {
-      publishDesktopUpdateStatus({phase: "up-to-date", currentVersion: result.currentVersion, officialSiteUrl});
+      publishDesktopUpdateStatus({
+        phase: "up-to-date",
+        currentVersion: result.currentVersion,
+        remoteVersion: manifest.version,
+        officialSiteUrl,
+        notes: manifest.notes,
+        fullPackageSize: manifest.fullPackage?.size,
+      });
       return desktopUpdateStatus;
     }
 
@@ -787,9 +784,7 @@ function readDesktopLocalFileManifestVersionSync(): string {
 
 app.whenReady().then(() => {
   registerRendererAssetFileResolver();
-  return createWindow().then(() => {
-    scheduleDesktopUpdateCheck();
-  });
+  return createWindow();
 });
 app.on("window-all-closed", () => {
   formalComputeWorker?.terminate();

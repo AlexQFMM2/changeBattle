@@ -191,7 +191,14 @@ export type DesktopFormalGameRunBridge = FormalGameRunStorageAdapter;
 export type DesktopUpdateStatusV4 =
   | {phase: "idle"; currentVersion: string; officialSiteUrl: string}
   | {phase: "checking"; currentVersion: string; officialSiteUrl: string}
-  | {phase: "up-to-date"; currentVersion: string; officialSiteUrl: string}
+  | {
+      phase: "up-to-date";
+      currentVersion: string;
+      remoteVersion?: string;
+      officialSiteUrl: string;
+      notes?: string[];
+      fullPackageSize?: number;
+    }
   | {
       phase: "available";
       currentVersion: string;

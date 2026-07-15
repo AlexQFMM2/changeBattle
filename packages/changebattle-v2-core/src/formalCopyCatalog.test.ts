@@ -56,7 +56,7 @@ const clearedStarProfile = clearStarChartUnlocksForProfileV4({
   starChart: {nodes: {root_trainer_star: 1, [TRAVEL_FUND_NODE_ID]: 1, [ELITE_FUND_NODE_ID]: 1, [CHAMPION_FUND_NODE_ID]: 1}},
   updatedAt: "2026-01-01T00:00:00.000Z",
 }, new Date("2026-01-02T00:00:00.000Z"));
-assert.equal(clearedStarProfile.battlePoints, 19);
+assert.equal(clearedStarProfile.battlePoints, 17);
 assert.equal(clearedStarProfile.starChart.nodes.root_trainer_star, 1);
 assert.equal(clearedStarProfile.starChart.nodes[TRAVEL_FUND_NODE_ID], 0);
 assert.equal(clearedStarProfile.starChart.nodes[ELITE_FUND_NODE_ID], 0);

@@ -37,6 +37,11 @@ on:
         required: true
         default: "changeBattleV2-assets.tgz"
         type: string
+      release_notes:
+        description: "Release notes written to latest.json, one item per line"
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: write
@@ -292,6 +297,7 @@ jobs:
         shell: pwsh
         env:
           RELEASE_MIRROR_URL: https://github.com/${{ github.repository }}/releases/download/desk-debug-v${{ inputs.version }}/ChangeBattle-V2-Desk-portable-debug-v${{ inputs.version }}.zip
+          CHANGEBATTLE_RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
           $env:CHANGEBATTLE_RELEASE_MIRRORS = "GitHub Release=$env:RELEASE_MIRROR_URL"
           node tools\generate_desktop_update_manifest.mjs $env:RELEASE_VERSION --channel beta --official-site-url "$env:CHANGEBATTLE_OFFICIAL_SITE_URL"
