@@ -469,7 +469,7 @@
 - [ ] 支持 Anger Point 占位。
 - [x] 支持 Surf / Discharge / Earthquake + 队友免疫或吸收占位。
 - [x] combo 必须检查是否会击杀队友。
-- [ ] combo 必须检查触发后队友是否有输出窗口。
+- [x] combo 必须检查触发后队友是否有输出窗口。
 - [x] combo 必须输出 `comboId`。
 - [x] combo 必须输出 benefit。
 - [x] combo 必须输出 risk。
@@ -541,7 +541,7 @@
 - [x] 输出 selected leaf value breakdown。
 - [x] 输出 selected/high-score candidate reason tags。
 - [ ] 输出每个候选的 score parts。
-- [ ] 输出 ally combo reasons。
+- [x] 输出 ally combo reasons。
 - [ ] 输出 fallback reason。
 
 ## 18. 单打测试

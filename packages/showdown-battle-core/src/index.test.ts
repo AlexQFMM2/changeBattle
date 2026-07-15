@@ -3358,6 +3358,30 @@ function aiDoublesStrategyV0Smoke() {
   if (!weaknessPolicy.tags.includes("ally-combo") || !weaknessPolicy.combos.some(combo => combo.comboId === "weakness-policy") || weaknessPolicy.tags.includes("avoid-ally-damage") || !(weaknessPolicy.adjustment > 0)) {
     throw new Error(`Weakness Policy ally hit should be a positive combo: ${JSON.stringify(weaknessPolicy)}`);
   }
+  const limitedWindowRequest: BattleServiceRequestV4 = {
+    ...request,
+    side: {
+      id: "p2",
+      name: "B",
+      pokemon: [
+        {ident: "p2: Garchomp", details: "Garchomp, L50", condition: "180/180", active: true, ability: "Rough Skin", moves: ["Bulldoze"], stats: {hp: 180, atk: 170, def: 110, spa: 85, spd: 100, spe: 125}},
+        {ident: "p2: Magikarp", details: "Magikarp, L50", condition: "120/120", active: true, ability: "Swift Swim", item: "Weakness Policy", moves: ["Splash"], stats: {hp: 120, atk: 20, def: 55, spa: 20, spd: 35, spe: 80}},
+      ],
+    },
+  };
+  const limitedWindowCombo = scoreBattleAiDoublesJointCandidateV4(limitedWindowRequest, {
+    choice: "move 1 -2, move 1",
+    score: 100,
+    kind: "move",
+    features: {},
+    diagnostics: {parts: [
+      {moveId: "bulldoze", moveType: "Ground", target: "any", category: "physical", expectedDamageRatio: 0.2, typeMultiplier: 2, koChance: 0},
+      {moveId: "splash", target: "self", category: "status", expectedDamageRatio: 0},
+    ]},
+  });
+  if (!limitedWindowCombo.tags.includes("ally-combo") || !limitedWindowCombo.combos.some(combo => combo.reasons.includes("limited-output-window")) || !(limitedWindowCombo.adjustment < weaknessPolicy.adjustment)) {
+    throw new Error(`Low-output ally combo should be detected but discounted: ${JSON.stringify({limitedWindowCombo, weaknessPolicy})}`);
+  }
   const doubleTarget = scoreBattleAiDoublesJointCandidateV4(request, {
     choice: "move 3 +1, move 1 +1",
     score: 100,

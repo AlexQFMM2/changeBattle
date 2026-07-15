@@ -61,7 +61,14 @@ export function detectBattleAiAllyCombosV4(input: BattleAiAllyComboDetectInputV4
 
   const add = (comboId: BattleAiAllyComboIdV4, benefit: number, risk: number, reasons: string[]) => {
     if (koChance >= 1 || hpRatioFromCondition(ally.condition) <= Math.max(0.05, expectedDamageRatio)) return;
-    combos.push({comboId, allyIdent: ally.ident, benefit, risk, reasons});
+    const outputWindow = allyHasOutputWindow(ally);
+    combos.push({
+      comboId,
+      allyIdent: ally.ident,
+      benefit: outputWindow ? benefit : Math.round(benefit * 0.35),
+      risk: outputWindow ? risk : risk + 12,
+      reasons: outputWindow ? [...reasons, "output-window"] : [...reasons, "limited-output-window"],
+    });
   };
 
   if (item === "weaknesspolicy" && typeMultiplier > 1 && expectedDamageRatio > 0 && expectedDamageRatio <= 0.45) {
@@ -101,6 +108,35 @@ function hpRatioFromCondition(condition: string): number {
   const maxHp = Number(match[2]);
   if (!Number.isFinite(hp) || !Number.isFinite(maxHp) || maxHp <= 0) return 1;
   return Math.max(0, Math.min(1, hp / maxHp));
+}
+
+function allyHasOutputWindow(ally: BattleServiceSidePokemonV4): boolean {
+  const hpRatio = hpRatioFromCondition(ally.condition);
+  const stats = ally.stats || {};
+  const atk = Number(stats.atk || 0);
+  const spa = Number(stats.spa || 0);
+  const spe = Number(stats.spe || 0);
+  const moves = (ally.moves || []).map(normalizeId);
+  if (hpRatio >= 0.45 && (atk >= 105 || spa >= 105 || spe >= 110)) return true;
+  return moves.some(move => [
+    "protect",
+    "suckerpunch",
+    "aquajet",
+    "extremespeed",
+    "machpunch",
+    "bulletpunch",
+    "iceshard",
+    "shadowsneak",
+    "leafstorm",
+    "thunderbolt",
+    "hurricane",
+    "flareblitz",
+    "closecombat",
+    "earthquake",
+    "hydropump",
+    "surf",
+    "discharge",
+  ].includes(move));
 }
 
 function finiteNumber(value: unknown, fallback: number): number {
