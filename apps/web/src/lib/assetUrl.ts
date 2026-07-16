@@ -1,14 +1,17 @@
+import {DEFAULT_CHANGE_BATTLE_ASSET_BASE_URL, joinAssetBaseUrl} from "@changebattle-v2/assets-core";
+
 const EXTERNAL_URL_PATTERN = /^(https?:|data:|blob:|file:|capacitor:)/i;
 
 export function assetUrl(path?: string | null): string | undefined {
   if (!path) return undefined;
-  if (EXTERNAL_URL_PATTERN.test(path)) return path;
-  if (path.startsWith("./") || path.startsWith("../")) return path;
-  const cleanPath = path.replace(/^\/+/, "").replace(/^assets\//, "");
+  const rawPath = path.trim();
+  if (!rawPath) return undefined;
+  if (EXTERNAL_URL_PATTERN.test(rawPath) || rawPath.startsWith("//")) return rawPath;
+  if (rawPath.startsWith("./") || rawPath.startsWith("../")) return rawPath;
+  const cleanPath = rawPath.replace(/^\/+/, "").replace(/^assets\//, "").replace(/\/+$/, "");
   if (!cleanPath) return publicAssetBase();
   const [, assetPath, suffix = ""] = /^([^?#]*)([?#].*)?$/.exec(cleanPath) || [];
-  const base = publicAssetBase();
-  return `${base}${(assetPath || cleanPath).split("/").map(encodeURIComponent).join("/")}${suffix}`;
+  return `${joinAssetBaseUrl(publicAssetBase(), assetPath || cleanPath)}${suffix}`;
 }
 
 export function cssAssetUrl(path?: string | null): string | undefined {
@@ -17,14 +20,12 @@ export function cssAssetUrl(path?: string | null): string | undefined {
 }
 
 export function publicAssetBase(): string {
-  const meta = import.meta as ImportMeta & {env?: {BASE_URL?: string}};
-  const base = meta.env?.BASE_URL || "/";
-  if (base === "./" || base === ".") return "./";
-  return base.endsWith("/") ? base : `${base}/`;
+  const meta = import.meta as ImportMeta & {env?: {VITE_CHANGE_BATTLE_ASSET_BASE_URL?: string}};
+  return meta.env?.VITE_CHANGE_BATTLE_ASSET_BASE_URL || DEFAULT_CHANGE_BATTLE_ASSET_BASE_URL;
 }
 
 export function showdownAssetPrefix(): string {
-  return assetUrl("showdown/") || `${publicAssetBase()}showdown/`;
+  return `${assetUrl("showdown") || joinAssetBaseUrl(publicAssetBase(), "showdown")}/`;
 }
 
 export function styleUrlAssetPath(url: string): string {

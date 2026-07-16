@@ -44,7 +44,7 @@
   justify-content: start;
   gap: 4px;
   border: 8px solid transparent;
-  border-image-source: url('/board/rest-panel-frame.png');
+  border-image-source: url("https://assets.65h26i.top/beta/board/rest-panel-frame.png");
   border-image-slice: 58 fill;
   border-image-width: 8px;
   border-image-repeat: stretch;

@@ -7,7 +7,7 @@
   grid-template-rows: 18px minmax(0, 1fr);
   gap: 4px;
   border: 10px solid transparent;
-  border-image-source: url('/board/rest-panel-frame.png');
+  border-image-source: url("https://assets.65h26i.top/beta/board/rest-panel-frame.png");
   border-image-slice: 58 fill;
   border-image-width: 10px;
   border-image-repeat: stretch;
@@ -66,7 +66,7 @@
   place-items: center;
   border: 0;
   border-radius: 0;
-  background: url('/board/pinned-paper.png') center / 100% 100% no-repeat;
+  background: url("https://assets.65h26i.top/beta/board/pinned-paper.png") center / 100% 100% no-repeat;
   padding: 2px;
   color: #7a6c58;
   overflow: visible;

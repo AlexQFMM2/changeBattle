@@ -19,7 +19,7 @@
   z-index: 1;
   background:
     linear-gradient(180deg, rgb(20 28 25 / 10%), rgb(20 18 14 / 14%)),
-    url("/training-ground/learn.png") center center / cover no-repeat,
+    url("https://assets.65h26i.top/beta/training-ground/learn.png") center center / cover no-repeat,
     #2c352f;
   pointer-events: none;
 }

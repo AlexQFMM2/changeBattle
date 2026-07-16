@@ -397,7 +397,7 @@ button.game-version-badge:disabled {
   overflow: hidden;
   background:
     linear-gradient(90deg, rgb(0 0 0 / 58%), rgb(0 0 0 / 18%)),
-    url("/battle-backgrounds/forest.png") center / cover no-repeat;
+    url("https://assets.65h26i.top/beta/battle-backgrounds/forest.png") center / cover no-repeat;
   color: #f8eed0;
 }
 

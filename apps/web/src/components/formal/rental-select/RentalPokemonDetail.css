@@ -12,7 +12,7 @@
   min-width: 0;
   min-height: 0;
   border: 18px solid transparent;
-  border-image-source: url('/board/rest-panel-frame.png');
+  border-image-source: url("https://assets.65h26i.top/beta/board/rest-panel-frame.png");
   border-image-slice: 58 fill;
   border-image-width: 18px;
   border-image-repeat: stretch;

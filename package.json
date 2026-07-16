@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "web:dev": "pnpm --filter @changebattle-v2/core build && pnpm --filter @changebattle-v2/web dev",
+    "web:dev": "pnpm --filter @changebattle-v2/assets-core build && pnpm --filter @changebattle-v2/core build && pnpm --filter @changebattle-v2/web dev",
     "battle:dev": "./start_desk --battle-only",
     "desk:dev": "./start_desk",
     "desktop:dev": "pnpm --filter @changebattle-v2/desktop dev",

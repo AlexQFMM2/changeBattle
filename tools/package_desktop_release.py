@@ -35,20 +35,6 @@ REQUIRED_DESKTOP_OUTPUTS = [
     "apps/desktop/out/preload/preload.cjs",
     "apps/desktop/out/renderer/index.html",
 ]
-REQUIRED_RENDERER_ASSETS = [
-    "apps/desktop/out/renderer/aboutIcon/exchange.png",
-    "apps/desktop/out/renderer/board/rest-panel-frame.png",
-    "apps/desktop/out/renderer/npc/staff/buy.png",
-    "apps/desktop/out/renderer/npc/staff/judge.png",
-    "apps/desktop/out/renderer/npc/staff/nurse.png",
-    "apps/desktop/out/renderer/npc/staff/teach.png",
-    "apps/desktop/out/renderer/music/battle/trainer.ogg",
-    "apps/desktop/out/renderer/music/boss/xyz.ogg",
-    "apps/desktop/out/renderer/music/nonbattle/yurenu-omoi.ogg",
-    "apps/desktop/out/renderer/music/rest/pokemon-center.ogg",
-    "apps/desktop/out/renderer/title/spritesaurus-transition.mp4",
-    "apps/desktop/out/renderer/ui/button-gold.png",
-]
 REQUIRED_SHOWDOWN_PATHS = [
     "sim/index.js",
     "sim/battle.js",
@@ -159,7 +145,7 @@ def ignore_showdown_path(_dir: str, names: list[str]) -> set[str]:
 
 
 def validate_desktop_outputs(stage_dir: Path) -> None:
-    missing = [relative for relative in [*REQUIRED_DESKTOP_OUTPUTS, *REQUIRED_RENDERER_ASSETS] if not (stage_dir / relative).exists()]
+    missing = [relative for relative in REQUIRED_DESKTOP_OUTPUTS if not (stage_dir / relative).exists()]
     if missing:
         raise RuntimeError("Desktop build output is incomplete; missing:\n" + "\n".join(missing))
 

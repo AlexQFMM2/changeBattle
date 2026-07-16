@@ -1,0 +1,4 @@
+key,path,description
+app.logo,ui/logo.png,Application logo placeholder key
+ui.placeholder,ui/placeholder.png,Generic image fallback placeholder key
+test.env-example,test/env-example.txt,COS upload tool smoke file

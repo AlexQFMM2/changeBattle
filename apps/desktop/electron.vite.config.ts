@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 
 const bundledWorkspaceDeps = [
   "@changebattle-v2/api",
+  "@changebattle-v2/assets-core",
   "@changebattle-v2/core",
   "@changebattle-v2/showdown-battle-core",
   "@changebattle-v2/showdown-dex-core",
@@ -37,7 +38,7 @@ export default defineConfig({
   renderer: {
     root: __dirname,
     base: "./",
-    publicDir: resolve(__dirname, "../../assets"),
+    publicDir: false,
     plugins: [react()],
     build: {
       outDir: "out/renderer",

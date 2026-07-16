@@ -4,7 +4,7 @@ import {defineConfig} from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  publicDir: resolve(__dirname, "../../assets"),
+  publicDir: false,
   build: {
     rollupOptions: {
       input: resolve(__dirname, "index.html"),

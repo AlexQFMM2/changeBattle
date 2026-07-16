@@ -148,7 +148,7 @@
   place-items: center;
   border: 0;
   border-radius: 0;
-  background: url('/board/pinned-paper.png') center / 100% 100% no-repeat;
+  background: url("https://assets.65h26i.top/beta/board/pinned-paper.png") center / 100% 100% no-repeat;
   color: #25332b;
   padding: 2px;
   box-shadow: none;
@@ -168,7 +168,7 @@
 .rental-candidate-card-thumbnail.soulmate {
   background:
     linear-gradient(180deg, rgb(240 255 225 / 52%), rgb(183 237 177 / 70%)),
-    url('/board/pinned-paper.png') center / 100% 100% no-repeat;
+    url("https://assets.65h26i.top/beta/board/pinned-paper.png") center / 100% 100% no-repeat;
   outline: 1px solid rgb(117 218 127 / 50%);
   outline-offset: -3px;
 }

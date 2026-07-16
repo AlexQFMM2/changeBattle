@@ -1,5 +1,5 @@
 import type {LocalPokemonV4} from "@changebattle-v2/api";
-import spriteManifest from "../../public/showdown/sprites/manifest.json" with {type: "json"};
+import spriteManifest from "../data/showdownSpriteManifest.json" with {type: "json"};
 import {assetUrl} from "./assetUrl.js";
 
 export type PokemonSpriteResourceUrls = {

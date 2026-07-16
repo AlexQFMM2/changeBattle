@@ -56,7 +56,7 @@
 
 .training-rest-ui-panel {
   border: 18px solid transparent;
-  border-image-source: url('/board/rest-panel-frame.png');
+  border-image-source: url("https://assets.65h26i.top/beta/board/rest-panel-frame.png");
   border-image-slice: 58 fill;
   border-image-width: 18px;
   border-image-repeat: stretch;
@@ -1680,7 +1680,7 @@
   width: 15px;
   height: 15px;
   display: block;
-  background: transparent url('/ui/lock/unlock.png') center / contain no-repeat;
+  background: transparent url("https://assets.65h26i.top/beta/ui/lock/unlock.png") center / contain no-repeat;
   pointer-events: none;
   filter: grayscale(0.45);
 }
@@ -1700,7 +1700,7 @@
 .training-rest-new-lock-button.locked span {
   width: 15px;
   height: 15px;
-  background-image: url('/ui/lock/lock.png');
+  background-image: url("https://assets.65h26i.top/beta/ui/lock/lock.png");
   filter: saturate(1.2);
 }
 

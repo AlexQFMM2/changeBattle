@@ -401,7 +401,7 @@
 .training-rest-new-egg-animation {
   width: 132px;
   height: 244px;
-  background-image: url("/assets/runtime/soulmate/egg-hatch-sheet.png");
+  background-image: url("https://assets.65h26i.top/beta/runtime/soulmate/egg-hatch-sheet.png");
   background-size: 528px 732px;
   image-rendering: pixelated;
   animation: training-rest-new-egg-hatch 1.8s steps(1) infinite;

@@ -277,7 +277,7 @@ git branch -d hotfix/<name>
 
 ### Beta Test Release
 
-当前主流程走 GitHub Actions，不再从本机 scp 源码到 Windows 构建机。
+当前主流程走 GitHub Actions，不再从本机 scp 源码到 Windows 构建机。公共素材已迁移到腾讯 COS/CDN，debug desktop 构建不再下载 `changeBattleV2-assets.tgz`。
 
 1. 确认版本并提交：
 
@@ -298,9 +298,7 @@ gh workflow run "Release Debug Desktop" \
   -f source_ref=v2 \
   -f create_github_release=true \
   -f update_manifest_url=http://119.45.240.157/changebattle-beta/latest.json \
-  -f official_site_url=http://119.45.240.157/changebattle-beta/ \
-  -f assets_release_tag=changebattle-v2-assets-v1 \
-  -f assets_archive_name=changeBattleV2-assets.tgz
+  -f official_site_url=http://119.45.240.157/changebattle-beta/
 ```
 
 3. 等待构建完成：

@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1 --port 5180",
+    "dev": "pnpm --filter @changebattle-v2/assets-core build && vite --host 127.0.0.1 --port 5180",
     "test:scheduler": "tsc -p tsconfig.test.json && node dist-test/apps/web/src/components/battle-v4/useBattleV4ShowdownScheduler.test.js && node dist-test/apps/web/src/components/battle-v4/usePokemonBattleOBJHook.test.js && tsc -p tsconfig.commentary-test.json && node dist-commentary-test/apps/web/src/components/battle-v4/battleV4Commentary.test.js && pnpm run test:sprites",
-    "test:sprites": "tsc -p tsconfig.sprite-test.json && node dist-sprite-test/apps/web/src/lib/showdownPokemonSpriteAdapter.test.js",
+    "test:sprites": "pnpm --filter @changebattle-v2/assets-core build && tsc -p tsconfig.sprite-test.json && node dist-sprite-test/apps/web/src/lib/showdownPokemonSpriteAdapter.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@changebattle-v2/api": "workspace:*",
+    "@changebattle-v2/assets-core": "workspace:*",
     "@vitejs/plugin-react": "^5.0.0",
     "motion": "^12.41.0",
     "react": "^19.0.0",

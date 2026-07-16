@@ -1,5 +1,6 @@
 import {parentPort} from "node:worker_threads";
 import {createChangeBattleV2Api} from "@changebattle-v2/api";
+import {joinAssetBaseUrl, DEFAULT_CHANGE_BATTLE_ASSET_BASE_URL} from "@changebattle-v2/assets-core";
 import type {BattleSessionSnapshotV4, CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceV4, FormalSettlementReasonV4, PlayerVaultV4, ShowdownPlaybackTimelineV4, UserProfileV2} from "@changebattle-v2/api";
 
 type FormalComputeRequest =
@@ -22,7 +23,7 @@ type FormalComputeResponse = {
   error?: string;
 };
 
-const api = createChangeBattleV2Api({resourcePrefix: "./showdown/"});
+const api = createChangeBattleV2Api({resourcePrefix: `${joinAssetBaseUrl(DEFAULT_CHANGE_BATTLE_ASSET_BASE_URL, "showdown")}/`});
 
 parentPort?.on("message", async (request: FormalComputeRequest) => {
   const response = await handleRequest(request)
