@@ -18,6 +18,9 @@
 - Desktop EXE 无黑框启动改造：[`desktop-exe-launcher-plan.md`](desktop-exe-launcher-plan.md)
 - Assets CDN 核心抽象：[`assets-cdn-core-plan.md`](assets-cdn-core-plan.md)
 - Android-only App 移植：[`android-capacitor-app-migration-plan.md`](android-capacitor-app-migration-plan.md)
+- 服务器 Docker / Battle API：[`server-docker-battle-api-plan.md`](server-docker-battle-api-plan.md)
+- Redis 临时房间连续性：[`server-redis-battle-room-continuity-plan.md`](server-redis-battle-room-continuity-plan.md)
+- Formal Run Server Room 制作清单：[`formal-run-server-room-implementation-checklist.md`](formal-run-server-room-implementation-checklist.md)
 - Battle diagnostics / AI 出招复现：[`../debug/README.md`](../debug/README.md)
 
 ## 当前进度
@@ -46,6 +49,7 @@
 - 下一步 AI 主线是继续扩大单打/双打出题、做题、评估样本，结合人工 debug 对局验收，优先把 severe 犯病点稳定抓出来。
 - 下一步 coop 主线是复用 doubles 队伍生成器和 lead pair diagnostics，推进合作 AI 的 seat 映射、ally coordination、joint action 调试和出题评估。
 - 下一步 App 主线只做 Android：基于 Capacitor 复用 Web UI/API/CDN 资源，先验证 640x320 视口、存档、音频、网络/API、正式战斗和更新策略；iOS 暂不进入范围。
+- 下一步服务器主线是在已容器化 Battle API 上补 Redis 临时房间连续性：正式流程用 `roomId + roomToken` 恢复，休整页保留本地 draft 但取消手动保存，战斗页改为云端 snapshot/timeline/choice 权威流，进入战斗/战后/最终结算等关键 checkpoint 自动同步，创建战斗和提交指令做幂等；客户端补通用连接弹窗和全局延迟信号组件，5 分钟失联标记、10 分钟无响应清理；公网响应默认不返回 AI debug，Redis 存对局连续性，Loki 存当天结构化日志，COS 存历史归档。
 - 训练家仓库下一步重点是性能/体验回归、组件预览覆盖、解锁箱页的 draft/profile BP 边界、灵魂伴侣战后亲密度成长，以及 debug 添加与正式 release 隐藏入口的回归验证。
 - Battle V4 下一步继续按 diagnostics 驱动修问题：动画/顺序问题先走 playback probe，非法 AI 指令先走 `debug/README.md` 的 `allRequests` 复现方法。
 - 存档级结构迁移仍按运行时标准化计划推进；Pokemon/Item/Bag/Vault/Log 等规则性 helper 优先放 `packages/changebattle-v2-core`，API 主要做编排。
