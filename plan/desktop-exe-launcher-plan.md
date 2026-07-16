@@ -4,10 +4,10 @@
 
 把 Windows Desktop portable 包从“玩家双击 `ChangeBattle-V2-Desk.cmd`”改造成“玩家双击 `ChangeBattle V2.exe`”。最终目标是启动时不弹 cmd 黑框，文件、任务栏和窗口图标都使用固定应用图标，并继续复用当前 portable 目录结构、离线 vendor、beta/stable 更新清单和 debug release 流程。
 
-固定应用图标先使用：
+固定应用图标当前保留为仓库内小型资源：
 
 ```text
-assets/runtime/soulmate-badges/kanto-medal.png
+apps/desktop/resources/app-icon.png
 ```
 
 运行时随机宝可梦小图标可以作为后续彩蛋单独做；本计划优先保证产品入口稳定、无黑框、图标一致。
@@ -30,7 +30,7 @@ assets/runtime/soulmate-badges/kanto-medal.png
 
 - 玩家入口变成 `ChangeBattle V2.exe` 或 `ChangeBattle-V2-Desk.exe`。
 - 双击启动不显示 cmd/console 黑框。
-- exe 文件图标固定使用关都徽章生成的 `.ico`。
+- exe 文件图标固定使用 `apps/desktop/resources/app-icon.png` 生成的 `.ico`。
 - Electron 窗口图标、任务栏 AppUserModelID、release 包入口和 README 统一。
 - 现有 portable zip 结构尽量保持不变：
   - `apps/desktop/out`
@@ -91,7 +91,7 @@ assets/runtime/soulmate-badges/kanto-medal.png
 
 ### Option B: 完整 Electron 应用打包
 
-用 electron-builder/electron-packager 生成真正的 app exe，再把 vendor 和 assets 按 extraResources 放进去。
+用 electron-builder/electron-packager 生成真正的 app exe，再把 vendor 和必要内置资源按 extraResources 放进去。
 
 优点：
 
@@ -101,7 +101,7 @@ assets/runtime/soulmate-badges/kanto-medal.png
 风险：
 
 - 对现有自定义 release 结构改动更大。
-- 需要重新验证 1G 级资源包、增量清单、vendor 路径和 Windows 构建耗时。
+- 需要重新验证增量清单、vendor 路径、CDN 资源策略和 Windows 构建耗时。
 - 容易把“无 cmd 启动”这个目标扩大成完整安装器工程。
 
 ### Recommendation
@@ -112,11 +112,11 @@ assets/runtime/soulmate-badges/kanto-medal.png
 
 ### 1. 图标资产
 
-- 从 `assets/runtime/soulmate-badges/kanto-medal.png` 生成 Windows `.ico`。
+- 从 `apps/desktop/resources/app-icon.png` 生成 Windows `.ico`。
 - 推荐输出位置：
 
   ```text
-  apps/desktop/assets/app-icon.ico
+  release/desktop-launcher/app-icon.ico
   ```
 
 - `.ico` 包含常用尺寸：

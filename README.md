@@ -1,8 +1,8 @@
 # ChangeBattle V2
 
-一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证 + Battle V4 AI/队伍生成器强化 + 桌面端 GitHub Actions 发版迁移期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、灵魂伴侣蛋孵化/仓库养成/同行许可/战后成长/战斗内进化、Windows Desktop portable release、桌面端内容哈希增量更新都已经接入。
+一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证 + Battle V4 AI/队伍生成器强化 + 桌面端 GitHub Actions 发版稳定期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、灵魂伴侣蛋孵化/仓库养成/同行许可/战后成长/战斗内进化、Windows Desktop portable release、桌面端内容哈希增量更新、腾讯 COS/CDN 公共资源加载都已经接入。
 
-当前新的重点已经从“流程打通”转为“质量验证和 AI 能力闭环”：单打 AI 已完成 depth/value/threat/resource/special-system 等第一轮强化，双打 AI 已完成 joint action/value/reply/免疫防呆和双打队伍生成器优化；下一步聚焦出题/做题/评估报告、人工 debug 对局验收，以及合作 AI 开发。
+当前新的重点已经从“流程打通”转为“质量验证和 AI 能力闭环”：单打 AI 已完成 depth/value/threat/resource/special-system 等第一轮强化，双打 AI 已完成 joint action/value/reply/免疫防呆和双打队伍生成器优化；下一步聚焦出题/做题/评估报告、人工 debug 对局验收、合作 AI 开发，以及 Android-only 的 Capacitor App 移植预研。
 
 ## Repository / Branch
 
@@ -31,9 +31,10 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - **Battle V4 AI**：单打已经具备深度搜索、换人后重新估伤、队伍角色识别、威胁图、win condition 保护、极巨/太晶资源提交、reason tags 和反低级失误防呆；双打已经具备 joint action 评分、ally combo、reply search、特殊招式价值、友伤/免疫/重复无效招防呆和调试报告字段。
 - **队伍生成器**：随机队伍生成器已从“随机裁剪”升级为按 `purpose / quality / aiLevel / playerProfileHints` 分层生成；单打支持 rain/sun/trick-room 等核心完整度，双打支持 Protect 密度、控速、范围输出、Fake Out、Intimidate、重定向、lead pair 和 coop 后续复用的 doubles diagnostics。
 - **AI 验证流程**：单打和双打都已接入 self-play exam / report 流程，能批量生成题目、AI 自动答题、记录决策耗时、debug/value/reason tags，并按 severe/warning 找明显犯病点。
+- **Assets CDN**：公共图片、音频、Showdown sprites/fx、训练/商店/奖章等资源已迁到腾讯 COS/CDN，统一走 `https://assets.65h26i.top/beta/...`；`apps/web/public` 和根 `assets/` 不再作为运行时打包来源。
 - **Release 流程**：debug 桌面端主流程已迁到 GitHub Actions。完整包由 GitHub Release 托管，更新 metadata 由 Actions artifact 生成，本地下载 artifact 后上传到自有服务器；旧 scp 到 Windows 构建机流程已降级为备用方案。
-- **桌面更新**：增量更新从 `files/vX.Y.Z/` 版本镜像迁移为内容哈希对象池：服务器托管 `latest.json`、`manifests/current.json`、`manifests/vX.Y.Z.json` 和 `objects/<sha>`；客户端按本地实际 sha 与远端清单比较新增/修改/删除。
-- **下一步重点**：继续扩大出题/做题/评估样本，做人工 debug 对局验收，完善报告可解释性；在此基础上推进 coop AI 和 coop 队伍/lead pair 分配。
+- **桌面更新**：增量更新从 `files/vX.Y.Z/` 版本镜像迁移为内容哈希对象池：服务器托管 `latest.json`、`manifests/current.json`、`manifests/vX.Y.Z.json` 和 `objects/<sha>`；客户端按本地实际 sha 与远端清单比较新增/修改/删除。当前 beta 服务器清理旧对象后约 `79M`，当前版本 live objects 约 `66M`。
+- **下一步重点**：继续扩大出题/做题/评估样本，做人工 debug 对局验收，完善报告可解释性；推进 coop AI 和 coop 队伍/lead pair 分配；预研并启动 Android-only App 移植。
 
 - `packages/showdown-dex-core`：Web/Desktop 共用的 Dex 数据、搜索、详情聚合、图片解析、中文翻译、能力计算、学习面反查。
 - `packages/changebattle-v2-core`：V2 运行时结构、玩家仓库、星图天赋、灵魂伴侣、桌面更新等共享纯规则和 catalog。
@@ -68,7 +69,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - V1 风格 `GameViewport`、首屏、首页、玩家设置基础体验迁移。
 - 用户资料最小存档：只保存训练师基础信息。
 - Showdown Dex Core：宝可梦、技能、特性、战斗道具搜索与详情。
-- 本地 Showdown 资源：3D 四向立绘、小图 sheet、道具小图 sheet。
+- Showdown 公共资源：3D 四向立绘、小图 sheet、道具小图 sheet、battle fx 已迁到 CDN，并通过统一 asset URL 解析。
 - 对 Showdown 缺失的 V2 sprite 路径，按 `missing-sprites.json` 从旧 runtime 精确补图，并用 `runtime-overrides.json` 标记可重置范围。
 - 中文图鉴数据：中文名、中文说明、中文搜索、属性/分类/性格等基础翻译。
 - 训练配置页：训练师、队伍、背包测试道具和训练场入口。
@@ -100,7 +101,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - 训练家仓库荣誉奖章：宝可梦详情页已接入 10 个个人奖章，按这只宝可梦自己的 `honors` 进度从下往上点亮；点击任意奖章可查看说明和待攻克目标，目标来自 Dex 训练师数据，不是物种或玩家全局成就。
 - 训练家仓库宝可梦操作：宝可梦详情抽屉支持卸下道具和危险操作“放生”；放生会二次确认，携带道具优先放回道具箱，道具箱满时阻止放生。
 - 训练家仓库 debug 入口：beta/dev 下可通过简单搜索弹窗添加 debug 道具和 debug 宝可梦；debug 宝可梦复用 core 蛋生成规则 helper，来源标记为 `debug-custom`，debug 道具来源标记为 `debug`；stable/release 隐藏入口但不隐藏已有数据。
-- 灵魂伴侣蛋孵化：最终胜利后的待结算休整页已接入“就决定是你了”入口，按本局战斗记录筛选候选，使用 `packages/changebattle-v2-core` 的蛋生成 helper 生成进化根宝可梦并写入长期仓库；孵化动画使用 `assets/runtime/soulmate/egg-hatch-sheet.png`。
+- 灵魂伴侣蛋孵化：最终胜利后的待结算休整页已接入“就决定是你了”入口，按本局战斗记录筛选候选，使用 `packages/changebattle-v2-core` 的蛋生成 helper 生成进化根宝可梦并写入长期仓库；孵化动画使用资源相对路径 `runtime/soulmate/egg-hatch-sheet.png`。
 - 灵魂伴侣星图线：`灵魂伴侣`、`同行许可 I / II`、`爱不释手`、`欧洲父母`、`一眼万年`、待结算商店带出和育儿基金等节点已静态化到 star chart catalog，业务侧按 `runtimeEffects` 读取。
 - 真实对局灵魂伴侣：通过“同行许可”进入正式流程的仓库宝可梦已接入选人页专属槽位、休整页浅绿色队伍标记、战斗昵称展示、战后亲密度回写和战后荣誉授章；点亮“爱不释手”时会把仓库携带物复制为 run-local 背包实例，不扣仓库资产。
 - 灵魂伴侣战斗进化：正式战斗中，达到亲密度门槛且下一段进化目标唯一的灵魂伴侣会在下一次行动请求前按 3% 概率触发羁绊进化；后端通过 Showdown `formeChange(..., evolutionEffect, true)` 写入 `detailschange`/提示协议，Web 只按 rawLog playback 顺序播放白光 transform 动画并同步 run-local 与来源仓库形态。
@@ -110,11 +111,11 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.20` 是内容哈希对象池更新的迁移首包；旧 scp 到 Windows 构建机流程只作为备用方案保留。
+- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.20` 已完成内容哈希对象池更新和 CDN 资源迁移验证；最近一次 debug release 耗时约 `4m55s`，完整包约 `138M`，增量 metadata artifact 约 `17M`。
 
 当前明确不做：
 
-- app 端。
+- iOS App 暂不做；下一步只预研/移植 Android App。
 - 完整 roguelike 奖励扩展、长期循环平衡和安装器/签名。
 - 旧 `dexSearch` 兼容。
 - 局域网合作第一版不做中心服务器、公网匹配、账号系统、NAT 穿透、PvP、观战和 host migration。
@@ -128,16 +129,17 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - 单打和双打都已有 self-play exam / report：能批量出题、让 AI 自动做题、记录每次决策耗时、搜索深度、value breakdown、reason tags，并按 severe/warning 发现明显犯病点。
 - 天气/场地持久层会按资源 key 重建 video/image 层，避免沙暴、雨天、晴天、雪天切换时继续播放旧资源。
 - 第三轮联机已进入设计落地准备：计划见 `plan/formal-game/formal-lan-coop-host-mode-plan.md`，第一版目标是 Desktop 双人局域网 PvE，沿用 Showdown coop 的 `p1 + p3` 对 `p2 + p4` 编排，战斗阶段由房主权威计算。
-- 当前主要工作点已经从“流程打通”转到 AI/队伍质量闭环、人工 debug 验收、coop AI、正式游戏内容打磨和 GitHub Actions 桌面发版稳定化。
+- 当前主要工作点已经从“流程打通”转到 AI/队伍质量闭环、人工 debug 验收、coop AI、正式游戏内容打磨、GitHub Actions 桌面发版稳定化和 Android App 移植准备。
 
 下一步：
 
 - 继续扩大 AI 出题/做题/评估闭环：单打和双打都要增加题目覆盖、报告摘要、关键回合解说、决策耗时统计和 severe/warning 归因，优先让“明显犯病”能被稳定抓出来。
 - 做人工 debug 对局验收：挑选 self-play 报告里的高价值局面逐回合讲解，检查 AI 是否像正常玩家一样处理 KO、换人、极巨/太晶、集火、Protect、Fake Out、Tailwind/Trick Room 和友伤。
 - 推进 coop AI：先复用 doubles 队伍生成器和 lead pair diagnostics，把 4v4 doubles 队伍拆成两个 NPC 视角，再做合作场景下的 ally coordination、seat 映射、joint action 调试和出题评估。
+- 启动 Android-only App 移植计划：优先基于 Capacitor 复用 Web UI/API/资源 CDN；只做 Android，不做 iOS；第一轮先验证 640x320 视口、存档、网络/API、音频、资源 CDN 和正式战斗流程。
 - 继续把正式 GameRun 和新队伍生成器磨稳：玩家画像、地区限制、是否神战、战斗系统、NPC 强度、Boss 偏好、特殊系统道具和旧生成器 fallback 都要在正式流程里可解释、可回退。
 - 继续回归 Battle V4 演出和状态继承：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择、双打/合作 seat 映射，以及灵魂伴侣战斗进化在 singles/doubles/coop 下的播放顺序。
-- 桌面 release 后续继续验证 GitHub Actions + 对象池增量更新链路；`ChangeBattle-V2-Desk.exe` launcher、安装器、签名仍不在当前范围。
+- 桌面 release 后续继续验证 GitHub Actions + 对象池增量更新链路；安装器、签名仍不在当前范围。
 
 详细路线见 `docs/training-and-battle-roadmap.md`、`plan/formal-game/README.md` 和 `plan/formal-game/formal-lan-coop-host-mode-plan.md`。
 
@@ -151,15 +153,29 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 
 ## Asset Rules
 
-运行时图片、音频、图标等共享资源统一放在仓库根目录的 `assets/` 下，例如 `assets/aboutIcon/coin.png`、`assets/shop/rest-store/...`、`assets/training-ground/learn.png`。前端组件通过 `assetUrl("...")` 引用这些资源，路径相对于 `assets/` 根目录，例如 `assetUrl("rest/heal.png")`。
+运行时图片、音频、图标、Showdown sprites/fx 等共享资源已经迁到腾讯 COS/CDN，当前公共根为：
 
-不要把这类资源临时放到 `apps/web/src/assets/` 或随意放进 `apps/web/public/`。`apps/web/src/assets/` 只适合真正需要被代码模块静态 import、并且已有明确局部打包约定的源码内资源；休整页、商店、训练场、战斗页等运行时 UI 资源默认都属于根目录 `assets/`。新增资源前先检查 `assets/` 里已有分类，优先复用/扩展现有目录，避免只为一个图标新开孤立资源体系。
+```txt
+https://assets.65h26i.top/beta/
+```
 
-`assets/` 是运行时资源源目录，但它不是 git 源码目录。图片、音频、精灵图、批量复制/生成的道具图标体积大、更新频繁，所以默认不提交进 git；这不是说这些资源只服务本机预览，也不是临时目录。git 负责提交代码、catalog、道具/物种等记录里的资源相对路径；实际资源文件通过独立 assets 包、assetsURL、桌面包或更新管线同步和分发。
+业务代码仍然记录资源相对路径，例如 `runtime/items/redthread/icon.png`、`showdown/sprites/ani/pikachu.gif`、`music/battle/trainer.ogg`。Web/Desktop 通过 `assetUrl("...")` 或 `assetsTool("...")` 解析为 CDN URL；不要在组件里硬编码 `/showdown/...`、`/npc/...`、`/assets/...`、本机绝对路径或 `file://`。
 
-代码里记录资源路径时使用相对 `assets/` 的路径，例如 `runtime/items/redthread/icon.png`，不要写成本机绝对路径、`file://`、硬编码 `/assets/...`，也不要为了让 `git status` 看到文件就搬进 `apps/web/public/`。Web 渲染时用 `assetUrl("runtime/items/redthread/icon.png")`，或者使用内部已经调用 `assetUrl` 的共享图片组件；`assetUrl("assets/runtime/items/redthread/icon.png")` 会被兼容归一化，但新增代码优先不要带 `assets/` 前缀。`assetUrl(...)` 是 Web dev、desktop dev、portable release、beta/stable 更新包共用的资源入口，尤其用于保证桌面 release 解包或更新后仍能按统一规则读取图片，不是单纯的字符串拼接工具。
+`apps/web/public` 和仓库根 `assets/` 不再是运行时打包来源，也不应为了让文件进入 release 而恢复大资源目录。`apps/web/vite.config.ts`、`apps/desktop/vite.config.ts` 和 desktop renderer 构建已经关闭 publicDir；桌面 release 只打包代码、vendor、launcher 需要的小图标和必要资源，不再携带约 500M 的公共 assets。
 
-新增或复制运行时图片时，直接放到既有资源分类下，例如道具图标放 `assets/runtime/items/<itemId>/icon.png`。因为 `assets/` 被忽略，`git status` 不显示这些文件是预期行为；需要检查缺图时，用本地 UI、资源缺失审计脚本或对应 catalog 里的 icon 路径验证。发布/更新时，源码可以走 `git archive`，资源必须走单独 assets 打包/同步链路，避免把大资源塞进 git。
+资源来源与上传：
+
+- 批量公共资源统一上传到 COS `beta/` 前缀，不按 debug/stable/beta 复制三份。
+- 上传工具在 `/home/alexqfmm/workPlace/tools/tencent-cos`，密钥只放该工具本地 `.env`。
+- ChangeBattle 侧 URL 解析在 `packages/assets-core`，默认 provider 为腾讯 CDN。
+- `packages/assets-core/src/generated/assetRegistry.ts` 是当前已上传资源的 registry 快照；不要在没有完整资源源目录时随手 regenerate。
+- 新增少量资源时，先上传到 `https://assets.65h26i.top/beta/<path>`，再补 `assets-core` 的 key/path 或让通用 `assetUrl(path)` 直接解析。
+
+发布影响：
+
+- GitHub Actions debug desktop 不再下载 `changeBattleV2-assets.tgz`。
+- 增量更新 manifest 当前只管理 `apps/`、`resources/`、`vendor/` 和 `package.json`；公共图片/音频从 CDN 直连，不进入 desktop hash object 池。
+- 如果 CDN 资源路径变更，优先保持旧路径兼容；确实需要改路径时，同步修改 catalog/registry 和对应 UI 引用。
 
 ## Commands
 
@@ -190,7 +206,7 @@ beta site:    http://119.45.240.157/changebattle-beta/
 stable site:  http://119.45.240.157/changebattle/
 ```
 
-`0.1.20` 是内容哈希对象池更新的迁移首包。因为服务器之前没有 v2 `manifests/current.json` 和 `objects/` 基线，首个 artifact 接近全量是预期现象；玩家建议下载一次完整包。后续只改少量文件时，Actions artifact 应只包含新增或变更的 hash object。
+`0.1.20` 是内容哈希对象池更新和 CDN 资源迁移的 debug 基线。最近一次 GitHub Actions release 成功耗时约 `4m55s`，完整 debug zip 约 `138M`；本次增量 metadata artifact 约 `17M`，新增对象 6 个。服务器清理旧对象池后，beta 更新目录约 `79M`，其中当前 live objects 约 `66M`。
 
 玩家解压后运行：
 
@@ -198,7 +214,7 @@ stable site:  http://119.45.240.157/changebattle/
 ChangeBattle-V2-Desk.cmd
 ```
 
-`.cmd` 不是业务运行时，只是 portable launcher：用 `%~dp0` 计算解压目录，设置 `CHANGEBATTLE_PROJECT_ROOT`、Showdown runtime vendor、Showdown client vendor 等环境变量，然后调用包内 `runtime/electron/electron.exe` 启动 `apps/desktop`。VSCode 那种可见 `.exe` 也是 Electron，但走了更完整的应用打包/launcher/安装器体系；V2 现在先保留已验证的 portable 目录结构，后续如果要美化启动入口，优先做一个小型 `ChangeBattle-V2-Desk.exe` launcher 来替代 `.cmd`，而不是立刻重做完整安装器。
+`.cmd` 不是业务运行时，只是 portable launcher：用 `%~dp0` 计算解压目录，设置 `CHANGEBATTLE_PROJECT_ROOT`、Showdown runtime vendor、Showdown client vendor 等环境变量，然后调用包内 `runtime/electron/electron.exe` 启动 `apps/desktop`。当前 release 也会生成一个轻量 `ChangeBattle V2.exe` launcher，用于提供更像普通桌面软件的入口；完整安装器、代码签名和自动安装目录管理仍不在当前范围。
 
 桌面端更新能力：
 
@@ -206,7 +222,7 @@ ChangeBattle-V2-Desk.cmd
 - 如果存在 `objectBaseUrl` 和 `fileManifestUrl`，客户端读取远端 `manifests/current.json`。
 - 客户端重新计算本地 managed files 的实际 sha256，不完全信任本地 `update-manifest.json`。
 - 远端有、本地没有则新增；同路径 sha 不同则下载替换；本地 manifest 有、远端没有则删除；非 managed 文件不动。
-- 普通游戏代码/资源变化会从 `objects/<sha前2位>/<sha256>` 下载增量对象、校验、替换，并提示重启后生效。
+- 普通游戏代码、内置资源和 vendor 变化会从 `objects/<sha前2位>/<sha256>` 下载增量对象、校验、替换，并提示重启后生效；公共图片/音频走 CDN，不进入 desktop 增量对象池。
 - 右下角版本徽标可手动检查更新，已是最新时显示“当前已是最新版本”。
 - Electron runtime、launcher、updater 或 portable 目录结构变化仍要求完整包。
 
@@ -221,11 +237,19 @@ debug/beta 推荐发版命令：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
+VERSION=0.1.20
 git push origin v2
-gh workflow run release-debug-desktop.yml --ref v2
-gh run list --workflow "Release Debug Desktop" --limit 3
-gh run watch <run-id> --exit-status
-gh run download <run-id> --name changebattle-beta-update-metadata-vX.Y.Z -D tmp/gha-beta-update-vX.Y.Z-<run-id>
+gh workflow run "Release Debug Desktop" \
+  --repo AlexQFMM2/changeBattle \
+  --ref v2 \
+  -f version="$VERSION" \
+  -f source_ref=v2 \
+  -f create_github_release=true \
+  -f update_manifest_url=http://119.45.240.157/changebattle-beta/latest.json \
+  -f official_site_url=http://119.45.240.157/changebattle-beta/
+gh run list --repo AlexQFMM2/changeBattle --workflow "Release Debug Desktop" --limit 3
+gh run watch <run-id> --repo AlexQFMM2/changeBattle --exit-status
+gh run download <run-id> --repo AlexQFMM2/changeBattle --name "changebattle-beta-update-metadata-v${VERSION}" --dir "tmp/gha-beta-update-v${VERSION}-<run-id>"
 ```
 
 下载 artifact 后，本地发布更新 metadata 到 beta 服务器：
@@ -246,7 +270,7 @@ http://119.45.240.157/changebattle/manifests/vX.Y.Z.json
 http://119.45.240.157/changebattle/objects/<sha前2位>/<完整sha256>
 ```
 
-`latest.json`、版本比较、channel URL、对象池文件清单对比和增量路径校验的纯规则在 `packages/changebattle-v2-core/src/desktopUpdateCatalog.ts`；Electron 主进程负责拉取清单、下载增量、校验和替换文件。脚本只发布 manifest/download page/hash objects，不上传约 600 MiB 的 portable zip；完整包由 GitHub Release 托管，并写入 `latest.json.fullPackage` / `mirrors`。
+`latest.json`、版本比较、channel URL、对象池文件清单对比和增量路径校验的纯规则在 `packages/changebattle-v2-core/src/desktopUpdateCatalog.ts`；Electron 主进程负责拉取清单、下载增量、校验和替换文件。脚本只发布 manifest/download page/hash objects，不上传完整 portable zip；完整包由 GitHub Release 托管，并写入 `latest.json.fullPackage` / `mirrors`。
 
 详细流程、服务器目录、检查项和排错见 `release/README.md`。旧 Windows 构建机流程只作为 fallback 参考，见 `release/docs/windows-desktop-release.md`。
 

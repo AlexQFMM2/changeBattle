@@ -1,6 +1,6 @@
 # ChangeBattle V2 Release Workspace
 
-`release/` 是桌面端发版工作台。当前主流程由 GitHub Actions 构建 Windows debug/stable portable 包，完整包托管在 GitHub Release，更新入口和增量对象仍发布到自有服务器。
+`release/` 是桌面端发版工作台。当前主流程由 GitHub Actions 构建 Windows debug/stable portable 包，完整包托管在 GitHub Release，更新入口和增量对象发布到自有服务器。公共图片、音频、Showdown sprites/fx 等 assets 已迁到腾讯 COS/CDN，桌面包和桌面增量对象池不再携带全量 assets。
 
 当前推荐链路：
 
@@ -24,6 +24,19 @@ beta site:     http://119.45.240.157/changebattle-beta/
 server root:   /home/ubuntu/webApp/
 ```
 
+当前 debug/beta 实测状态：
+
+```text
+latest debug:       0.1.20
+GitHub Actions run: 29487219912
+build duration:     4m55s
+full zip:           144,822,814 bytes (~138 MiB)
+metadata artifact:  ~17 MiB
+staged objects:     6 objects / 16,887,643 bytes
+beta server total:  ~79 MiB after object GC
+beta objects live:  388 objects / ~66 MiB
+```
+
 当前已发布版本：
 
 ```text
@@ -31,7 +44,7 @@ server root:   /home/ubuntu/webApp/
 0.1.2  验证 0.1.1 -> 0.1.2 自动增量更新；新增右下角手动检查入口。
 0.1.3  验证 0.1.2 -> 0.1.3 自动增量更新；压缩更新弹窗 UI 到 640x320 规格。
 0.1.4  修复出招面板禁用技能槽位显示；结算统计优先按后端播放流程归因。
-0.1.20 debug  GitHub Actions 桌面构建 + 内容哈希对象池更新迁移首包。
+0.1.20 debug  GitHub Actions 桌面构建 + 内容哈希对象池更新 + Assets CDN 迁移基线。
 ```
 
 `0.1.3` 线上完整包镜像：
@@ -113,14 +126,21 @@ git worktree add -b hotfix/<name> ../changeBattleV2-hotfix-<name> release
 
 `latest.json` 给桌面端启动自检和右下角手动检查使用。`index.html` 是玩家访问的游戏官网。`manifests/current.json` 描述当前目标安装目录，`objects/` 按内容 sha256 存储增量对象。
 
-发布脚本会上传 `latest.json`、`index.html`、`image/`、`manifests/` 和 `objects/`，但不会上传约 600 MiB 的 zip。完整包由 GitHub Release 托管，并写入 `latest.json.fullPackage` / `mirrors`。
+发布脚本会上传 `latest.json`、`index.html`、`image/`、`manifests/` 和 `objects/`，但不会上传完整 portable zip。完整包由 GitHub Release 托管，并写入 `latest.json.fullPackage` / `mirrors`。
+
+对象池清理策略：
+
+- 常规发布只追加当前 artifact 中的新 hash object。
+- 如果已经确认不需要支持旧 manifest，可按当前 `manifests/current.json` 做对象池 GC，只保留当前 manifest 引用的对象。
+- `0.1.20` CDN 迁移后已清理 beta 旧对象池：从约 `640M` 降到约 `79M`，当前 objects 约 `66M`。
+- GC 前必须检查 `missingLiveObjects=0`；缺对象时禁止删除旧对象。
 
 下载链接继承规则：
 
 - 发布脚本生成新 `latest.json/index.html` 前，会先读取当前通道线上旧版 `latest.json`。
 - 如果本次没有显式设置 `CHANGEBATTLE_RELEASE_MIRRORS`、`CHANGEBATTLE_FULL_PACKAGE_URL` 或 `--mirror/--full-package-url`，则继承旧版 `mirrors` 和 `fullPackage`。
 - 如果本次显式设置了新镜像，则以新镜像为准，并用本次 zip 计算新的 `sha256/size`。
-- 常规增量修复可以不重新上传 600 MiB 完整包，下载页继续展示上一版可用完整包链接。
+- 常规增量修复可以不重新上传完整包，下载页继续展示上一版可用完整包链接。
 - 如果本次必须玩家下载完整包，例如 runtime、launcher、updater、目录结构变化，必须上传新完整包并显式设置镜像链接，不能依赖继承旧链接。
 
 ## Incremental Update
@@ -141,11 +161,12 @@ git worktree add -b hotfix/<name> ../changeBattleV2-hotfix-<name> release
 
 ```text
 apps/
-assets/
 resources/
 vendor/
 package.json
 ```
+
+说明：`packages/changebattle-v2-core` 里仍保留 `assets/` 路径兼容校验，防止旧安装目录/旧 manifest 读取失败；但当前 GitHub Actions 生成桌面文件清单时不再纳入 `assets/`。公共资源由 CDN 直连。
 
 禁止增量管理：
 
@@ -161,9 +182,10 @@ Electron runtime、launcher、updater 或目录结构变化，一律发布完整
 
 迁移注意：
 
-- `0.1.20` 是对象池迁移首包，服务器之前没有 `manifests/current.json`，所以 artifact 仍接近全量。
-- 迁移首包建议玩家下载完整包，让客户端拿到新版 updater。
-- 从下一个版本开始，GitHub Actions 能读取服务器 `manifests/current.json`，artifact 才会只包含新增对象。
+- `0.1.20` 已完成对象池迁移和 CDN 资源迁移验证。
+- 同版本内容更新不依赖版本号判断差异，客户端按本地实际 sha 与远端 `manifests/current.json` 对比。
+- 如果修改公共图片/音频，只需要上传 COS/CDN 并保持路径可访问；不需要重新进入 desktop zip 或 update objects。
+- 如果修改 launcher、Electron runtime、updater 或 portable 目录结构，仍要求完整包。
 
 ## Version Source Policy
 
@@ -374,7 +396,7 @@ cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
 CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_on_windows.sh X.Y.Z
 ```
 
-旧流程会把源码/assets/vendor 通过 scp 传到 Windows 构建机，再把 zip 拉回本地。它比 GitHub Actions 慢且更容易受远程机器状态影响。
+旧流程曾经会把源码、assets、vendor 通过 scp 传到 Windows 构建机，再把 zip 拉回本地。它比 GitHub Actions 慢且更容易受远程机器状态影响；当前公共 assets 已迁到 CDN，这条链路只作为故障备用参考。
 
 ```text
 win10@172.16.10.41
@@ -483,6 +505,17 @@ pnpm --filter @changebattle-v2/desktop test:ipc-bundle
 curl -sS http://119.45.240.157/changebattle/latest.json
 curl -I http://119.45.240.157/changebattle/manifests/current.json
 curl -I http://119.45.240.157/changebattle/manifests/vX.Y.Z.json
+curl -sS http://119.45.240.157/changebattle-beta/latest.json
+curl -I http://119.45.240.157/changebattle-beta/manifests/current.json
+curl -I http://119.45.240.157/changebattle-beta/objects/<sha前2位>/<完整sha256>
+```
+
+artifact 和服务器体积检查：
+
+```bash
+du -sh tmp/gha-beta-update-vX.Y.Z-<run_id>
+cat tmp/gha-beta-update-vX.Y.Z-<run_id>/object-update-summary.json
+ssh ubuntu@119.45.240.157 'du -sh /home/ubuntu/webApp/changebattle-beta /home/ubuntu/webApp/changebattle-beta/objects /home/ubuntu/webApp/changebattle-beta/manifests'
 ```
 
 ## More Docs

@@ -2,7 +2,7 @@
 
 ChangeBattle V2 的资源 URL 核心包。
 
-第一版只做厂商无关的运行时解析。业务代码只引用资源 key，不直接写腾讯 COS、七牛或本地 assets URL：
+第一版只做厂商无关的运行时解析。业务代码优先引用资源 key 或受控相对 path，不直接写腾讯 COS、七牛或本地 assets URL：
 
 ```ts
 import { assetsTool } from '@changebattle-v2/assets-core'
@@ -32,15 +32,14 @@ https://assets.65h26i.top/beta/test/env-example.txt
 
 ## Current Closed Loop
 
-当前最小闭环已经跑通：
+当前闭环已经跑通：
 
 ```text
-本地文件
+本地公共资源源目录或单个文件
   -> /home/alexqfmm/workPlace/tools/tencent-cos 上传到 COS
   -> https://assets.65h26i.top/beta/... CDN 访问
-  -> 写入 assets.csv
-  -> pnpm --filter @changebattle-v2/assets-core generate
-  -> 业务代码 assetsTool(assetKey) 加载
+  -> 写入 assets.csv 或生成全量 registry
+  -> 业务代码 assetUrl(path) / assetsTool(assetKey) 加载
 ```
 
 COS 权限配置：
@@ -56,13 +55,13 @@ Write access: private, via local Tencent COS tool credentials only
 
 当前约定：**所有 ChangeBattle 公共资源统一上传到 `beta/` 前缀**。这里的 `beta` 先作为公共资源根目录使用，不按 debug/beta/stable 复制三份资源。COS Policy 里如果保留了 `debug/*`、`stable/*` 只读授权，也暂时不作为默认上传目标。
 
-我
+当前 ChangeBattle 主仓库已经不再保留根 `assets/` 和 `apps/web/public` 的大体积运行时资源。`src/generated/assetRegistry.ts` 是已经上传到 CDN 的资源清单快照；没有恢复完整资源源目录时，不要随手重新生成它。
 
 ## Files
 
 - `assets.csv`：人工维护的资源 key -> path 清单。
-- `src/generated/assetRegistry.ts`：由 CSV 生成脚本维护的 registry。
-- `scripts/generate-asset-registry.mjs`：从 `assets.csv` 生成 `assetRegistry.ts`。
+- `src/generated/assetRegistry.ts`：由生成脚本维护的 registry，当前包含已上传 CDN 的公共资源快照。
+- `scripts/generate-asset-registry.mjs`：从人工 CSV 和资源扫描结果生成 `assetRegistry.ts`。
 - `src/config.ts`：默认 provider 和 provider base URL 配置。
 - `src/assetsTool.ts`：对外 URL 解析入口。
 - `src/assetPaths.ts`：路径清洗和 URL 拼接。
@@ -139,27 +138,27 @@ cd /home/alexqfmm/workPlace/tools/tencent-cos
 
 pnpm upload -- \
   --dir /path/to/assets \
-  --remote ui \
+  --remote-root \
   --channel beta
 ```
 
 例如本地文件：
 
 ```text
-/path/to/assets/logo.png
+/path/to/assets/showdown/sprites/pokemonicons-sheet.png
 ```
 
 会上传到：
 
 ```text
-beta/ui/logo.png
+beta/showdown/sprites/pokemonicons-sheet.png
 ```
 
-目录上传当前不会自动写 `assets.csv`，适合批量资源先上云；业务引用仍需要给资源补 key。
+目录上传适合批量资源先上云；业务代码里的动态 path 可通过 `assetUrl(path)` 直接拼 CDN。需要稳定语义别名时，再给资源补 `assets.csv` key。
 
 ## Generate Registry
 
-上传工具更新 `assets.csv` 后，需要重新生成 registry：
+上传工具更新 `assets.csv` 或恢复完整资源源目录后，需要重新生成 registry：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
@@ -180,6 +179,8 @@ import { assetsTool } from '@changebattle-v2/assets-core'
 
 const url = assetsTool('app.logo')
 ```
+
+注意：当前根 `assets/` 已从主仓库移除。如果只是本地没有完整资源源目录，不要直接运行 generate 覆盖现有全量 registry；否则 registry 会退化成只包含 CSV 的小清单。
 
 ## Useful Upload Flags
 
@@ -219,6 +220,7 @@ pnpm --filter @changebattle-v2/assets-core typecheck
 ## Rules
 
 - 业务层优先使用 `assetsTool(assetKey)`。
+- 动态资源路径使用 Web 层 `assetUrl(path)`，仍由本包的清洗和 CDN base URL 规则兜底。
 - 默认 provider 为 `tx`。
 - 默认拒绝完整 URL、空路径、`..` 等危险输入。
 - 迁移期如必须传裸 path，需要显式开启 `allowRawPath`。
