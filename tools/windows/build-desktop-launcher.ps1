@@ -11,7 +11,7 @@ if ([string]::IsNullOrWhiteSpace($OutputDir)) {
 }
 
 $LauncherRoot = Join-Path $SourceRoot "tools\windows\desktop-launcher"
-$IconSource = Join-Path $SourceRoot "assets\runtime\soulmate-badges\kanto-medal.png"
+$IconSource = Join-Path $SourceRoot "apps\desktop\resources\app-icon.png"
 $IconPng = Join-Path $OutputDir "app-icon.png"
 $IconIco = Join-Path $OutputDir "app-icon.ico"
 $ResourceObject = Join-Path $OutputDir "launcher.res.o"

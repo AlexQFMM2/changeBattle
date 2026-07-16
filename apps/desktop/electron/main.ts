@@ -82,7 +82,7 @@ async function createWindow() {
 function desktopWindowIconPath(): string | undefined {
   const candidates = [
     path.join(desktopPortableRoot(), "resources", "app-icon.png"),
-    path.resolve(__dirname, "../../../../assets/runtime/soulmate-badges/kanto-medal.png"),
+    path.resolve(__dirname, "../../resources/app-icon.png"),
   ];
   for (const candidate of candidates) {
     if (existsSync(candidate)) return candidate;
