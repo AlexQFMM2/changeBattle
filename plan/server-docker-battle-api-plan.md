@@ -14,6 +14,8 @@ Android / Web / Desktop
 
 目标是让服务器压力最小、流量可控、部署可回滚，并给 Android APK、Desktop debug/beta、Web debug 一个统一可访问的 BattleService 地址。三端统一后，后续联机、服务端仲裁、AI debug 查询都会更顺。
 
+实施策略：先在当前 Linux 开发机用 Docker Compose 模拟服务器环境，跑通 Battle API + Redis + room 生命周期；本地闭环稳定后，在本地 build image 并用 `docker save` 导出镜像包，上传服务器后 `docker load` 直接运行。服务器不作为主要开发调试/构建环境，只做部署适配、HTTPS/Nginx/CORS 和线上 smoke。
+
 ## Design Goals
 
 - 只先 Docker 化 Battle API，不把整个 ChangeBattle 项目一次性塞进 Docker。
@@ -160,9 +162,13 @@ gzip_types application/json text/plain;
 - [ ] 请求体大小限制，例如 `1MB`。
 - [ ] session TTL，例如 `2h` 自动清理。
 - [ ] session 上限，例如 `maxSessions=200`。
+- [ ] 创建 room/session 前检查 Redis/宿主机安全水位，低于阈值时返回服务器繁忙。
 - [ ] 单 session 最大回合数 / 最大 rawLog 长度保护。
+- [ ] 正式 room 创建的 session 绑定 owner room；正式流程不能绕过 room 直接调用 `/sessions/:sessionId/choice` 推进。
+- [ ] debug v1 接受容器重启丢失内存 session；启动后由 Redis room 层把不可恢复战斗标记为 `closed/server-restarted`。
 - [ ] 错误响应不暴露 stack trace。
 - [ ] 基础 token / channel key，至少保护 debug API。
+- [ ] CORS 允许 room token 所需 header：`Authorization`、`Content-Type`、可选 `X-ChangeBattle-Room-Token`。
 - [ ] `/health` 返回 session 数、uptime、版本、git sha，但不返回敏感信息。
 - [ ] graceful shutdown，容器停止时拒绝新 session 并尽量完成当前请求。
 
@@ -190,6 +196,8 @@ changebattle-battle-api
     .env
     logs/              # optional, stdout 优先
 ```
+
+本地模拟目录可以复用仓库内 `docker/` 示例；本地只暴露 Battle API 到 `127.0.0.1:5191`，Redis 不暴露公网/宿主机公网接口。服务器迁移时尽量复用同一套 compose 服务名和 env key，只替换 public base URL、Nginx 和证书配置。Battle API image 优先本地 build、本地 smoke、本地 `docker save`，服务器只 `docker load` 和 run。
 
 环境变量草案：
 
@@ -266,12 +274,18 @@ location /changebattle/battle/ {
 
 ### 2. Docker Deployment
 
+- [ ] 本地 Docker Compose smoke：Battle API + Redis。
+- [ ] 本地 room API smoke：create/read/heartbeat/delete。
+- [ ] 本地 formal run smoke：开始游戏 -> 战斗 -> 结算。
+- [ ] 本地故障 smoke：Battle API 容器重启、Redis 不可用、内存安全水位不足。
+- [ ] 本地 build Battle API image，并记录 image tag / git sha。
+- [ ] 本地 `docker save` 导出 image tar，上传服务器后 `docker load`。
+- [ ] 服务器 compose 使用已 load image，不在服务器上安装依赖或编译源码。
 - [x] 新增 Battle API `Dockerfile`。
 - [x] 新增服务器 `docker-compose.yml` 示例。
 - [x] 编写 `.env.example`。
 - [x] 写 Nginx location 示例。
-- [ ] 本地 `docker build` / `docker run` smoke。
-- [ ] 服务器首次部署 smoke。
+- [ ] 本地闭环稳定后，服务器首次部署 smoke。
 
 ### 3. Loki Observability
 
@@ -279,6 +293,7 @@ location /changebattle/battle/ {
 - [ ] 可选新增 `loki` + `promtail` / `alloy` compose。
 - [ ] 按 `sessionId`、`scope`、`level` 查询日志。
 - [ ] AI debug 日志只在服务端保留，不进入普通客户端响应。
+- [ ] Loki 未接完前，stdout JSON + docker logs 作为临时排查路径。
 
 ### 4. Client Battle API Switch
 
@@ -342,6 +357,7 @@ Desktop smoke：
 - debug token 是否在 APK 内明文可接受；正式阶段是否改为一次性 session token。
 - Desktop debug token 是否通过 release config 注入，还是由本地设置页配置。
 - Loki 是第一版同时上，还是先 stdout + docker logs，等 API 稳定后再接。
+- Redis room 上线后，旧 `/sessions` API 如何限制正式 room session 的直接推进。
 - 是否需要为公网 Battle API 单独做 GitHub Actions build/publish image。
 
 ## Assumptions
@@ -349,5 +365,5 @@ Desktop smoke：
 - 服务器按流量计费，因此 assets 永远走 COS/CDN，不走 Battle API。
 - Android 第一版允许联网，不要求离线完整战斗。
 - Desktop 后续以 server-first 为主，保留本地内置 BattleService 只是开发/紧急 fallback。
-- Battle API 是状态型服务，session 保存在容器内存；容器重启会丢失当前战斗，debug/beta 阶段可接受。
+- Battle API 是状态型服务，session 保存在容器内存；容器重启会丢失当前战斗，debug/beta 阶段可接受，并由 Redis room 层给客户端明确失败/关闭状态。
 - 以后若要 Android 离线运行，需要单独做 V2 mobile Showdown bundle，不混入本计划。
