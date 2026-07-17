@@ -131,6 +131,8 @@ type RoomWsClient = {
   closeCode: number | null;
   closeReason: string | null;
   closeSource: string | null;
+  fragmentedOpcode: number | null;
+  fragmentedPayloads: Buffer[];
   authTimer: NodeJS.Timeout;
 };
 
@@ -1326,6 +1328,8 @@ function attachRoomWebSocket(socket: net.Socket, roomId: string): void {
     closeCode: null,
     closeReason: null,
     closeSource: null,
+    fragmentedOpcode: null,
+    fragmentedPayloads: [],
     authTimer,
   };
   socket.on("data", chunk => {
@@ -1367,16 +1371,36 @@ function drainWsFrames(client: RoomWsClient): void {
       sendWsFrame(client.socket, parsed.payload, 0xA);
       continue;
     }
+    if (parsed.opcode === 0x0) {
+      if (client.fragmentedOpcode === null) {
+        log("warn", "room-ws-unexpected-continuation", {roomId: client.roomId, clientId: client.id});
+        closeWsClient(client, 4400, "unexpected_continuation");
+        return;
+      }
+      client.fragmentedPayloads.push(parsed.payload);
+      if (!parsed.fin) continue;
+      const opcode = client.fragmentedOpcode;
+      const payload = Buffer.concat(client.fragmentedPayloads);
+      client.fragmentedOpcode = null;
+      client.fragmentedPayloads = [];
+      if (opcode === 0x1) void handleRoomWsMessage(client, payload.toString("utf8"));
+      continue;
+    }
     if (parsed.opcode !== 0x1) continue;
-    const text = parsed.payload.toString("utf8");
-    void handleRoomWsMessage(client, text);
+    if (!parsed.fin) {
+      client.fragmentedOpcode = parsed.opcode;
+      client.fragmentedPayloads = [parsed.payload];
+      continue;
+    }
+    void handleRoomWsMessage(client, parsed.payload.toString("utf8"));
   }
 }
 
-function readWsFrame(buffer: Buffer): {opcode: number; payload: Buffer; consumed: number} | null {
+function readWsFrame(buffer: Buffer): {fin: boolean; opcode: number; payload: Buffer; consumed: number} | null {
   if (buffer.byteLength < 2) return null;
   const first = buffer[0]!;
   const second = buffer[1]!;
+  const fin = (first & 0x80) !== 0;
   const opcode = first & 0x0f;
   const masked = (second & 0x80) !== 0;
   let length = second & 0x7f;
@@ -1402,7 +1426,7 @@ function readWsFrame(buffer: Buffer): {opcode: number; payload: Buffer; consumed
       payload[index] = payload[index]! ^ mask[index % 4]!;
     }
   }
-  return {opcode, payload, consumed: offset + length};
+  return {fin, opcode, payload, consumed: offset + length};
 }
 
 function parseWsClosePayload(payload: Buffer): {code: number | null; reason: string} {
@@ -1419,6 +1443,7 @@ async function handleRoomWsMessage(client: RoomWsClient, raw: string): Promise<v
     message = JSON.parse(raw);
   } catch {
     sendWsJson(client, {type: "server.error", error: "bad_json", message: "WebSocket 消息不是合法 JSON。"});
+    log("warn", "room-ws-bad-json", {roomId: client.roomId, clientId: client.id, bytes: Buffer.byteLength(raw, "utf8")});
     return;
   }
   try {
@@ -1482,12 +1507,20 @@ async function handleRoomWsMessage(client: RoomWsClient, raw: string): Promise<v
 }
 
 async function handleWsMutation(client: RoomWsClient, message: any, task: () => Promise<any>): Promise<void> {
+  const startedAt = Date.now();
   const result = await withRoomLock(client.roomId, task);
   sendWsJson(client, {
     type: "sync.ack",
     clientActionId: message?.clientActionId || null,
     action: message?.type,
     data: result,
+  });
+  log("info", "room-ws-mutation-ack", {
+    roomId: client.roomId,
+    clientId: client.id,
+    action: message?.type,
+    clientActionId: message?.clientActionId || null,
+    elapsedMs: Date.now() - startedAt,
   });
 }
 
