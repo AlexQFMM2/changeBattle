@@ -33,6 +33,7 @@ const WS_CONNECT_TIMEOUT_MS = 3500;
 export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4): FormalRoomSyncClientV4 {
   let socket: WebSocket | null = null;
   let disposed = false;
+  let terminalClosed = false;
   let ready = false;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let readyPromise: Promise<void> | null = null;
@@ -56,12 +57,14 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   }
 
   function setWsBackgroundFailure(): void {
+    if (terminalClosed) return;
     if (httpCommandActive > 0) return;
     setState({state: "reconnecting", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
   }
 
   function connect(): Promise<void> {
     if (disposed) return Promise.reject(new Error("room sync disposed"));
+    if (terminalClosed) return Promise.reject(new Error("room closed"));
     if (ready && socket?.readyState === WebSocket.OPEN) return Promise.resolve();
     if (readyPromise) return readyPromise;
     if (typeof WebSocket === "undefined") return Promise.reject(new Error("WebSocket unavailable"));
@@ -100,7 +103,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
         ready = false;
         readyPromise = null;
         rejectReady(new Error("WebSocket 已断开。"));
-        if (!disposed) scheduleReconnect();
+        if (!disposed && !terminalClosed) scheduleReconnect();
       };
     });
     return readyPromise;
@@ -123,7 +126,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   }
 
   function scheduleReconnect(): void {
-    if (disposed || reconnectTimer) return;
+    if (disposed || terminalClosed || reconnectTimer) return;
     stopHeartbeat();
     if (httpCommandActive <= 0) setState({state: "reconnecting"});
     reconnectTimer = setTimeout(() => {
@@ -153,7 +156,22 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
       return;
     }
     if (message?.type === "room.closed") {
-      config.onRoomClosed(String(message.reason || "房间已经关闭。"));
+      const reason = String(message.reason || "房间已经关闭。");
+      terminalClosed = true;
+      ready = false;
+      stopHeartbeat();
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      rejectReady(new Error(reason));
+      setState({state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
+      config.onRoomClosed(reason);
+      try {
+        socket?.close(1000, "room_closed");
+      } catch {
+        // Ignore browser close errors.
+      }
     }
   }
 
