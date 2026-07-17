@@ -58,16 +58,13 @@ type FormalRoomBattleFinalizeResultV1 = {
 type FormalRoomRestActionStoredResultV1 = {
   actionType: string;
   message: string;
-  formalRun: FormalGameRunV4;
   revision: number;
   moneyDelta: number;
-  result: unknown;
   createdAt: string;
 };
 
 type FormalRoomDraftSyncStoredResultV1 = {
   label: string;
-  formalRun: FormalGameRunV4;
   revision: number;
   createdAt: string;
 };
@@ -764,8 +761,8 @@ async function syncFormalRoomDraft(roomId: string, roomToken: string, body: any)
   const repeated = current.draftSyncResults?.[clientActionId];
   if (repeated) {
     return {
-      room: publicRoom({...current, formalRun: repeated.formalRun, revision: repeated.revision}),
-      formalRun: repeated.formalRun,
+      room: publicRoom(current),
+      formalRun: current.formalRun,
       label: repeated.label,
       reused: true,
     };
@@ -785,7 +782,6 @@ async function syncFormalRoomDraft(roomId: string, roomToken: string, body: any)
     ...(current.draftSyncResults || {}),
     [clientActionId]: {
       label,
-      formalRun: nextRoomBase.formalRun,
       revision: nextRoomBase.revision,
       createdAt: now,
     },
@@ -876,12 +872,12 @@ async function applyFormalRoomRestAction(roomId: string, roomToken: string, body
   const repeated = current.restActionResults?.[clientActionId];
   if (repeated) {
     return {
-      room: publicRoom({...current, formalRun: repeated.formalRun, revision: repeated.revision}),
-      formalRun: repeated.formalRun,
+      room: publicRoom(current),
+      formalRun: current.formalRun,
       actionType: repeated.actionType,
       message: repeated.message,
       moneyDelta: repeated.moneyDelta,
-      result: repeated.result,
+      result: {ok: true, message: repeated.message},
       reused: true,
     };
   }
@@ -905,10 +901,8 @@ async function applyFormalRoomRestAction(roomId: string, roomToken: string, body
     [clientActionId]: {
       actionType,
       message: result.message,
-      formalRun: nextRoomBase.formalRun,
       revision: nextRoomBase.revision,
       moneyDelta,
-      result,
       createdAt: now,
     },
   });
@@ -958,14 +952,32 @@ function applyFormalRestActionToRun(run: FormalGameRunV4, actionType: string, ac
 function pruneRestActionResults(results: Record<string, FormalRoomRestActionStoredResultV1>): Record<string, FormalRoomRestActionStoredResultV1> {
   const entries = Object.entries(results)
     .sort((a, b) => Date.parse(b[1].createdAt) - Date.parse(a[1].createdAt))
-    .slice(0, 100);
+    .slice(0, 120)
+    .map(([clientActionId, result]) => [
+      clientActionId,
+      {
+        actionType: result.actionType,
+        message: result.message,
+        revision: Math.floor(Number(result.revision || 0)),
+        moneyDelta: Math.floor(Number(result.moneyDelta || 0)),
+        createdAt: result.createdAt,
+      },
+    ] satisfies [string, FormalRoomRestActionStoredResultV1]);
   return Object.fromEntries(entries);
 }
 
 function pruneDraftSyncResults(results: Record<string, FormalRoomDraftSyncStoredResultV1>): Record<string, FormalRoomDraftSyncStoredResultV1> {
   const entries = Object.entries(results)
     .sort((a, b) => Date.parse(b[1].createdAt) - Date.parse(a[1].createdAt))
-    .slice(0, 150);
+    .slice(0, 120)
+    .map(([clientActionId, result]) => [
+      clientActionId,
+      {
+        label: result.label,
+        revision: Math.floor(Number(result.revision || 0)),
+        createdAt: result.createdAt,
+      },
+    ] satisfies [string, FormalRoomDraftSyncStoredResultV1]);
   return Object.fromEntries(entries);
 }
 
