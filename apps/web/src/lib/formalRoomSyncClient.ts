@@ -256,7 +256,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     return withQueue(async () => {
       const clientActionId = input.clientActionId || createRoomClientActionId("draft");
       const baseRevision = revision ?? undefined;
-      const fallback = async () => {
+      const sendHttpCommand = async () => {
         httpFallbackActive += 1;
         setState({state: "syncing"});
         try {
@@ -279,27 +279,14 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
           httpFallbackActive = Math.max(0, httpFallbackActive - 1);
         }
       };
-      try {
-        if (!wsReady()) {
-          return await fallback();
-        }
-        return await sendWsMutation<FormalRoomDraftSyncResultV1>({
-          type: "rest.syncDraft",
-          clientActionId,
-          baseRevision,
-          formalRunDraft: input.formalRunDraft,
-          label: input.label,
-        }, clientActionId);
-      } catch {
-        return await fallback();
-      }
+      return sendHttpCommand();
     });
   }
 
   async function submitRestAction(input: {formalRunDraft: FormalGameRunV4; action: FormalRoomRestActionV1; clientActionId: string; label: string}): Promise<FormalRoomRestActionResultV1> {
     return withQueue(async () => {
       const baseRevision = revision ?? undefined;
-      const fallback = async () => {
+      const sendHttpCommand = async () => {
         httpFallbackActive += 1;
         setState({state: "syncing"});
         try {
@@ -322,21 +309,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
           httpFallbackActive = Math.max(0, httpFallbackActive - 1);
         }
       };
-      try {
-        if (!wsReady()) {
-          return await fallback();
-        }
-        return await sendWsMutation<FormalRoomRestActionResultV1>({
-          type: "rest.action",
-          clientActionId: input.clientActionId,
-          baseRevision,
-          formalRunDraft: input.formalRunDraft,
-          action: input.action,
-          label: input.label,
-        }, input.clientActionId);
-      } catch {
-        return await fallback();
-      }
+      return sendHttpCommand();
     });
   }
 
