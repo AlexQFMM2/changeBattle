@@ -209,6 +209,10 @@ function RoutedApp({runtime}: AppProps) {
       onRoomClosed: reason => {
         setFormalRestInitialNotice(reason === "deleted" ? "房间已经关闭。" : `房间连接已关闭：${reason}`);
       },
+      fallbackHeartbeat: () => apiRef.current.heartbeatFormalRoom({
+        roomId: formalRoomCredential.roomId,
+        roomToken: formalRoomCredential.roomToken,
+      }),
       fallbackSyncDraft: input => apiRef.current.syncFormalRoomDraft({
         roomId: formalRoomCredential.roomId,
         roomToken: formalRoomCredential.roomToken,

@@ -1471,28 +1471,14 @@ async function handleRoomWsMessage(client: RoomWsClient, raw: string): Promise<v
       log("info", "room-ws-authed", {roomId: client.roomId, clientId: client.id});
       return;
     }
-    if (message?.type === "room.heartbeat") {
-      const room = await withRoomLock(client.roomId, async () => {
-        const current = await loadAuthorizedWsRoom(client);
-        const next = touchRoom(current);
-        await saveRoom(next);
-        return next;
+    if (message?.type === "room.heartbeat" || message?.type === "room.get" || message?.type === "rest.syncDraft" || message?.type === "rest.action") {
+      sendWsJson(client, {
+        type: "server.error",
+        error: "client_ws_action_disabled",
+        action: message?.type,
+        message: "房间 WebSocket 只用于服务器通知，客户端操作请走 HTTP API。",
       });
-      sendWsJson(client, {type: "sync.ack", clientActionId: message?.clientActionId || null, action: "room.heartbeat", data: {room: publicRoom(room), formalRun: room.formalRun, revision: room.revision}});
-      broadcastRoomUpdated(room, client);
-      return;
-    }
-    if (message?.type === "room.get") {
-      const room = await loadAuthorizedWsRoom(client);
-      sendWsJson(client, {type: "room.updated", room: publicRoom(room), formalRun: room.formalRun, revision: room.revision});
-      return;
-    }
-    if (message?.type === "rest.syncDraft") {
-      await handleWsMutation(client, message, () => syncFormalRoomDraft(client.roomId, tokenFromAuthedWsClient(client), message));
-      return;
-    }
-    if (message?.type === "rest.action") {
-      await handleWsMutation(client, message, () => applyFormalRoomRestAction(client.roomId, tokenFromAuthedWsClient(client), message));
+      log("warn", "room-ws-client-action-disabled", {roomId: client.roomId, clientId: client.id, action: message?.type});
       return;
     }
     sendWsJson(client, {type: "server.error", error: "unknown_ws_action", message: "未知房间消息。"});
@@ -1500,43 +1486,10 @@ async function handleRoomWsMessage(client: RoomWsClient, raw: string): Promise<v
     const status = error instanceof HttpError ? error.status : 500;
     const code = error instanceof HttpError ? error.code : "battle_service_error";
     const messageText = error instanceof HttpError ? error.publicMessage : "房间同步失败。";
-    const payload = {type: "sync.failed", clientActionId: message?.clientActionId || null, action: message?.type || "unknown", error: code, message: messageText, retryable: status >= 500 || status === 408 || status === 429};
+    const payload = {type: "server.error", action: message?.type || "unknown", error: code, message: messageText, retryable: status >= 500 || status === 408 || status === 429};
     sendWsJson(client, payload);
     log("warn", "room-ws-message-failed", {roomId: client.roomId, clientId: client.id, action: message?.type, error: error instanceof Error ? error.message : String(error)});
   }
-}
-
-async function handleWsMutation(client: RoomWsClient, message: any, task: () => Promise<any>): Promise<void> {
-  const startedAt = Date.now();
-  const result = await withRoomLock(client.roomId, task);
-  sendWsJson(client, {
-    type: "sync.ack",
-    clientActionId: message?.clientActionId || null,
-    action: message?.type,
-    data: result,
-  });
-  log("info", "room-ws-mutation-ack", {
-    roomId: client.roomId,
-    clientId: client.id,
-    action: message?.type,
-    clientActionId: message?.clientActionId || null,
-    elapsedMs: Date.now() - startedAt,
-  });
-}
-
-async function loadAuthorizedWsRoom(client: RoomWsClient): Promise<FormalRoomRecordV1> {
-  const room = await loadRoom(client.roomId);
-  if (!room) throw new HttpError(404, "room_not_found", "房间不存在或已过期。");
-  if (!client.roomTokenHash || client.roomTokenHash !== room.roomTokenHash) {
-    throw new HttpError(403, "room_forbidden", "房间凭证无效。");
-  }
-  assertRoomOpen(room);
-  return room;
-}
-
-function tokenFromAuthedWsClient(client: RoomWsClient): string {
-  if (!client.roomTokenHash) throw new HttpError(403, "room_forbidden", "房间凭证无效。");
-  return `sha256:${client.roomTokenHash}`;
 }
 
 function registerWsClient(client: RoomWsClient): void {

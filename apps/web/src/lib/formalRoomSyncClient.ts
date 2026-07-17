@@ -23,18 +23,12 @@ export type FormalRoomSyncClientConfigV4 = {
   onConnectionState: (state: PostServiceConnectionStateV4) => void;
   onRoomUpdated: (payload: {room: FormalRoomV1; formalRun: FormalGameRunV4; revision: number}) => void;
   onRoomClosed: (message: string) => void;
+  fallbackHeartbeat: () => Promise<PostServiceResultV4<FormalRoomV1>>;
   fallbackSyncDraft: (input: {clientActionId: string; baseRevision?: number; formalRunDraft: FormalGameRunV4; label?: string}) => Promise<PostServiceResultV4<FormalRoomDraftSyncResultV1>>;
   fallbackRestAction: (input: {clientActionId: string; baseRevision?: number; formalRunDraft: FormalGameRunV4; action: FormalRoomRestActionV1}) => Promise<PostServiceResultV4<FormalRoomRestActionResultV1>>;
 };
 
-type PendingMutation = {
-  resolve: (value: any) => void;
-  reject: (error: Error) => void;
-  timer: ReturnType<typeof setTimeout>;
-};
-
 const WS_CONNECT_TIMEOUT_MS = 3500;
-const WS_MUTATION_TIMEOUT_MS = 12000;
 
 export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4): FormalRoomSyncClientV4 {
   let socket: WebSocket | null = null;
@@ -47,8 +41,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   let queue: Promise<void> = Promise.resolve();
   let revision: number | null = null;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-  const pending = new Map<string, PendingMutation>();
-  let httpFallbackActive = 0;
+  let httpCommandActive = 0;
   const baseState = {
     lastSuccessAt: null,
     lastErrorAt: null,
@@ -63,7 +56,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   }
 
   function setWsBackgroundFailure(): void {
-    if (httpFallbackActive > 0 || pending.size > 0) return;
+    if (httpCommandActive > 0) return;
     setState({state: "reconnecting", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
   }
 
@@ -72,7 +65,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     if (ready && socket?.readyState === WebSocket.OPEN) return Promise.resolve();
     if (readyPromise) return readyPromise;
     if (typeof WebSocket === "undefined") return Promise.reject(new Error("WebSocket unavailable"));
-    if (httpFallbackActive <= 0) setState({state: state.failureCount > 0 ? "reconnecting" : "connecting"});
+    if (httpCommandActive <= 0) setState({state: state.failureCount > 0 ? "reconnecting" : "connecting"});
     readyPromise = new Promise<void>((resolve, reject) => {
       readyResolve = resolve;
       readyReject = reject;
@@ -107,7 +100,6 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
         ready = false;
         readyPromise = null;
         rejectReady(new Error("WebSocket 已断开。"));
-        rejectPending(new Error("WebSocket 已断开。"));
         if (!disposed) scheduleReconnect();
       };
     });
@@ -133,7 +125,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   function scheduleReconnect(): void {
     if (disposed || reconnectTimer) return;
     stopHeartbeat();
-    if (httpFallbackActive <= 0) setState({state: "reconnecting"});
+    if (httpCommandActive <= 0) setState({state: "reconnecting"});
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       void connect().catch(() => undefined);
@@ -160,75 +152,15 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
       if (message.type === "room.ready") resolveReady();
       return;
     }
-    if (message?.type === "sync.ack") {
-      const clientActionId = String(message.clientActionId || "");
-      const entry = pending.get(clientActionId);
-      if (!entry) return;
-      pending.delete(clientActionId);
-      clearTimeout(entry.timer);
-      if (message.data?.room?.revision !== undefined) revision = Number(message.data.room.revision);
-      setState({
-        state: "online",
-        lastSuccessAt: new Date().toISOString(),
-        failureCount: 0,
-      });
-      entry.resolve(message.data);
-      return;
-    }
-    if (message?.type === "sync.failed") {
-      const clientActionId = String(message.clientActionId || "");
-      const entry = pending.get(clientActionId);
-      if (!entry) return;
-      pending.delete(clientActionId);
-      clearTimeout(entry.timer);
-      setState(message.retryable
-        ? {state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1}
-        : {state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
-      entry.reject(new Error(String(message.message || "房间同步失败。")));
-      return;
-    }
     if (message?.type === "room.closed") {
       config.onRoomClosed(String(message.reason || "房间已经关闭。"));
-      rejectPending(new Error("房间已经关闭。"));
     }
-  }
-
-  function sendWsMutation<T>(message: Record<string, unknown>, clientActionId: string): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      if (!socket || socket.readyState !== WebSocket.OPEN || !ready) {
-        reject(new Error("WebSocket 未连接。"));
-        return;
-      }
-      const timer = setTimeout(() => {
-        pending.delete(clientActionId);
-        setState({state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
-        reject(new Error("WebSocket 同步超时。"));
-      }, WS_MUTATION_TIMEOUT_MS);
-      pending.set(clientActionId, {resolve, reject, timer});
-      setState({state: "syncing"});
-      try {
-        socket.send(JSON.stringify(message));
-      } catch (error) {
-        pending.delete(clientActionId);
-        clearTimeout(timer);
-        reject(error instanceof Error ? error : new Error("WebSocket 发送失败。"));
-      }
-    });
-  }
-
-  function wsReady(): boolean {
-    return Boolean(ready && socket?.readyState === WebSocket.OPEN);
   }
 
   function startHeartbeat(): void {
     if (heartbeatTimer || disposed) return;
     heartbeatTimer = setInterval(() => {
-      if (!socket || socket.readyState !== WebSocket.OPEN || !ready) return;
-      try {
-        socket.send(JSON.stringify({type: "room.heartbeat", clientActionId: createRoomClientActionId("heartbeat")}));
-      } catch {
-        // The close handler will drive reconnect if the socket is actually broken.
-      }
+      void sendHttpHeartbeat();
     }, 60000);
   }
 
@@ -236,6 +168,27 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     if (!heartbeatTimer) return;
     clearInterval(heartbeatTimer);
     heartbeatTimer = null;
+  }
+
+  async function sendHttpHeartbeat(): Promise<void> {
+    if (disposed) return;
+    httpCommandActive += 1;
+    try {
+      const response = await config.fallbackHeartbeat();
+      if (!response.ok) {
+        setState(response.retryable
+          ? {state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1}
+          : {state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
+        return;
+      }
+      revision = Number(response.data.revision ?? revision);
+      if (response.data.formalRun) {
+        config.onRoomUpdated({room: response.data, formalRun: response.data.formalRun, revision: revision || 0});
+      }
+      setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
+    } finally {
+      httpCommandActive = Math.max(0, httpCommandActive - 1);
+    }
   }
 
   async function withQueue<T>(task: () => Promise<T>): Promise<T> {
@@ -257,7 +210,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
       const clientActionId = input.clientActionId || createRoomClientActionId("draft");
       const baseRevision = revision ?? undefined;
       const sendHttpCommand = async () => {
-        httpFallbackActive += 1;
+        httpCommandActive += 1;
         setState({state: "syncing"});
         try {
           const response = await config.fallbackSyncDraft({clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, label: input.label});
@@ -276,7 +229,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
           }
           throw error;
         } finally {
-          httpFallbackActive = Math.max(0, httpFallbackActive - 1);
+          httpCommandActive = Math.max(0, httpCommandActive - 1);
         }
       };
       return sendHttpCommand();
@@ -287,7 +240,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     return withQueue(async () => {
       const baseRevision = revision ?? undefined;
       const sendHttpCommand = async () => {
-        httpFallbackActive += 1;
+        httpCommandActive += 1;
         setState({state: "syncing"});
         try {
           const response = await config.fallbackRestAction({clientActionId: input.clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, action: input.action});
@@ -306,26 +259,17 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
           }
           throw error;
         } finally {
-          httpFallbackActive = Math.max(0, httpFallbackActive - 1);
+          httpCommandActive = Math.max(0, httpCommandActive - 1);
         }
       };
       return sendHttpCommand();
     });
   }
 
-  function rejectPending(error: Error): void {
-    for (const entry of pending.values()) {
-      clearTimeout(entry.timer);
-      entry.reject(error);
-    }
-    pending.clear();
-  }
-
   function dispose(): void {
     disposed = true;
     if (reconnectTimer) clearTimeout(reconnectTimer);
     stopHeartbeat();
-    rejectPending(new Error("room sync disposed"));
     try {
       socket?.close(1000, "room_sync_dispose");
     } catch {
