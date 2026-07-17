@@ -51,6 +51,9 @@ export type PokemonBattleOBJ = {
   frontShinySpriteUrl: string;
   backShinySpriteUrl: string;
   types: string[];
+  teraType?: string;
+  terastallized?: boolean;
+  dynamaxActive?: boolean;
   specialFormeKind: BattleViewSlotV4["specialFormeKind"];
   localPokemon: LocalPokemonV4 | null;
   row: RequestSidePokemonV4 | null;
@@ -259,6 +262,9 @@ function createPokemonBattleOBJ(
     frontShinySpriteUrl: sprites.frontShinySpriteUrl,
     backShinySpriteUrl: sprites.backShinySpriteUrl,
     types: dexDisplay.types,
+    teraType: viewSlot?.teraType,
+    terastallized: viewSlot?.terastallized,
+    dynamaxActive: viewSlot?.dynamaxActive,
     specialFormeKind: specialFormeKindForBattleSpecies(battleSpeciesId),
     localPokemon,
     row,
@@ -299,6 +305,9 @@ function toPokemonBattleViewSlot(api: PokemonBattleOBJApi, obj: PokemonBattleOBJ
     shiny: obj.shiny,
     iconUrl: obj.iconUrl,
     iconStyle: obj.iconStyle,
+    teraType: obj.teraType,
+    terastallized: obj.terastallized,
+    dynamaxActive: obj.dynamaxActive,
     specialFormeKind: obj.specialFormeKind,
     teamBallStates,
   };
@@ -320,6 +329,9 @@ function mergePlaybackActiveObjects(objects: PokemonBattleOBJ[], playbackSlots: 
       status: playback.status,
       fainted: playback.fainted,
       active: playback.active,
+      teraType: playback.teraType,
+      terastallized: playback.terastallized,
+      dynamaxActive: playback.dynamaxActive,
     };
   });
   const bySeat = new Set(merged.map(obj => obj.seat));
@@ -338,6 +350,9 @@ function mergePlaybackActiveObjects(objects: PokemonBattleOBJ[], playbackSlots: 
       hp: playback.hp,
       maxHp: playback.maxHp,
       status: playback.status,
+      teraType: playback.teraType,
+      terastallized: playback.terastallized,
+      dynamaxActive: playback.dynamaxActive,
     });
     bySeat.add(playback.seat);
   }
@@ -390,6 +405,9 @@ function objectsFromPlaybackSlots(api: PokemonBattleOBJApi, byPlayer: Record<Sho
         frontShinySpriteUrl: slot.frontShinySpriteUrl || sprites.frontShinySpriteUrl,
         backShinySpriteUrl: slot.backShinySpriteUrl || sprites.backShinySpriteUrl,
         types: base?.types || dexDisplay.types,
+        teraType: slot.teraType || base?.teraType,
+        terastallized: slot.terastallized ?? base?.terastallized,
+        dynamaxActive: slot.dynamaxActive ?? base?.dynamaxActive,
         specialFormeKind: slot.specialFormeKind || specialFormeKindForBattleSpecies(speciesId),
       };
     })
@@ -434,6 +452,9 @@ function fallbackPokemonBattleOBJ(api: PokemonBattleOBJApi, slot: BattleViewSlot
     frontShinySpriteUrl: slot.frontShinySpriteUrl,
     backShinySpriteUrl: slot.backShinySpriteUrl,
     types: dexDisplay.types,
+    teraType: slot.teraType,
+    terastallized: slot.terastallized,
+    dynamaxActive: slot.dynamaxActive,
     specialFormeKind: slot.specialFormeKind || specialFormeKindForBattleSpecies(speciesId),
     localPokemon: null,
     row: null,

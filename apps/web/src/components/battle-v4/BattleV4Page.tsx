@@ -35,6 +35,7 @@ export type BattleV4PageProps = {
   battleServiceOverride?: BattleServiceClientV4;
   playerProfile?: Pick<UserProfileV2, "name" | "frontAsset" | "frontGifAsset" | "backAsset" | "avatarAsset">;
   endFlow?: "auto-exit" | "result-panel";
+  recoveringExistingScene?: boolean;
 };
 
 type BattleV4DiagnosticsContext = {
@@ -224,7 +225,7 @@ type BattleSubmitErrorV4 = {
   error?: string;
 };
 
-export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsContext, onRunChange, onBackToRest, onBattleComplete, onAfterSubmitSnapshot, battleServiceOverride, playerProfile, endFlow = "result-panel"}: BattleV4PageProps) {
+export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsContext, onRunChange, onBackToRest, onBattleComplete, onAfterSubmitSnapshot, battleServiceOverride, playerProfile, endFlow = "result-panel", recoveringExistingScene = false}: BattleV4PageProps) {
   const battleService = battleServiceOverride || api.battleService;
   const runRef = useRef(run);
   const onRunChangeRef = useRef(onRunChange);
@@ -257,6 +258,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
   const outroFallbackTimerRef = useRef<number | null>(null);
   const finalizedSessionRef = useRef("");
   const trainerItemAutoSubmitKeyRef = useRef("");
+  const restoreNoticeConsumedSessionRef = useRef("");
   const narrativeSessionKey = useMemo(() => battleV4NarrativeSessionKey(sessionId), [sessionId]);
   const rawViewModel = useMemo(() => snapshot ? projectBattleViewModelV4(snapshot, "p1") : null, [snapshot]);
   const requestResetKey = useMemo(() => requestKeyForCommand(rawViewModel?.command.request || null, rawViewModel?.command.requestType || "none"), [rawViewModel?.command.request, rawViewModel?.command.requestType]);
@@ -315,10 +317,11 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
     playbackTimelinePending ||
     submittedTurnPlaybackPending
   ));
-  const recoveringScene = Boolean(sessionId && (
+  const [restoreNoticeSessionId, setRestoreNoticeSessionId] = useState("");
+  const recoveringScene = Boolean(restoreNoticeSessionId && restoreNoticeSessionId === sessionId && (
     !snapshot ||
     playbackTimelinePending ||
-    (snapshot.rawLog.length > 30 && !playback.playbackComplete && playbackTimeline?.sessionId === sessionId && playbackTimeline.rawFrom === 0)
+    !playback.playbackComplete
   ));
   const commandsLocked = Boolean(narrativeActive || playbackBlockingCommands);
   const shouldShowResultPanel = Boolean(endFlow === "result-panel" && snapshot?.status === "ended" && !playbackBlockingCommands && !narrativeActive && outroPlayedSessionId === narrativeSessionKey);
@@ -338,6 +341,17 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
   useEffect(() => {
     onRunChangeRef.current = onRunChange;
   }, [onRunChange]);
+
+  useEffect(() => {
+    if (!recoveringExistingScene || !sessionId || restoreNoticeConsumedSessionRef.current === sessionId) return;
+    restoreNoticeConsumedSessionRef.current = sessionId;
+    setRestoreNoticeSessionId(sessionId);
+  }, [recoveringExistingScene, sessionId]);
+
+  useEffect(() => {
+    if (!restoreNoticeSessionId || restoreNoticeSessionId !== sessionId) return;
+    if (snapshot && !playbackTimelinePending && playback.playbackComplete) setRestoreNoticeSessionId("");
+  }, [playback.playbackComplete, playbackTimelinePending, restoreNoticeSessionId, sessionId, snapshot]);
   const canSurrender = Boolean(onBattleComplete || endFlow === "auto-exit");
   const battleStageLabel = useMemo(() => battleV4StageLabelForNode(run, snapshot?.nodeId), [run, snapshot?.nodeId]);
   const narrativeTrainers = useMemo(() => buildBattleV4NarrativeTrainers(api, run, playerProfile, snapshot?.nodeId), [api, playerProfile, run, snapshot?.nodeId]);
@@ -828,11 +842,16 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
         commentaryItems={playback.commentaryItems}
         api={api}
       />
-      {recoveringScene ? <BattleV4RestoreOverlay snapshotReady={Boolean(snapshot)} /> : null}
       <header className="battle-v4-hud">
-        <button type="button" onClick={() => setBattleStatusOpen(true)} disabled={!snapshot}>场地状态</button>
-        <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft, playback.debug, lastSubmitError, diagnosticsContext, {pendingMoveAction, visualNearTeam, visualFarTeam})} disabled={!snapshot}>导出诊断</button>
-        {canSurrender ? <button className="danger" type="button" onClick={openSurrenderDialog} disabled={!snapshot || surrenderOpen || narrativeActive}>投降</button> : null}
+        {recoveringScene ? (
+          <BattleV4RestoreOverlay snapshotReady={Boolean(snapshot)} />
+        ) : (
+          <>
+            <button type="button" onClick={() => setBattleStatusOpen(true)} disabled={!snapshot}>场地状态</button>
+            <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft, playback.debug, lastSubmitError, diagnosticsContext, {pendingMoveAction, visualNearTeam, visualFarTeam})} disabled={!snapshot}>导出诊断</button>
+            {canSurrender ? <button className="danger" type="button" onClick={openSurrenderDialog} disabled={!snapshot || surrenderOpen || narrativeActive}>投降</button> : null}
+          </>
+        )}
       </header>
       {!commandsLocked && !battleError ? (
         <BattleCommandDock

@@ -49,8 +49,17 @@ input {
   font: inherit;
 }
 
-button {
+button,
+[role="button"] {
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus,
+button:focus-visible,
+[role="button"]:focus,
+[role="button"]:focus-visible {
+  outline: none;
 }
 
 button:disabled {

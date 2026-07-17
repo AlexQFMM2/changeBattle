@@ -171,6 +171,7 @@ function RoutedApp({runtime}: AppProps) {
     }
   });
   const [formalBattleSessionRestoring, setFormalBattleSessionRestoring] = useState(false);
+  const [formalBattleRecoveredSceneSessionId, setFormalBattleRecoveredSceneSessionId] = useState("");
   const [seenRoundSettlementNodeIds, setSeenRoundSettlementNodeIds] = useState<Record<string, true>>({});
   const [formalRestInitialNotice, setFormalRestInitialNotice] = useState<string | null>(null);
   const [medicalInsuranceBusy, setMedicalInsuranceBusy] = useState(false);
@@ -228,6 +229,7 @@ function RoutedApp({runtime}: AppProps) {
       // Best-effort cleanup only.
     }
     setBattleSessionId("");
+    setFormalBattleRecoveredSceneSessionId("");
   }, [formalBattleSessionStorageKey, formalRun?.settled]);
 
   useEffect(() => {
@@ -247,6 +249,7 @@ function RoutedApp({runtime}: AppProps) {
         const sessionId = result.data.activeBattle?.sessionId || "";
         if (sessionId) {
           setBattleSessionId(sessionId);
+          setFormalBattleRecoveredSceneSessionId(sessionId);
           safeSessionStorageSet(formalBattleSessionStorageKey, sessionId);
         } else if (result.data.status === "ended" || result.data.formalRun.settled) {
           clearFormalRoomCredential();
@@ -569,6 +572,8 @@ function RoutedApp({runtime}: AppProps) {
     setFormalRun(current);
     if (current.restRunSnapshot) {
       if (current.restRunSnapshot.status === "battling" || hasRunningFormalBattleNode(current)) {
+        const cachedSessionId = safeSessionStorageGet(formalBattleSessionStorageKey);
+        if (cachedSessionId) setFormalBattleRecoveredSceneSessionId(cachedSessionId);
         navigate("/formal/battle", {replace: true});
         return;
       }
@@ -605,6 +610,7 @@ function RoutedApp({runtime}: AppProps) {
   function enterClosedFormalRoomSettlement(run: FormalGameRunV4) {
     clearFormalRoomCredential();
     setBattleSessionId("");
+    setFormalBattleRecoveredSceneSessionId("");
     try {
       window.sessionStorage?.removeItem(formalBattleSessionStorageKey);
     } catch {
@@ -662,12 +668,14 @@ function RoutedApp({runtime}: AppProps) {
 
   function enterFormalBattle(sessionId: string) {
     setBattleSessionId(sessionId);
+    setFormalBattleRecoveredSceneSessionId("");
     safeSessionStorageSet(formalBattleSessionStorageKey, sessionId);
     navigate("/formal/battle", {replace: true});
   }
 
   function enterFormalSettlement(reason: FormalSettlementReasonV4) {
     setBattleSessionId("");
+    setFormalBattleRecoveredSceneSessionId("");
     try {
       window.sessionStorage?.removeItem(formalBattleSessionStorageKey);
     } catch {
@@ -1325,6 +1333,7 @@ function RoutedApp({runtime}: AppProps) {
         battleServiceOverride={formalRoomBattleService}
         playerProfile={profile}
         endFlow="auto-exit"
+        recoveringExistingScene={Boolean(formalBattleSessionId && formalBattleRecoveredSceneSessionId === formalBattleSessionId)}
         onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
         onAfterSubmitSnapshot={async snapshot => {
           if (formalRoomCredential) return snapshot;
@@ -1351,6 +1360,7 @@ function RoutedApp({runtime}: AppProps) {
         onBattleComplete={result => {
           if (result.sessionId) {
             setBattleSessionId(result.sessionId);
+            setFormalBattleRecoveredSceneSessionId("");
             safeSessionStorageSet(formalBattleSessionStorageKey, result.sessionId);
           }
           const suffix = result.reason === "surrender" ? "?reason=surrender" : "";
@@ -1411,6 +1421,7 @@ function RoutedApp({runtime}: AppProps) {
         onSettled={(run, nextProfile, nextPlayerVault) => {
           clearFormalRoomCredential();
           setBattleSessionId("");
+          setFormalBattleRecoveredSceneSessionId("");
           try {
             window.sessionStorage?.removeItem(formalBattleSessionStorageKey);
           } catch {
