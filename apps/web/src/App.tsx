@@ -29,6 +29,7 @@ import {
   type FormalMedicalInsuranceChoiceV4,
   type FormalRoundSettlementV4,
   type FormalSettlementReasonV4,
+  type PostServiceConnectionStateV4,
   type TrainingRunGameV4,
   type UserProfileDraftV2,
   type UserProfileV2,
@@ -69,11 +70,12 @@ import {releaseGuardProfileBattlePreferenceV4} from "./lib/battlePreferenceRelea
 import {CHANGE_BATTLE_DEBUG_FEATURES_ENABLED, CHANGE_BATTLE_RELEASE_CHANNEL} from "./lib/debugFeatures";
 
 type AppProps = {
-  runtime: "web" | "desktop";
+  runtime: "web" | "desktop" | "mobile";
 };
 
 const IS_DEV_BUILD = import.meta.env.DEV;
 const DEBUG_FEATURE_ENABLED = CHANGE_BATTLE_DEBUG_FEATURES_ENABLED;
+const DEFAULT_PUBLIC_BATTLE_SERVICE_URL = "https://api.65h26i.top/changebattle/battle";
 const isDebug = true;
 const APP_DEBUG_CONFIG_V4: AppDebugConfigV4 = {
   isDebug,
@@ -112,19 +114,26 @@ function RoutedApp({runtime}: AppProps) {
     : undefined, [runtime]);
   const battleServiceBridge = desktopBridgeRoot?.battleService;
   const desktopAppBridge = desktopBridgeRoot?.app;
+  const [desktopBattleServiceConfig, setDesktopBattleServiceConfig] = useState<{backend: "server" | "local-fallback"; url?: string} | null>(null);
+  const battleServiceUrl = useMemo(() => resolveBattleServiceUrl(runtime, desktopBattleServiceConfig), [desktopBattleServiceConfig, runtime]);
+  const useDesktopLocalBattleFallback = runtime === "desktop" && desktopBattleServiceConfig?.backend === "local-fallback" && !battleServiceUrl && Boolean(battleServiceBridge);
+  const battleBackendLabel = useDesktopLocalBattleFallback ? "local-dev-fallback" : "server-api";
   const desktopUpdatesEnabled = runtime === "desktop" && !IS_DEV_BUILD && Boolean(desktopAppBridge);
   const userProfileAdapter = useMemo(() => createUserProfileAdapter(runtime), [runtime]);
   const playerVaultAdapter = useMemo(() => createPlayerVaultAdapter(runtime), [runtime]);
+  const [serverConnectionState, setServerConnectionState] = useState<PostServiceConnectionStateV4 | null>(null);
   const api = useMemo(() => createChangeBattleV2Api({
     userProfileAdapter,
     playerVaultAdapter,
     trainingRunAdapter: createTrainingRunAdapter(runtime),
     formalGameRunAdapter: createFormalRunAdapter(runtime),
-    battleServiceClient: battleServiceBridge,
-    battleServiceUrl: import.meta.env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL,
+    battleServiceClient: useDesktopLocalBattleFallback ? battleServiceBridge : undefined,
+    battleServiceUrl,
+    onServerConnectionState: setServerConnectionState,
     resourcePrefix: showdownAssetPrefix(),
-  }), [battleServiceBridge, playerVaultAdapter, runtime, userProfileAdapter]);
+  }), [battleServiceBridge, battleServiceUrl, playerVaultAdapter, runtime, useDesktopLocalBattleFallback, userProfileAdapter]);
   const formalGameBridge = desktopBridgeRoot?.formalGame;
+  const formalGameBattleResultBridge = useDesktopLocalBattleFallback ? formalGameBridge : undefined;
   const catalog = useMemo(() => api.getTrainerCatalog(), [api]);
   const [profile, setProfile] = useState<UserProfileV2 | null>(null);
   const [loading, setLoading] = useState(true);
@@ -186,6 +195,28 @@ function RoutedApp({runtime}: AppProps) {
       cancelled = true;
     };
   }, [runtime, profile]);
+
+  useEffect(() => {
+    if (runtime !== "desktop") {
+      setDesktopBattleServiceConfig(null);
+      return;
+    }
+    if (!desktopAppBridge?.getBattleServiceConfig) {
+      setDesktopBattleServiceConfig({backend: "server", url: DEFAULT_PUBLIC_BATTLE_SERVICE_URL});
+      return;
+    }
+    let cancelled = false;
+    desktopAppBridge.getBattleServiceConfig()
+      .then(config => {
+        if (!cancelled) setDesktopBattleServiceConfig(config);
+      })
+      .catch(() => {
+        if (!cancelled) setDesktopBattleServiceConfig({backend: "server", url: DEFAULT_PUBLIC_BATTLE_SERVICE_URL});
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [battleServiceBridge, desktopAppBridge, runtime]);
 
   useEffect(() => {
     if (!desktopUpdatesEnabled || !desktopAppBridge) return;
@@ -572,6 +603,7 @@ function RoutedApp({runtime}: AppProps) {
       onCreate={startCreate}
       onDelete={deleteProfile}
       onOpenOfficialSite={desktopAppBridge ? () => desktopAppBridge.openOfficialSite() : undefined}
+      preferStaticBackground={runtime === "mobile"}
     />
   );
 
@@ -1025,7 +1057,7 @@ function RoutedApp({runtime}: AppProps) {
     formalRun?.restRunSnapshot ? (
       <FormalBattleResultTransitionPage
         api={api}
-        formalGameBridge={formalGameBridge}
+        formalGameBridge={formalGameBattleResultBridge}
         run={formalRun}
         playerVault={playerVault}
         sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || ""}
@@ -1149,7 +1181,39 @@ function RoutedApp({runtime}: AppProps) {
           onOpenOfficialSite={() => desktopAppBridge.openOfficialSite()}
         />
       ) : null}
+      <ServerConnectionBadge state={serverConnectionState} />
     </GameViewport>
+  );
+}
+
+function ServerConnectionBadge({state}: {state: PostServiceConnectionStateV4 | null}) {
+  if (!state || state.state === "idle") return null;
+  const label = state.state === "online"
+    ? `服务器 ${state.lastRttMs ?? "-"}ms`
+    : state.state === "failed"
+      ? "连接失败"
+      : state.state === "reconnecting"
+        ? "重连中"
+        : "正在连接服务器...";
+  return (
+    <div
+      aria-live="polite"
+      style={{
+        position: "absolute",
+        right: 8,
+        top: 8,
+        zIndex: 120,
+        padding: "3px 7px",
+        borderRadius: 6,
+        background: state.state === "failed" ? "rgba(120, 28, 28, 0.88)" : "rgba(16, 32, 42, 0.78)",
+        color: "#fff",
+        fontSize: 11,
+        lineHeight: 1.3,
+        pointerEvents: "none",
+      }}
+    >
+      {label}
+    </div>
   );
 }
 
@@ -1179,6 +1243,22 @@ function desktopVersionBadgeLabel(): string {
   const version = String(import.meta.env.VITE_CHANGEBATTLE_DESKTOP_VERSION || "").trim() || "unknown";
   if (IS_DEV_BUILD) return `dev ${version}`;
   return `${CHANGE_BATTLE_RELEASE_CHANNEL === "beta" ? "debug" : "release"} ${version}`;
+}
+
+function resolveBattleServiceUrl(runtime: AppProps["runtime"], desktopConfig?: {backend: "server" | "local-fallback"; url?: string} | null): string | undefined {
+  const env = import.meta.env as ImportMetaEnv & {
+    VITE_CHANGEBATTLE_MOBILE_BATTLE_SERVICE_URL?: string;
+    VITE_CHANGEBATTLE_BATTLE_SERVICE_URL?: string;
+  };
+  const webUrl = String(env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL || "").trim();
+  if (runtime === "mobile") {
+    return String(env.VITE_CHANGEBATTLE_MOBILE_BATTLE_SERVICE_URL || "").trim() || webUrl || DEFAULT_PUBLIC_BATTLE_SERVICE_URL;
+  }
+  if (runtime === "desktop") {
+    if (desktopConfig?.backend === "local-fallback") return undefined;
+    return desktopConfig?.url || webUrl || DEFAULT_PUBLIC_BATTLE_SERVICE_URL;
+  }
+  return webUrl || DEFAULT_PUBLIC_BATTLE_SERVICE_URL;
 }
 
 function isFormalBossRound(run: FormalGameRunV4 | null): boolean {
@@ -1395,7 +1475,7 @@ function createFormalRunAdapter(runtime: AppProps["runtime"]) {
       },
     };
   }
-  return createBrowserFormalGameRunAdapter();
+  return createBrowserFormalGameRunAdapter(`changebattle-v2:${runtime}:formal-run`);
 }
 
 function latestUnreadRoundSettlement(run: FormalGameRunV4, seen: Record<string, true>): FormalRoundSettlementV4 | null {

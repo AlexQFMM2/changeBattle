@@ -9,7 +9,7 @@ import {TitleVideoBackground} from "./TitleVideoBackground";
 import {TrainerAvatar} from "./TrainerAvatar";
 import "./TitlePage.css";
 
-export function TitlePage({profile, catalog, loading, message, onLoad, onCreate, onDelete, onOpenOfficialSite}: {
+export function TitlePage({profile, catalog, loading, message, onLoad, onCreate, onDelete, onOpenOfficialSite, preferStaticBackground}: {
   profile: UserProfileV2 | null;
   catalog: TrainerCatalogEntryV2[];
   loading: boolean;
@@ -18,6 +18,7 @@ export function TitlePage({profile, catalog, loading, message, onLoad, onCreate,
   onCreate: () => void;
   onDelete: () => void | Promise<void>;
   onOpenOfficialSite?: () => void | Promise<void>;
+  preferStaticBackground?: boolean;
 }) {
   const [savePickerOpen, setSavePickerOpen] = useState(false);
 
@@ -28,7 +29,7 @@ export function TitlePage({profile, catalog, loading, message, onLoad, onCreate,
 
   return (
     <AnimatedPage className="title-screen title-page">
-      <TitleVideoBackground />
+      <TitleVideoBackground preferStatic={preferStaticBackground} />
       <div className="title-slide-track">
         <motion.div className="title-slide-pane save-pane" animate={{x: savePickerOpen ? "0%" : "-112%", opacity: savePickerOpen ? 1 : 0.85}} transition={{type: "spring", stiffness: 210, damping: 30}}>
           <SaveSelectPanel

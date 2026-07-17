@@ -1,6 +1,8 @@
 # ChangeBattle V2 Windows Desktop Release
 
-本文档记录 ChangeBattle V2 Windows Desktop 便携包的发布流程。范围只包含 V2 Desk portable zip，不包含 Web、Android、安装器或签名发布。桌面端支持启动时检查远端 `latest.json`：常规游戏代码/资源变化会自动下载增量文件、校验、替换，并提示玩家重启后生效；运行时和启动器变化仍要求下载完整包。
+本文档记录 ChangeBattle V2 Windows Desktop 便携包的发布流程。范围只包含 V2 Desk portable zip，不包含 Web、Android、安装器或签名发布。桌面端支持读取远端 `latest.json`：常规游戏代码变化会自动下载增量文件、校验、替换，并提示玩家重启后生效；运行时和启动器变化仍要求下载完整包。
+
+当前流程已废弃“随包本地 BattleService / Showdown vendor”路线：Desk/Web/Android 统一调用公网 Battle API `https://api.65h26i.top/changebattle/battle`，公共图片、音频和 Showdown sprites/fx 统一走 COS/CDN。Windows portable 包不再包含 `vendor/pokemon-showdown` 或 `vendor/showdown-client`。
 
 当前已验证 release 基线：
 
@@ -31,17 +33,17 @@ ChangeBattle-V2-Desk-portable-vX.Y.Z.zip
 ChangeBattle-V2-Desk.cmd
 ```
 
-玩家机器不需要安装 Node.js、pnpm、Python 或源码依赖。便携包内会包含 Electron runtime、desktop build output、前端静态资源、Pokemon Showdown runtime vendor 和 Showdown client playback vendor。
+玩家机器不需要安装 Node.js、pnpm、Python 或源码依赖。便携包内会包含 Electron runtime、desktop build output、启动器资源和必要代码；公共 assets 走 CDN，战斗服务走公网 Battle API。
 
 ## Launcher Shape
 
 当前 portable 包用 `ChangeBattle-V2-Desk.cmd` 作为启动入口。它只负责：
 
 - 使用 `%~dp0` 定位 portable root。
-- 设置 `CHANGEBATTLE_PROJECT_ROOT`、`CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT`、`CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT`。
+- 设置 `CHANGEBATTLE_PROJECT_ROOT`、更新通道和 portable root。
 - 调用包内 `runtime\electron\electron.exe` 启动 `apps\desktop`。
 
-这不代表 Electron 不能做 `.exe`。VSCode 也是 Electron，但它使用完整应用 launcher/安装器/签名链路，所以用户看到的是 `Code.exe`。V2 当前选择 `.cmd` 是为了先稳定 portable 目录结构、vendor 路径和离线运行。后续如果只想隐藏 `.cmd`，优先做小型 `ChangeBattle-V2-Desk.exe` launcher 复用同一套目录结构；安装器、签名、安装器级自动更新仍不属于本文档当前 release 范围。
+这不代表 Electron 不能做 `.exe`。VSCode 也是 Electron，但它使用完整应用 launcher/安装器/签名链路，所以用户看到的是 `Code.exe`。V2 当前保留 `.cmd` 是为了方便 fallback/debug；正式入口优先使用小型 `ChangeBattle V2.exe` launcher。安装器、签名、安装器级自动更新仍不属于本文档当前 release 范围。
 
 ## Windows Build Host
 
@@ -100,14 +102,14 @@ CHANGEBATTLE_RELEASE_CHANNEL=beta ./tools/build_release_on_windows.sh 0.1.4
 这个脚本会完成：
 
 1. 使用 `git archive HEAD` 生成源码包。
-2. 打包本地 `assets/`，因为资源目录不进入 git archive。
-3. 打包 Showdown runtime 的本地 `node_modules/ts-chacha20`。
-4. 上传到 Windows 构建机。
-5. 重建 `D:\changeBattleV2\changeBattleV2` source tree。
-6. 运行 Windows release checks。
-7. 构建 desktop。
-8. 生成 portable zip。
-9. 生成 `update-manifest.json`、`files.json` 和增量文件目录。
+2. 上传到 Windows 构建机。
+3. 重建 `D:\changeBattleV2\changeBattleV2` source tree。
+4. 运行 Windows release checks。
+5. 构建 desktop。
+6. 生成 portable zip。
+7. 生成 `update-manifest.json`、`files.json` 和增量文件目录。
+
+公共 assets 已走 COS/CDN，BattleService 已走公网 API，这个脚本不再打包 assets、Showdown vendor 或本地 BattleService 文件。
 10. 把 zip 拉回 Linux 本地：
 
 ```text
@@ -281,30 +283,14 @@ ChangeBattle-V2-Desk-portable-vX.Y.Z/
           preload.cjs
         renderer/
           index.html
-          assets/
-          aboutIcon/
-          board/
-          npc/
-          showdown/
-          runtime/
           ...
   runtime/
     electron/
       electron.exe
       ...
-  vendor/
-    pokemon-showdown/
-      sim/
-      data/
-      lib/
-      config/
-      node_modules/
-        ts-chacha20/
-    showdown-client/
-      js/
-        battle.js
-        battle-scene-stub.js
-        ...
+  resources/
+    app-icon.ico
+    app-icon.png
 ```
 
 `ChangeBattle-V2-Desk.cmd` 使用 `%~dp0` 计算 portable root，不允许写死 `D:\...` 目录：
@@ -313,8 +299,6 @@ ChangeBattle-V2-Desk-portable-vX.Y.Z/
 APP_ROOT=<cmd 所在目录>
 ELECTRON_EXE=<APP_ROOT>\runtime\electron\electron.exe
 DESKTOP_APP=<APP_ROOT>\apps\desktop
-SHOWDOWN_VENDOR=<APP_ROOT>\vendor\pokemon-showdown
-SHOWDOWN_CLIENT_VENDOR=<APP_ROOT>\vendor\showdown-client\js
 ```
 
 启动前会设置：
@@ -325,8 +309,6 @@ CHANGEBATTLE_PORTABLE_ROOT=<APP_ROOT>
 CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1
 CHANGEBATTLE_RELEASE_CHANNEL=<stable|beta>
 CHANGEBATTLE_UPDATE_MANIFEST_URLS=<channel latest.json>
-CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=<APP_ROOT>\vendor\pokemon-showdown
-CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=<APP_ROOT>\vendor\showdown-client\js
 ```
 
 `CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1` 只在 portable 包里设置。dev 环境即使拉到远端更新，也不会替换仓库文件。stable 包追正式 `latest.json`，beta 包追测试 `latest.json`。
@@ -348,8 +330,7 @@ CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=<APP_ROOT>\vendor\showdown-client\js
 
 ```text
 apps/
-assets/
-vendor/
+resources/
 package.json
 ```
 
@@ -389,53 +370,16 @@ V2 Desk portable 必须支持移动解压目录后继续运行，因此资源路
 
 如果新增资源引用，优先使用 web 侧的 `assetUrl()` / `showdownAssetPrefix()` 等统一 helper。
 
-## Showdown Vendor
+## Showdown Vendor（已废弃）
 
-Pokemon Showdown runtime 不直接 bundle 成单个 JS 文件，而是作为 vendor 目录随包发布：
+旧 portable 包曾经随包发布 `vendor/pokemon-showdown` 和 `vendor/showdown-client`，由 Electron main process 内置 in-memory BattleService。这个路径已经废弃。
 
-```text
-vendor/pokemon-showdown
-```
+当前 release 路线：
 
-原因是 Showdown sim 运行时会动态读取 sibling 文件，例如：
-
-```text
-sim/
-data/
-lib/
-config/
-node_modules/ts-chacha20/
-```
-
-release 下由环境变量定位：
-
-```text
-CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=<portable root>\vendor\pokemon-showdown
-```
-
-dev/source 下仍可 fallback 到：
-
-```text
-packages/showdown-battle-core/vendor/showdown
-```
-
-Battle playback timeline compiler 还需要 Showdown client replay 文件，作为另一个 vendor 目录随包发布：
-
-```text
-vendor/showdown-client/js
-```
-
-release 下由环境变量定位：
-
-```text
-CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=<portable root>\vendor\showdown-client\js
-```
-
-dev/source 下 fallback 到：
-
-```text
-packages/showdown-battle-core/vendor/showdown-client/js
-```
+- Desk/Web/Android 统一调用公网 Battle API：`https://api.65h26i.top/changebattle/battle`。
+- Pokemon Showdown runtime 只需要存在于服务器 Battle API 容器内。
+- Desktop portable 不再复制、校验或管理 `vendor/pokemon-showdown`、`vendor/showdown-client`。
+- 本地 in-memory BattleService 只允许作为开发调试 fallback，通过显式环境变量开启，不进入正式 release 依赖链。
 
 ## Workspace Package Bundling
 
@@ -464,19 +408,13 @@ portable 包没有 `node_modules/react`，所以正式游戏创建失败。修�
 
 ## Desktop Battle Runtime
 
-dev 模式下 `start_desk` 会先启动：
+portable release 不再依赖本地 HTTP 服务，也不再默认使用 Electron main process 内置的 `createInMemoryBattleService()`。桌面端启动后应通过 `desktopApp:getBattleServiceConfig` 获取 Battle API 配置，默认返回：
 
 ```text
-http://127.0.0.1:5191
+https://api.65h26i.top/changebattle/battle
 ```
 
-portable release 不能依赖这个外部 HTTP 服务。桌面端应通过 preload 暴露：
-
-```text
-window.changeBattleV2.battleService
-```
-
-renderer 中的 `api.battleService` 在 desktop runtime 下必须使用这个 IPC bridge，由 Electron main process 内置的 `createInMemoryBattleService()` 创建和维护 battle session。
+`window.changeBattleV2.battleService` 只保留为显式开发 fallback。只有设置 `CHANGEBATTLE_DESKTOP_ALLOW_LOCAL_BATTLE_SERVICE=1` 且未配置服务器 URL 时，renderer 才允许把本地 IPC bridge 注入 `createChangeBattleV2Api({battleServiceClient})`。
 
 如果点击“结束休整”后 Console 出现：
 
@@ -484,7 +422,7 @@ renderer 中的 `api.battleService` 在 desktop runtime 下必须使用这个 IP
 ERR_CONNECTION_REFUSED http://127.0.0.1:5191
 ```
 
-说明 renderer 没有拿到 desktop battle service bridge，或者 `createChangeBattleV2Api()` 没有注入 `battleServiceClient`。
+说明 portable 包仍在走旧本地服务路径。检查 `desktopApp:getBattleServiceConfig` 是否返回公网 Battle API，并确认没有设置 `CHANGEBATTLE_DESKTOP_ALLOW_LOCAL_BATTLE_SERVICE=1`。
 
 ## Local Pre-Release Checklist
 
@@ -572,22 +510,17 @@ pnpm --filter @changebattle-v2/desktop test:ipc-bundle
 pnpm --filter @changebattle-v2/showdown-battle-core test
 ```
 
-并确认 `window.changeBattleV2.battleService` 已经由 preload 暴露，`App.tsx` 在 desktop runtime 下把它注入到 `createChangeBattleV2Api({battleServiceClient})`。
+并确认 `desktopApp:getBattleServiceConfig` 返回公网 Battle API。打包版不应该请求 `127.0.0.1:5191`，除非显式设置了开发 fallback 环境变量。
 
-### Showdown vendor 找不到
+### Battle API 访问失败
 
-确认 portable 包内存在：
+确认公网接口可用：
 
-```text
-vendor/pokemon-showdown/sim/index.js
-vendor/pokemon-showdown/node_modules/ts-chacha20/package.json
+```bash
+curl -sS https://api.65h26i.top/changebattle/battle/health
 ```
 
-确认 `ChangeBattle-V2-Desk.cmd` 设置了：
-
-```text
-CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=<portable root>\vendor\pokemon-showdown
-```
+如果 health 正常但桌面创建战斗失败，优先看服务器容器日志里的 `session-created` / `choice-submitted` / `battle-ai-choice` JSON 行。
 
 ### 运行的不是新版包
 

@@ -2,6 +2,7 @@ import {useMemo, useState} from "react";
 import type {ChangeBattleV2Api, FormalGameRunV4} from "@changebattle-v2/api";
 import {formalStarterCandidateToRentalPokemonV4} from "@changebattle-v2/api";
 import {RentalSelectPage} from "./rental-select/RentalSelectPage";
+import {loadFormalRoomCredential} from "../../lib/formalRoomCredential";
 import "./FormalStarterSelectPage.css";
 
 export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}: {
@@ -51,7 +52,10 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}:
 
   async function start() {
     try {
-      const next = api.selectFormalStarterPokemon(run, selected);
+      const credential = loadFormalRoomCredential();
+      const next = credential
+        ? await selectServerRoomStarters(api, credential.roomId, credential.roomToken, selected)
+        : api.selectFormalStarterPokemon(run, selected);
       const saved = await api.saveFormalGameRun(next);
       onRunChange(saved);
       onDone();
@@ -83,6 +87,12 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}:
       {error ? <div className="formal-starter-select-error" role="alert">{error}</div> : null}
     </section>
   );
+}
+
+async function selectServerRoomStarters(api: ChangeBattleV2Api, roomId: string, roomToken: string, selectedIndexes: number[]): Promise<FormalGameRunV4> {
+  const result = await api.selectFormalRoomStarters({roomId, roomToken, selectedIndexes});
+  if (!result.ok) throw new Error(result.message);
+  return result.data.formalRun;
 }
 
 function seedNumber(seed: string): number {

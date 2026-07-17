@@ -47,6 +47,7 @@ import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} 
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
 import {applyPlayerVaultEvolutionItemV4, applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultEvolutionItemUseV4, previewPlayerVaultNumericItemUseV4, unequipPlayerVaultHeldItemV4, type PlayerVaultEvolutionApplyResultV4, type PlayerVaultEvolutionPreviewResultV4, type PlayerVaultFriendshipItemApplyResultV4, type PlayerVaultHeldItemApplyResultV4, type PlayerVaultHeldItemUnequipResultV4, type PlayerVaultMoveTeachingApplyResultV4 as PlayerVaultMoveTeachingApplyResultFromItemEffectsV4, type PlayerVaultMoveTeachingViewResultV4, type PlayerVaultNumericItemApplyResultV4, type PlayerVaultNumericItemPreviewResultV4} from "./itemEffects.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
+import {createPostServiceClient, type PostServiceClientV4, type PostServiceConnectionStateV4, type PostServiceResultV4} from "./postService.js";
 import {
   clearStarChartUnlocksForProfileV4,
   enableTestModeForProfileV4,
@@ -78,6 +79,7 @@ export {
   formalStarterRoleLabelV4,
 } from "@changebattle-v2/core";
 export type {NatureEffectV4} from "@changebattle-v2/core";
+export type {PostServiceConnectionStateV4, PostServiceResultV4} from "./postService.js";
 export {normalizeShowdownChoiceRequestV4, showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, validShowdownTargetLocV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
 export {battleKeyFromRosterIdentityV4, canonicalBattleKeyV4, isProtocolBattleKeyV4} from "@changebattle-v2/showdown-battle-core/battleIdentity";
 export {dexLabelToId, toDexId, translateDexDescription, translateDexLabel} from "@changebattle-v2/showdown-dex-core";
@@ -260,6 +262,7 @@ export type DesktopAppBridge = {
   openOfficialSite(): Promise<void>;
   getUpdateStatus(): Promise<DesktopUpdateStatusV4>;
   cancelUpdate(): Promise<void>;
+  getBattleServiceConfig?(): Promise<{backend: "server" | "local-fallback"; url?: string}>;
   onUpdateStatus(listener: (status: DesktopUpdateStatusV4) => void): () => void;
 };
 
@@ -293,6 +296,25 @@ export type ChangeBattleV2ApiOptions = {
   formalGameRunAdapter?: FormalGameRunStorageAdapter;
   battleServiceClient?: BattleServiceClientV4;
   battleServiceUrl?: string;
+  postServiceClient?: PostServiceClientV4;
+  onServerConnectionState?: (state: PostServiceConnectionStateV4) => void;
+};
+
+export type FormalRoomV1 = {
+  roomId: string;
+  formalRun: FormalGameRunV4;
+  revision: number;
+  status: string;
+  connectionState: string;
+  closeReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lastHeartbeatAt: string;
+  expiresAt: string;
+};
+
+export type FormalRoomCreateResultV1 = FormalRoomV1 & {
+  roomToken: string;
 };
 
 const DEFAULT_BROWSER_PROFILE_KEY = "changebattle-v2:user-profile";
@@ -358,6 +380,10 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
   const trainingRuns = createTrainingRunApi(dex, options.trainingRunAdapter || createBrowserTrainingRunAdapter());
   const formalRuns = createFormalGameRunApi(dex, options.formalGameRunAdapter || createBrowserFormalGameRunAdapter());
   const battleService = options.battleServiceClient || createBattleServiceClient(options.battleServiceUrl);
+  const serverApi = options.postServiceClient || createPostServiceClient({
+    baseUrl: options.battleServiceUrl,
+    onConnectionState: options.onServerConnectionState,
+  });
 
   return {
     dex,
@@ -440,6 +466,19 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     loadFormalGameRun: () => formalRuns.loadFormalGameRun(),
     saveFormalGameRun: formalRuns.saveFormalGameRun,
     deleteFormalGameRun: formalRuns.deleteFormalGameRun,
+    startFormalRoom: (input: {profileSnapshot: UserProfileV2; playerVaultSnapshot: PlayerVaultV4; mode: FormalGameModeV4; seed?: string; options?: Record<string, unknown>}): Promise<PostServiceResultV4<FormalRoomCreateResultV1>> =>
+      serverApi.postApi<FormalRoomCreateResultV1>("rooms.start", input),
+    getFormalRoom: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomV1>> =>
+      serverApi.postApi<FormalRoomV1>("rooms.get", {roomId: input.roomId}, {roomToken: input.roomToken}),
+    heartbeatFormalRoom: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomV1>> =>
+      serverApi.postApi<FormalRoomV1>("rooms.heartbeat", {roomId: input.roomId}, {roomToken: input.roomToken}),
+    deleteFormalRoom: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<{ok: true}>> =>
+      serverApi.postApi<{ok: true}>("rooms.delete", {roomId: input.roomId}, {roomToken: input.roomToken}),
+    selectFormalRoomStarters: (input: {roomId: string; roomToken: string; selectedIndexes: number[]}): Promise<PostServiceResultV4<FormalRoomV1>> =>
+      serverApi.postApi<FormalRoomV1>("rooms.selectStarters", {roomId: input.roomId, selectedIndexes: input.selectedIndexes}, {roomToken: input.roomToken}),
+    prepareFormalRoomRound: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomV1>> =>
+      serverApi.postApi<FormalRoomV1>("rooms.prepareRound", {roomId: input.roomId}, {roomToken: input.roomToken}),
+    getServerConnectionState: () => serverApi.getConnectionState(),
     createFormalGameRun: formalRuns.createFormalGameRun,
     prepareFormalStarterCandidates: formalRuns.prepareFormalStarterCandidates,
     selectFormalStarterPokemon: formalRuns.selectFormalStarterPokemon,

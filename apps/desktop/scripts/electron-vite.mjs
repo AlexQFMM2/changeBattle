@@ -69,7 +69,6 @@ async function runFastDev() {
     CHANGEBATTLE_DESKTOP_VERSION: desktopVersion,
     CHANGEBATTLE_RELEASE_CHANNEL: releaseChannel,
     CHANGEBATTLE_PROJECT_ROOT: workspaceRoot,
-    CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT: path.resolve(workspaceRoot, "packages/showdown-battle-core/vendor/showdown-client/js"),
   };
   const electronArgs = [
     "exec",

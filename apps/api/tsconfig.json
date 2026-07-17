@@ -4,6 +4,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "rootDir": "src",
+    "outDir": "dist",
+    "types": ["node"],
     "jsx": "react-jsx"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"]

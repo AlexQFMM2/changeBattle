@@ -8,34 +8,42 @@
   "exports": {
     ".": {
       "types": "./src/index.ts",
+      "node": "./dist/index.js",
       "default": "./src/index.ts"
     },
     "./types": {
       "types": "./src/types.ts",
+      "node": "./dist/types.js",
       "default": "./src/types.ts"
     },
     "./showdownCommand": {
       "types": "./src/showdownCommand.ts",
+      "node": "./dist/showdownCommand.js",
       "default": "./src/showdownCommand.ts"
     },
     "./teamGenerator": {
       "types": "./src/teamGenerator.ts",
+      "node": "./dist/teamGenerator.js",
       "default": "./src/teamGenerator.ts"
     },
     "./battleProfiles": {
       "types": "./src/battleProfiles.ts",
+      "node": "./dist/battleProfiles.js",
       "default": "./src/battleProfiles.ts"
     },
     "./battleIdentity": {
       "types": "./src/battleIdentity.ts",
+      "node": "./dist/battleIdentity.js",
       "default": "./src/battleIdentity.ts"
     },
     "./aiMoveEvaluator": {
       "types": "./src/aiMoveEvaluator.ts",
+      "node": "./dist/aiMoveEvaluator.js",
       "default": "./src/aiMoveEvaluator.ts"
     },
     "./playbackCompiler": {
       "types": "./src/playbackCompiler.ts",
+      "node": "./dist/playbackCompiler.js",
       "default": "./src/playbackCompiler.ts"
     }
   },

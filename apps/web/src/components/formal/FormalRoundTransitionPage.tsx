@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {formalGameModeLabelV4, type ChangeBattleV2Api, type DesktopFormalGameBridge, type FormalGameRunV4, type PlayerVaultV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
+import {loadFormalRoomCredential} from "../../lib/formalRoomCredential";
 import "./FormalGameTransitionPage.css";
 
 export function FormalRoundTransitionPage({api, formalGameBridge, run, playerVault, onSavePlayerVault, onRunReady}: {
@@ -21,9 +22,12 @@ export function FormalRoundTransitionPage({api, formalGameBridge, run, playerVau
     let cancelled = false;
     const frame = window.requestAnimationFrame(() => {
       try {
-        const plannedPromise = formalGameBridge
-          ? formalGameBridge.prepareFormalRoundPlan(run)
-          : Promise.resolve(api.prepareFormalRoundPlan(run));
+        const credential = loadFormalRoomCredential();
+        const plannedPromise = credential
+          ? prepareServerRoomRound(api, credential.roomId, credential.roomToken)
+          : formalGameBridge
+            ? formalGameBridge.prepareFormalRoundPlan(run)
+            : Promise.resolve(api.prepareFormalRoundPlan(run));
         void plannedPromise
           .then(async planned => {
             const carryResult = api.applyFormalCarryPrepItems(planned, playerVault);
@@ -57,4 +61,10 @@ export function FormalRoundTransitionPage({api, formalGameBridge, run, playerVau
       />
     </section>
   );
+}
+
+async function prepareServerRoomRound(api: ChangeBattleV2Api, roomId: string, roomToken: string): Promise<FormalGameRunV4> {
+  const result = await api.prepareFormalRoomRound({roomId, roomToken});
+  if (!result.ok) throw new Error(result.message);
+  return result.data.formalRun;
 }

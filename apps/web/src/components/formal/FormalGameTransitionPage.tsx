@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import {formalGameModeLabelV4, type ChangeBattleV2Api, type CoopPartnerPreferenceV4, type DesktopFormalGameBridge, type FormalGameModeV4, type FormalGameRunV4, type PlayerVaultV4, type UserProfileV2} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
+import {saveFormalRoomCredential} from "../../lib/formalRoomCredential";
 import "./FormalGameTransitionPage.css";
 
 export function FormalGameTransitionPage({api, formalGameBridge, profile, playerVault, mode, onRunReady}: {
@@ -16,6 +17,7 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, player
   const [plannedCandidateCount, setPlannedCandidateCount] = useState(() => api.starterCandidateCountForStarChart(profile.starChart));
   const [transitionReady, setTransitionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tip, setTip] = useState<string | null>(null);
   const readySentRef = useRef(false);
 
   useEffect(() => {
@@ -25,24 +27,25 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, player
     setPlannedCandidateCount(api.starterCandidateCountForStarChart(profile.starChart));
     setTransitionReady(false);
     setError(null);
+    setTip(null);
 
     const frameRefs: {second: number | null} = {second: null};
     const firstFrame = window.requestAnimationFrame(() => {
       const secondFrame = window.requestAnimationFrame(() => {
         try {
           const options = {mode, coopPartnerPreference: mode === "coop" ? partnerPreference : undefined};
-          const base = formalGameBridge
-            ? null
-            : api.createFormalGameRun(profile, options);
-          const candidateCount = api.starterCandidateCountForStarChart(base?.starChartSnapshot || profile.starChart);
-          if (!cancelled) setPlannedCandidateCount(candidateCount);
-          const preparedPromise = formalGameBridge
-            ? formalGameBridge.createFormalGameWithStarterCandidates(profile, options, playerVault)
-            : Promise.resolve(api.prepareFormalStarterCandidates(base!, {playerVault}));
-          void preparedPromise
-            .then(prepared => {
-              if (!cancelled) setPlannedCandidateCount(api.starterCandidateCountForStarChart(prepared.starChartSnapshot));
-              return api.saveFormalGameRun(prepared);
+          if (!cancelled) setTip("正在连接服务器...");
+          void api.startFormalRoom({
+            profileSnapshot: profile,
+            playerVaultSnapshot: playerVault,
+            mode,
+            options,
+          })
+            .then(room => {
+              if (!room.ok) throw new Error(room.message);
+              saveFormalRoomCredential(room.data.roomId, room.data.roomToken);
+              if (!cancelled) setPlannedCandidateCount(api.starterCandidateCountForStarChart(room.data.formalRun.starChartSnapshot));
+              return api.saveFormalGameRun(room.data.formalRun);
             })
             .then(saved => {
               if (!cancelled) setPreparedRun(saved);
@@ -77,7 +80,7 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, player
       <TrainingRunTransitionPage
         title="准备正式游戏"
         detail={formalGamePreparationDetail(mode, plannedCandidateCount)}
-        tip={error || (mode === "coop" ? "合作模式会记录队友偏好，具体队友会在进入战斗时派遣。" : "正在生成开局候选宝可梦。")}
+        tip={error || tip || (mode === "coop" ? "合作模式会记录队友偏好，具体队友会在进入战斗时派遣。" : "正在生成开局候选宝可梦。")}
         onReady={() => setTransitionReady(true)}
       />
     </section>

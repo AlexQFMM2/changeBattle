@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "pnpm --filter @changebattle-v2/assets-core build && pnpm --filter @changebattle-v2/core build && pnpm --filter @changebattle-v2/showdown-dex-core build && vite build",
     "dev": "pnpm --filter @changebattle-v2/assets-core build && vite --host 127.0.0.1 --port 5180",
     "test:scheduler": "tsc -p tsconfig.test.json && node dist-test/apps/web/src/components/battle-v4/useBattleV4ShowdownScheduler.test.js && node dist-test/apps/web/src/components/battle-v4/usePokemonBattleOBJHook.test.js && tsc -p tsconfig.commentary-test.json && node dist-commentary-test/apps/web/src/components/battle-v4/battleV4Commentary.test.js && pnpm run test:sprites",
     "test:sprites": "pnpm --filter @changebattle-v2/assets-core build && tsc -p tsconfig.sprite-test.json && node dist-sprite-test/apps/web/src/lib/showdownPokemonSpriteAdapter.test.js",

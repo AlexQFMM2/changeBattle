@@ -533,7 +533,7 @@ export type BattleServiceClientV4 = {
 
 export type {ShowdownPlaybackTimelineV4, ShowdownPlaybackGroupV4, ShowdownPlaybackSceneCallV4} from "@changebattle-v2/showdown-battle-core/types";
 
-export const DEFAULT_BATTLE_SERVICE_URL = "http://127.0.0.1:5191";
+export const DEFAULT_BATTLE_SERVICE_URL = "https://api.65h26i.top/changebattle/battle";
 
 export const SHOWDOWN_ID_POOL_V4 = [
   "pokeball",
@@ -2022,12 +2022,18 @@ function seatForActive(playerId: ShowdownPlayerIdV4, active: BattleActivePokemon
 }
 
 async function requestJson<T>(url: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {"content-type": "application/json", ...(init.headers || {})},
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...init,
+      headers: {"content-type": "application/json", ...(init.headers || {})},
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Battle service 请求失败：${message} (${url})`);
+  }
   const json = await response.json().catch(() => null) as any;
-  if (!response.ok) throw new Error(json?.error || `Battle service 请求失败：${response.status}`);
+  if (!response.ok) throw new Error(json?.message || json?.error || `Battle service 请求失败：${response.status} (${url})`);
   return json as T;
 }
 

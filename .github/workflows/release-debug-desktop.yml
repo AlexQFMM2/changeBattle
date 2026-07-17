@@ -58,7 +58,6 @@ jobs:
       CHANGEBATTLE_UPDATE_MANIFEST_URLS: ${{ inputs.update_manifest_url }}
       CHANGEBATTLE_OFFICIAL_SITE_URL: ${{ inputs.official_site_url }}
       CHANGEBATTLE_DOWNLOAD_PAGE_URL: ${{ inputs.official_site_url }}
-      CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT: ${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown-client\js
 
     steps:
       - name: Checkout
@@ -213,14 +212,10 @@ jobs:
         run: |
           $env:ELECTRON_RUNTIME_PATH = "${{ github.workspace }}\apps\desktop\node_modules\electron\dist"
           $env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT = "${{ github.workspace }}\release\desktop-launcher"
-          $env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT = "${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown"
-          $env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = "${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown-client"
           $env:CHANGEBATTLE_COMMIT = "$env:CHANGEBATTLE_SOURCE_COMMIT"
           python tools\package_desktop_release.py `
             --electron-runtime-path "$env:ELECTRON_RUNTIME_PATH" `
-            --launcher-output-path "$env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT" `
-            --showdown-path "$env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT" `
-            --showdown-client-path "$env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT"
+            --launcher-output-path "$env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT"
 
       - name: Generate update metadata
         shell: pwsh

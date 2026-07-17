@@ -1,6 +1,6 @@
 # ChangeBattle V2 Release Workspace
 
-`release/` 是桌面端发版工作台。当前主流程由 GitHub Actions 构建 Windows debug/stable portable 包，完整包托管在 GitHub Release，更新入口和增量对象发布到自有服务器。公共图片、音频、Showdown sprites/fx 等 assets 已迁到腾讯 COS/CDN，桌面包和桌面增量对象池不再携带全量 assets。
+`release/` 是桌面端发版工作台。当前主流程由 GitHub Actions 构建 Windows debug/stable portable 包，完整包托管在 GitHub Release，更新入口和增量对象发布到自有服务器。公共图片、音频、Showdown sprites/fx 等 assets 已迁到腾讯 COS/CDN；Desk/Web/Android 的战斗创建与推进统一走公网 Battle API；桌面包和桌面增量对象池不再携带全量 assets，也不再携带本地 Showdown BattleService vendor。
 
 当前推荐链路：
 
@@ -21,6 +21,7 @@ stable latest: http://119.45.240.157/changebattle/latest.json
 stable site:   http://119.45.240.157/changebattle/
 beta latest:   http://119.45.240.157/changebattle-beta/latest.json
 beta site:     http://119.45.240.157/changebattle-beta/
+Battle API:    https://api.65h26i.top/changebattle/battle
 server root:   /home/ubuntu/webApp/
 ```
 
@@ -162,11 +163,10 @@ git worktree add -b hotfix/<name> ../changeBattleV2-hotfix-<name> release
 ```text
 apps/
 resources/
-vendor/
 package.json
 ```
 
-说明：`packages/changebattle-v2-core` 里仍保留 `assets/` 路径兼容校验，防止旧安装目录/旧 manifest 读取失败；但当前 GitHub Actions 生成桌面文件清单时不再纳入 `assets/`。公共资源由 CDN 直连。
+说明：`packages/changebattle-v2-core` 里仍保留 `assets/` 路径兼容校验，防止旧安装目录/旧 manifest 读取失败；但当前 GitHub Actions 生成桌面文件清单时不再纳入 `assets/`，也不再纳入 `vendor/`。公共资源由 CDN 直连，战斗服务由公网 Battle API 提供。
 
 禁止增量管理：
 

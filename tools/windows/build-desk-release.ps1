@@ -3,8 +3,6 @@ param(
   [string]$SourceRoot = "D:\changeBattleV2\changeBattleV2",
   [string]$ReleaseRoot = "D:\changeBattleV2\release",
   [string]$ElectronRuntimePath = "D:\changeBattleV2\electron-runtime\electron",
-  [string]$ShowdownPath = "",
-  [string]$ShowdownClientPath = "",
   [string]$Commit = "",
   [ValidateSet("stable", "beta")]
   [string]$Channel = "stable"
@@ -41,22 +39,6 @@ if (-not (Test-Path (Join-Path $ElectronRuntimePath "electron.exe"))) {
   throw "Electron runtime missing: $ElectronRuntimePath. Copy V1 runtime from D:\changeBattle\electron-runtime\electron or provide -ElectronRuntimePath."
 }
 
-if ([string]::IsNullOrWhiteSpace($ShowdownPath)) {
-  $ShowdownPath = Join-Path $SourceRoot "packages\showdown-battle-core\vendor\showdown"
-}
-
-if ([string]::IsNullOrWhiteSpace($ShowdownClientPath)) {
-  $ShowdownClientPath = Join-Path $SourceRoot "packages\showdown-battle-core\vendor\showdown-client"
-}
-
-if (-not (Test-Path (Join-Path $ShowdownPath "sim\index.js"))) {
-  throw "Pokemon Showdown vendor missing: $ShowdownPath"
-}
-
-if (-not (Test-Path (Join-Path $ShowdownClientPath "js\battle.js"))) {
-  throw "Pokemon Showdown client playback vendor missing: $ShowdownClientPath"
-}
-
 if ([string]::IsNullOrWhiteSpace($Commit)) {
   $CommitFile = Join-Path $SourceRoot ".changebattle-release-commit"
   if (Test-Path $CommitFile) {
@@ -88,7 +70,6 @@ pnpm typecheck
 Write-Host "Building desktop..."
 $env:CHANGEBATTLE_PROJECT_ROOT = $SourceRoot
 $env:CHANGEBATTLE_RELEASE_CHANNEL = $Channel
-$env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = Join-Path $ShowdownClientPath "js"
 pnpm --filter @changebattle-v2/desktop build
 pnpm --filter @changebattle-v2/desktop test:ipc-bundle
 pnpm --filter @changebattle-v2/desktop test:renderer-assets
@@ -101,13 +82,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools\windows\build-desktop-
 Write-Host "Packaging desktop release..."
 $env:ELECTRON_RUNTIME_PATH = $ElectronRuntimePath
 $env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT = $LauncherOutput
-$env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT = $ShowdownPath
-$env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = $ShowdownClientPath
 $env:CHANGEBATTLE_COMMIT = $Commit
 if ([string]::IsNullOrWhiteSpace($env:CHANGEBATTLE_UPDATE_MANIFEST_URLS)) {
   $env:CHANGEBATTLE_UPDATE_MANIFEST_URLS = $DefaultUpdateManifestUrl
 }
-python tools\package_desktop_release.py --electron-runtime-path $ElectronRuntimePath --showdown-path $ShowdownPath --showdown-client-path $ShowdownClientPath
+python tools\package_desktop_release.py --electron-runtime-path $ElectronRuntimePath --launcher-output-path $LauncherOutput
 
 $PackageName = if ($Channel -eq "beta") {
   "ChangeBattle-V2-Desk-portable-debug-v$Version"
@@ -145,11 +124,7 @@ try {
     "$Prefix/apps/desktop/out/main/formalComputeWorker.js",
     "$Prefix/apps/desktop/out/preload/preload.cjs",
     "$Prefix/apps/desktop/out/renderer/index.html",
-    "$Prefix/runtime/electron/electron.exe",
-    "$Prefix/vendor/pokemon-showdown/sim/index.js",
-    "$Prefix/vendor/pokemon-showdown/node_modules/ts-chacha20/package.json",
-    "$Prefix/vendor/showdown-client/js/battle.js",
-    "$Prefix/vendor/showdown-client/js/battle-scene-stub.js"
+    "$Prefix/runtime/electron/electron.exe"
   )
   foreach ($Item in $Wanted) {
     if (-not $Names.Contains($Item)) {

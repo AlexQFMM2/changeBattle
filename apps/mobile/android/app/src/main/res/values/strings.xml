@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ChangeBattle V2 Debug</string>
+    <string name="title_activity_main">ChangeBattle V2 Debug</string>
+    <string name="package_name">top.changebattle.v2debug</string>
+    <string name="custom_url_scheme">top.changebattle.v2debug</string>
+</resources>

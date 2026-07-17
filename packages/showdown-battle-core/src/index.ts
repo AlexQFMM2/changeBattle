@@ -33,7 +33,6 @@ import type {TrainingPlayerDraftV4, TrainingRunGameNodeV4} from "./types.js";
 import {filterShowdownChoiceForRuleSetV4, showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownSpecialSystemAllowedForRuleSetV4, validateShowdownChoiceCommandV4, type ShowdownChoiceValidationResultV4} from "./showdownCommand.js";
 import {battleAiRequestKeyV4, chooseAiBattleChoiceV4, fallbackLegalChoiceV4, normalizeBattleAiProfileV4, type BattleAiChoiceResultV4} from "./ai.js";
 import {loadShowdownSimV4} from "./showdownVendor.js";
-import {compileShowdownPlaybackTimelineFromRawLog} from "./playbackCompiler.js";
 import {battleKeyFromRosterIdentityV4, canonicalBattleKeyV4, isProtocolBattleKeyV4} from "./battleIdentity.js";
 
 export * from "./showdownCommand.js";
@@ -456,21 +455,63 @@ export async function getPlaybackTimeline(sessionId: string, previousIndex = 0):
   const session = getSession(sessionId);
   await flushReadyAutoChoices(session);
   const rawLogLength = session.snapshot.rawLog.length;
-  const cacheKey = `${sessionId}:${rawLogLength}`;
-  let compiled = playbackTimelineCache.get(cacheKey);
-  if (!compiled) {
-    clearPlaybackTimelineCacheForSession(sessionId);
-    compiled = compileShowdownPlaybackTimelineFromRawLog(session.snapshot.rawLog, {sessionId, previousIndex: 0});
-    playbackTimelineCache.set(cacheKey, compiled);
+  if (isBrowserRuntimeV4()) {
+    const rawFrom = Math.max(0, Math.min(rawLogLength, Math.floor(Number(previousIndex) || 0)));
+    return clone(createBrowserFallbackPlaybackTimeline(sessionId, session.snapshot.rawLog, rawFrom));
   }
+  const cacheKey = `${sessionId}:${rawLogLength}`;
+  const cached = playbackTimelineCache.get(cacheKey);
+  const fullTimeline: ShowdownPlaybackTimelineV4 = cached || await compilePlaybackTimelineForNodeRuntime(sessionId, session.snapshot.rawLog, cacheKey);
   const rawFrom = Math.max(0, Math.min(rawLogLength, Math.floor(Number(previousIndex) || 0)));
   return clone({
-    ...compiled,
+    ...fullTimeline,
     rawFrom,
     groups: rawFrom
-      ? compiled.groups.filter(group => !group.rawIndices.length || group.rawIndices.some(index => index >= rawFrom))
-      : compiled.groups,
+      ? fullTimeline.groups.filter(group => !group.rawIndices.length || group.rawIndices.some(index => index >= rawFrom))
+      : fullTimeline.groups,
   });
+}
+
+async function compilePlaybackTimelineForNodeRuntime(sessionId: string, rawLog: readonly string[], cacheKey: string): Promise<ShowdownPlaybackTimelineV4> {
+  clearPlaybackTimelineCacheForSession(sessionId);
+  const modulePath = "./playbackCompiler.js";
+  const {compileShowdownPlaybackTimelineFromRawLog} = await import(modulePath);
+  const compiled = compileShowdownPlaybackTimelineFromRawLog(rawLog, {sessionId, previousIndex: 0});
+  playbackTimelineCache.set(cacheKey, compiled);
+  return compiled;
+}
+
+function isBrowserRuntimeV4(): boolean {
+  return typeof window !== "undefined" && typeof document !== "undefined";
+}
+
+function createBrowserFallbackPlaybackTimeline(sessionId: string, rawLog: readonly string[], rawFrom: number): ShowdownPlaybackTimelineV4 {
+  const rawLines = rawLog.slice(rawFrom).map(line => String(line || ""));
+  return {
+    sessionId,
+    rawFrom,
+    rawTo: rawLog.length,
+    rawLogLength: rawLog.length,
+    groups: rawLines.length ? [{
+      id: `${sessionId}:browser-fallback:${rawFrom}`,
+      index: 0,
+      turn: null,
+      rawIndices: rawLines.map((_, index) => rawFrom + index),
+      rawLines,
+      calls: [],
+      waitMode: "immediate",
+      summary: "Browser fallback playback timeline",
+      finishStep: null,
+    }] : [],
+    debug: {
+      calls: [],
+      compilerElapsedMs: 0,
+      guard: 0,
+      currentStep: null,
+      atQueueEnd: true,
+    },
+    compilerVersion: "browser-fallback",
+  };
 }
 
 export function __testApplyBattleProtocolLinesV4(snapshot: BattleServiceSnapshotV4, lines: string[]): BattleServiceSnapshotV4 {

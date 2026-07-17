@@ -35,24 +35,6 @@ REQUIRED_DESKTOP_OUTPUTS = [
     "apps/desktop/out/preload/preload.cjs",
     "apps/desktop/out/renderer/index.html",
 ]
-REQUIRED_SHOWDOWN_PATHS = [
-    "sim/index.js",
-    "sim/battle.js",
-    "sim/teams.js",
-    "data/pokedex.js",
-    "lib/index.js",
-]
-REQUIRED_SHOWDOWN_CLIENT_PATHS = [
-    "js/battle-dex-data.js",
-    "js/battle-dex.js",
-    "js/battle-text-parser.js",
-    "js/battle-log.js",
-    "js/battle-animations.js",
-    "js/battle-animations-moves.js",
-    "js/battle-scene-stub.js",
-    "js/battle-teams.js",
-    "js/battle.js",
-]
 FORBIDDEN_ZIP_PARTS = [
     "/debug/",
     "/.git/",
@@ -138,89 +120,10 @@ def ignore_project_path(_dir: str, names: list[str]) -> set[str]:
     return ignored
 
 
-def ignore_showdown_path(_dir: str, names: list[str]) -> set[str]:
-    ignored = {"__pycache__", ".pytest_cache", ".git"}
-    ignored.update(name for name in names if name.endswith((".map", ".d.ts", ".tsbuildinfo", ".pyc")))
-    return ignored
-
-
 def validate_desktop_outputs(stage_dir: Path) -> None:
     missing = [relative for relative in REQUIRED_DESKTOP_OUTPUTS if not (stage_dir / relative).exists()]
     if missing:
         raise RuntimeError("Desktop build output is incomplete; missing:\n" + "\n".join(missing))
-
-
-def validate_showdown_vendor(showdown_root: Path) -> None:
-    missing = [relative for relative in REQUIRED_SHOWDOWN_PATHS if not (showdown_root / relative).exists()]
-    if missing:
-        raise RuntimeError(f"Showdown vendor is incomplete at {showdown_root}; missing:\n" + "\n".join(missing))
-
-
-def validate_showdown_client_vendor(showdown_client_root: Path) -> None:
-    missing = [relative for relative in REQUIRED_SHOWDOWN_CLIENT_PATHS if not (showdown_client_root / relative).exists()]
-    if missing:
-        raise RuntimeError(f"Showdown client playback vendor is incomplete at {showdown_client_root}; missing:\n" + "\n".join(missing))
-
-
-def copy_showdown_vendor(showdown_root: Path, dst_root: Path) -> None:
-    validate_showdown_vendor(showdown_root)
-    copy_path(showdown_root / "package.json", dst_root / "package.json")
-    for dirname in ["sim", "data", "lib", "config"]:
-        src = showdown_root / dirname
-        if src.exists():
-            shutil.copytree(src, dst_root / dirname, ignore=ignore_showdown_path)
-    module_src = resolve_ts_chacha20_package(showdown_root)
-    module_dst = dst_root / "node_modules" / "ts-chacha20"
-    module_dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(module_src, module_dst, ignore=ignore_showdown_path)
-
-
-def resolve_ts_chacha20_package(showdown_root: Path) -> Path:
-    local_vendor_module = showdown_root / "node_modules" / "ts-chacha20"
-    if (local_vendor_module / "package.json").exists():
-        return local_vendor_module
-
-    workspace_module = PROJECT_ROOT / "packages" / "showdown-battle-core" / "node_modules" / "ts-chacha20"
-    if (workspace_module / "package.json").exists():
-        return workspace_module
-
-    pnpm_modules = sorted((PROJECT_ROOT / "node_modules" / ".pnpm").glob("ts-chacha20@*/node_modules/ts-chacha20"))
-    for module_src in pnpm_modules:
-        if (module_src / "package.json").exists():
-            return module_src
-
-    output = subprocess.check_output(
-        [
-            "node",
-            "-e",
-            (
-                "const {createRequire}=require('module');"
-                "const path=require('path');"
-                "const root=process.cwd();"
-                "const req=createRequire(path.join(root,'packages/showdown-battle-core/package.json'));"
-                "console.log(req.resolve('ts-chacha20/package.json'));"
-            ),
-        ],
-        cwd=PROJECT_ROOT,
-        text=True,
-    ).strip()
-    module_src = Path(output).parent
-    if not (module_src / "package.json").exists():
-        raise RuntimeError("Cannot resolve ts-chacha20 package for portable Showdown vendor.")
-    return module_src
-
-
-def copy_showdown_client_vendor(showdown_client_root: Path, dst_root: Path) -> None:
-    validate_showdown_client_vendor(showdown_client_root)
-    copy_path(showdown_client_root / "README.md", dst_root / "README.md")
-    shutil.copytree(showdown_client_root / "js", dst_root / "js", ignore=ignore_showdown_path)
-
-
-def normalize_showdown_client_root(path_value: str) -> Path:
-    root = Path(path_value).expanduser().resolve()
-    if (root / "battle.js").exists() and root.name.lower() == "js":
-        return root.parent
-    return root
 
 
 def copy_electron_runtime(runtime_root: Path, dst_root: Path) -> None:
@@ -261,8 +164,6 @@ set "APP_ROOT=%APP_DIR:~0,-1%"
 set "LAUNCHER_ENV=%APP_ROOT%\{PORTABLE_ENV_NAME}"
 set "ELECTRON_EXE=%APP_ROOT%\runtime\electron\electron.exe"
 set "DESKTOP_APP=%APP_ROOT%\apps\desktop"
-set "SHOWDOWN_VENDOR=%APP_ROOT%\vendor\pokemon-showdown"
-set "SHOWDOWN_CLIENT_VENDOR=%APP_ROOT%\vendor\showdown-client\js"
 if exist "%LAUNCHER_ENV%" (
   for /f "usebackq eol=# tokens=1,* delims==" %%A in ("%LAUNCHER_ENV%") do (
     if not "%%A"=="" set "%%A=%%B"
@@ -280,32 +181,18 @@ if not exist "%DESKTOP_APP%\out\main\main.js" (
   pause
   exit /b 1
 )
-if not exist "%SHOWDOWN_VENDOR%\sim\index.js" (
-  echo Pokemon Showdown vendor is missing: %SHOWDOWN_VENDOR%\sim\index.js
-  echo Please use the complete ChangeBattle V2 Desk portable package.
-  pause
-  exit /b 1
-)
-if not exist "%SHOWDOWN_CLIENT_VENDOR%\battle.js" (
-  echo Pokemon Showdown client playback vendor is missing: %SHOWDOWN_CLIENT_VENDOR%\battle.js
-  echo Please use the complete ChangeBattle V2 Desk portable package.
-  pause
-  exit /b 1
-)
 set "CHANGEBATTLE_PROJECT_ROOT=%APP_ROOT%"
 if "%CHANGEBATTLE_DESKTOP_VERSION%"=="" set "CHANGEBATTLE_DESKTOP_VERSION={package_version()}"
 set "CHANGEBATTLE_PORTABLE_ROOT=%APP_ROOT%"
 set "CHANGEBATTLE_PORTABLE_UPDATE_ENABLED=1"
 if "%CHANGEBATTLE_RELEASE_CHANNEL%"=="" set "CHANGEBATTLE_RELEASE_CHANNEL={release_channel()}"
 if "%CHANGEBATTLE_UPDATE_MANIFEST_URLS%"=="" set "CHANGEBATTLE_UPDATE_MANIFEST_URLS={desktop_update_manifest_urls()}"
-set "CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT=%SHOWDOWN_VENDOR%"
-set "CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT=%SHOWDOWN_CLIENT_VENDOR%"
 start "ChangeBattle V2 Desk" /D "%APP_ROOT%" "%ELECTRON_EXE%" "%DESKTOP_APP%"
 """
     write_text(stage_dir / PORTABLE_CMD_NAME, cmd, newline="\r\n")
 
 
-def write_release_notes(stage_dir: Path, showdown_root: Path, electron_runtime_version: str) -> None:
+def write_release_notes(stage_dir: Path, electron_runtime_version: str) -> None:
     text = f"""# ChangeBattle V2 Desk Windows Release
 
 Version: {package_version()}
@@ -323,8 +210,8 @@ If the launcher fails, use `{PORTABLE_CMD_NAME}` as a fallback/debug entry.
 
 - Windows 10/11 x64.
 - No Node.js, npm, pnpm, or Python is required on the player machine.
-- Pokemon Showdown vendor is bundled in `vendor/pokemon-showdown`.
-- Pokemon Showdown client playback vendor is bundled in `vendor/showdown-client`.
+- Battle sessions use the public ChangeBattle Battle API by default.
+- Public assets are loaded from the ChangeBattle CDN.
 - Electron is bundled in `runtime/electron`.
 
 ## Saves
@@ -334,7 +221,6 @@ Electron stores profile data under the app user-data directory, not inside this 
 ## Build Info
 
 - ChangeBattle V2 commit: `{git_commit(PROJECT_ROOT)}`
-- Showdown vendor source: `{showdown_root}`
 - Electron runtime: `{electron_runtime_version}-{ELECTRON_PLATFORM}-{ELECTRON_ARCH}`
 """
     write_text(stage_dir / "RELEASE-README.md", text)
@@ -368,10 +254,6 @@ def validate_zip(zip_path: Path, package_name: str) -> None:
         f"{prefix}/apps/desktop/out/preload/preload.cjs",
         f"{prefix}/apps/desktop/out/renderer/index.html",
         f"{prefix}/runtime/electron/electron.exe",
-        f"{prefix}/vendor/pokemon-showdown/sim/index.js",
-        f"{prefix}/vendor/pokemon-showdown/node_modules/ts-chacha20/package.json",
-        f"{prefix}/vendor/showdown-client/js/battle.js",
-        f"{prefix}/vendor/showdown-client/js/battle-scene-stub.js",
     ]
     with zipfile.ZipFile(zip_path) as zf:
         names = set(zf.namelist())
@@ -387,8 +269,6 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--electron-runtime-path", default=os.environ.get("ELECTRON_RUNTIME_PATH", r"D:\changeBattleV2\electron-runtime\electron"))
     parser.add_argument("--launcher-output-path", default=os.environ.get("CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT") or str(PROJECT_ROOT / "release" / "desktop-launcher"))
-    parser.add_argument("--showdown-path", default=os.environ.get("CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT") or os.environ.get("SHOWDOWN_PATH") or str(PROJECT_ROOT / "packages" / "showdown-battle-core" / "vendor" / "showdown"))
-    parser.add_argument("--showdown-client-path", default=os.environ.get("CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT") or str(PROJECT_ROOT / "packages" / "showdown-battle-core" / "vendor" / "showdown-client"))
     parser.add_argument("--keep-stage", action="store_true")
     args = parser.parse_args()
 
@@ -396,8 +276,6 @@ def main() -> int:
     runtime_version = electron_version()
     electron_runtime_root = Path(args.electron_runtime_path).expanduser().resolve()
     launcher_output_root = Path(args.launcher_output_path).expanduser().resolve()
-    showdown_root = Path(args.showdown_path).expanduser().resolve()
-    showdown_client_root = normalize_showdown_client_root(args.showdown_client_path)
 
     RELEASE_DIR.mkdir(parents=True, exist_ok=True)
     package_name = portable_package_name(version)
@@ -410,13 +288,11 @@ def main() -> int:
     for relative in PROJECT_PATHS:
         copy_path(PROJECT_ROOT / relative, stage_dir / relative)
     validate_desktop_outputs(stage_dir)
-    copy_showdown_vendor(showdown_root, stage_dir / "vendor" / "pokemon-showdown")
-    copy_showdown_client_vendor(showdown_client_root, stage_dir / "vendor" / "showdown-client")
     copy_electron_runtime(electron_runtime_root, stage_dir / "runtime" / "electron")
     write_launcher_env(stage_dir)
     copy_launcher_outputs(launcher_output_root, stage_dir)
     write_windows_scripts(stage_dir)
-    write_release_notes(stage_dir, showdown_root, runtime_version)
+    write_release_notes(stage_dir, runtime_version)
     manifest_command = ["node", "tools/generate_desktop_file_manifest.mjs", version, "--portable-root", str(stage_dir)]
     previous_file_manifest = os.environ.get("CHANGEBATTLE_PREVIOUS_FILE_MANIFEST")
     if previous_file_manifest:

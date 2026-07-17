@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
       ipcRenderer.invoke("desktopApp:getUpdateStatus") as ReturnType<DesktopAppBridge["getUpdateStatus"]>,
     cancelUpdate: () =>
       ipcRenderer.invoke("desktopApp:cancelUpdate") as ReturnType<DesktopAppBridge["cancelUpdate"]>,
+    getBattleServiceConfig: () =>
+      ipcRenderer.invoke("desktopApp:getBattleServiceConfig") as ReturnType<NonNullable<DesktopAppBridge["getBattleServiceConfig"]>>,
     onUpdateStatus: (listener: Parameters<DesktopAppBridge["onUpdateStatus"]>[0]) => {
       const wrapped = (_event: unknown, status: Parameters<typeof listener>[0]) => listener(status);
       ipcRenderer.on("desktopApp:updateStatus", wrapped);

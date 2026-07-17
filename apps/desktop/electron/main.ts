@@ -22,6 +22,7 @@ const rendererReadyRetryMs = 180;
 const rendererReadyTimeoutMs = 90_000;
 const desktopUpdateFetchTimeoutMs = 6_000;
 const desktopAppUserModelId = "com.changebattle.v2";
+const defaultPublicBattleServiceUrl = "https://api.65h26i.top/changebattle/battle";
 
 app.setName("ChangeBattle V2 Dex Desktop");
 app.setAppUserModelId(desktopAppUserModelId);
@@ -157,6 +158,15 @@ ipcMain.handle("desktopApp:getUpdateStatus", async () => desktopUpdateStatus);
 
 ipcMain.handle("desktopApp:cancelUpdate", async () => {
   desktopUpdateChild?.kill();
+});
+
+ipcMain.handle("desktopApp:getBattleServiceConfig", async () => {
+  const configuredUrl = String(process.env.CHANGEBATTLE_DESKTOP_BATTLE_SERVICE_URL || process.env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL || "").trim();
+  const allowLocalFallback = process.env.CHANGEBATTLE_DESKTOP_ALLOW_LOCAL_BATTLE_SERVICE === "1";
+  const url = configuredUrl || (allowLocalFallback ? "" : defaultPublicBattleServiceUrl);
+  return url
+    ? {backend: "server" as const, url}
+    : {backend: "local-fallback" as const};
 });
 
 ipcMain.handle("playerVault:load", async () => {

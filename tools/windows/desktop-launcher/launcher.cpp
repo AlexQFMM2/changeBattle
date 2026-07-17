@@ -159,8 +159,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   const std::wstring electronExe = joinPath(portableRoot, L"runtime\\electron\\electron.exe");
   const std::wstring desktopApp = joinPath(portableRoot, L"apps\\desktop");
   const std::wstring desktopMain = joinPath(desktopApp, L"out\\main\\main.js");
-  const std::wstring showdownVendor = joinPath(portableRoot, L"vendor\\pokemon-showdown");
-  const std::wstring showdownClient = joinPath(portableRoot, L"vendor\\showdown-client\\js");
 
   if (!fileExists(electronExe)) {
     fail(portableRoot, L"Electron runtime is missing:\n" + electronExe);
@@ -168,14 +166,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   }
   if (!directoryExists(desktopApp) || !fileExists(desktopMain)) {
     fail(portableRoot, L"Desktop app build is missing:\n" + desktopMain);
-    return 1;
-  }
-  if (!fileExists(joinPath(showdownVendor, L"sim\\index.js"))) {
-    fail(portableRoot, L"Pokemon Showdown vendor is missing:\n" + joinPath(showdownVendor, L"sim\\index.js"));
-    return 1;
-  }
-  if (!fileExists(joinPath(showdownClient, L"battle.js"))) {
-    fail(portableRoot, L"Pokemon Showdown client playback vendor is missing:\n" + joinPath(showdownClient, L"battle.js"));
     return 1;
   }
 
@@ -189,8 +179,6 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   setEnv(L"CHANGEBATTLE_PORTABLE_UPDATE_ENABLED", L"1");
   setEnv(L"CHANGEBATTLE_RELEASE_CHANNEL", channel);
   if (!manifestUrls.empty()) setEnv(L"CHANGEBATTLE_UPDATE_MANIFEST_URLS", manifestUrls);
-  setEnv(L"CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT", showdownVendor);
-  setEnv(L"CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT", showdownClient);
 
   std::wstring commandLine = quoteArg(electronExe) + L" " + quoteArg(desktopApp);
   std::vector<wchar_t> mutableCommand(commandLine.begin(), commandLine.end());

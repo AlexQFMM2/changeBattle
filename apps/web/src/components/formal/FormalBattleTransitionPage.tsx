@@ -1,16 +1,18 @@
-import {useEffect, useRef} from "react";
+import {useEffect, useRef, useState} from "react";
 import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalGameRunV4, TrainingRunGameV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 
-export function FormalBattleTransitionPage({api, formalGameBridge, run, onRunChange, onReady, onBackToRest}: {
+export function FormalBattleTransitionPage({api, formalGameBridge, battleBackendLabel, run, onRunChange, onReady, onBackToRest}: {
   api: ChangeBattleV2Api;
   formalGameBridge?: DesktopFormalGameBridge;
+  battleBackendLabel?: string;
   run: FormalGameRunV4;
   onRunChange: (run: FormalGameRunV4) => void;
   onReady: (sessionId: string) => void;
   onBackToRest: () => void;
 }) {
   const started = useRef(false);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     if (started.current) return;
     started.current = true;
@@ -36,6 +38,7 @@ export function FormalBattleTransitionPage({api, formalGameBridge, run, onRunCha
       onReady(snapshot.id);
     })().catch(async error => {
       console.error(error);
+      setError(error instanceof Error ? error.message : "正式战斗创建失败。");
       const restRunSnapshot = run.restRunSnapshot;
       if (restRunSnapshot?.currentNodeId) {
         const blockedRestRun = markFormalRestBattleState(restRunSnapshot, restRunSnapshot.currentNodeId, "blocked", "battle-game-blocked");
@@ -46,9 +49,35 @@ export function FormalBattleTransitionPage({api, formalGameBridge, run, onRunCha
         }).catch(() => ({...run, restRunSnapshot: blockedRestRun}));
         onRunChange(blockedRun);
       }
-      onBackToRest();
     });
   }, [api, formalGameBridge, onBackToRest, onReady, onRunChange, run]);
+
+  if (error) {
+    return (
+      <section className="training-transition-page" aria-live="polite">
+        <div className="training-transition-video-fallback" aria-hidden="true">
+          <span />
+          <i />
+        </div>
+        <div className="training-transition-shade" aria-hidden="true" />
+        <section className="training-transition-loading training-transition-error-panel">
+          <div className="training-transition-copy">
+            <strong>正式战斗创建失败</strong>
+            <span>BattleGame V4</span>
+          </div>
+          <p className="training-transition-tip">
+            <strong>后端</strong>
+            <span>{battleBackendLabel || "server-api"}</span>
+            <strong>错误</strong>
+            <span>{error}</span>
+          </p>
+          <div className="training-transition-error-actions">
+            <button type="button" onClick={onBackToRest}>返回休整</button>
+          </div>
+        </section>
+      </section>
+    );
+  }
 
   return (
     <TrainingRunTransitionPage
