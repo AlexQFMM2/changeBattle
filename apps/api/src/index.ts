@@ -41,7 +41,7 @@ import {
 import {createBrowserTrainingRunAdapter, createTrainingRunApi, normalizeBattlePreferenceV4, type BattlePreferenceV4, type TrainingRunStorageAdapter} from "./training.js";
 import {createBrowserFormalGameRunAdapter, createFormalGameRunApi, createFormalShopProductViewsV4, type FormalGameRunStorageAdapter} from "./formalGame.js";
 import type {CoopPartnerPreferenceV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalGameSettlementV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalSoulmateBattleFriendshipSettlementResultV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalSoulmateFriendshipSettlementRecordV4, FormalSoulmateHonorSettlementRecordV4, FormalSoulmateHonorSettlementResultV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
-import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type BattleSessionSnapshotV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
+import {applyBattleSessionToRun, createBattleServiceClient, patchBattleRunLocalTeamsFromSnapshot, type BattleServiceClientV4, type BattleSessionSnapshotV4, type BattleTrainerItemSubmitV4, type ShowdownPlaybackTimelineV4} from "./battle.js";
 import type {LocalPokemonV4, LocalTeamV4, ShowdownPlayerIdV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4} from "./training.js";
 import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} from "./teamGenerator.js";
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
@@ -80,6 +80,7 @@ export {
 } from "@changebattle-v2/core";
 export type {NatureEffectV4} from "@changebattle-v2/core";
 export type {PostServiceConnectionStateV4, PostServiceResultV4} from "./postService.js";
+export type {BattleServiceClientV4, BattleSessionSnapshotV4, ShowdownPlaybackTimelineV4} from "./battle.js";
 export {normalizeShowdownChoiceRequestV4, showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, validShowdownTargetLocV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
 export {battleKeyFromRosterIdentityV4, canonicalBattleKeyV4, isProtocolBattleKeyV4} from "@changebattle-v2/showdown-battle-core/battleIdentity";
 export {dexLabelToId, toDexId, translateDexDescription, translateDexLabel} from "@changebattle-v2/showdown-dex-core";
@@ -303,6 +304,14 @@ export type ChangeBattleV2ApiOptions = {
 export type FormalRoomV1 = {
   roomId: string;
   formalRun: FormalGameRunV4;
+  activeBattle?: {
+    sessionId: string;
+    nodeId: string;
+    battleGameId: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
   revision: number;
   status: string;
   connectionState: string;
@@ -315,6 +324,23 @@ export type FormalRoomV1 = {
 
 export type FormalRoomCreateResultV1 = FormalRoomV1 & {
   roomToken: string;
+};
+
+export type FormalRoomBattlePrepareResultV1 = {
+  room: FormalRoomV1;
+  formalRun: FormalGameRunV4;
+  sessionId: string;
+  snapshot: BattleSessionSnapshotV4;
+  reused: boolean;
+};
+
+export type FormalRoomBattleFinalizeResultV1 = {
+  room: FormalRoomV1;
+  formalRun: FormalGameRunV4;
+  destination: "rest" | "settlement";
+  reason?: FormalBattleResultFinalizeReasonV4;
+  playerVault?: PlayerVaultV4;
+  settlementNotice?: string;
 };
 
 const DEFAULT_BROWSER_PROFILE_KEY = "changebattle-v2:user-profile";
@@ -478,6 +504,35 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       serverApi.postApi<FormalRoomV1>("rooms.selectStarters", {roomId: input.roomId, selectedIndexes: input.selectedIndexes}, {roomToken: input.roomToken}),
     prepareFormalRoomRound: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomV1>> =>
       serverApi.postApi<FormalRoomV1>("rooms.prepareRound", {roomId: input.roomId}, {roomToken: input.roomToken}),
+    prepareFormalRoomBattle: (input: {roomId: string; roomToken: string; clientRequestId: string; baseRevision?: number; formalRunDraft: FormalGameRunV4}): Promise<PostServiceResultV4<FormalRoomBattlePrepareResultV1>> =>
+      serverApi.postApi<FormalRoomBattlePrepareResultV1>("rooms.prepareBattle", {
+        roomId: input.roomId,
+        clientRequestId: input.clientRequestId,
+        baseRevision: input.baseRevision,
+        formalRunDraft: input.formalRunDraft,
+      }, {roomToken: input.roomToken}),
+    getFormalRoomBattleSnapshot: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<BattleSessionSnapshotV4>> =>
+      serverApi.postApi<BattleSessionSnapshotV4>("rooms.getBattleSnapshot", {roomId: input.roomId}, {roomToken: input.roomToken}),
+    getFormalRoomBattlePlaybackTimeline: (input: {roomId: string; roomToken: string; from?: number}): Promise<PostServiceResultV4<ShowdownPlaybackTimelineV4>> =>
+      serverApi.postApi<ShowdownPlaybackTimelineV4>("rooms.getBattlePlaybackTimeline", {roomId: input.roomId, from: input.from || 0}, {roomToken: input.roomToken}),
+    submitFormalRoomBattleChoice: (input: {roomId: string; roomToken: string; clientActionId: string; playerId: ShowdownPlayerIdV4; choice: string; trainerItems?: BattleTrainerItemSubmitV4["trainerItems"]; expectedTurn?: number; expectedRqid?: number}): Promise<PostServiceResultV4<BattleSessionSnapshotV4>> =>
+      serverApi.postApi<BattleSessionSnapshotV4>("rooms.submitBattleChoice", {
+        roomId: input.roomId,
+        clientActionId: input.clientActionId,
+        playerId: input.playerId,
+        choice: input.choice,
+        trainerItems: input.trainerItems || [],
+        expectedTurn: input.expectedTurn,
+        expectedRqid: input.expectedRqid,
+      }, {roomToken: input.roomToken}),
+    finalizeFormalRoomBattle: (input: {roomId: string; roomToken: string; clientRequestId: string; reason?: FormalBattleResultFinalizeReasonV4; playerVaultSnapshot?: PlayerVaultV4}): Promise<PostServiceResultV4<FormalRoomBattleFinalizeResultV1>> =>
+      serverApi.postApi<FormalRoomBattleFinalizeResultV1>("rooms.finalizeBattle", {
+        roomId: input.roomId,
+        clientRequestId: input.clientRequestId,
+        reason: input.reason,
+        playerVaultSnapshot: input.playerVaultSnapshot,
+      }, {roomToken: input.roomToken}),
+    createFormalRoomBattleServiceClient: (input: {roomId: string; roomToken: string}): BattleServiceClientV4 => createFormalRoomBattleServiceClient(serverApi, input),
     getServerConnectionState: () => serverApi.getConnectionState(),
     createFormalGameRun: formalRuns.createFormalGameRun,
     prepareFormalStarterCandidates: formalRuns.prepareFormalStarterCandidates,
@@ -631,6 +686,59 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       return null;
     }
   }
+}
+
+function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, input: {roomId: string; roomToken: string}): BattleServiceClientV4 {
+  const {roomId, roomToken} = input;
+  return {
+    async createBattleSession() {
+      throw new Error("正式房间战斗必须通过 prepareFormalRoomBattle 创建。");
+    },
+    async submitChoice(_sessionId, playerId, choice) {
+      const result = await serverApi.postApi<BattleSessionSnapshotV4>("rooms.submitBattleChoice", {
+        roomId,
+        clientActionId: createClientActionIdV4("choice"),
+        playerId,
+        choice,
+      }, {roomToken});
+      if (!result.ok) throw new Error(result.message);
+      return result.data;
+    },
+    async submitTrainerItem(submitInput) {
+      const result = await serverApi.postApi<BattleSessionSnapshotV4>("rooms.submitBattleChoice", {
+        roomId,
+        clientActionId: createClientActionIdV4("trainer-item"),
+        playerId: submitInput.playerId,
+        choice: submitInput.choice,
+        trainerItems: submitInput.trainerItems,
+      }, {roomToken});
+      if (!result.ok) throw new Error(result.message);
+      return result.data;
+    },
+    async applyPermanentFormeChange() {
+      throw new Error("正式房间战斗暂不支持直接变更形态。");
+    },
+    async getSnapshot() {
+      const result = await serverApi.postApi<BattleSessionSnapshotV4>("rooms.getBattleSnapshot", {roomId}, {roomToken});
+      if (!result.ok) throw new Error(result.message);
+      return result.data;
+    },
+    async getPlaybackTimeline(_sessionId, previousIndex = 0) {
+      const result = await serverApi.postApi<ShowdownPlaybackTimelineV4>("rooms.getBattlePlaybackTimeline", {roomId, from: previousIndex}, {roomToken});
+      if (!result.ok) throw new Error(result.message);
+      return result.data;
+    },
+    async closeSession() {
+      // Room-owned battle sessions are closed by finalizeFormalRoomBattle.
+    },
+  };
+}
+
+function createClientActionIdV4(prefix: string): string {
+  const random = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+  return `${prefix}-${Date.now().toString(36)}-${random}`;
 }
 
 export {

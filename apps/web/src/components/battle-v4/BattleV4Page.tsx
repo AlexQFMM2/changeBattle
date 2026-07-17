@@ -3,7 +3,7 @@
 // 后续修改或排查战斗页 bug 时，优先横向对比本实现与 Showdown Client 的差异，再决定如何落到本项目架构。
 // 严禁随意修改；只有确认 Showdown Client 对应实现来源与差异后，才允许调整这里的战斗行为。
 import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
-import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, FormalGameRunV4, LocalPokemonV4, PlayerItemInstanceV4, PlayerVaultV4, RequestSidePokemonV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleServiceClientV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, FormalGameRunV4, LocalPokemonV4, PlayerItemInstanceV4, PlayerVaultV4, RequestSidePokemonV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import {battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, formalRoundStageLabelV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, splitBattleTrainerItemChoicesV4, stringifyBattleTrainerItemChoiceV4, translateDexLabel, validShowdownTargetLocV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
@@ -32,6 +32,7 @@ export type BattleV4PageProps = {
   onBackToRest: () => void;
   onBattleComplete?: (result: {sessionId: string; reason?: "surrender"}) => void;
   onAfterSubmitSnapshot?: (snapshot: BattleSessionSnapshotV4) => Promise<BattleSessionSnapshotV4> | BattleSessionSnapshotV4;
+  battleServiceOverride?: BattleServiceClientV4;
   playerProfile?: Pick<UserProfileV2, "name" | "frontAsset" | "frontGifAsset" | "backAsset" | "avatarAsset">;
   endFlow?: "auto-exit" | "result-panel";
 };
@@ -223,7 +224,10 @@ type BattleSubmitErrorV4 = {
   error?: string;
 };
 
-export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsContext, onRunChange, onBackToRest, onBattleComplete, onAfterSubmitSnapshot, playerProfile, endFlow = "result-panel"}: BattleV4PageProps) {
+export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsContext, onRunChange, onBackToRest, onBattleComplete, onAfterSubmitSnapshot, battleServiceOverride, playerProfile, endFlow = "result-panel"}: BattleV4PageProps) {
+  const battleService = battleServiceOverride || api.battleService;
+  const runRef = useRef(run);
+  const onRunChangeRef = useRef(onRunChange);
   const [snapshot, setSnapshot] = useState<BattleSessionSnapshotV4 | null>(null);
   const [message, setMessage] = useState("正在连接 Battle Service...");
   const [busy, setBusy] = useState(false);
@@ -321,6 +325,14 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
   const battleError = useMemo(() => battleV4BlockingError(snapshot, lastSubmitError), [snapshot, lastSubmitError]);
   const activeBattleBag = api.normalizeBagState(run.players.p1?.bag);
   const battleBagEnabled = Boolean(run.battlePreference?.battleBagEnabled && activeBattleBag.battleBagEnabled);
+
+  useEffect(() => {
+    runRef.current = run;
+  }, [run]);
+
+  useEffect(() => {
+    onRunChangeRef.current = onRunChange;
+  }, [onRunChange]);
   const canSurrender = Boolean(onBattleComplete || endFlow === "auto-exit");
   const battleStageLabel = useMemo(() => battleV4StageLabelForNode(run, snapshot?.nodeId), [run, snapshot?.nodeId]);
   const narrativeTrainers = useMemo(() => buildBattleV4NarrativeTrainers(api, run, playerProfile, snapshot?.nodeId), [api, playerProfile, run, snapshot?.nodeId]);
@@ -542,13 +554,14 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
         return;
       }
       try {
-        const next = await api.battleService.getSnapshot(sessionId);
+        const next = await battleService.getSnapshot(sessionId);
         if (cancelled) return;
         setSnapshot(next);
         const blocking = battleV4BlockingError(next, lastSubmitError);
         setMessage(blocking ? `战斗异常：${blocking.message}` : "");
-        const patchedRun = next.status === "ended" || next.status === "blocked" ? run : patchBattleRunLocalTeamsFromSnapshot(run, next);
-        if (!cancelled && patchedRun !== run) onRunChange(patchedRun);
+        const currentRun = runRef.current;
+        const patchedRun = next.status === "ended" || next.status === "blocked" ? currentRun : patchBattleRunLocalTeamsFromSnapshot(currentRun, next);
+        if (!cancelled && patchedRun !== currentRun) onRunChangeRef.current(patchedRun);
         if (next.status === "ended" || next.status === "blocked") {
           if (finalizedSessionRef.current === sessionId) return;
           finalizedSessionRef.current = sessionId;
@@ -564,7 +577,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [api, busy, onRunChange, run, sessionId]);
+  }, [battleService, busy, sessionId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -576,7 +589,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
     if (snapshot.rawLog.length <= previousIndex && playbackTimeline?.sessionId === sessionId) return;
     setPlaybackTimelinePending(true);
     setPlaybackTimelineUnavailable(false);
-    api.battleService.getPlaybackTimeline(sessionId, previousIndex)
+    battleService.getPlaybackTimeline(sessionId, previousIndex)
       .then(timeline => {
         if (cancelled) return;
         setPlaybackTimelineUnavailable(false);
@@ -608,7 +621,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
     return () => {
       cancelled = true;
     };
-  }, [api, debugConfig, playbackTimeline?.rawTo, playbackTimeline?.sessionId, sessionId, snapshot?.id, snapshot?.rawLog.length]);
+  }, [battleService, debugConfig, playbackTimeline?.rawTo, playbackTimeline?.sessionId, sessionId, snapshot?.id, snapshot?.rawLog.length]);
 
   function reportSubmitError(input: {
     reason: string;
@@ -684,8 +697,8 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
     setMessage(`提交指令：${choice}`);
     try {
       const submitted = trainerItems.length
-        ? await api.battleService.submitTrainerItem({sessionId, playerId: "p1", choice, trainerItems})
-        : await api.battleService.submitChoice(sessionId, "p1", choice);
+        ? await battleService.submitTrainerItem({sessionId, playerId: "p1", choice, trainerItems})
+        : await battleService.submitChoice(sessionId, "p1", choice);
       const next = onAfterSubmitSnapshot ? await onAfterSubmitSnapshot(submitted) : submitted;
       setSnapshot(next);
       clearCommandDraft();
@@ -724,7 +737,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
     }
     setChoiceStatus("投降已确认，正在结束战斗...");
     try {
-      const next = await api.battleService.submitChoice(sessionId, "p1", "forfeit");
+      const next = await battleService.submitChoice(sessionId, "p1", "forfeit");
       setSnapshot(next);
       if (next.status === "ended" || next.status === "blocked") {
         finalizedSessionRef.current = sessionId;

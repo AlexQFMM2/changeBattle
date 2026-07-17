@@ -18,6 +18,28 @@ debug v1 明确接受 Battle API 容器重启会丢失内存 battle session。�
 
 实施顺序采用“本地 Docker 模拟优先”：先在当前 Linux 开发机用 Docker Compose 起 Battle API + Redis + 可选 Loki，跑通 room 生命周期、正式流程、战斗页、断线恢复和结算；本地闭环稳定后，在本地 build 出可运行 image，导出镜像包传到服务器 `docker load` 后直接 run。服务器阶段只做部署适配和公网 smoke，不在服务器上边开发边试错，也不在服务器上重新安装依赖/编译项目。
 
+## 2026-07-17 Current Implementation
+
+已完成本地 Docker room v1 关键闭环：
+
+- `docker/battle-api/docker-compose.yml` 已启动 `Battle API + Redis`，Battle API 暴露 `127.0.0.1:5191`，Redis 只在 compose network 内访问。
+- Docker 主入口已切到 `apps/api/src/server.ts`，`/health` 会返回 Redis 状态。
+- Redis room 已保存 `formalRun / revision / status / connectionState / activeBattle`，room token 只以 hash 存储。
+- 已接入 `POST /rooms`、`GET /rooms/:roomId`、`heartbeat/delete`、starter 选择、round plan、prepare battle、room snapshot/timeline/choice、finalize battle。
+- Web 本地 smoke 已跑通：开始正式 singles -> 选择 starter -> 生成赛程 -> 休整 -> 进入正式战斗 -> 提交一次 room choice -> 战斗结束 -> `finalize-battle` -> settlement。
+- 已补前端恢复与稳定性：中转页不再依赖 rAF-only；刷新/热更新时不会在 `formalRun` 读完前跳主菜单；BattleV4 room snapshot 轮询不再被 run patch 打断。
+- 已补连接状态最小 UI：全局 badge 使用轻量请求 RTT，不把队伍生成/赛程生成耗时当成网络延迟，并移动到左下角避免遮挡战斗 UI。
+- 已补服务端 room 创建并发闸门，默认 `CHANGEBATTLE_ROOM_CREATE_MAX_CONCURRENCY=1`，避免重复开房把 2C/2G 小服务器打满。
+
+仍未完成：
+
+- 金币交易类 `rest-action` 与休整操作 command 化。
+- 最终 `finalize-run`、`settlementId`、`profileDelta/vaultDelta` 和 `final-result` 短期只读恢复。
+- 完整 heartbeat/disconnected/closed 定时清理。
+- 容器重启时把不可恢复 battling room 标记为 `closed/server-restarted`。
+- Loki/Promtail/Alloy 接入和 COS 日志归档。
+- Desk/Android 端 room 全链路手测和服务器公网部署 smoke。
+
 ## Key Changes
 
 - 新增 Redis room store：

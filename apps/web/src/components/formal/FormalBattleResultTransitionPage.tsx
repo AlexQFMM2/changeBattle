@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameRunV4, FormalSoulmateFriendshipSettlementRecordV4, FormalSoulmateHonorSettlementRecordV4, PlayerVaultV4, ShowdownPlaybackTimelineV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
+import {loadFormalRoomCredential} from "../../lib/formalRoomCredential";
 import "./FormalGameTransitionPage.css";
 
 export function FormalBattleResultTransitionPage({api, formalGameBridge, run, playerVault, sessionId, reason, onSavePlayerVault, onPlayerVaultChange, onSoulmateSettlementNotice, onRestReady, onSettlementReady}: {
@@ -25,6 +26,31 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
     startedRef.current = true;
     let cancelled = false;
     void (async () => {
+      const credential = loadFormalRoomCredential();
+      if (credential) {
+        const finalized = await api.finalizeFormalRoomBattle({
+          roomId: credential.roomId,
+          roomToken: credential.roomToken,
+          clientRequestId: formalBattleFinalizeClientRequestId(credential.roomId, run),
+          reason,
+          playerVaultSnapshot: playerVault,
+        });
+        if (!finalized.ok) throw new Error(finalized.message);
+        const nextVault = finalized.data.playerVault;
+        if (nextVault) {
+          const savedVault = onSavePlayerVault ? await onSavePlayerVault(nextVault) : await api.savePlayerVault(nextVault);
+          onPlayerVaultChange?.(savedVault);
+        }
+        if (finalized.data.settlementNotice) onSoulmateSettlementNotice?.(finalized.data.settlementNotice);
+        const savedRun = await api.saveFormalGameRun(finalized.data.formalRun);
+        if (cancelled) return;
+        if (finalized.data.destination === "settlement") {
+          onSettlementReady(savedRun, finalized.data.reason || reason || "loss");
+          return;
+        }
+        onRestReady(savedRun);
+        return;
+      }
       if (!sessionId) {
         if (reason === "surrender" || reason === "loss") {
           const saved = await api.saveFormalGameRun(run);
@@ -80,6 +106,19 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
       />
     </section>
   );
+}
+
+function formalBattleFinalizeClientRequestId(roomId: string, run: FormalGameRunV4): string {
+  const key = `changebattle-v2:formal-room:${roomId}:finalize-battle:${run.id}:${run.currentRoundIndex}`;
+  try {
+    const existing = window.sessionStorage?.getItem(key);
+    if (existing) return existing;
+    const next = `finalize-battle-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    window.sessionStorage?.setItem(key, next);
+    return next;
+  } catch {
+    return `finalize-battle-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
 }
 
 function formatSoulmateSettlementNotice(summary: FormalSoulmateFriendshipSettlementRecordV4 | null): string {

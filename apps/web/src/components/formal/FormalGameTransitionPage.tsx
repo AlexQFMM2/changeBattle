@@ -4,6 +4,8 @@ import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import {saveFormalRoomCredential} from "../../lib/formalRoomCredential";
 import "./FormalGameTransitionPage.css";
 
+const formalRoomStartPromises = new Map<string, Promise<FormalGameRunV4>>();
+
 export function FormalGameTransitionPage({api, formalGameBridge, profile, playerVault, mode, onRunReady}: {
   api: ChangeBattleV2Api;
   formalGameBridge?: DesktopFormalGameBridge;
@@ -19,6 +21,11 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, player
   const [error, setError] = useState<string | null>(null);
   const [tip, setTip] = useState<string | null>(null);
   const readySentRef = useRef(false);
+  const onRunReadyRef = useRef(onRunReady);
+
+  useEffect(() => {
+    onRunReadyRef.current = onRunReady;
+  }, [onRunReady]);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,14 +35,13 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, player
     setTransitionReady(false);
     setError(null);
     setTip(null);
+    const startKey = formalRoomStartKey(profile, playerVault, mode);
 
-    const frameRefs: {second: number | null} = {second: null};
-    const firstFrame = window.requestAnimationFrame(() => {
-      const secondFrame = window.requestAnimationFrame(() => {
-        try {
-          const options = {mode, coopPartnerPreference: mode === "coop" ? partnerPreference : undefined};
-          if (!cancelled) setTip("正在连接服务器...");
-          void api.startFormalRoom({
+    const startTimer = window.setTimeout(() => {
+      try {
+        const options = {mode, coopPartnerPreference: mode === "coop" ? partnerPreference : undefined};
+        if (!cancelled) setTip("正在连接服务器...");
+        const started = getOrStartFormalRoom(startKey, () => api.startFormalRoom({
             profileSnapshot: profile,
             playerVaultSnapshot: playerVault,
             mode,
@@ -46,34 +52,32 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, player
               saveFormalRoomCredential(room.data.roomId, room.data.roomToken);
               if (!cancelled) setPlannedCandidateCount(api.starterCandidateCountForStarChart(room.data.formalRun.starChartSnapshot));
               return api.saveFormalGameRun(room.data.formalRun);
-            })
-            .then(saved => {
-              if (!cancelled) setPreparedRun(saved);
-            })
-            .catch(caught => {
-              console.error("[changebattle-v2:web] formal game preparation failed", caught);
-              if (!cancelled) setError(caught instanceof Error ? caught.message : "正式游戏准备失败。");
-            });
-        } catch (caught) {
-          console.error("[changebattle-v2:web] formal game preparation failed", caught);
-          if (!cancelled) setError(caught instanceof Error ? caught.message : "正式游戏准备失败。");
-        }
-      });
-      frameRefs.second = secondFrame;
-    });
+            }));
+        void started
+          .then(saved => {
+            if (!cancelled) setPreparedRun(saved);
+          })
+          .catch(caught => {
+            console.error("[changebattle-v2:web] formal game preparation failed", caught);
+            if (!cancelled) setError(caught instanceof Error ? caught.message : "正式游戏准备失败。");
+          });
+      } catch (caught) {
+        console.error("[changebattle-v2:web] formal game preparation failed", caught);
+        if (!cancelled) setError(caught instanceof Error ? caught.message : "正式游戏准备失败。");
+      }
+    }, 0);
 
     return () => {
       cancelled = true;
-      window.cancelAnimationFrame(firstFrame);
-      if (frameRefs.second !== null) window.cancelAnimationFrame(frameRefs.second);
+      window.clearTimeout(startTimer);
     };
   }, [api, formalGameBridge, mode, partnerPreference, playerVault, profile]);
 
   useEffect(() => {
     if (!transitionReady || !preparedRun || readySentRef.current) return;
     readySentRef.current = true;
-    onRunReady(preparedRun);
-  }, [onRunReady, preparedRun, transitionReady]);
+    onRunReadyRef.current(preparedRun);
+  }, [preparedRun, transitionReady]);
 
   return (
     <section className="formal-game-transition-wrap">
@@ -85,6 +89,28 @@ export function FormalGameTransitionPage({api, formalGameBridge, profile, player
       />
     </section>
   );
+}
+
+function formalRoomStartKey(profile: UserProfileV2, playerVault: PlayerVaultV4, mode: FormalGameModeV4): string {
+  return [
+    profile.id,
+    profile.updatedAt,
+    playerVault.items.length,
+    playerVault.pokemon.length,
+    playerVault.itemStoragePageCount,
+    playerVault.pokemonStoragePageCount,
+    mode,
+  ].join(":");
+}
+
+function getOrStartFormalRoom(key: string, start: () => Promise<FormalGameRunV4>): Promise<FormalGameRunV4> {
+  const existing = formalRoomStartPromises.get(key);
+  if (existing) return existing;
+  const promise = start().finally(() => {
+    window.setTimeout(() => formalRoomStartPromises.delete(key), 30000);
+  });
+  formalRoomStartPromises.set(key, promise);
+  return promise;
 }
 
 function formalGamePreparationDetail(mode: FormalGameModeV4, candidateCount: number): string {

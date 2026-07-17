@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from "react";
 import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalGameRunV4, TrainingRunGameV4} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
+import {loadFormalRoomCredential} from "../../lib/formalRoomCredential";
 
 export function FormalBattleTransitionPage({api, formalGameBridge, battleBackendLabel, run, onRunChange, onReady, onBackToRest}: {
   api: ChangeBattleV2Api;
@@ -17,6 +18,21 @@ export function FormalBattleTransitionPage({api, formalGameBridge, battleBackend
     if (started.current) return;
     started.current = true;
     void (async () => {
+      const credential = loadFormalRoomCredential();
+      if (credential) {
+        const clientRequestId = formalBattleClientRequestId(credential.roomId, run);
+        const prepared = await api.prepareFormalRoomBattle({
+          roomId: credential.roomId,
+          roomToken: credential.roomToken,
+          clientRequestId,
+          formalRunDraft: run,
+        });
+        if (!prepared.ok) throw new Error(prepared.message);
+        const savedRun = await api.saveFormalGameRun(prepared.data.formalRun);
+        onRunChange(savedRun);
+        onReady(prepared.data.sessionId);
+        return;
+      }
       const prepared = formalGameBridge
         ? await formalGameBridge.prepareFormalBattleSession(run)
         : await api.prepareFormalBattleSession(run);
@@ -87,6 +103,19 @@ export function FormalBattleTransitionPage({api, formalGameBridge, battleBackend
       onReady={() => undefined}
     />
   );
+}
+
+function formalBattleClientRequestId(roomId: string, run: FormalGameRunV4): string {
+  const key = `changebattle-v2:formal-room:${roomId}:prepare-battle:${run.id}:${run.currentRoundIndex}`;
+  try {
+    const existing = window.sessionStorage?.getItem(key);
+    if (existing) return existing;
+    const next = `prepare-battle-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    window.sessionStorage?.setItem(key, next);
+    return next;
+  } catch {
+    return `prepare-battle-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
 }
 
 function markFormalRestBattleState(run: TrainingRunGameV4, nodeId: string, state: "preparing" | "running" | "blocked", battleGameId: string): TrainingRunGameV4 {

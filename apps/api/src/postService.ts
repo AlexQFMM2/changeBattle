@@ -7,6 +7,11 @@ export type PostServiceActionNameV4 =
   | "rooms.delete"
   | "rooms.selectStarters"
   | "rooms.prepareRound"
+  | "rooms.prepareBattle"
+  | "rooms.getBattleSnapshot"
+  | "rooms.getBattlePlaybackTimeline"
+  | "rooms.submitBattleChoice"
+  | "rooms.finalizeBattle"
   | "battle.createSession";
 
 export type PostServiceResultV4<T> =
@@ -41,6 +46,7 @@ type ActionDefinition = {
   method: "GET" | "POST" | "DELETE";
   path(input: any): string;
   body?(input: any): unknown;
+  latencySample?: boolean;
 };
 
 const DEFAULT_TIMEOUT_MS = 15000;
@@ -54,11 +60,13 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
   "rooms.get": {
     method: "GET",
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}`,
+    latencySample: true,
   },
   "rooms.heartbeat": {
     method: "POST",
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/heartbeat`,
     body: input => input?.body || {},
+    latencySample: true,
   },
   "rooms.delete": {
     method: "DELETE",
@@ -73,6 +81,46 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
     method: "POST",
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/prepare-round`,
     body: () => ({}),
+  },
+  "rooms.prepareBattle": {
+    method: "POST",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/prepare-battle`,
+    body: input => ({
+      clientRequestId: input?.clientRequestId,
+      baseRevision: input?.baseRevision,
+      formalRunDraft: input?.formalRunDraft,
+    }),
+  },
+  "rooms.getBattleSnapshot": {
+    method: "GET",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/battle/snapshot`,
+    latencySample: true,
+  },
+  "rooms.getBattlePlaybackTimeline": {
+    method: "GET",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/battle/playback-timeline?from=${encodeURIComponent(String(input?.from || 0))}`,
+    latencySample: true,
+  },
+  "rooms.submitBattleChoice": {
+    method: "POST",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/battle/choices`,
+    body: input => ({
+      clientActionId: input?.clientActionId,
+      playerId: input?.playerId,
+      choice: input?.choice,
+      trainerItems: input?.trainerItems,
+      expectedTurn: input?.expectedTurn,
+      expectedRqid: input?.expectedRqid,
+    }),
+  },
+  "rooms.finalizeBattle": {
+    method: "POST",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/finalize-battle`,
+    body: input => ({
+      clientRequestId: input?.clientRequestId,
+      reason: input?.reason,
+      playerVaultSnapshot: input?.playerVaultSnapshot,
+    }),
   },
   "battle.createSession": {
     method: "POST",
@@ -104,7 +152,9 @@ export function createPostServiceClient(config: PostServiceClientConfigV4 = {}):
       }
       const startedAt = Date.now();
       const wasFailing = connectionState.failureCount > 0;
-      setConnectionState({state: wasFailing ? "reconnecting" : "connecting"});
+      if (wasFailing || !connectionState.lastSuccessAt) {
+        setConnectionState({state: wasFailing ? "reconnecting" : "connecting"});
+      }
       const controller = new AbortController();
       const timeout = windowSetTimeout(() => controller.abort(), options.timeoutMs || DEFAULT_TIMEOUT_MS);
       const abortForwarder = () => controller.abort();
@@ -135,7 +185,7 @@ export function createPostServiceClient(config: PostServiceClientConfigV4 = {}):
         setConnectionState({
           state: "online",
           lastSuccessAt: new Date().toISOString(),
-          lastRttMs: elapsedMs,
+          lastRttMs: action.latencySample ? elapsedMs : connectionState.lastRttMs,
           failureCount: 0,
         });
         return {ok: true, data: payload as T, statusCode: response.status, elapsedMs};

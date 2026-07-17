@@ -22,7 +22,7 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
     if (!ready || startedRef.current) return;
     startedRef.current = true;
     let cancelled = false;
-    const frame = window.requestAnimationFrame(() => {
+    const timer = window.setTimeout(() => {
       void settleFormalRun()
         .then(result => {
           if (!cancelled) onSettled(result.run, result.profile, result.playerVault);
@@ -98,7 +98,7 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
     }
     return () => {
       cancelled = true;
-      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
     };
   }, [api, formalGameBridge, onSavePlayerVault, onSaveProfile, onSettled, playerVault, profile, ready, reason, run]);
 

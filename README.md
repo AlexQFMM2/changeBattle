@@ -1,8 +1,8 @@
 # ChangeBattle V2
 
-一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证 + Battle V4 AI/队伍生成器强化 + 桌面端 GitHub Actions 发版稳定期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、灵魂伴侣蛋孵化/仓库养成/同行许可/战后成长/战斗内进化、Windows Desktop portable release、桌面端内容哈希增量更新、腾讯 COS/CDN 公共资源加载都已经接入。
+一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证 + Battle V4 AI/队伍生成器强化 + 正式流程服务端化 + 桌面端 GitHub Actions 发版稳定期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、灵魂伴侣蛋孵化/仓库养成/同行许可/战后成长/战斗内进化、Windows Desktop portable release、桌面端内容哈希增量更新、腾讯 COS/CDN 公共资源加载都已经接入。
 
-当前新的重点已经从“流程打通”转为“质量验证和 AI 能力闭环”：单打 AI 已完成 depth/value/threat/resource/special-system 等第一轮强化，双打 AI 已完成 joint action/value/reply/免疫防呆和双打队伍生成器优化；下一步聚焦出题/做题/评估报告、人工 debug 对局验收、合作 AI 开发，以及 Android-only 的 Capacitor App 移植预研。
+当前新的重点已经从“流程打通”转为“质量验证、服务端连续性和 AI 能力闭环”：单打 AI 已完成 depth/value/threat/resource/special-system 等第一轮强化，双打 AI 已完成 joint action/value/reply/免疫防呆和双打队伍生成器优化；正式流程已开始迁入 Redis room + Battle API，本地 Docker 已跑通从开始游戏到战斗结算的 Web smoke；下一步聚焦 rest-action / finalize-run / 断线恢复、出题/做题/评估报告、人工 debug 对局验收、合作 AI 开发，以及 Android-only 的 Capacitor App 移植。
 
 ## Repository / Branch
 
@@ -32,9 +32,10 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - **队伍生成器**：随机队伍生成器已从“随机裁剪”升级为按 `purpose / quality / aiLevel / playerProfileHints` 分层生成；单打支持 rain/sun/trick-room 等核心完整度，双打支持 Protect 密度、控速、范围输出、Fake Out、Intimidate、重定向、lead pair 和 coop 后续复用的 doubles diagnostics。
 - **AI 验证流程**：单打和双打都已接入 self-play exam / report 流程，能批量生成题目、AI 自动答题、记录决策耗时、debug/value/reason tags，并按 severe/warning 找明显犯病点。
 - **Assets CDN**：公共图片、音频、Showdown sprites/fx、训练/商店/奖章等资源已迁到腾讯 COS/CDN，统一走 `https://assets.65h26i.top/beta/...`；`apps/web/public` 和根 `assets/` 不再作为运行时打包来源。
+- **Formal Run Server Room**：正式流程服务端化已完成第一段和战斗闭环的本地 Docker smoke。当前 `apps/api` 主服务提供 `/rooms`、starter 选择、赛程生成、`prepare-battle`、room-bound snapshot/timeline/choice、`finalize-battle`；Web 正式流程可从开房、选 starter、生成赛程、休整、进入战斗、提交一次指令、战斗结束并进入 settlement。Redis room 只承载单局临时连续性，不做账号或长期云存档。
 - **Release 流程**：debug 桌面端主流程已迁到 GitHub Actions。完整包由 GitHub Release 托管，更新 metadata 由 Actions artifact 生成，本地下载 artifact 后上传到自有服务器；旧 scp 到 Windows 构建机流程已降级为备用方案。
 - **桌面更新**：增量更新从 `files/vX.Y.Z/` 版本镜像迁移为内容哈希对象池：服务器托管 `latest.json`、`manifests/current.json`、`manifests/vX.Y.Z.json` 和 `objects/<sha>`；客户端按本地实际 sha 与远端清单比较新增/修改/删除。当前 beta 服务器清理旧对象后约 `79M`，当前版本 live objects 约 `66M`。
-- **下一步重点**：继续扩大出题/做题/评估样本，做人工 debug 对局验收，完善报告可解释性；推进 coop AI 和 coop 队伍/lead pair 分配；预研并启动 Android-only App 移植。
+- **下一步重点**：继续把 Formal Run room 化补完整，优先做金币交易类 `rest-action`、最终 `finalize-run`、room heartbeat/断线恢复、容器重启失败结算和 Loki；继续扩大出题/做题/评估样本，做人工 debug 对局验收，完善报告可解释性；推进 coop AI 和 coop 队伍/lead pair 分配；启动 Android-only App 移植。
 
 - `packages/showdown-dex-core`：Web/Desktop 共用的 Dex 数据、搜索、详情聚合、图片解析、中文翻译、能力计算、学习面反查。
 - `packages/changebattle-v2-core`：V2 运行时结构、玩家仓库、星图天赋、灵魂伴侣、桌面更新等共享纯规则和 catalog。
@@ -125,7 +126,8 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - 第二轮灵魂伴侣主体已经落地，当前重点仍是完整回归：最终胜利带走蛋、仓库养成/技能学习/进化、同行许可带入正式流程、正式休整页禁用态、战后亲密度回写、个人荣誉授章和战斗内低概率进化。
 - 训练场休整页、正式 GameRun 和 Battle V4 中转页已经接入真实 Showdown `BattleStream` session，保留 raw protocol/request/debug，战斗页使用 V2 风格战斗壳展示场景、HP、模型、指令、日志/解说和裁判对话。
 - Battle V4 AI 已从“合法随机推进”升级为 `chooseAiBattleChoiceV4` 的新决策链路：单打侧有深度搜索、估值函数、换人承伤、威胁图、资源提交、防呆和 reason tags；双打侧有 joint action、ally combo、reply search、特殊招式价值、友伤/免疫/重复无效招 guard。
-- 正式流程已经开始接入“玩家画像 -> 结构化 Showdown 队伍生成/调整 -> 正式战斗 -> 新 AI 决策”的链路；新队伍生成器按 `purpose / quality / aiLevel / playerProfileHints` 调整结构完整度、技能质量、NPC 强度和玩家偏好干扰，失败时保留旧本地生成器回退。
+- 正式流程已经开始接入“玩家画像 -> 结构化 Showdown 队伍生成/调整 -> 服务器 room 正式流程 -> 新 AI 决策”的链路；新队伍生成器按 `purpose / quality / aiLevel / playerProfileHints` 调整结构完整度、技能质量、NPC 强度和玩家偏好干扰，失败时保留旧本地生成器回退。
+- Formal Run 服务端化已完成本地 Docker 第一刀和第二刀：`Battle API + Redis` 本地 compose 可用；Web 可通过 room 完成开始游戏、starter、赛程、休整、战斗创建、room-aware choice、战斗结算到 settlement；连接状态 badge 已改为轻量 RTT 采样并移到左下角，避免遮挡战斗右上信息。
 - 单打和双打都已有 self-play exam / report：能批量出题、让 AI 自动做题、记录每次决策耗时、搜索深度、value breakdown、reason tags，并按 severe/warning 发现明显犯病点。
 - 天气/场地持久层会按资源 key 重建 video/image 层，避免沙暴、雨天、晴天、雪天切换时继续播放旧资源。
 - 第三轮联机已进入设计落地准备：计划见 `plan/formal-game/formal-lan-coop-host-mode-plan.md`，第一版目标是 Desktop 双人局域网 PvE，沿用 Showdown coop 的 `p1 + p3` 对 `p2 + p4` 编排，战斗阶段由房主权威计算。
@@ -136,7 +138,8 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - 继续扩大 AI 出题/做题/评估闭环：单打和双打都要增加题目覆盖、报告摘要、关键回合解说、决策耗时统计和 severe/warning 归因，优先让“明显犯病”能被稳定抓出来。
 - 做人工 debug 对局验收：挑选 self-play 报告里的高价值局面逐回合讲解，检查 AI 是否像正常玩家一样处理 KO、换人、极巨/太晶、集火、Protect、Fake Out、Tailwind/Trick Room 和友伤。
 - 推进 coop AI：先复用 doubles 队伍生成器和 lead pair diagnostics，把 4v4 doubles 队伍拆成两个 NPC 视角，再做合作场景下的 ally coordination、seat 映射、joint action 调试和出题评估。
-- 启动 Android-only App 移植计划：优先基于 Capacitor 复用 Web UI/API/资源 CDN；只做 Android，不做 iOS；第一轮先验证 640x320 视口、存档、网络/API、音频、资源 CDN 和正式战斗流程。
+- 完成 Formal Run room v1 的剩余切片：金币交易类休整操作即时 `rest-action`、最终 `finalize-run` 和本地 profile/vault delta 写回、room heartbeat/过期/重连 UI、容器重启后的 `server-restarted` 失败结算、Loki 日志接入。
+- 启动 Android-only App 移植计划：优先基于 Capacitor 复用 Web UI/API/资源 CDN 和公网 Battle API；只做 Android，不做 iOS；第一轮先验证 640x320 视口、存档、网络/API、音频、资源 CDN 和正式战斗 room 流程。
 - 继续把正式 GameRun 和新队伍生成器磨稳：玩家画像、地区限制、是否神战、战斗系统、NPC 强度、Boss 偏好、特殊系统道具和旧生成器 fallback 都要在正式流程里可解释、可回退。
 - 继续回归 Battle V4 演出和状态继承：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择、双打/合作 seat 映射，以及灵魂伴侣战斗进化在 singles/doubles/coop 下的播放顺序。
 - 桌面 release 后续继续验证 GitHub Actions + 对象池增量更新链路；安装器、签名仍不在当前范围。
@@ -189,7 +192,14 @@ pnpm typecheck
 
 `./start_desk` 会自动清理本项目旧的 battle service、desktop dev、Electron 主进程和 renderer dev server（默认 `127.0.0.1:5181`），再启动本地 battle service（默认 `127.0.0.1:5191`）和桌面端。看到“代码改了但 UI 还是旧的”时，优先从 `pnpm desk:dev` / `./start_desk` 重新启动；不要直接复用旧的 5181 renderer。
 
-`pnpm desktop:dev` 只启动桌面端，不启动 battle service；但它也会在 dev 启动前清理本项目旧的 renderer/Electron 进程，避免接到 stale Vite 页面。Web 端手测真实战斗时需要另开一个终端运行 `pnpm battle:dev`。
+`pnpm desktop:dev` 只启动桌面端，不启动 battle service；但它也会在 dev 启动前清理本项目旧的 renderer/Electron 进程，避免接到 stale Vite 页面。Web 端手测 legacy `/sessions` 战斗时可以另开一个终端运行 `pnpm battle:dev`；手测正式 server room 流程时，优先使用本地 Docker：
+
+```bash
+docker compose -f docker/battle-api/docker-compose.yml up -d --build
+VITE_CHANGEBATTLE_BATTLE_SERVICE_URL=http://127.0.0.1:5191 pnpm --filter @changebattle-v2/web exec vite --host 127.0.0.1 --port 5187
+```
+
+本地 Docker API 当前提供 Redis room、正式流程 checkpoint、room-aware BattleV4 和 `finalize-battle`。如果页面出现“重连中/连接失败”，先确认浏览器当前 dev server 是否带了本地 `VITE_CHANGEBATTLE_BATTLE_SERVICE_URL`，以及 `curl -sS http://127.0.0.1:5191/health` 是否返回 `redis:"ok"`。
 
 ## Desktop Release
 

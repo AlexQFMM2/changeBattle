@@ -15,28 +15,41 @@ export function FormalRoundTransitionPage({api, formalGameBridge, run, playerVau
   const [transitionReady, setTransitionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
+  const onRunReadyRef = useRef(onRunReady);
+  const onSavePlayerVaultRef = useRef(onSavePlayerVault);
+
+  useEffect(() => {
+    onRunReadyRef.current = onRunReady;
+  }, [onRunReady]);
+
+  useEffect(() => {
+    onSavePlayerVaultRef.current = onSavePlayerVault;
+  }, [onSavePlayerVault]);
 
   useEffect(() => {
     if (!transitionReady || startedRef.current) return;
     startedRef.current = true;
     let cancelled = false;
-    const frame = window.requestAnimationFrame(() => {
+    const timer = window.setTimeout(() => {
       try {
-        const credential = loadFormalRoomCredential();
-        const plannedPromise = credential
-          ? prepareServerRoomRound(api, credential.roomId, credential.roomToken)
-          : formalGameBridge
-            ? formalGameBridge.prepareFormalRoundPlan(run)
-            : Promise.resolve(api.prepareFormalRoundPlan(run));
-        void plannedPromise
+        void api.loadFormalGameRun()
+          .then(saved => {
+            if (saved?.id === run.id && saved.restRunSnapshot) return saved;
+            const credential = loadFormalRoomCredential();
+            return credential
+              ? prepareServerRoomRound(api, credential.roomId, credential.roomToken)
+              : formalGameBridge
+                ? formalGameBridge.prepareFormalRoundPlan(run)
+                : Promise.resolve(api.prepareFormalRoundPlan(run));
+          })
           .then(async planned => {
             const carryResult = api.applyFormalCarryPrepItems(planned, playerVault);
-            const savedVault = await onSavePlayerVault(carryResult.playerVault);
+            const savedVault = await onSavePlayerVaultRef.current(carryResult.playerVault);
             const savedRun = await api.saveFormalGameRun(carryResult.run);
             return {savedRun, savedVault};
           })
           .then(({savedRun, savedVault}) => {
-            if (!cancelled) onRunReady(savedRun, savedVault);
+            if (!cancelled) onRunReadyRef.current(savedRun, savedVault);
           })
           .catch(caught => {
             if (!cancelled) setError(caught instanceof Error ? caught.message : "正式 7 场计划保存失败。");
@@ -47,9 +60,9 @@ export function FormalRoundTransitionPage({api, formalGameBridge, run, playerVau
     });
     return () => {
       cancelled = true;
-      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
     };
-  }, [api, formalGameBridge, onRunReady, onSavePlayerVault, playerVault, run, transitionReady]);
+  }, [api, formalGameBridge, playerVault, run, transitionReady]);
 
   return (
     <section className="formal-game-transition-wrap">

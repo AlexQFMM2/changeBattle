@@ -35,7 +35,7 @@ Internet
   -> Nginx HTTPS
     -> /changebattle/battle/*
       -> changebattle-battle-api Docker container
-        -> packages/showdown-battle-core/dist/server.js
+        -> apps/api/dist/server.js
         -> stdout JSON logs
           -> Loki stack, optional in v1
 
@@ -60,7 +60,7 @@ CHANGEBATTLE_DESKTOP_BATTLE_SERVICE_URL=https://api.65h26i.top/changebattle/batt
 
 ## API Surface
 
-第一版复用现有 BattleService HTTP 形状：
+第一版保留现有 BattleService HTTP 形状，并新增正式 room v1。Docker 主入口已经切到 `apps/api/src/server.ts`；`packages/showdown-battle-core/src/server.ts` 只保留 battle-only/dev fallback。
 
 ```text
 GET    /health
@@ -72,6 +72,24 @@ POST   /sessions/:sessionId/trainer-item
 POST   /sessions/:sessionId/forme-change
 DELETE /sessions/:sessionId
 ```
+
+正式 room v1 当前接口：
+
+```text
+POST   /rooms
+GET    /rooms/:roomId
+POST   /rooms/:roomId/heartbeat
+DELETE /rooms/:roomId
+POST   /rooms/:roomId/formal/select-starters
+POST   /rooms/:roomId/formal/prepare-round
+POST   /rooms/:roomId/formal/prepare-battle
+GET    /rooms/:roomId/battle/snapshot
+GET    /rooms/:roomId/battle/playback-timeline?from=0
+POST   /rooms/:roomId/battle/choices
+POST   /rooms/:roomId/formal/finalize-battle
+```
+
+仍未完成：金币交易类 `rest-action`、最终 `finalize-run`、`final-result`、完整 heartbeat 过期清理和 Loki。
 
 后续如需管理员 debug，不混入普通接口，单独开受保护入口，例如：
 
@@ -252,13 +270,13 @@ location /changebattle/battle/ {
 - [x] fallback 必须有明确 diagnostics：`battle-backend:local-fallback`，避免误以为日志会上服务器。
 - [x] 服务器模式下创建战斗失败时，UI 显示简短错误和后端类型，不暴露 token。
 - [ ] Desktop update/debug UI 可显示当前 battle backend：`server` / `local-fallback`。
-- [ ] 服务器模式下所有 AI debug 只进入服务端 JSON log，Desk 客户端不接收大 debug。
+- [x] 服务器模式下所有 AI debug 只进入服务端 JSON log，Desk 客户端不接收大 debug。
 
 ### Web
 
 - [x] Web debug 继续通过 `VITE_CHANGEBATTLE_BATTLE_SERVICE_URL` 指向公网 Battle API。
 - [ ] Web stable 是否启用服务器 Battle API 后续决定；当前优先 Android 和 Desktop debug/beta。
-- [ ] Web/Desk/Android 尽量共用同一套 HTTP BattleService client。
+- [x] Web/Desk/Android 尽量共用同一套 HTTP BattleService client。
 
 ## Implementation Slices
 
@@ -274,11 +292,11 @@ location /changebattle/battle/ {
 
 ### 2. Docker Deployment
 
-- [ ] 本地 Docker Compose smoke：Battle API + Redis。
-- [ ] 本地 room API smoke：create/read/heartbeat/delete。
-- [ ] 本地 formal run smoke：开始游戏 -> 战斗 -> 结算。
+- [x] 本地 Docker Compose smoke：Battle API + Redis。
+- [x] 本地 room API smoke：create/read/heartbeat/delete。
+- [x] 本地 formal run smoke：开始游戏 -> 战斗 -> 结算。
 - [ ] 本地故障 smoke：Battle API 容器重启、Redis 不可用、内存安全水位不足。
-- [ ] 本地 build Battle API image，并记录 image tag / git sha。
+- [x] 本地 build Battle API image，并记录 image tag / git sha。
 - [ ] 本地 `docker save` 导出 image tar，上传服务器后 `docker load`。
 - [ ] 服务器 compose 使用已 load image，不在服务器上安装依赖或编译源码。
 - [x] 新增 Battle API `Dockerfile`。
@@ -292,8 +310,8 @@ location /changebattle/battle/ {
 - [x] 先保证 Battle API stdout 是 JSON。
 - [ ] 可选新增 `loki` + `promtail` / `alloy` compose。
 - [ ] 按 `sessionId`、`scope`、`level` 查询日志。
-- [ ] AI debug 日志只在服务端保留，不进入普通客户端响应。
-- [ ] Loki 未接完前，stdout JSON + docker logs 作为临时排查路径。
+- [x] AI debug 日志只在服务端保留，不进入普通客户端响应。
+- [x] Loki 未接完前，stdout JSON + docker logs 作为临时排查路径。
 
 ### 4. Client Battle API Switch
 
@@ -304,6 +322,7 @@ location /changebattle/battle/ {
 - [x] Desktop debug/beta 切到公网 Battle API。
 - [x] Desktop local fallback 只用于显式开发/紧急回退。
 - [x] Web debug 可指向同一公网 Battle API。
+- [x] Web 本地 Docker room smoke 的 `roomId/sessionId` 能在 docker logs 中查询到 room 创建、AI choice、choice submit、finalize。
 - [ ] 三端创建战斗后的 `sessionId` 都能在服务器日志中查询。
 
 ## Test Plan

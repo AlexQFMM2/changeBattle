@@ -68,6 +68,7 @@ import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransi
 import {showdownAssetPrefix} from "./lib/assetUrl";
 import {releaseGuardProfileBattlePreferenceV4} from "./lib/battlePreferenceReleaseGuard";
 import {CHANGE_BATTLE_DEBUG_FEATURES_ENABLED, CHANGE_BATTLE_RELEASE_CHANNEL} from "./lib/debugFeatures";
+import {loadFormalRoomCredential} from "./lib/formalRoomCredential";
 
 type AppProps = {
   runtime: "web" | "desktop" | "mobile";
@@ -148,6 +149,12 @@ function RoutedApp({runtime}: AppProps) {
   const [playerVaultDirty, setPlayerVaultDirty] = useState(false);
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
   const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
+  const [formalRunLoaded, setFormalRunLoaded] = useState(false);
+  const formalTransitionProfile = useMemo(() => profile ? releaseGuardProfileBattlePreferenceV4(profile, DEBUG_FEATURE_ENABLED) : null, [profile]);
+  const formalRoomCredential = useMemo(() => loadFormalRoomCredential(), [formalRun?.currentRoundIndex, formalRun?.id, location.pathname]);
+  const formalRoomBattleService = useMemo(() => formalRoomCredential
+    ? api.createFormalRoomBattleServiceClient({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken})
+    : undefined, [api, formalRoomCredential?.roomId, formalRoomCredential?.roomToken]);
   const [manualSaveState, setManualSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [battleSessionId, setBattleSessionId] = useState("");
   const [seenRoundSettlementNodeIds, setSeenRoundSettlementNodeIds] = useState<Record<string, true>>({});
@@ -289,15 +296,20 @@ function RoutedApp({runtime}: AppProps) {
   useEffect(() => {
     if (!profile) {
       setFormalRun(null);
+      setFormalRunLoaded(true);
       return;
     }
     let cancelled = false;
+    setFormalRunLoaded(false);
     api.loadFormalGameRun()
       .then(next => {
         if (!cancelled) setFormalRun(next);
       })
       .catch(() => {
         if (!cancelled) setFormalRun(null);
+      })
+      .finally(() => {
+        if (!cancelled) setFormalRunLoaded(true);
       });
     return () => {
       cancelled = true;
@@ -451,6 +463,14 @@ function RoutedApp({runtime}: AppProps) {
     }
     setFormalRun(current);
     if (current.restRunSnapshot) {
+      if (current.restRunSnapshot.status === "battling" || hasRunningFormalBattleNode(current)) {
+        navigate("/formal/battle", {replace: true});
+        return;
+      }
+      if (current.restRunSnapshot.status === "battlePreparing") {
+        navigate("/formal/battle-transition", {replace: true});
+        return;
+      }
       if (isFormalPendingSettlementRestRun(current.restRunSnapshot)) {
         navigate("/formal/rest", {replace: true});
         return;
@@ -797,11 +817,11 @@ function RoutedApp({runtime}: AppProps) {
   ) : <Navigate to="/" replace />;
 
   const formalMode = parseFormalMode(location.pathname.split("/").pop());
-  const formalTransitionPage = profile ? (
+  const formalTransitionPage = formalTransitionProfile ? (
     <FormalGameTransitionPage
       api={api}
       formalGameBridge={formalGameBridge}
-      profile={releaseGuardProfileBattlePreferenceV4(profile, DEBUG_FEATURE_ENABLED)}
+      profile={formalTransitionProfile}
       playerVault={playerVault}
       mode={formalMode}
       onRunReady={run => {
@@ -820,6 +840,8 @@ function RoutedApp({runtime}: AppProps) {
         onDone={() => navigate("/formal/round-transition", {replace: true})}
         onBack={() => navigate("/main", {replace: true})}
       />
+    ) : !formalRunLoaded ? (
+      <FormalRouteLoadingPage />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -828,6 +850,8 @@ function RoutedApp({runtime}: AppProps) {
   const formalPendingPage = profile ? (
     formalRun ? (
       <FormalGamePendingPage run={formalRun} onBack={() => navigate("/main", {replace: true})} />
+    ) : !formalRunLoaded ? (
+      <FormalRouteLoadingPage />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -848,6 +872,8 @@ function RoutedApp({runtime}: AppProps) {
           navigate("/formal/rest", {replace: true});
         }}
       />
+    ) : !formalRunLoaded ? (
+      <FormalRouteLoadingPage />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -989,6 +1015,8 @@ function RoutedApp({runtime}: AppProps) {
           />
         ) : null}
       </div>
+    ) : !formalRunLoaded ? (
+      <FormalRouteLoadingPage />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -1004,6 +1032,8 @@ function RoutedApp({runtime}: AppProps) {
         onReady={enterFormalBattle}
         onBackToRest={() => navigate("/formal/rest", {replace: true})}
       />
+    ) : !formalRunLoaded ? (
+      <FormalRouteLoadingPage />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -1017,10 +1047,12 @@ function RoutedApp({runtime}: AppProps) {
         sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || ""}
         debugConfig={APP_DEBUG_CONFIG_V4}
         diagnosticsContext={{formalRun, playerVault}}
+        battleServiceOverride={formalRoomBattleService}
         playerProfile={profile}
         endFlow="auto-exit"
         onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
         onAfterSubmitSnapshot={async snapshot => {
+          if (formalRoomCredential) return snapshot;
           if (!formalRun || !battleSessionId && !window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`)) return snapshot;
           const activeSessionId = battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || "";
           const result = await api.tryApplyFormalSoulmateBattleEvolution({
@@ -1048,6 +1080,8 @@ function RoutedApp({runtime}: AppProps) {
           navigate(`/formal/battle-result-transition${suffix}`, {replace: true});
         }}
       />
+    ) : !formalRunLoaded ? (
+      <FormalRouteLoadingPage />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -1077,6 +1111,8 @@ function RoutedApp({runtime}: AppProps) {
           enterFormalSettlement(reason);
         }}
       />
+    ) : !formalRunLoaded ? (
+      <FormalRouteLoadingPage />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -1102,6 +1138,8 @@ function RoutedApp({runtime}: AppProps) {
           navigate("/formal/settlement", {replace: true});
         }}
       />
+    ) : !formalRunLoaded ? (
+      <FormalRouteLoadingPage />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -1114,6 +1152,8 @@ function RoutedApp({runtime}: AppProps) {
         profile={profile}
         onBackToMain={() => navigate("/main", {replace: true})}
       />
+    ) : !formalRunLoaded ? (
+      <FormalRouteLoadingPage />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -1189,7 +1229,9 @@ function RoutedApp({runtime}: AppProps) {
 function ServerConnectionBadge({state}: {state: PostServiceConnectionStateV4 | null}) {
   if (!state || state.state === "idle") return null;
   const label = state.state === "online"
-    ? `服务器 ${state.lastRttMs ?? "-"}ms`
+    ? state.lastRttMs === null
+      ? "服务器在线"
+      : `服务器 ${state.lastRttMs}ms`
     : state.state === "failed"
       ? "连接失败"
       : state.state === "reconnecting"
@@ -1200,8 +1242,8 @@ function ServerConnectionBadge({state}: {state: PostServiceConnectionStateV4 | n
       aria-live="polite"
       style={{
         position: "absolute",
-        right: 8,
-        top: 8,
+        left: 8,
+        bottom: 8,
         zIndex: 120,
         padding: "3px 7px",
         borderRadius: 6,
@@ -1308,6 +1350,10 @@ function isFormalPendingSettlementRestRun(run: TrainingRunGameV4 | null | undefi
   return run?.status === "battleEndedPendingSettlement";
 }
 
+function hasRunningFormalBattleNode(run: FormalGameRunV4): boolean {
+  return Boolean(run.restRunSnapshot?.gameMap.some(node => node.state === "running" && node.battleGame?.status === "running"));
+}
+
 function TrainingConfigBootstrap({onReady}: {onReady: () => void}) {
   useEffect(() => {
     onReady();
@@ -1323,6 +1369,24 @@ function TrainingConfigBootstrap({onReady}: {onReady: () => void}) {
         <div className="training-transition-copy">
           <strong>读取训练配置</strong>
           <span>正在打开训练场</span>
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function FormalRouteLoadingPage() {
+  return (
+    <section className="training-transition-page" aria-live="polite">
+      <div className="training-transition-video-fallback" aria-hidden="true">
+        <span />
+        <i />
+      </div>
+      <div className="training-transition-shade" aria-hidden="true" />
+      <section className="training-transition-loading">
+        <div className="training-transition-copy">
+          <strong>读取正式流程</strong>
+          <span>正在恢复本局进度</span>
         </div>
       </section>
     </section>
