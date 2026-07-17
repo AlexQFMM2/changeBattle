@@ -146,6 +146,7 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
       return;
     }
     setBuyingSlotId(item.slotId);
+    setDialogueText("正在购买...");
     try {
       const message = await onBuy(item.slotId);
       pendingRestockRef.current = {slotId: item.slotId, itemID: item.itemID};

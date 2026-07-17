@@ -27,6 +27,7 @@ import {
   type FormalGameModeV4,
   type FormalGameRunV4,
   type FormalMedicalInsuranceChoiceV4,
+  type FormalRoomRestActionV1,
   type FormalRoundSettlementV4,
   type FormalSettlementReasonV4,
   type PostServiceConnectionStateV4,
@@ -573,6 +574,27 @@ function RoutedApp({runtime}: AppProps) {
     }
   }
 
+  async function submitFormalRestAction(action: FormalRoomRestActionV1) {
+    if (!formalRun) throw new Error("正式存档不存在。");
+    if (!formalRoomCredential) throw new Error("正式房间凭证不存在。");
+    const actionKey = formalRestActionStorageKey(formalRoomCredential.roomId, formalRun, action);
+    const clientActionId = loadOrCreateFormalRestActionClientId(actionKey, action.type);
+    const result = await api.submitFormalRoomRestAction({
+      roomId: formalRoomCredential.roomId,
+      roomToken: formalRoomCredential.roomToken,
+      clientActionId,
+      formalRunDraft: formalRun,
+      action,
+    });
+    if (!result.ok) {
+      if (!result.retryable) clearFormalRestActionClientId(actionKey);
+      throw new Error(result.message);
+    }
+    clearFormalRestActionClientId(actionKey);
+    setFormalRun(result.data.formalRun);
+    return result.data;
+  }
+
   function openDex(initialPokemonId: string | null = null) {
     setDexInitialPokemonId(initialPokemonId);
     setDexInitialCategory(undefined);
@@ -896,10 +918,12 @@ function RoutedApp({runtime}: AppProps) {
           onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
           onSaveRunSnapshot={async restRunSnapshot => {
             if (!formalRun) return restRunSnapshot;
+            if (formalRoomCredential) return restRunSnapshot;
             const saved = await api.saveFormalGameRun({...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()});
             setFormalRun(saved);
             return saved.restRunSnapshot || restRunSnapshot;
           }}
+          hideSaveAction={Boolean(formalRoomCredential)}
           onBackToConfig={() => navigate("/main", {replace: true})}
           onAbandonRun={() => enterFormalSettlement("abandon")}
           onProceedToSettlement={() => enterFormalSettlement("complete")}
@@ -914,6 +938,10 @@ function RoutedApp({runtime}: AppProps) {
             cost: Math.max(1, Math.floor(250 * (api.formalMedicalInsuranceEffectsForRun(formalRun).recoveryShopPriceMultiplier || 1))),
             onHeal: async () => {
               if (!formalRun) throw new Error("正式存档不存在。");
+              if (formalRoomCredential) {
+                const submitted = await submitFormalRestAction({type: "team.heal"});
+                return {...(submitted.result as any), ok: true, run: submitted.formalRun, message: submitted.message};
+              }
               const result = formalGameBridge
                 ? await formalGameBridge.healFormalRestTeam(formalRun)
                 : api.healFormalRestTeam(formalRun);
@@ -943,8 +971,24 @@ function RoutedApp({runtime}: AppProps) {
           }}
           exchangeController={{
             getView: () => api.getFormalRestExchangeView(formalRun),
-            onExchange: input => {
+            onExchange: async input => {
               if (!formalRun) throw new Error("正式存档不存在。");
+              if (formalRoomCredential) {
+                const submitted = await submitFormalRestAction({
+                  type: "pokemon.exchange",
+                  sourcePokemonId: input.sourcePokemonId,
+                  targetPokemonId: input.targetPokemonId,
+                });
+                const payload = submitted.result as any;
+                return {
+                  ...payload,
+                  ok: true,
+                  run: submitted.formalRun,
+                  message: submitted.message,
+                  cost: Number(payload?.cost || 0),
+                  view: payload?.view || api.getFormalRestExchangeView(submitted.formalRun),
+                };
+              }
               const result = api.exchangeFormalRestPokemon(formalRun, input);
               if (result.ok) setFormalRun(result.run);
               return result;
@@ -972,8 +1016,12 @@ function RoutedApp({runtime}: AppProps) {
             getShop: () => api.getFormalRestShop(formalRun),
             player: formalRun.restRunSnapshot.players.p1 || null,
             money: formalRun.money,
-            onBuy: slotId => {
+            onBuy: async slotId => {
               if (!formalRun) return "正式存档不存在。";
+              if (formalRoomCredential) {
+                const submitted = await submitFormalRestAction({type: "shop.buy", slotId});
+                return submitted.message;
+              }
               const result = api.buyFormalRestShopItem(formalRun, slotId);
               if (!result.ok) throw new Error(result.message);
               setFormalRun(result.run);
@@ -992,8 +1040,19 @@ function RoutedApp({runtime}: AppProps) {
             getLessons: () => api.getFormalTrainingGroundLessons(formalRun),
             player: formalRun.restRunSnapshot.players.p1 || null,
             money: formalRun.money,
-            onApply: input => {
+            onApply: async input => {
               if (!formalRun) throw new Error("正式存档不存在。");
+              if (formalRoomCredential) {
+                const submitted = await submitFormalRestAction({type: "training.apply", input: input as Record<string, unknown>});
+                const payload = submitted.result as any;
+                return {
+                  ...payload,
+                  ok: true,
+                  run: submitted.formalRun,
+                  message: submitted.message,
+                  lesson: payload?.lesson || api.getFormalTrainingGroundLesson(submitted.formalRun),
+                };
+              }
               const result = api.applyFormalTrainingGroundLesson(formalRun, input);
               if (!result.ok) throw new Error(result.message);
               setFormalRun(result.run);
@@ -1546,4 +1605,37 @@ function latestUnreadRoundSettlement(run: FormalGameRunV4, seen: Record<string, 
   const settlements = Object.values(run.roundSettlementByNodeId || {});
   settlements.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   return settlements.find(settlement => !seen[`${run.id}:${settlement.nodeId}`]) || null;
+}
+
+function formalRestActionStorageKey(roomId: string, run: FormalGameRunV4, action: FormalRoomRestActionV1): string {
+  const actionHash = stableHash(JSON.stringify(action));
+  return `changebattle-v2:formal-room:${roomId}:rest-action:${run.id}:${run.currentRoundIndex}:${actionHash}`;
+}
+
+function loadOrCreateFormalRestActionClientId(storageKey: string, actionType: string): string {
+  try {
+    const existing = window.sessionStorage?.getItem(storageKey);
+    if (existing) return existing;
+    const next = `${actionType}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    window.sessionStorage?.setItem(storageKey, next);
+    return next;
+  } catch {
+    return `${actionType}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
+function clearFormalRestActionClientId(storageKey: string): void {
+  try {
+    window.sessionStorage?.removeItem(storageKey);
+  } catch {
+    // Best effort; a stale id only affects a retry of the exact same rest action.
+  }
+}
+
+function stableHash(value: string): string {
+  let hash = 5381;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash << 5) + hash) ^ value.charCodeAt(index);
+  }
+  return (hash >>> 0).toString(36);
 }

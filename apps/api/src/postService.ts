@@ -7,6 +7,7 @@ export type PostServiceActionNameV4 =
   | "rooms.delete"
   | "rooms.selectStarters"
   | "rooms.prepareRound"
+  | "rooms.restAction"
   | "rooms.prepareBattle"
   | "rooms.getBattleSnapshot"
   | "rooms.getBattlePlaybackTimeline"
@@ -81,6 +82,16 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
     method: "POST",
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/prepare-round`,
     body: () => ({}),
+  },
+  "rooms.restAction": {
+    method: "POST",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/rest-action`,
+    body: input => ({
+      clientActionId: input?.clientActionId,
+      baseRevision: input?.baseRevision,
+      formalRunDraft: input?.formalRunDraft,
+      action: input?.action,
+    }),
   },
   "rooms.prepareBattle": {
     method: "POST",

@@ -169,6 +169,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
     setStep(null);
     setStudying(true);
     setApplying(true);
+    setDialogueText("正在学习...");
     try {
       await waitForStudyAnimation();
       const result = await onApply(input);

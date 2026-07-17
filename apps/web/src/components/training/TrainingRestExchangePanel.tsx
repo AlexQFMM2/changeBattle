@@ -100,7 +100,7 @@ export function TrainingRestExchangePanel({
         text={dialogueText}
         actions={[
           {label: "关闭", onClick: onClose},
-          {label: busy ? "交换中" : "确认交换", meta: confirmText.replace(/^交换（|）$/g, ""), primary: true, disabled: !canConfirm, onClick: onConfirm},
+          {label: busy ? "正在交换" : "确认交换", meta: confirmText.replace(/^交换（|）$/g, ""), primary: true, disabled: !canConfirm, onClick: onConfirm},
         ]}
       />
     </section>

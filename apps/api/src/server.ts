@@ -51,11 +51,22 @@ type FormalRoomBattleFinalizeResultV1 = {
   settlementNotice?: string;
 };
 
+type FormalRoomRestActionStoredResultV1 = {
+  actionType: string;
+  message: string;
+  formalRun: FormalGameRunV4;
+  revision: number;
+  moneyDelta: number;
+  result: unknown;
+  createdAt: string;
+};
+
 type FormalRoomRecordV1 = {
   roomId: string;
   roomTokenHash: string;
   formalRun: FormalGameRunV4;
   activeBattle?: FormalRoomActiveBattleV1 | null;
+  restActionResults?: Record<string, FormalRoomRestActionStoredResultV1>;
   revision: number;
   status: RoomStatus;
   connectionState: RoomConnectionState;
@@ -122,6 +133,7 @@ const server = http.createServer(async (request, response) => {
     const roomHeartbeatMatch = /^\/rooms\/([^/]+)\/heartbeat$/.exec(pathname);
     const roomSelectStartersMatch = /^\/rooms\/([^/]+)\/formal\/select-starters$/.exec(pathname);
     const roomPrepareRoundMatch = /^\/rooms\/([^/]+)\/formal\/prepare-round$/.exec(pathname);
+    const roomRestActionMatch = /^\/rooms\/([^/]+)\/formal\/rest-action$/.exec(pathname);
     const roomPrepareBattleMatch = /^\/rooms\/([^/]+)\/formal\/prepare-battle$/.exec(pathname);
     const roomFinalizeBattleMatch = /^\/rooms\/([^/]+)\/formal\/finalize-battle$/.exec(pathname);
     const roomBattleSnapshotMatch = /^\/rooms\/([^/]+)\/battle\/snapshot$/.exec(pathname);
@@ -168,6 +180,21 @@ const server = http.createServer(async (request, response) => {
       });
       sendJson(response, 200, publicRoom(room));
       log("info", "room-formal-round-prepared", {requestId, roomId, revision: room.revision, elapsedMs: Date.now() - startedAt});
+      return;
+    }
+    if (request.method === "POST" && roomRestActionMatch) {
+      const roomId = decodeURIComponent(roomRestActionMatch[1]!);
+      const body = await readJson(request);
+      const result = await withRoomLock(roomId, async () => applyFormalRoomRestAction(roomId, request, body));
+      sendJson(response, 200, result);
+      log("info", "room-formal-rest-action", {
+        requestId,
+        roomId,
+        actionType: result.actionType,
+        revision: result.room.revision,
+        moneyDelta: result.moneyDelta,
+        elapsedMs: Date.now() - startedAt,
+      });
       return;
     }
     if (request.method === "POST" && roomPrepareBattleMatch) {
@@ -547,6 +574,7 @@ function runFormalStep<T>(step: () => T): T {
   try {
     return step();
   } catch (error) {
+    if (error instanceof HttpError) throw error;
     throw formalFlowError(error);
   }
 }
@@ -555,6 +583,7 @@ async function runFormalStepAsync<T>(step: () => Promise<T>): Promise<T> {
   try {
     return await step();
   } catch (error) {
+    if (error instanceof HttpError) throw error;
     throw formalFlowError(error);
   }
 }
@@ -643,6 +672,100 @@ function validateFormalRunDraft(room: FormalRoomRecordV1, value: unknown): Forma
   if (!draft.restRunSnapshot) throw new HttpError(400, "formal_flow_error", "缺少休整快照。");
   if (!draft.playerTeam?.pokemon?.length) throw new HttpError(400, "formal_flow_error", "缺少玩家队伍。");
   return draft;
+}
+
+async function applyFormalRoomRestAction(roomId: string, request: http.IncomingMessage, body: any): Promise<{room: Record<string, unknown>; formalRun: FormalGameRunV4; actionType: string; message: string; moneyDelta: number; result: unknown; reused: boolean}> {
+  const clientActionId = requiredString(body?.clientActionId, "clientActionId");
+  const current = await loadAuthorizedRoom(roomId, request);
+  const repeated = current.restActionResults?.[clientActionId];
+  if (repeated) {
+    return {
+      room: publicRoom({...current, formalRun: repeated.formalRun, revision: repeated.revision}),
+      formalRun: repeated.formalRun,
+      actionType: repeated.actionType,
+      message: repeated.message,
+      moneyDelta: repeated.moneyDelta,
+      result: repeated.result,
+      reused: true,
+    };
+  }
+  if (current.connectionState === "closed" || current.closeReason) {
+    throw new HttpError(409, "room_closed", "房间已经关闭。");
+  }
+  if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
+    throw new HttpError(409, "room_not_resting", "当前房间正在战斗，不能修改休整状态。");
+  }
+  if (body?.baseRevision !== undefined && Number(body.baseRevision) !== current.revision) {
+    throw new HttpError(409, "formal_revision_conflict", "正式流程状态已更新，请刷新后重试。");
+  }
+  const draft = validateFormalRunDraft(current, body?.formalRunDraft || current.formalRun);
+  validateFormalRestActionDraft(draft);
+  const action = body?.action && typeof body.action === "object" ? body.action : null;
+  const actionType = requiredString(action?.type, "action.type");
+  const result = runFormalStep(() => applyFormalRestActionToRun(draft, actionType, action));
+  if (!result.ok) throw new HttpError(400, "formal_rest_action_failed", result.message || "休整操作失败。");
+  const nextRoomBase = advanceRoom(current, result.run);
+  const moneyDelta = Math.floor(Number(nextRoomBase.formalRun.money || 0)) - Math.floor(Number(draft.money || 0));
+  const now = new Date().toISOString();
+  const restActionResults = pruneRestActionResults({
+    ...(current.restActionResults || {}),
+    [clientActionId]: {
+      actionType,
+      message: result.message,
+      formalRun: nextRoomBase.formalRun,
+      revision: nextRoomBase.revision,
+      moneyDelta,
+      result,
+      createdAt: now,
+    },
+  });
+  const next = {
+    ...nextRoomBase,
+    restActionResults,
+  };
+  await saveRoom(next);
+  return {
+    room: publicRoom(next),
+    formalRun: next.formalRun,
+    actionType,
+    message: result.message,
+    moneyDelta,
+    result,
+    reused: false,
+  };
+}
+
+function validateFormalRestActionDraft(run: FormalGameRunV4): void {
+  const restStatus = run.restRunSnapshot?.status || "";
+  if (run.status === "ended" || restStatus === "battlePreparing" || restStatus === "battling" || restStatus === "ended" || restStatus === "battleEndedPendingSettlement") {
+    throw new HttpError(409, "room_not_resting", "当前不是可操作的休整阶段。");
+  }
+}
+
+function applyFormalRestActionToRun(run: FormalGameRunV4, actionType: string, action: any): {ok: boolean; run: FormalGameRunV4; message: string} {
+  if (actionType === "team.heal") {
+    return formalApi.healFormalRestTeam(run);
+  }
+  if (actionType === "pokemon.exchange") {
+    return formalApi.exchangeFormalRestPokemon(run, {
+      sourcePokemonId: requiredString(action?.sourcePokemonId, "sourcePokemonId"),
+      targetPokemonId: requiredString(action?.targetPokemonId, "targetPokemonId"),
+    });
+  }
+  if (actionType === "shop.buy") {
+    return formalApi.buyFormalRestShopItem(run, requiredString(action?.slotId, "slotId"));
+  }
+  if (actionType === "training.apply") {
+    return formalApi.applyFormalTrainingGroundLesson(run, action?.input || {});
+  }
+  throw new HttpError(400, "unsupported_rest_action", "暂不支持这个休整操作。");
+}
+
+function pruneRestActionResults(results: Record<string, FormalRoomRestActionStoredResultV1>): Record<string, FormalRoomRestActionStoredResultV1> {
+  const entries = Object.entries(results)
+    .sort((a, b) => Date.parse(b[1].createdAt) - Date.parse(a[1].createdAt))
+    .slice(0, 100);
+  return Object.fromEntries(entries);
 }
 
 async function getRoomBattleSnapshot(room: FormalRoomRecordV1): Promise<any> {
@@ -848,7 +971,7 @@ function touchRoom(room: FormalRoomRecordV1): FormalRoomRecordV1 {
 }
 
 function publicRoom(room: FormalRoomRecordV1): Record<string, unknown> {
-  const {roomTokenHash: _roomTokenHash, activeBattle, ...safeRoom} = room;
+  const {roomTokenHash: _roomTokenHash, activeBattle, restActionResults: _restActionResults, ...safeRoom} = room;
   return {
     ...safeRoom,
     activeBattle: activeBattle ? {

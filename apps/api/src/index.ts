@@ -343,6 +343,22 @@ export type FormalRoomBattleFinalizeResultV1 = {
   settlementNotice?: string;
 };
 
+export type FormalRoomRestActionV1 =
+  | {type: "team.heal"}
+  | {type: "pokemon.exchange"; sourcePokemonId: string; targetPokemonId: string}
+  | {type: "shop.buy"; slotId: string}
+  | {type: "training.apply"; input: Record<string, unknown>};
+
+export type FormalRoomRestActionResultV1 = {
+  room: FormalRoomV1;
+  formalRun: FormalGameRunV4;
+  actionType: FormalRoomRestActionV1["type"];
+  message: string;
+  moneyDelta: number;
+  result: unknown;
+  reused: boolean;
+};
+
 const DEFAULT_BROWSER_PROFILE_KEY = "changebattle-v2:user-profile";
 const DEFAULT_BROWSER_PLAYER_VAULT_KEY = "changebattle-v2:player-vault";
 
@@ -504,6 +520,14 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       serverApi.postApi<FormalRoomV1>("rooms.selectStarters", {roomId: input.roomId, selectedIndexes: input.selectedIndexes}, {roomToken: input.roomToken}),
     prepareFormalRoomRound: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomV1>> =>
       serverApi.postApi<FormalRoomV1>("rooms.prepareRound", {roomId: input.roomId}, {roomToken: input.roomToken}),
+    submitFormalRoomRestAction: (input: {roomId: string; roomToken: string; clientActionId: string; baseRevision?: number; formalRunDraft: FormalGameRunV4; action: FormalRoomRestActionV1}): Promise<PostServiceResultV4<FormalRoomRestActionResultV1>> =>
+      serverApi.postApi<FormalRoomRestActionResultV1>("rooms.restAction", {
+        roomId: input.roomId,
+        clientActionId: input.clientActionId,
+        baseRevision: input.baseRevision,
+        formalRunDraft: input.formalRunDraft,
+        action: input.action,
+      }, {roomToken: input.roomToken}),
     prepareFormalRoomBattle: (input: {roomId: string; roomToken: string; clientRequestId: string; baseRevision?: number; formalRunDraft: FormalGameRunV4}): Promise<PostServiceResultV4<FormalRoomBattlePrepareResultV1>> =>
       serverApi.postApi<FormalRoomBattlePrepareResultV1>("rooms.prepareBattle", {
         roomId: input.roomId,

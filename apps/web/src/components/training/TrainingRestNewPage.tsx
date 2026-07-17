@@ -92,6 +92,7 @@ export type TrainingRestNewPageProps = {
   onOpenDex: () => void;
   onOpenPokemonDex: (speciesId: string) => void;
   onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
+  hideSaveAction?: boolean;
   onAbandonRun?: () => void;
   onProceedToSettlement?: () => void;
   moneyAmount?: number;
@@ -122,7 +123,7 @@ type SoulmateHatchState =
   | {phase: "done"; result: FormalSoulmateEggClaimResultV4}
   | {phase: "error"; message: string};
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, initialNotice, onInitialNoticeConsumed, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, hideSaveAction = false, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, initialNotice, onInitialNoticeConsumed, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -146,7 +147,9 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const pendingSettlement = run.status === "battleEndedPendingSettlement";
   const soulmateCandidates = useMemo(() => createRestSoulmateCandidates(run), [run]);
   const selectedSoulmateCandidate = soulmateCandidates.find(candidate => candidate.candidateId === selectedSoulmateCandidateId) || null;
-  const leftSideActions = REST_CENTER_LEFT_SIDE_ACTIONS_V4.map(action => ({label: action.label}));
+  const leftSideActions = REST_CENTER_LEFT_SIDE_ACTIONS_V4
+    .filter(action => !(hideSaveAction && action.label === "保存"))
+    .map(action => ({label: action.label}));
   const rightSideActions = pendingSettlement
     ? [{label: "去结算", primary: true}]
     : REST_CENTER_RIGHT_SIDE_ACTIONS_V4.map(action => ({label: action.label, primary: action.primary, danger: action.danger}));
@@ -322,6 +325,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   async function confirmExchangePokemon() {
     if (!exchangeController || exchangeBusy) return;
     setExchangeBusy(true);
+    setMessage("正在交换...");
     try {
       const result = await exchangeController.onExchange(exchangeSelection);
       if (result.ok) {
@@ -350,6 +354,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       return;
     }
     try {
+      setMessage("正在治疗...");
       const result = await healController.onHeal();
       if (result.ok) onRunChange(result.run.restRunSnapshot || run);
       setMessage(result.message);
@@ -481,6 +486,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       return;
     }
     if (action === "保存") {
+      if (hideSaveAction) return;
       void saveRunGameSnapshot();
       return;
     }
