@@ -89,7 +89,7 @@ POST   /rooms/:roomId/battle/choices
 POST   /rooms/:roomId/formal/finalize-battle
 ```
 
-仍未完成：金币交易类 `rest-action`、最终 `finalize-run`、`final-result`、完整 heartbeat 过期清理和 Loki。
+仍未完成：最终 `finalize-run`、`final-result`、完整 heartbeat 过期清理、容器重启 `server-restarted` 处理、Loki，以及 Desk/Android/公网服务器 smoke。休整 `rest-action` 和 WebSocket draft sync 已在本地 Docker + Web smoke 中跑通。
 
 后续如需管理员 debug，不混入普通接口，单独开受保护入口，例如：
 
@@ -295,6 +295,8 @@ location /changebattle/battle/ {
 - [x] 本地 Docker Compose smoke：Battle API + Redis。
 - [x] 本地 room API smoke：create/read/heartbeat/delete。
 - [x] 本地 formal run smoke：开始游戏 -> 战斗 -> 结算。
+- [x] 本地 WebSocket smoke：room auth、`rest.syncDraft`、`rest.action shop.buy`、ACK/revision。
+- [x] 本地 Web UI smoke：开始正式 singles -> starter -> round -> 休整页，连接在线；业务失败不误报连接失败。
 - [ ] 本地故障 smoke：Battle API 容器重启、Redis 不可用、内存安全水位不足。
 - [x] 本地 build Battle API image，并记录 image tag / git sha。
 - [ ] 本地 `docker save` 导出 image tar，上传服务器后 `docker load`。

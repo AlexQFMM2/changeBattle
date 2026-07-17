@@ -7,6 +7,7 @@ export type PostServiceActionNameV4 =
   | "rooms.delete"
   | "rooms.selectStarters"
   | "rooms.prepareRound"
+  | "rooms.syncDraft"
   | "rooms.restAction"
   | "rooms.prepareBattle"
   | "rooms.getBattleSnapshot"
@@ -20,7 +21,7 @@ export type PostServiceResultV4<T> =
   | {ok: false; error: string; message: string; retryable: boolean; backend: "server-api"; statusCode?: number; elapsedMs: number};
 
 export type PostServiceConnectionStateV4 = {
-  state: "idle" | "connecting" | "online" | "reconnecting" | "failed";
+  state: "idle" | "connecting" | "online" | "syncing" | "reconnecting" | "failed";
   lastSuccessAt: string | null;
   lastErrorAt: string | null;
   lastRttMs: number | null;
@@ -82,6 +83,16 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
     method: "POST",
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/prepare-round`,
     body: () => ({}),
+  },
+  "rooms.syncDraft": {
+    method: "POST",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/sync-rest-draft`,
+    body: input => ({
+      clientActionId: input?.clientActionId,
+      baseRevision: input?.baseRevision,
+      formalRunDraft: input?.formalRunDraft,
+      label: input?.label,
+    }),
   },
   "rooms.restAction": {
     method: "POST",
@@ -185,13 +196,21 @@ export function createPostServiceClient(config: PostServiceClientConfigV4 = {}):
         if (!response.ok) {
           const error = typeof payload?.error === "string" ? payload.error : `http_${response.status}`;
           const message = typeof payload?.message === "string" ? payload.message : "服务器请求失败。";
-          setConnectionState({
-            state: "failed",
-            lastErrorAt: new Date().toISOString(),
-            lastRttMs: elapsedMs,
-            failureCount: connectionState.failureCount + 1,
-          });
-          return {ok: false, error, message, retryable: response.status >= 500 || response.status === 408 || response.status === 429, backend: "server-api", statusCode: response.status, elapsedMs};
+          const retryable = response.status >= 500 || response.status === 408 || response.status === 429;
+          setConnectionState(retryable
+            ? {
+              state: "failed",
+              lastErrorAt: new Date().toISOString(),
+              lastRttMs: elapsedMs,
+              failureCount: connectionState.failureCount + 1,
+            }
+            : {
+              state: "online",
+              lastSuccessAt: new Date().toISOString(),
+              lastRttMs: action.latencySample ? elapsedMs : connectionState.lastRttMs,
+              failureCount: 0,
+            });
+          return {ok: false, error, message, retryable, backend: "server-api", statusCode: response.status, elapsedMs};
         }
         setConnectionState({
           state: "online",

@@ -61,12 +61,20 @@ type FormalRoomRestActionStoredResultV1 = {
   createdAt: string;
 };
 
+type FormalRoomDraftSyncStoredResultV1 = {
+  label: string;
+  formalRun: FormalGameRunV4;
+  revision: number;
+  createdAt: string;
+};
+
 type FormalRoomRecordV1 = {
   roomId: string;
   roomTokenHash: string;
   formalRun: FormalGameRunV4;
   activeBattle?: FormalRoomActiveBattleV1 | null;
   restActionResults?: Record<string, FormalRoomRestActionStoredResultV1>;
+  draftSyncResults?: Record<string, FormalRoomDraftSyncStoredResultV1>;
   revision: number;
   status: RoomStatus;
   connectionState: RoomConnectionState;
@@ -79,12 +87,24 @@ type FormalRoomRecordV1 = {
 
 type RedisStatus = "disabled" | "ok" | "unavailable";
 
+type RoomWsClient = {
+  id: string;
+  socket: net.Socket;
+  roomId: string;
+  roomTokenHash: string | null;
+  authed: boolean;
+  buffer: Buffer;
+  closed: boolean;
+  authTimer: NodeJS.Timeout;
+};
+
 const service = createInMemoryBattleService();
 const formalApi = createChangeBattleV2Api();
 const config = loadConfig();
 const sessionMeta = new Map<string, SessionMeta>();
 const loggedAiDecisionCounts = new Map<string, number>();
 const roomLocks = new Map<string, Promise<void>>();
+const roomSockets = new Map<string, Set<RoomWsClient>>();
 const roomIndexKey = "cb:rooms";
 let roomCreateInFlightCount = 0;
 
@@ -134,6 +154,7 @@ const server = http.createServer(async (request, response) => {
     const roomSelectStartersMatch = /^\/rooms\/([^/]+)\/formal\/select-starters$/.exec(pathname);
     const roomPrepareRoundMatch = /^\/rooms\/([^/]+)\/formal\/prepare-round$/.exec(pathname);
     const roomRestActionMatch = /^\/rooms\/([^/]+)\/formal\/rest-action$/.exec(pathname);
+    const roomSyncDraftMatch = /^\/rooms\/([^/]+)\/formal\/sync-rest-draft$/.exec(pathname);
     const roomPrepareBattleMatch = /^\/rooms\/([^/]+)\/formal\/prepare-battle$/.exec(pathname);
     const roomFinalizeBattleMatch = /^\/rooms\/([^/]+)\/formal\/finalize-battle$/.exec(pathname);
     const roomBattleSnapshotMatch = /^\/rooms\/([^/]+)\/battle\/snapshot$/.exec(pathname);
@@ -151,6 +172,7 @@ const server = http.createServer(async (request, response) => {
       const room = await loadAuthorizedRoom(roomId, request);
       const next = touchRoom(room);
       await saveRoom(next);
+      broadcastRoomUpdated(next);
       sendJson(response, 200, publicRoom(next));
       log("info", "room-heartbeat", {requestId, roomId, elapsedMs: Date.now() - startedAt});
       return;
@@ -163,6 +185,7 @@ const server = http.createServer(async (request, response) => {
         const formalRun = runFormalStep(() => formalApi.selectFormalStarterPokemon(current.formalRun, body?.selectedIndexes || []));
         const next = advanceRoom(current, formalRun);
         await saveRoom(next);
+        broadcastRoomUpdated(next);
         return next;
       });
       sendJson(response, 200, publicRoom(room));
@@ -176,16 +199,25 @@ const server = http.createServer(async (request, response) => {
         const formalRun = await runFormalStepAsync(() => formalApi.prepareFormalRoundPlan(current.formalRun));
         const next = advanceRoom(current, formalRun);
         await saveRoom(next);
+        broadcastRoomUpdated(next);
         return next;
       });
       sendJson(response, 200, publicRoom(room));
       log("info", "room-formal-round-prepared", {requestId, roomId, revision: room.revision, elapsedMs: Date.now() - startedAt});
       return;
     }
+    if (request.method === "POST" && roomSyncDraftMatch) {
+      const roomId = decodeURIComponent(roomSyncDraftMatch[1]!);
+      const body = await readJson(request);
+      const result = await withRoomLock(roomId, async () => syncFormalRoomDraft(roomId, roomTokenFromRequest(request), body));
+      sendJson(response, 200, result);
+      log("info", "room-formal-draft-synced", {requestId, roomId, revision: result.room.revision, label: result.label, elapsedMs: Date.now() - startedAt});
+      return;
+    }
     if (request.method === "POST" && roomRestActionMatch) {
       const roomId = decodeURIComponent(roomRestActionMatch[1]!);
       const body = await readJson(request);
-      const result = await withRoomLock(roomId, async () => applyFormalRoomRestAction(roomId, request, body));
+      const result = await withRoomLock(roomId, async () => applyFormalRoomRestAction(roomId, roomTokenFromRequest(request), body));
       sendJson(response, 200, result);
       log("info", "room-formal-rest-action", {
         requestId,
@@ -239,6 +271,7 @@ const server = http.createServer(async (request, response) => {
     if (request.method === "DELETE" && roomMatch) {
       const roomId = decodeURIComponent(roomMatch[1]!);
       const room = await loadAuthorizedRoom(roomId, request);
+      broadcastRoomClosed(room.roomId, "deleted");
       await deleteRoom(room.roomId);
       sendJson(response, 200, {ok: true});
       log("info", "room-deleted", {requestId, roomId, elapsedMs: Date.now() - startedAt});
@@ -357,6 +390,40 @@ const server = http.createServer(async (request, response) => {
       elapsedMs: Date.now() - startedAt,
       error: message,
     });
+  }
+});
+
+server.on("upgrade", (request, socket) => {
+  try {
+    const url = new URL(request.url || "/", `http://${request.headers.host || `${config.host}:${config.port}`}`);
+    const pathname = normalizePathname(url.pathname);
+    const match = /^\/rooms\/([^/]+)\/ws$/.exec(pathname);
+    if (!match || request.headers.upgrade?.toLowerCase() !== "websocket") {
+      socket.write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    const key = String(request.headers["sec-websocket-key"] || "");
+    if (!key) {
+      socket.write("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    const accept = crypto
+      .createHash("sha1")
+      .update(`${key}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`)
+      .digest("base64");
+    socket.write([
+      "HTTP/1.1 101 Switching Protocols",
+      "Upgrade: websocket",
+      "Connection: Upgrade",
+      `Sec-WebSocket-Accept: ${accept}`,
+      "\r\n",
+    ].join("\r\n"));
+    attachRoomWebSocket(socket as net.Socket, decodeURIComponent(match[1]!));
+  } catch (error) {
+    log("warn", "room-ws-upgrade-failed", {error: error instanceof Error ? error.message : String(error)});
+    socket.destroy();
   }
 });
 
@@ -602,8 +669,53 @@ function advanceRoom(room: FormalRoomRecordV1, formalRun: FormalGameRunV4): Form
     status: roomStatusFromFormalRun(formalRun),
     connectionState: room.connectionState === "closed" ? "closed" : "online",
     updatedAt: now.toISOString(),
+    lastHeartbeatAt: now.toISOString(),
     expiresAt: new Date(now.getTime() + config.sessionTtlMs).toISOString(),
   };
+}
+
+async function syncFormalRoomDraft(roomId: string, roomToken: string, body: any): Promise<{room: Record<string, unknown>; formalRun: FormalGameRunV4; label: string; reused: boolean}> {
+  const clientActionId = requiredString(body?.clientActionId, "clientActionId");
+  const current = await loadAuthorizedRoomByToken(roomId, roomToken);
+  const repeated = current.draftSyncResults?.[clientActionId];
+  if (repeated) {
+    return {
+      room: publicRoom({...current, formalRun: repeated.formalRun, revision: repeated.revision}),
+      formalRun: repeated.formalRun,
+      label: repeated.label,
+      reused: true,
+    };
+  }
+  if (current.connectionState === "closed" || current.closeReason) {
+    throw new HttpError(409, "room_closed", "房间已经关闭。");
+  }
+  if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
+    throw new HttpError(409, "room_not_resting", "当前房间正在战斗，不能修改休整状态。");
+  }
+  if (body?.baseRevision !== undefined && Number(body.baseRevision) !== current.revision) {
+    throw new HttpError(409, "formal_revision_conflict", "正式流程状态已更新，请刷新后重试。");
+  }
+  const draft = validateFormalRunDraft(current, body?.formalRunDraft || current.formalRun);
+  validateFormalRestActionDraft(draft);
+  const label = typeof body?.label === "string" && body.label.trim() ? body.label.trim().slice(0, 40) : "休整同步";
+  const nextRoomBase = advanceRoom(current, draft);
+  const now = new Date().toISOString();
+  const draftSyncResults = pruneDraftSyncResults({
+    ...(current.draftSyncResults || {}),
+    [clientActionId]: {
+      label,
+      formalRun: nextRoomBase.formalRun,
+      revision: nextRoomBase.revision,
+      createdAt: now,
+    },
+  });
+  const next = {
+    ...nextRoomBase,
+    draftSyncResults,
+  };
+  await saveRoom(next);
+  broadcastRoomUpdated(next);
+  return {room: publicRoom(next), formalRun: next.formalRun, label, reused: false};
 }
 
 function roomStatusFromFormalRun(run: FormalGameRunV4): RoomStatus {
@@ -652,6 +764,7 @@ async function prepareFormalRoomBattle(roomId: string, request: http.IncomingMes
     activeBattle,
   };
   await saveRoom(next);
+  broadcastRoomUpdated(next);
   return {
     room: publicRoom(next),
     formalRun: next.formalRun,
@@ -674,9 +787,9 @@ function validateFormalRunDraft(room: FormalRoomRecordV1, value: unknown): Forma
   return draft;
 }
 
-async function applyFormalRoomRestAction(roomId: string, request: http.IncomingMessage, body: any): Promise<{room: Record<string, unknown>; formalRun: FormalGameRunV4; actionType: string; message: string; moneyDelta: number; result: unknown; reused: boolean}> {
+async function applyFormalRoomRestAction(roomId: string, roomToken: string, body: any): Promise<{room: Record<string, unknown>; formalRun: FormalGameRunV4; actionType: string; message: string; moneyDelta: number; result: unknown; reused: boolean}> {
   const clientActionId = requiredString(body?.clientActionId, "clientActionId");
-  const current = await loadAuthorizedRoom(roomId, request);
+  const current = await loadAuthorizedRoomByToken(roomId, roomToken);
   const repeated = current.restActionResults?.[clientActionId];
   if (repeated) {
     return {
@@ -724,6 +837,7 @@ async function applyFormalRoomRestAction(roomId: string, request: http.IncomingM
     restActionResults,
   };
   await saveRoom(next);
+  broadcastRoomUpdated(next);
   return {
     room: publicRoom(next),
     formalRun: next.formalRun,
@@ -765,6 +879,13 @@ function pruneRestActionResults(results: Record<string, FormalRoomRestActionStor
   const entries = Object.entries(results)
     .sort((a, b) => Date.parse(b[1].createdAt) - Date.parse(a[1].createdAt))
     .slice(0, 100);
+  return Object.fromEntries(entries);
+}
+
+function pruneDraftSyncResults(results: Record<string, FormalRoomDraftSyncStoredResultV1>): Record<string, FormalRoomDraftSyncStoredResultV1> {
+  const entries = Object.entries(results)
+    .sort((a, b) => Date.parse(b[1].createdAt) - Date.parse(a[1].createdAt))
+    .slice(0, 150);
   return Object.fromEntries(entries);
 }
 
@@ -860,6 +981,7 @@ async function finalizeFormalRoomBattle(roomId: string, request: http.IncomingMe
     },
   };
   await saveRoom(next);
+  broadcastRoomUpdated(next);
   await closeSession(activeBattle.sessionId).catch(() => undefined);
   return {...finalResult, formalRun, room: publicRoom(next)};
 }
@@ -927,10 +1049,14 @@ async function withRoomLock<T>(roomId: string, task: () => Promise<T>): Promise<
 }
 
 async function loadAuthorizedRoom(roomId: string, request: http.IncomingMessage): Promise<FormalRoomRecordV1> {
+  return loadAuthorizedRoomByToken(roomId, roomTokenFromRequest(request));
+}
+
+async function loadAuthorizedRoomByToken(roomId: string, roomToken: string): Promise<FormalRoomRecordV1> {
   const room = await loadRoom(roomId);
   if (!room) throw new HttpError(404, "room_not_found", "房间不存在或已过期。");
-  const token = roomTokenFromRequest(request);
-  if (!token || hashToken(token) !== room.roomTokenHash) {
+  const tokenHash = roomToken.startsWith("sha256:") ? roomToken.slice("sha256:".length) : roomToken ? hashToken(roomToken) : "";
+  if (!tokenHash || tokenHash !== room.roomTokenHash) {
     throw new HttpError(403, "room_forbidden", "房间凭证无效。");
   }
   return room;
@@ -971,7 +1097,7 @@ function touchRoom(room: FormalRoomRecordV1): FormalRoomRecordV1 {
 }
 
 function publicRoom(room: FormalRoomRecordV1): Record<string, unknown> {
-  const {roomTokenHash: _roomTokenHash, activeBattle, restActionResults: _restActionResults, ...safeRoom} = room;
+  const {roomTokenHash: _roomTokenHash, activeBattle, restActionResults: _restActionResults, draftSyncResults: _draftSyncResults, ...safeRoom} = room;
   return {
     ...safeRoom,
     activeBattle: activeBattle ? {
@@ -983,6 +1109,265 @@ function publicRoom(room: FormalRoomRecordV1): Record<string, unknown> {
       updatedAt: activeBattle.updatedAt,
     } : null,
   };
+}
+
+function attachRoomWebSocket(socket: net.Socket, roomId: string): void {
+  let client!: RoomWsClient;
+  const authTimer = setTimeout(() => closeWsClient(client, 4401, "auth_timeout"), 5000);
+  client = {
+    id: createRequestId(),
+    socket,
+    roomId,
+    roomTokenHash: null,
+    authed: false,
+    buffer: Buffer.alloc(0),
+    closed: false,
+    authTimer,
+  };
+  socket.on("data", chunk => {
+    try {
+      client.buffer = Buffer.concat([client.buffer, chunk]);
+      if (client.buffer.byteLength > config.maxBodyBytes + 1024) {
+        closeWsClient(client, 4400, "message_too_large");
+        return;
+      }
+      drainWsFrames(client);
+    } catch (error) {
+      sendWsJson(client, {type: "server.error", error: "ws_parse_error", message: "WebSocket 消息解析失败。"});
+      closeWsClient(client, 4400, "parse_error");
+      log("warn", "room-ws-parse-failed", {roomId, clientId: client.id, error: error instanceof Error ? error.message : String(error)});
+    }
+  });
+  socket.on("close", () => {
+    unregisterWsClient(client);
+  });
+  socket.on("error", () => {
+    unregisterWsClient(client);
+  });
+}
+
+function drainWsFrames(client: RoomWsClient): void {
+  while (client.buffer.byteLength >= 2) {
+    const parsed = readWsFrame(client.buffer);
+    if (!parsed) return;
+    client.buffer = client.buffer.subarray(parsed.consumed);
+    if (parsed.opcode === 0x8) {
+      closeWsClient(client, 1000, "client_close");
+      return;
+    }
+    if (parsed.opcode === 0x9) {
+      sendWsFrame(client.socket, parsed.payload, 0xA);
+      continue;
+    }
+    if (parsed.opcode !== 0x1) continue;
+    const text = parsed.payload.toString("utf8");
+    void handleRoomWsMessage(client, text);
+  }
+}
+
+function readWsFrame(buffer: Buffer): {opcode: number; payload: Buffer; consumed: number} | null {
+  if (buffer.byteLength < 2) return null;
+  const first = buffer[0]!;
+  const second = buffer[1]!;
+  const opcode = first & 0x0f;
+  const masked = (second & 0x80) !== 0;
+  let length = second & 0x7f;
+  let offset = 2;
+  if (length === 126) {
+    if (buffer.byteLength < offset + 2) return null;
+    length = buffer.readUInt16BE(offset);
+    offset += 2;
+  } else if (length === 127) {
+    if (buffer.byteLength < offset + 8) return null;
+    const bigLength = buffer.readBigUInt64BE(offset);
+    if (bigLength > BigInt(config.maxBodyBytes)) throw new Error("ws_message_too_large");
+    length = Number(bigLength);
+    offset += 8;
+  }
+  const maskOffset = offset;
+  if (masked) offset += 4;
+  if (buffer.byteLength < offset + length) return null;
+  const payload = Buffer.from(buffer.subarray(offset, offset + length));
+  if (masked) {
+    const mask = buffer.subarray(maskOffset, maskOffset + 4);
+    for (let index = 0; index < payload.byteLength; index += 1) {
+      payload[index] = payload[index]! ^ mask[index % 4]!;
+    }
+  }
+  return {opcode, payload, consumed: offset + length};
+}
+
+async function handleRoomWsMessage(client: RoomWsClient, raw: string): Promise<void> {
+  let message: any;
+  try {
+    message = JSON.parse(raw);
+  } catch {
+    sendWsJson(client, {type: "server.error", error: "bad_json", message: "WebSocket 消息不是合法 JSON。"});
+    return;
+  }
+  try {
+    if (!client.authed) {
+      if (message?.type !== "auth") {
+        closeWsClient(client, 4401, "auth_required");
+        return;
+      }
+      const roomToken = requiredString(message?.roomToken, "roomToken");
+      const room = await loadAuthorizedRoomByToken(client.roomId, roomToken);
+      client.authed = true;
+      client.roomTokenHash = hashToken(roomToken);
+      clearTimeout(client.authTimer);
+      registerWsClient(client);
+      const next = touchRoom(room);
+      await saveRoom(next);
+      sendWsJson(client, {type: "room.ready", room: publicRoom(next), formalRun: next.formalRun, revision: next.revision});
+      broadcastRoomUpdated(next, client);
+      log("info", "room-ws-authed", {roomId: client.roomId, clientId: client.id});
+      return;
+    }
+    if (message?.type === "room.heartbeat") {
+      const room = await withRoomLock(client.roomId, async () => {
+        const current = await loadAuthorizedWsRoom(client);
+        const next = touchRoom(current);
+        await saveRoom(next);
+        return next;
+      });
+      sendWsJson(client, {type: "sync.ack", clientActionId: message?.clientActionId || null, action: "room.heartbeat", data: {room: publicRoom(room), formalRun: room.formalRun, revision: room.revision}});
+      broadcastRoomUpdated(room, client);
+      return;
+    }
+    if (message?.type === "room.get") {
+      const room = await loadAuthorizedWsRoom(client);
+      sendWsJson(client, {type: "room.updated", room: publicRoom(room), formalRun: room.formalRun, revision: room.revision});
+      return;
+    }
+    if (message?.type === "rest.syncDraft") {
+      await handleWsMutation(client, message, () => syncFormalRoomDraft(client.roomId, tokenFromAuthedWsClient(client), message));
+      return;
+    }
+    if (message?.type === "rest.action") {
+      await handleWsMutation(client, message, () => applyFormalRoomRestAction(client.roomId, tokenFromAuthedWsClient(client), message));
+      return;
+    }
+    sendWsJson(client, {type: "server.error", error: "unknown_ws_action", message: "未知房间消息。"});
+  } catch (error) {
+    const status = error instanceof HttpError ? error.status : 500;
+    const code = error instanceof HttpError ? error.code : "battle_service_error";
+    const messageText = error instanceof HttpError ? error.publicMessage : "房间同步失败。";
+    const payload = {type: "sync.failed", clientActionId: message?.clientActionId || null, action: message?.type || "unknown", error: code, message: messageText, retryable: status >= 500 || status === 408 || status === 429};
+    sendWsJson(client, payload);
+    log("warn", "room-ws-message-failed", {roomId: client.roomId, clientId: client.id, action: message?.type, error: error instanceof Error ? error.message : String(error)});
+  }
+}
+
+async function handleWsMutation(client: RoomWsClient, message: any, task: () => Promise<any>): Promise<void> {
+  const result = await withRoomLock(client.roomId, task);
+  sendWsJson(client, {
+    type: "sync.ack",
+    clientActionId: message?.clientActionId || null,
+    action: message?.type,
+    data: result,
+  });
+}
+
+async function loadAuthorizedWsRoom(client: RoomWsClient): Promise<FormalRoomRecordV1> {
+  const room = await loadRoom(client.roomId);
+  if (!room) throw new HttpError(404, "room_not_found", "房间不存在或已过期。");
+  if (!client.roomTokenHash || client.roomTokenHash !== room.roomTokenHash) {
+    throw new HttpError(403, "room_forbidden", "房间凭证无效。");
+  }
+  return room;
+}
+
+function tokenFromAuthedWsClient(client: RoomWsClient): string {
+  if (!client.roomTokenHash) throw new HttpError(403, "room_forbidden", "房间凭证无效。");
+  return `sha256:${client.roomTokenHash}`;
+}
+
+function registerWsClient(client: RoomWsClient): void {
+  let sockets = roomSockets.get(client.roomId);
+  if (!sockets) {
+    sockets = new Set();
+    roomSockets.set(client.roomId, sockets);
+  }
+  sockets.add(client);
+}
+
+function unregisterWsClient(client: RoomWsClient): void {
+  if (client.closed) return;
+  client.closed = true;
+  clearTimeout(client.authTimer);
+  const sockets = roomSockets.get(client.roomId);
+  sockets?.delete(client);
+  if (sockets && sockets.size === 0) {
+    roomSockets.delete(client.roomId);
+    void markRoomDisconnected(client.roomId);
+  }
+}
+
+async function markRoomDisconnected(roomId: string): Promise<void> {
+  try {
+    await withRoomLock(roomId, async () => {
+      const room = await loadRoom(roomId);
+      if (!room || room.connectionState === "closed" || room.closeReason) return;
+      const next = {...room, connectionState: "disconnected" as const, updatedAt: new Date().toISOString()};
+      await saveRoom(next);
+    });
+  } catch (error) {
+    log("warn", "room-disconnect-mark-failed", {roomId, error: error instanceof Error ? error.message : String(error)});
+  }
+}
+
+function broadcastRoomUpdated(room: FormalRoomRecordV1 | undefined, except?: RoomWsClient): void {
+  if (!room) return;
+  broadcastRoomMessage(room.roomId, {type: "room.updated", room: publicRoom(room), formalRun: room.formalRun, revision: room.revision}, except);
+}
+
+function broadcastRoomClosed(roomId: string, reason: string): void {
+  broadcastRoomMessage(roomId, {type: "room.closed", reason});
+}
+
+function broadcastRoomMessage(roomId: string, message: unknown, except?: RoomWsClient): void {
+  const sockets = roomSockets.get(roomId);
+  if (!sockets?.size) return;
+  for (const client of sockets) {
+    if (client === except || !client.authed || client.closed) continue;
+    sendWsJson(client, message);
+  }
+}
+
+function sendWsJson(client: RoomWsClient, value: unknown): void {
+  if (client.closed || client.socket.destroyed) return;
+  sendWsFrame(client.socket, Buffer.from(JSON.stringify(value), "utf8"), 0x1);
+}
+
+function sendWsFrame(socket: net.Socket, payload: Buffer, opcode: number): void {
+  const length = payload.byteLength;
+  let header: Buffer;
+  if (length < 126) {
+    header = Buffer.from([0x80 | opcode, length]);
+  } else if (length <= 0xffff) {
+    header = Buffer.alloc(4);
+    header[0] = 0x80 | opcode;
+    header[1] = 126;
+    header.writeUInt16BE(length, 2);
+  } else {
+    header = Buffer.alloc(10);
+    header[0] = 0x80 | opcode;
+    header[1] = 127;
+    header.writeBigUInt64BE(BigInt(length), 2);
+  }
+  socket.write(Buffer.concat([header, payload]));
+}
+
+function closeWsClient(client: RoomWsClient, code: number, reason: string): void {
+  if (client.closed) return;
+  const reasonBuffer = Buffer.from(reason.slice(0, 80), "utf8");
+  const payload = Buffer.alloc(2 + reasonBuffer.byteLength);
+  payload.writeUInt16BE(code, 0);
+  reasonBuffer.copy(payload, 2);
+  sendWsFrame(client.socket, payload, 0x8);
+  client.socket.end();
+  unregisterWsClient(client);
 }
 
 async function assertRoomCapacity(): Promise<void> {

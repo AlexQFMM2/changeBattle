@@ -27,7 +27,7 @@
 
 - 正式游戏主流程已经进入可持续测试阶段：开局候选、星图扩展、选人、7 场计划、休整页、战斗页、单局战后结算、最终结算和 BP 发放都已接入。
 - 正式休整商店和训练场已经完成第一版闭环：购买/售出、加权补货、课程学习、自主训练、费用、金币流水和课后流程均已接入。
-- 正式流程重计算正在从客户端/desktop worker 迁到服务器 room。当前本地 Docker 已跑通 `Battle API + Redis`，Web 可完成开始正式 singles、选 starter、生成赛程、休整、进入 room-aware BattleV4、提交一次指令、战斗结束并进入 settlement；desktop worker 保留为开发/回退能力。
+- 正式流程重计算正在从客户端/desktop worker 迁到服务器 room。当前本地 Docker 已跑通 `Battle API + Redis`，Web 可完成开始正式 singles、选 starter、生成赛程、休整、WebSocket room 长连接、休整 RunGame 同步、进入 room-aware BattleV4、提交一次指令、战斗结束并进入 settlement；desktop worker 保留为开发/回退能力。
 - Battle V4 已完成 Showdown-style playback 重构、HP 缓动修正、投降框组件化、天气持久层资源重载、Substitute 持续标记、选人页两步选择交互，以及特殊系统目标选择修复；小图闪光因本地 picon 无 shiny sheet，采用普通 picon + 星标提示。
 - 正式模式稳定性继续收口：敌方 NPC 等级按玩家最高等级动态计算，究极异兽归入神兽候选，自习收益改为等级/数值约 3:7，战斗入场同步本地 PP。
 - 休整页弹窗栈已补齐：背包打开时，技能学习替换和 Mega/Z/太晶系统道具重铸面板会显示在背包之上。
@@ -49,7 +49,7 @@
 - 下一步 AI 主线是继续扩大单打/双打出题、做题、评估样本，结合人工 debug 对局验收，优先把 severe 犯病点稳定抓出来。
 - 下一步 coop 主线是复用 doubles 队伍生成器和 lead pair diagnostics，推进合作 AI 的 seat 映射、ally coordination、joint action 调试和出题评估。
 - 下一步 App 主线只做 Android：基于 Capacitor 复用 Web UI/API/CDN 资源，先验证 640x320 视口、存档、音频、网络/API、正式战斗和更新策略；iOS 暂不进入范围。
-- 下一步服务器主线是在已跑通的本地 Docker room 战斗闭环上补完整正式流程：金币交易类 `rest-action`、最终 `finalize-run` 和本地 profile/vault delta 写回、room heartbeat/断线/过期恢复、容器重启 `server-restarted` 失败结算、Loki 日志接入，以及 Desk/Android/公网服务器 smoke。公网响应默认不返回 AI debug，Redis 存对局连续性，Loki 存当天结构化日志，COS 存历史归档。
+- 下一步服务器主线是在已跑通的本地 Docker room + WebSocket 休整同步闭环上补完整正式流程：最终 `finalize-run` 和本地 profile/vault delta 写回、room 固定 heartbeat/断线/过期恢复、容器重启 `server-restarted` 失败结算、Loki 日志接入，以及 Desk/Android/公网服务器 smoke。公网响应默认不返回 AI debug，Redis 存对局连续性，Loki 存当天结构化日志，COS 存历史归档。
 - 训练家仓库下一步重点是性能/体验回归、组件预览覆盖、解锁箱页的 draft/profile BP 边界、灵魂伴侣战后亲密度成长，以及 debug 添加与正式 release 隐藏入口的回归验证。
 - Battle V4 下一步继续按 diagnostics 驱动修问题：动画/顺序问题先走 playback probe，非法 AI 指令先走 `debug/README.md` 的 `allRequests` 复现方法。
 - 存档级结构迁移仍按运行时标准化计划推进；Pokemon/Item/Bag/Vault/Log 等规则性 helper 优先放 `packages/changebattle-v2-core`，API 主要做编排。

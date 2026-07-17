@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 import {HashRouter, Navigate, Route, Routes, useLocation, useNavigate} from "react-router";
 import {
   createBrowserUserProfileAdapter,
@@ -70,6 +70,7 @@ import {showdownAssetPrefix} from "./lib/assetUrl";
 import {releaseGuardProfileBattlePreferenceV4} from "./lib/battlePreferenceReleaseGuard";
 import {CHANGE_BATTLE_DEBUG_FEATURES_ENABLED, CHANGE_BATTLE_RELEASE_CHANNEL} from "./lib/debugFeatures";
 import {loadFormalRoomCredential} from "./lib/formalRoomCredential";
+import {createFormalRoomSyncClient, type FormalRoomSyncClientV4} from "./lib/formalRoomSyncClient";
 
 type AppProps = {
   runtime: "web" | "desktop" | "mobile";
@@ -151,6 +152,8 @@ function RoutedApp({runtime}: AppProps) {
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
   const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
   const [formalRunLoaded, setFormalRunLoaded] = useState(false);
+  const formalRoomSyncClientRef = useRef<FormalRoomSyncClientV4 | null>(null);
+  const confirmedFormalRunRef = useRef<FormalGameRunV4 | null>(null);
   const formalTransitionProfile = useMemo(() => profile ? releaseGuardProfileBattlePreferenceV4(profile, DEBUG_FEATURE_ENABLED) : null, [profile]);
   const formalRoomCredential = useMemo(() => loadFormalRoomCredential(), [formalRun?.currentRoundIndex, formalRun?.id, location.pathname]);
   const formalRoomBattleService = useMemo(() => formalRoomCredential
@@ -166,6 +169,45 @@ function RoutedApp({runtime}: AppProps) {
   const [desktopUpdateModalDismissed, setDesktopUpdateModalDismissed] = useState(false);
   const [desktopUpdateChecking, setDesktopUpdateChecking] = useState(false);
   const [desktopManualUpdateCheckActive, setDesktopManualUpdateCheckActive] = useState(false);
+
+  useEffect(() => {
+    confirmedFormalRunRef.current = formalRun;
+  }, [formalRun?.id]);
+
+  useEffect(() => {
+    formalRoomSyncClientRef.current?.dispose();
+    formalRoomSyncClientRef.current = null;
+    if (!formalRoomCredential || !formalRun?.id) return;
+    confirmedFormalRunRef.current = formalRun;
+    const client = createFormalRoomSyncClient({
+      baseUrl: battleServiceUrl,
+      roomId: formalRoomCredential.roomId,
+      roomToken: formalRoomCredential.roomToken,
+      onConnectionState: setServerConnectionState,
+      onRoomUpdated: payload => {
+        confirmedFormalRunRef.current = payload.formalRun;
+        setFormalRun(payload.formalRun);
+      },
+      onRoomClosed: reason => {
+        setFormalRestInitialNotice(reason === "deleted" ? "房间已经关闭。" : `房间连接已关闭：${reason}`);
+      },
+      fallbackSyncDraft: input => api.syncFormalRoomDraft({
+        roomId: formalRoomCredential.roomId,
+        roomToken: formalRoomCredential.roomToken,
+        ...input,
+      }),
+      fallbackRestAction: input => api.submitFormalRoomRestAction({
+        roomId: formalRoomCredential.roomId,
+        roomToken: formalRoomCredential.roomToken,
+        ...input,
+      }),
+    });
+    formalRoomSyncClientRef.current = client;
+    return () => {
+      client.dispose();
+      if (formalRoomSyncClientRef.current === client) formalRoomSyncClientRef.current = null;
+    };
+  }, [api, battleServiceUrl, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRun?.id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -565,6 +607,10 @@ function RoutedApp({runtime}: AppProps) {
         setMedicalInsuranceError(result.message);
         return;
       }
+      if (formalRoomCredential) {
+        await syncFormalRunDraft(result.run, "医疗保险");
+        return;
+      }
       const saved = await api.saveFormalGameRun(result.run);
       setFormalRun(saved);
     } catch (caught) {
@@ -574,12 +620,63 @@ function RoutedApp({runtime}: AppProps) {
     }
   }
 
+  async function syncFormalRunDraft(nextRun: FormalGameRunV4, label: string): Promise<FormalGameRunV4> {
+    if (!formalRoomCredential) {
+      setFormalRun(nextRun);
+      return nextRun;
+    }
+    const previousConfirmed = confirmedFormalRunRef.current || formalRun || nextRun;
+    setFormalRun(nextRun);
+    try {
+      const client = formalRoomSyncClientRef.current;
+      const result = client
+        ? await client.syncDraft({formalRunDraft: nextRun, label})
+        : await api.syncFormalRoomDraft({
+          roomId: formalRoomCredential.roomId,
+          roomToken: formalRoomCredential.roomToken,
+          clientActionId: createFormalSyncClientId("draft"),
+          formalRunDraft: nextRun,
+          label,
+        }).then(response => {
+          if (!response.ok) throw new Error(response.message);
+          return response.data;
+        });
+      confirmedFormalRunRef.current = result.formalRun;
+      setFormalRun(result.formalRun);
+      return result.formalRun;
+    } catch (error) {
+      setFormalRun(previousConfirmed);
+      const message = error instanceof Error ? error.message : "服务器同步失败。";
+      setFormalRestInitialNotice(`网络异常，${label}未成功：${message}`);
+      throw error;
+    }
+  }
+
+  function syncFormalRestSnapshot(restRunSnapshot: TrainingRunGameV4, label: string): void {
+    if (!formalRun) return;
+    const nextRun = {...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()};
+    if (!formalRoomCredential) {
+      setFormalRun(nextRun);
+      return;
+    }
+    void syncFormalRunDraft(nextRun, label).catch(() => undefined);
+  }
+
   async function submitFormalRestAction(action: FormalRoomRestActionV1) {
     if (!formalRun) throw new Error("正式存档不存在。");
     if (!formalRoomCredential) throw new Error("正式房间凭证不存在。");
     const actionKey = formalRestActionStorageKey(formalRoomCredential.roomId, formalRun, action);
     const clientActionId = loadOrCreateFormalRestActionClientId(actionKey, action.type);
-    const result = await api.submitFormalRoomRestAction({
+    const client = formalRoomSyncClientRef.current;
+    const result = client ? {
+      ok: true as const,
+      data: await client.submitRestAction({
+        clientActionId,
+        formalRunDraft: formalRun,
+        action,
+        label: formalRestActionLabel(action),
+      }),
+    } : await api.submitFormalRoomRestAction({
       roomId: formalRoomCredential.roomId,
       roomToken: formalRoomCredential.roomToken,
       clientActionId,
@@ -591,6 +688,7 @@ function RoutedApp({runtime}: AppProps) {
       throw new Error(result.message);
     }
     clearFormalRestActionClientId(actionKey);
+    confirmedFormalRunRef.current = result.data.formalRun;
     setFormalRun(result.data.formalRun);
     return result.data;
   }
@@ -915,7 +1013,7 @@ function RoutedApp({runtime}: AppProps) {
         <TrainingRestNewPage
           api={api}
           run={formalRun.restRunSnapshot}
-          onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
+          onRunChange={restRunSnapshot => syncFormalRestSnapshot(restRunSnapshot, "休整操作")}
           onSaveRunSnapshot={async restRunSnapshot => {
             if (!formalRun) return restRunSnapshot;
             if (formalRoomCredential) return restRunSnapshot;
@@ -925,9 +1023,24 @@ function RoutedApp({runtime}: AppProps) {
           }}
           hideSaveAction={Boolean(formalRoomCredential)}
           onBackToConfig={() => navigate("/main", {replace: true})}
-          onAbandonRun={() => enterFormalSettlement("abandon")}
-          onProceedToSettlement={() => enterFormalSettlement("complete")}
-          onStartBattle={startFormalBattleFromRest}
+          onAbandonRun={async () => {
+            if (formalRoomCredential && formalRun) {
+              await syncFormalRunDraft(formalRun, "放弃比赛");
+            }
+            enterFormalSettlement("abandon");
+          }}
+          onProceedToSettlement={async () => {
+            if (formalRoomCredential && formalRun) {
+              await syncFormalRunDraft(formalRun, "进入结算");
+            }
+            enterFormalSettlement("complete");
+          }}
+          onStartBattle={async () => {
+            if (formalRoomCredential && formalRun) {
+              await syncFormalRunDraft(formalRun, "进入战斗");
+            }
+            startFormalBattleFromRest();
+          }}
           onOpenDex={() => openDex()}
           onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
           moneyAmount={formalRun.money}
@@ -955,7 +1068,7 @@ function RoutedApp({runtime}: AppProps) {
             onRerollStats: input => {
               if (!formalRun) throw new Error("正式存档不存在。");
               const result = api.rerollFormalRestPokemonStats(formalRun, input);
-              if (result.ok) setFormalRun(result.run);
+              if (result.ok) void syncFormalRunDraft(result.run, "重随能力").catch(() => undefined);
               return result;
             },
           }}
@@ -965,7 +1078,7 @@ function RoutedApp({runtime}: AppProps) {
             onUnlock: input => {
               if (!formalRun) throw new Error("正式存档不存在。");
               const result = api.unlockFormalRestOpponentPreview(formalRun, input);
-              if (result.ok) setFormalRun(result.run);
+              if (result.ok) void syncFormalRunDraft(result.run, "打听情报").catch(() => undefined);
               return result;
             },
           }}
@@ -1005,12 +1118,12 @@ function RoutedApp({runtime}: AppProps) {
             if (!formalRun) throw new Error("正式存档不存在。");
             const result = api.claimFormalSoulmateEgg(formalRun, playerVault, input.candidateId, input.nickname);
             if (!result.ok) return result;
+            const syncedRun = formalRoomCredential ? await syncFormalRunDraft(result.run, "灵魂蛋领取") : await api.saveFormalGameRun(result.run);
             const savedVault = await api.savePlayerVault(result.playerVault);
-            const savedRun = await api.saveFormalGameRun(result.run);
             setPlayerVault(savedVault);
             setPlayerVaultDirty(false);
-            setFormalRun(savedRun);
-            return {...result, run: savedRun, playerVault: savedVault};
+            setFormalRun(syncedRun);
+            return {...result, run: syncedRun, playerVault: savedVault};
           }}
           shopController={{
             getShop: () => api.getFormalRestShop(formalRun),
@@ -1027,11 +1140,12 @@ function RoutedApp({runtime}: AppProps) {
               setFormalRun(result.run);
               return result.message;
             },
-            onSell: itemInstanceIds => {
+            onSell: async itemInstanceIds => {
               if (!formalRun) return "正式存档不存在。";
               const result = api.sellFormalRestBagItems(formalRun, itemInstanceIds);
               if (!result.ok) throw new Error(result.message);
-              setFormalRun(result.run);
+              if (formalRoomCredential) await syncFormalRunDraft(result.run, "出售道具");
+              else setFormalRun(result.run);
               return result.message;
             },
           }}
@@ -1060,7 +1174,9 @@ function RoutedApp({runtime}: AppProps) {
             },
             onAdvance: () => {
               if (!formalRun) return;
-              setFormalRun(api.advanceFormalTrainingGroundLesson(formalRun));
+              const nextRun = api.advanceFormalTrainingGroundLesson(formalRun);
+              if (formalRoomCredential) void syncFormalRunDraft(nextRun, "训练换课").catch(() => undefined);
+              else setFormalRun(nextRun);
             },
           }}
         />
@@ -1295,7 +1411,9 @@ function ServerConnectionBadge({state}: {state: PostServiceConnectionStateV4 | n
       ? "连接失败"
       : state.state === "reconnecting"
         ? "重连中"
-        : "正在连接服务器...";
+        : state.state === "syncing"
+          ? "同步中"
+          : "正在连接服务器...";
   return (
     <div
       aria-live="polite"
@@ -1610,6 +1728,21 @@ function latestUnreadRoundSettlement(run: FormalGameRunV4, seen: Record<string, 
 function formalRestActionStorageKey(roomId: string, run: FormalGameRunV4, action: FormalRoomRestActionV1): string {
   const actionHash = stableHash(JSON.stringify(action));
   return `changebattle-v2:formal-room:${roomId}:rest-action:${run.id}:${run.currentRoundIndex}:${actionHash}`;
+}
+
+function formalRestActionLabel(action: FormalRoomRestActionV1): string {
+  if (action.type === "team.heal") return "治疗";
+  if (action.type === "pokemon.exchange") return "交换";
+  if (action.type === "shop.buy") return "购买";
+  if (action.type === "training.apply") return "学习";
+  return "休整操作";
+}
+
+function createFormalSyncClientId(prefix: string): string {
+  const random = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+  return `${prefix}-${Date.now().toString(36)}-${random}`;
 }
 
 function loadOrCreateFormalRestActionClientId(storageKey: string, actionType: string): string {

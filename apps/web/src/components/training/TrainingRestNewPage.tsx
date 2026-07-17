@@ -86,15 +86,15 @@ export type TrainingRestExchangeController = {
 export type TrainingRestNewPageProps = {
   api: ChangeBattleV2Api;
   run: TrainingRunGameV4;
-  onRunChange: (run: TrainingRunGameV4) => void;
+  onRunChange: (run: TrainingRunGameV4) => Promise<void> | void;
   onBackToConfig: () => void;
-  onStartBattle: () => void;
+  onStartBattle: () => Promise<void> | void;
   onOpenDex: () => void;
   onOpenPokemonDex: (speciesId: string) => void;
   onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
   hideSaveAction?: boolean;
-  onAbandonRun?: () => void;
-  onProceedToSettlement?: () => void;
+  onAbandonRun?: () => Promise<void> | void;
+  onProceedToSettlement?: () => Promise<void> | void;
   moneyAmount?: number;
   roundSettlement?: FormalRoundSettlementV4 | null;
   onRoundSettlementSeen?: (nodeId: string) => void;
@@ -181,8 +181,12 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       players: {...run.players, p1: nextP1},
       updatedAt: new Date().toISOString(),
     };
-    onRunChange(nextRun);
-    setMessage("队伍已调整，记得手动保存。");
+    void Promise.resolve(onRunChange(nextRun)).catch(error => {
+      const nextMessage = error instanceof Error ? error.message : "队伍调整同步失败。";
+      setMessage(nextMessage);
+      showNotice(nextMessage, "danger");
+    });
+    setMessage(hideSaveAction ? "队伍已调整，正在同步。" : "队伍已调整，记得手动保存。");
   }
 
   async function saveRunGameSnapshot() {
@@ -193,7 +197,13 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   }
 
   function updateRunGameDraft(nextRun: TrainingRunGameV4, nextMessage: string) {
-    onRunChange(nextRun);
+    if (nextRun !== run) {
+      void Promise.resolve(onRunChange(nextRun)).catch(error => {
+        const message = error instanceof Error ? error.message : "休整同步失败。";
+        setMessage(message);
+        showNotice(message, "danger");
+      });
+    }
     setMessage(nextMessage);
   }
 
@@ -253,7 +263,11 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         showNotice(result.message, "danger");
         return;
       }
-      onRunChange(result.run.restRunSnapshot || run);
+      void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+        const nextMessage = error instanceof Error ? error.message : "灵魂伴侣同步失败。";
+        setMessage(nextMessage);
+        showNotice(nextMessage, "danger");
+      });
       setSoulmateHatch({phase: "done", result});
       setMessage(result.message);
       showNotice(result.message);
@@ -283,20 +297,30 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     return mode === "doubles" ? `双打首发两只不能有濒死宝可梦：${name}。` : `首发不能是濒死宝可梦：${name}。`;
   }
 
-  function startBattleAfterValidation() {
+  async function startBattleAfterValidation() {
     const error = validateBattleLead();
     if (error) {
       setMessage(error);
       showNotice(error, "danger");
       return;
     }
-    onStartBattle();
+    try {
+      await onStartBattle();
+    } catch (caught) {
+      const nextMessage = caught instanceof Error ? caught.message : "进入战斗失败。";
+      setMessage(nextMessage);
+      showNotice(nextMessage, "danger");
+    }
   }
 
   async function unlockPreviewPokemon(target: PreviewPokemonEntry) {
     if (opponentPreviewController) {
       const result = await opponentPreviewController.onUnlock({unlockKey: target.unlockKey});
-      if (result.ok) onRunChange(result.run.restRunSnapshot || run);
+      if (result.ok) void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+        const nextMessage = error instanceof Error ? error.message : "情报同步失败。";
+        setMessage(nextMessage);
+        showNotice(nextMessage, "danger");
+      });
       setUnlockTarget(null);
       setMessage(result.message);
       showNotice(result.message, result.ok ? "normal" : "danger");
@@ -329,7 +353,11 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     try {
       const result = await exchangeController.onExchange(exchangeSelection);
       if (result.ok) {
-        onRunChange(result.run.restRunSnapshot || run);
+        void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+          const nextMessage = error instanceof Error ? error.message : "交换同步失败。";
+          setMessage(nextMessage);
+          showNotice(nextMessage, "danger");
+        });
         setExchangeSelection({sourcePokemonId: "", targetPokemonId: ""});
         setExchangeView(result.view);
       }
@@ -356,7 +384,11 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     try {
       setMessage("正在治疗...");
       const result = await healController.onHeal();
-      if (result.ok) onRunChange(result.run.restRunSnapshot || run);
+      if (result.ok) void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+        const nextMessage = error instanceof Error ? error.message : "治疗同步失败。";
+        setMessage(nextMessage);
+        showNotice(nextMessage, "danger");
+      });
       setMessage(result.message);
       showNotice(result.message, result.ok ? "normal" : "danger");
     } catch (error) {
@@ -401,7 +433,11 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       setRestScene("center");
       closeFloatingPanels();
       if (onProceedToSettlement) {
-        onProceedToSettlement();
+        void Promise.resolve(onProceedToSettlement()).catch(error => {
+          const nextMessage = error instanceof Error ? error.message : "进入结算失败。";
+          setMessage(nextMessage);
+          showNotice(nextMessage, "danger");
+        });
         return;
       }
       setMessage("结算入口暂不可用。");
@@ -491,7 +527,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       return;
     }
     if (action === "结束休整") {
-      startBattleAfterValidation();
+      void startBattleAfterValidation();
       return;
     }
     if (action === "放弃比赛") setAbandonOpen(true);
@@ -654,7 +690,14 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           danger
           ariaLabel="确认放弃比赛"
           onCancel={() => setAbandonOpen(false)}
-          onConfirm={onAbandonRun || onBackToConfig}
+          onConfirm={() => {
+            const action = onAbandonRun || onBackToConfig;
+            void Promise.resolve(action()).catch(error => {
+              const nextMessage = error instanceof Error ? error.message : "放弃比赛失败。";
+              setMessage(nextMessage);
+              showNotice(nextMessage, "danger");
+            });
+          }}
         />
       ) : null}
       {unlockTarget ? (

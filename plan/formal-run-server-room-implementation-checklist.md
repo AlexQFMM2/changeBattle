@@ -24,10 +24,12 @@
 - [x] `apps/api` 已成为 room 主服务入口，legacy battle-only server 保留在 battle-core。
 - [x] Web 正式流程已完成 room 前半段：开始游戏、服务端生成 starter、选择 starter、服务端生成 round plan、进入休整。
 - [x] Web 正式战斗闭环已完成本地 smoke：休整页 `prepare-battle`、room-aware BattleV4 snapshot/timeline/choice、`finalize-battle`、进入 settlement。
+- [x] WebSocket room 长连接已完成本地 smoke：`/rooms/:roomId/ws` 首包 auth、`room.ready`、`room.updated`、`rest.syncDraft`、`rest.action`、`sync.ack/sync.failed`。
+- [x] 休整页 RunGame 更新已改成“本地先改 -> 异步同步 -> ACK 静默 -> 失败回滚/提示”；保存按钮在正式 room 模式隐藏。
 - [x] `postService.ts` 已接入 room action registry，并统一标准错误、token header、timeout 和连接状态。
-- [x] 全局连接 badge 已接入最小版，RTT 只采样轻量请求，避免把队伍生成/赛程计算耗时显示成网络延迟；位置移到左下角，避免遮挡战斗右上状态。
+- [x] 全局连接 badge 已接入 WebSocket 优先状态：在线、同步中、重连中、连接失败；业务失败不再误报为网络失败。
 - [x] 前端已补恢复保护：正式中转页不再依赖 rAF-only 调度，刷新/热更新时不会在 formalRun 读完前跳回主菜单，战斗页轮询不会被 run patch 反复打断。
-- [ ] 尚未完成：金币交易类 `rest-action`、最终 `finalize-run`、room heartbeat 过期策略、容器重启 `server-restarted` 自动标记、Loki、Android/Desk 全链路手测。
+- [ ] 尚未完成：最终 `finalize-run` / `final-result` / 本地 profile-vault delta 写回、room 过期清理与容器重启 `server-restarted` 自动标记、Loki、Desk/Android/公网服务器 smoke，以及故障/容量测试。
 
 ## 0. 本地 Docker 模拟环境
 
@@ -77,25 +79,27 @@
 - [x] `postService.ts` 统一返回标准结果：`ok/data` 或 `ok:false/error/retryable/backend/statusCode`，页面不直接解析原始 fetch exception。
 - [x] `postService.ts` 与全局 connection monitor 联动，更新 pending 状态、RTT、最近成功请求时间和连续失败次数。
 - [x] room endpoints、battle choice、finalize、后续 `getRandomTeam` 等服务器函数都必须先接入 registry，再给业务页面调用。
-- [ ] 新增 room store 抽象，隐藏 Redis 读写、TTL、JSON size limit、token hash 校验。
-- [ ] `roomId` 使用 16-24 bytes random base64url；`roomToken` 使用 32 bytes random base64url。
-- [ ] Redis 只保存 `sha256(roomToken)`，日志和普通响应不输出明文 token。
-- [ ] `roomToken` 使用 `Authorization: Bearer <roomToken>` 或专用 header 传递，不放 query string。
-- [ ] 定义 room 状态结构：`formalRun`、`revision`、`status`、`connectionState`、`battleSessionId`、`closeReason`、时间戳、幂等映射、最近结果摘要、`settlementId`。
-- [ ] 明确 `status` 只表示正式流程阶段；房间是否可继续由 `connectionState` 和 `closeReason` 判断。
-- [ ] 所有推进型 room mutation 使用 per-room lock 或 Redis CAS/Lua 原子更新。
+- [ ] 新增独立 room store 抽象，隐藏 Redis 读写、TTL、JSON size limit、token hash 校验；当前逻辑仍在 API server 内部。
+- [x] `roomId` 使用 18 bytes random base64url；`roomToken` 使用 32 bytes random base64url。
+- [x] Redis 只保存 `sha256(roomToken)`，日志和普通响应不输出明文 token。
+- [x] HTTP `roomToken` 使用 `Authorization: Bearer <roomToken>` 或专用 header 传递；WebSocket token 通过首条 auth 消息传递，不放 URL query string。
+- [x] 定义 room 状态结构：`formalRun`、`revision`、`status`、`connectionState`、`activeBattle`、`closeReason`、时间戳、幂等映射。
+- [x] 明确 `status` 只表示正式流程阶段；房间是否可继续由 `connectionState` 和 `closeReason` 判断。
+- [x] 当前所有推进型 room mutation 使用进程内 per-room lock；Redis CAS/Lua 原子化留作后续增强。
 - [x] 新增 `POST /rooms`：创建正式流程 room，返回 `roomId / roomToken / formalRun`。
 - [x] 新增 `GET /rooms/:roomId`：恢复 room，返回服务器权威 `formalRun` 和可选 battle summary/snapshot。
 - [x] 新增 `POST /rooms/:roomId/formal/select-starters`。
 - [x] 新增 `POST /rooms/:roomId/formal/prepare-round`。
-- [ ] 新增 `POST /rooms/:roomId/formal/rest-action`，用于金币交易类休整操作即时 checkpoint。
+- [x] 新增 `POST /rooms/:roomId/formal/rest-action`，用于治疗、交换、购买、训练学习等强校验休整操作即时 checkpoint。
+- [x] 新增 `POST /rooms/:roomId/formal/sync-rest-draft`，作为 WebSocket 断线时的休整 draft HTTP fallback。
+- [x] 新增 `GET /rooms/:roomId/ws`，用于 room 级 WebSocket 长连接、认证、ACK、广播和错误通知。
 - [x] 新增 `POST /rooms/:roomId/formal/prepare-battle`，支持 `clientRequestId` 和 `baseRevision`。
 - [x] 新增 `POST /rooms/:roomId/battle/choices`，支持 `clientActionId / expectedTurn / expectedRqid`。
 - [x] 新增 `POST /rooms/:roomId/formal/finalize-battle`。
 - [ ] 新增 `POST /rooms/:roomId/formal/finalize-run`。
 - [ ] 新增 `GET /rooms/:roomId/final-result`，只允许 ended room 短期读取。
-- [ ] 新增 `POST /rooms/:roomId/heartbeat`。
-- [ ] 新增 `DELETE /rooms/:roomId`，用于主动放弃并关闭 room。
+- [x] 新增 `POST /rooms/:roomId/heartbeat`。
+- [x] 新增 `DELETE /rooms/:roomId`，用于主动关闭 room。
 - [x] 给 heavy job 增加并发限制：队伍生成、AI 选择、正式流程大计算不能无限并发打满 2C/2G。
 - [ ] 给 AI/队伍生成设置单次 timeout：AI 超时返回 best-so-far 或合法 fallback，队伍生成超时返回可展示错误。
 - [ ] 普通响应默认不返回 AI debug 大对象；debug 只进服务端日志。
@@ -129,11 +133,13 @@
 
 ## 4. Checkpoint 和交互计算：中转页
 
-- [ ] 正式 server room 模式移除手动保存按钮。
+- [x] 正式 server room 模式移除手动保存按钮。
 - [x] 休整页继续保留本地 draft，保证非金币类预览、技能调整草稿、交换预览等交互流畅。
-- [ ] 买卖、治疗、课程付费、训练消耗等金币交易类操作调用 `rest-action` 即时更新 room checkpoint。
-- [ ] 金币交易类操作复用 pending 弹窗：正在付款、正在治疗、正在学习；服务器 ACK 后才更新本地 cache，失败则回滚或保持原状态。
-- [ ] 已经通过 `rest-action` 生效的操作要从未提交 draft 中移除或标记 committed，避免 `prepare-battle` 重复提交。
+- [x] 治疗、交换、购买、训练学习调用 `rest-action` 强校验即时更新 room checkpoint。
+- [x] 其余 RunGame 更新调用 `sync-rest-draft`：队伍排序/首发、背包携带/卸下/丢弃/使用/TM/系统道具重铸、出售、打听、重随、医疗保险、训练换课、灵魂蛋领取、进入战斗/结算/放弃前 checkpoint。
+- [x] 休整同步改成“本地先改、异步同步、ACK 静默、失败回滚到最近确认 checkpoint 并提示 `网络异常，xx操作未成功`”。
+- [x] 业务失败保留当前页面并展示业务错误，不污染全局连接状态。
+- [ ] 后续仍可把休整操作进一步 command 化，减少完整 `formalRunDraft` 信任面。
 - [x] 第一版先不做完整反作弊；服务端只做结构/边界校验，后续再把休整操作完全 command 化。
 - [x] 未进入关键 checkpoint 前，刷新/重连丢弃未提交的非金币 draft，恢复服务器 checkpoint。
 - [x] 进入战斗按钮改成进入中转页，由中转页提交当前 rest draft 到 `prepare-battle`。
@@ -150,16 +156,17 @@
 - [x] 多次点击进入战斗不会创建多个 battle session。
 - [x] `prepare-battle` 响应丢失后，重试同 `clientRequestId` 返回同一个 session。
 - [x] 旧休整页 draft 不能覆盖战斗后的服务器 checkpoint。
-- [ ] 金币交易类操作响应丢失后，重拉 room 能看到服务器 checkpoint 或明确失败状态。
+- [x] `rest-action` / `sync-rest-draft` 响应丢失后，可通过 room WebSocket/HTTP fallback 重拉当前 checkpoint；相同 `clientActionId` 不重复提交。
 
 ## 5. 网络连接和网络状态全局组件
 
-- [x] 新增最小全局 room connection monitor，维护请求 RTT、最近成功请求时间、连续失败次数、在线/重连/失败状态。
-- [ ] 正式 room 流程活跃时每 60 秒 heartbeat；任意成功 room 请求也视为 heartbeat。
+- [x] 新增全局 room connection monitor，维护请求 RTT、最近成功请求时间、连续失败次数、在线/同步中/重连/失败状态。
+- [x] 正式 room 进入后建立 WebSocket 长连接；任意成功 room mutation 也刷新 `lastHeartbeatAt`。
+- [ ] 正式 room 流程活跃时补固定 60 秒 heartbeat 定时器。
 - [ ] 心跳不做后台强保活；用户长时间不操作、页面挂起或 App 被系统杀掉，room 超时按断线/放弃处理。
 - [ ] 5 分钟无有效心跳或请求时，客户端进入 reconnecting；服务器标记 disconnected。
 - [ ] 10 分钟无响应后，服务器关闭 room；客户端显示 room 已过期/关闭。
-- [ ] 新增通用连接遮罩/弹窗，覆盖 `connecting`、`reconnecting`、`submitting`、`recovering`、`failed`。
+- [ ] 新增通用连接遮罩/弹窗，覆盖 `connecting`、`reconnecting`、`submitting`、`recovering`、`failed`；当前已有左下角状态徽标。
 - [x] 开始游戏、恢复 room、进入战斗、提交指令、战斗结算、最终结算都复用同一个连接状态来源。
 - [x] 新增最小全局延迟信号组件，不绑定 BattleV4Page。
 - [x] 延迟信号第一版显示连接状态和 RTT；只采样轻量请求，避免把重计算耗时当成网络延迟。
@@ -168,7 +175,7 @@
 
 验收：
 
-- [ ] Battle API 暂时不可达时显示全局重连弹窗，不静默跳页。
+- [ ] Battle API 暂时不可达时显示全局重连弹窗，不静默跳页；当前会显示状态徽标和操作错误。
 - [x] 网络恢复后能自动拉取 room/snapshot 并恢复页面。
 - [x] 延迟信号在正式流程全页面保持一致。
 
@@ -238,7 +245,11 @@
 - [ ] 幂等单测：prepare battle、submit choice、finalize battle、finalize run。
 - [ ] CAS/lock 单测：同 room 并发推进只有一个成功。
 - [ ] Revision 单测：旧 `baseRevision` 不能覆盖新 checkpoint。
-- [ ] Rest-action 单测：金币交易类休整操作即时更新 checkpoint，非金币 draft 不自动写入。
+- [ ] Rest-action 单测：治疗、交换、购买、训练学习即时更新 checkpoint，重复 `clientActionId` 不重复扣钱或重复改状态。
+- [ ] Draft sync 单测：队伍、背包、出售、打听、重随、医保、训练换课、灵魂蛋等 RunGame 更新可写入 checkpoint，旧 revision 被拒绝。
+- [x] WebSocket smoke：auth -> `room.ready` -> `rest.syncDraft` -> `sync.ack`，revision 正常递增。
+- [x] WebSocket rest-action smoke：auth -> `rest.action shop.buy` -> `sync.ack`，购买成功且 revision 正常递增。
+- [x] Web UI smoke：开始正式 singles -> starter -> round -> 休整页，连接显示在线；治疗金币不足显示业务错误且不误报连接失败。
 - [ ] Rest-action UI 测试：pending -> ACK 更新本地 cache，失败回滚；committed 操作不被 prepare-battle 重复提交。
 - [ ] 网络恢复测试：创建战斗响应丢失、提交指令响应丢失、App/Desk 重启恢复。
 - [ ] 心跳测试：5 分钟 disconnected，10 分钟 closed，ended 30 分钟 final-result。
