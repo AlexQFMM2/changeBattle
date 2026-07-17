@@ -111,6 +111,37 @@
   pointer-events: auto;
 }
 
+.training-rest-new-busy-layer {
+  z-index: 82;
+  display: grid;
+  place-items: center;
+  background: rgb(16 12 10 / 38%);
+}
+
+.training-rest-new-busy-dialog {
+  width: 186px;
+  display: grid;
+  gap: 7px;
+  border: 2px solid #9f7652;
+  border-radius: 6px;
+  background: rgb(32 24 18 / 94%);
+  padding: 14px 12px;
+  color: #f4ead6;
+  text-align: center;
+  box-shadow: 0 4px 0 rgb(0 0 0 / 42%);
+}
+
+.training-rest-new-busy-dialog strong {
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.training-rest-new-busy-dialog span {
+  color: #d8c8aa;
+  font-size: 9px;
+  font-weight: 850;
+}
+
 .training-rest-new-center-scene {
   position: relative;
   width: 640px;

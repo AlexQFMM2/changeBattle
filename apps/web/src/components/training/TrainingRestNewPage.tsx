@@ -62,6 +62,7 @@ export type TrainingRestTrainingGroundController = {
 export type TrainingRestHealController = {
   money: number;
   cost?: number;
+  serverCommitted?: boolean;
   onHeal: () => Promise<FormalRestTeamHealResultV4> | FormalRestTeamHealResultV4;
 };
 
@@ -80,6 +81,7 @@ export type TrainingRestOpponentPreviewController = {
 export type TrainingRestExchangeController = {
   view?: FormalPokemonExchangeViewV4 | null;
   getView?: () => FormalPokemonExchangeViewV4 | null;
+  serverCommitted?: boolean;
   onExchange: (input: {sourcePokemonId: string; targetPokemonId: string}) => Promise<FormalPokemonExchangeResultV4> | FormalPokemonExchangeResultV4;
 };
 
@@ -132,6 +134,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const [exchangeView, setExchangeView] = useState<FormalPokemonExchangeViewV4 | null>(exchangeController?.view || null);
   const [exchangeSelection, setExchangeSelection] = useState({sourcePokemonId: "", targetPokemonId: ""});
   const [exchangeBusy, setExchangeBusy] = useState(false);
+  const [restBusyMessage, setRestBusyMessage] = useState<string | null>(null);
   const [abandonOpen, setAbandonOpen] = useState(false);
   const [healConfirmOpen, setHealConfirmOpen] = useState(false);
   const [lessonEndOpen, setLessonEndOpen] = useState(false);
@@ -353,7 +356,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     try {
       const result = await exchangeController.onExchange(exchangeSelection);
       if (result.ok) {
-        void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+        const commit = exchangeController.serverCommitted ? Promise.resolve() : Promise.resolve(onRunChange(result.run.restRunSnapshot || run));
+        void commit.catch(error => {
           const nextMessage = error instanceof Error ? error.message : "交换同步失败。";
           setMessage(nextMessage);
           showNotice(nextMessage, "danger");
@@ -382,19 +386,24 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       return;
     }
     try {
+      setRestBusyMessage("正在治疗中");
       setMessage("正在治疗...");
       const result = await healController.onHeal();
-      if (result.ok) void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
-        const nextMessage = error instanceof Error ? error.message : "治疗同步失败。";
-        setMessage(nextMessage);
-        showNotice(nextMessage, "danger");
-      });
+      if (result.ok && !healController.serverCommitted) {
+        void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+          const nextMessage = error instanceof Error ? error.message : "治疗同步失败。";
+          setMessage(nextMessage);
+          showNotice(nextMessage, "danger");
+        });
+      }
       setMessage(result.message);
       showNotice(result.message, result.ok ? "normal" : "danger");
     } catch (error) {
       const nextMessage = error instanceof Error ? error.message : "治疗失败。";
       setMessage(nextMessage);
       showNotice(nextMessage, "danger");
+    } finally {
+      setRestBusyMessage(null);
     }
   }
 
@@ -681,6 +690,14 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           durationMs={1800}
           onDone={() => setToast(current => current?.id === toast.id ? null : current)}
         />
+      ) : null}
+      {restBusyMessage ? (
+        <div className="training-rest-new-modal-layer training-rest-new-busy-layer" role="presentation">
+          <div className="training-rest-new-busy-dialog" role="status" aria-live="polite">
+            <strong>{restBusyMessage}</strong>
+            <span>请稍候...</span>
+          </div>
+        </div>
       ) : null}
       {abandonOpen ? (
         <TrainingRestConfirmDialog

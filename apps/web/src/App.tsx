@@ -1154,6 +1154,7 @@ function RoutedApp({runtime}: AppProps) {
           healController={{
             money: formalRun.money,
             cost: Math.max(1, Math.floor(250 * (api.formalMedicalInsuranceEffectsForRun(formalRun).recoveryShopPriceMultiplier || 1))),
+            serverCommitted: Boolean(formalRoomCredential),
             onHeal: async () => {
               if (!formalRun) throw new Error("正式存档不存在。");
               if (formalRoomCredential) {
@@ -1189,6 +1190,7 @@ function RoutedApp({runtime}: AppProps) {
           }}
           exchangeController={{
             getView: () => api.getFormalRestExchangeView(formalRun),
+            serverCommitted: Boolean(formalRoomCredential),
             onExchange: async input => {
               if (!formalRun) throw new Error("正式存档不存在。");
               if (formalRoomCredential) {

@@ -29,9 +29,11 @@ export type FormalRoomSyncClientConfigV4 = {
 type PendingMutation = {
   resolve: (value: any) => void;
   reject: (error: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
 };
 
 const WS_CONNECT_TIMEOUT_MS = 3500;
+const WS_MUTATION_TIMEOUT_MS = 12000;
 
 export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4): FormalRoomSyncClientV4 {
   let socket: WebSocket | null = null;
@@ -156,6 +158,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
       const entry = pending.get(clientActionId);
       if (!entry) return;
       pending.delete(clientActionId);
+      clearTimeout(entry.timer);
       if (message.data?.room?.revision !== undefined) revision = Number(message.data.room.revision);
       setState({
         state: "online",
@@ -170,6 +173,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
       const entry = pending.get(clientActionId);
       if (!entry) return;
       pending.delete(clientActionId);
+      clearTimeout(entry.timer);
       setState(message.retryable
         ? {state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1}
         : {state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
@@ -188,9 +192,20 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
         reject(new Error("WebSocket 未连接。"));
         return;
       }
-      pending.set(clientActionId, {resolve, reject});
+      const timer = setTimeout(() => {
+        pending.delete(clientActionId);
+        setState({state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
+        reject(new Error("WebSocket 同步超时。"));
+      }, WS_MUTATION_TIMEOUT_MS);
+      pending.set(clientActionId, {resolve, reject, timer});
       setState({state: "syncing"});
-      socket.send(JSON.stringify(message));
+      try {
+        socket.send(JSON.stringify(message));
+      } catch (error) {
+        pending.delete(clientActionId);
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error("WebSocket 发送失败。"));
+      }
     });
   }
 
@@ -243,6 +258,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
         const fallback = await config.fallbackSyncDraft({clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, label: input.label});
         if (!fallback.ok) throw new Error(fallback.message);
         revision = Number(fallback.data.room.revision);
+        setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
         return fallback.data;
       }
     });
@@ -265,13 +281,17 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
         const fallback = await config.fallbackRestAction({clientActionId: input.clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, action: input.action});
         if (!fallback.ok) throw new Error(fallback.message);
         revision = Number(fallback.data.room.revision);
+        setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
         return fallback.data;
       }
     });
   }
 
   function rejectPending(error: Error): void {
-    for (const entry of pending.values()) entry.reject(error);
+    for (const entry of pending.values()) {
+      clearTimeout(entry.timer);
+      entry.reject(error);
+    }
     pending.clear();
   }
 
