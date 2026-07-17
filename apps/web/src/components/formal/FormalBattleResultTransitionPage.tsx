@@ -20,11 +20,18 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
   const [transitionReady, setTransitionReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!transitionReady || startedRef.current) return;
     startedRef.current = true;
-    let cancelled = false;
     void (async () => {
       const credential = loadFormalRoomCredential();
       if (credential) {
@@ -43,7 +50,7 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
         }
         if (finalized.data.settlementNotice) onSoulmateSettlementNotice?.(finalized.data.settlementNotice);
         const savedRun = await api.saveFormalGameRun(finalized.data.formalRun);
-        if (cancelled) return;
+        if (!mountedRef.current) return;
         if (finalized.data.destination === "settlement") {
           onSettlementReady(savedRun, finalized.data.reason || reason || "loss");
           return;
@@ -54,14 +61,14 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
       if (!sessionId) {
         if (reason === "surrender" || reason === "loss") {
           const saved = await api.saveFormalGameRun(run);
-          if (!cancelled) onSettlementReady(saved, reason);
+          if (mountedRef.current) onSettlementReady(saved, reason);
           return;
         }
         const settled = formalGameBridge
           ? await formalGameBridge.settleFormalBattleRound(run)
           : await api.settleFormalBattleRoundV4(run);
         const saved = await api.saveFormalGameRun(settled);
-        if (cancelled) return;
+        if (!mountedRef.current) return;
         routeFormalBattleResult(saved, onRestReady, onSettlementReady);
         return;
       }
@@ -82,19 +89,16 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
       const settlementNotice = [soulmateNotice, honorNotice].filter(Boolean).join("；");
       if (settlementNotice) onSoulmateSettlementNotice?.(settlementNotice);
       const saved = await api.saveFormalGameRun(honorSettlement.run);
-      if (cancelled) return;
+      if (!mountedRef.current) return;
       if (result.destination === "settlement") {
         onSettlementReady(saved, result.reason || "loss");
         return;
       }
       onRestReady(saved);
     })().catch(caught => {
-      if (!cancelled) setError(caught instanceof Error ? caught.message : "正式战斗结算失败。");
+      if (mountedRef.current) setError(caught instanceof Error ? caught.message : "正式战斗结算失败。");
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, formalGameBridge, onPlayerVaultChange, onRestReady, onSavePlayerVault, onSettlementReady, onSoulmateSettlementNotice, playerVault, reason, run, sessionId, transitionReady]);
+  }, [transitionReady]);
 
   return (
     <section className="formal-game-transition-wrap">

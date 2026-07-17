@@ -160,7 +160,15 @@ function RoutedApp({runtime}: AppProps) {
     ? api.createFormalRoomBattleServiceClient({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken})
     : undefined, [api, formalRoomCredential?.roomId, formalRoomCredential?.roomToken]);
   const [manualSaveState, setManualSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [battleSessionId, setBattleSessionId] = useState("");
+  const formalBattleSessionStorageKey = `changebattle-v2:${runtime}:formal-battle-session`;
+  const [battleSessionId, setBattleSessionId] = useState(() => {
+    try {
+      return window.sessionStorage?.getItem(formalBattleSessionStorageKey) || "";
+    } catch {
+      return "";
+    }
+  });
+  const [formalBattleSessionRestoring, setFormalBattleSessionRestoring] = useState(false);
   const [seenRoundSettlementNodeIds, setSeenRoundSettlementNodeIds] = useState<Record<string, true>>({});
   const [formalRestInitialNotice, setFormalRestInitialNotice] = useState<string | null>(null);
   const [medicalInsuranceBusy, setMedicalInsuranceBusy] = useState(false);
@@ -208,6 +216,53 @@ function RoutedApp({runtime}: AppProps) {
       if (formalRoomSyncClientRef.current === client) formalRoomSyncClientRef.current = null;
     };
   }, [api, battleServiceUrl, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRun?.id]);
+
+  useEffect(() => {
+    if (!formalRun?.settled) return;
+    clearFormalRoomCredential();
+    try {
+      window.sessionStorage?.removeItem(formalBattleSessionStorageKey);
+    } catch {
+      // Best-effort cleanup only.
+    }
+    setBattleSessionId("");
+  }, [formalBattleSessionStorageKey, formalRun?.settled]);
+
+  useEffect(() => {
+    if (location.pathname !== "/formal/battle" || !formalRoomCredential || !formalRun?.restRunSnapshot) return;
+    const cachedSessionId = battleSessionId || safeSessionStorageGet(formalBattleSessionStorageKey);
+    if (cachedSessionId) return;
+    let cancelled = false;
+    setFormalBattleSessionRestoring(true);
+    api.getFormalRoom({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken})
+      .then(result => {
+        if (cancelled) return;
+        if (!result.ok) {
+          setFormalRestInitialNotice(`战斗房间恢复失败：${result.message}`);
+          return;
+        }
+        setFormalRun(result.data.formalRun);
+        const sessionId = result.data.activeBattle?.sessionId || "";
+        if (sessionId) {
+          setBattleSessionId(sessionId);
+          safeSessionStorageSet(formalBattleSessionStorageKey, sessionId);
+        } else if (result.data.status === "ended" || result.data.formalRun.settled) {
+          clearFormalRoomCredential();
+        } else {
+          setFormalRestInitialNotice("当前房间没有可恢复的战斗会话，请返回休整页重新进入。");
+        }
+      })
+      .catch(error => {
+        if (cancelled) return;
+        setFormalRestInitialNotice(error instanceof Error ? `战斗房间恢复失败：${error.message}` : "战斗房间恢复失败。");
+      })
+      .finally(() => {
+        if (!cancelled) setFormalBattleSessionRestoring(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, battleSessionId, formalBattleSessionStorageKey, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRun?.id, formalRun?.restRunSnapshot, location.pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -587,11 +642,17 @@ function RoutedApp({runtime}: AppProps) {
 
   function enterFormalBattle(sessionId: string) {
     setBattleSessionId(sessionId);
-    window.sessionStorage?.setItem(`changebattle-v2:${runtime}:formal-battle-session`, sessionId);
+    safeSessionStorageSet(formalBattleSessionStorageKey, sessionId);
     navigate("/formal/battle", {replace: true});
   }
 
   function enterFormalSettlement(reason: FormalSettlementReasonV4) {
+    setBattleSessionId("");
+    try {
+      window.sessionStorage?.removeItem(formalBattleSessionStorageKey);
+    } catch {
+      // Best-effort cleanup only.
+    }
     navigate(`/formal/settlement-transition?reason=${reason}`, {replace: true});
   }
 
@@ -747,6 +808,7 @@ function RoutedApp({runtime}: AppProps) {
     />
   );
 
+  const missingProfileFormalPage = loading ? <FormalRouteLoadingPage /> : <Navigate to="/" replace />;
   const continueGameLabel = continueGameLabelFor(formalRun, trainingRun);
   const mainPage = profile ? (
     <>
@@ -949,7 +1011,7 @@ function RoutedApp({runtime}: AppProps) {
         navigate("/formal/starter-select", {replace: true});
       }}
     />
-  ) : <Navigate to="/" replace />;
+  ) : missingProfileFormalPage;
 
   const formalStarterSelectPage = profile ? (
     formalRun && formalRun.starterCandidates.length ? (
@@ -965,7 +1027,7 @@ function RoutedApp({runtime}: AppProps) {
     ) : (
       <Navigate to="/main" replace />
     )
-  ) : <Navigate to="/" replace />;
+  ) : missingProfileFormalPage;
 
   const formalPendingPage = profile ? (
     formalRun ? (
@@ -975,7 +1037,7 @@ function RoutedApp({runtime}: AppProps) {
     ) : (
       <Navigate to="/main" replace />
     )
-  ) : <Navigate to="/" replace />;
+  ) : missingProfileFormalPage;
 
   const formalRoundTransitionPage = profile ? (
     formalRun?.playerTeam ? (
@@ -997,7 +1059,7 @@ function RoutedApp({runtime}: AppProps) {
     ) : (
       <Navigate to="/main" replace />
     )
-  ) : <Navigate to="/" replace />;
+  ) : missingProfileFormalPage;
 
   const medicalInsuranceOffer = formalRun?.restRunSnapshot ? api.getFormalMedicalInsuranceOffer(formalRun) : null;
   const shouldShowMedicalInsurance = Boolean(
@@ -1195,7 +1257,7 @@ function RoutedApp({runtime}: AppProps) {
     ) : (
       <Navigate to="/main" replace />
     )
-  ) : <Navigate to="/" replace />;
+  ) : missingProfileFormalPage;
 
   const formalBattleTransitionPage = profile ? (
     formalRun?.restRunSnapshot ? (
@@ -1212,14 +1274,17 @@ function RoutedApp({runtime}: AppProps) {
     ) : (
       <Navigate to="/main" replace />
     )
-  ) : <Navigate to="/" replace />;
+  ) : missingProfileFormalPage;
 
+  const formalBattleSessionId = battleSessionId || safeSessionStorageGet(formalBattleSessionStorageKey);
   const formalBattlePage = profile ? (
-    formalRun?.restRunSnapshot ? (
+    formalRun?.restRunSnapshot ? formalRoomCredential && !formalBattleSessionId && formalBattleSessionRestoring ? (
+      <FormalRouteLoadingPage />
+    ) : (
       <BattleV4Page
         api={api}
         run={formalRun.restRunSnapshot}
-        sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || ""}
+        sessionId={formalBattleSessionId}
         debugConfig={APP_DEBUG_CONFIG_V4}
         diagnosticsContext={{formalRun, playerVault}}
         battleServiceOverride={formalRoomBattleService}
@@ -1228,12 +1293,11 @@ function RoutedApp({runtime}: AppProps) {
         onRunChange={restRunSnapshot => setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current)}
         onAfterSubmitSnapshot={async snapshot => {
           if (formalRoomCredential) return snapshot;
-          if (!formalRun || !battleSessionId && !window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`)) return snapshot;
-          const activeSessionId = battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || "";
+          if (!formalRun || !formalBattleSessionId) return snapshot;
           const result = await api.tryApplyFormalSoulmateBattleEvolution({
             run: formalRun,
             playerVault,
-            sessionId: activeSessionId,
+            sessionId: formalBattleSessionId,
             snapshot,
             chanceOverride: DEBUG_FEATURE_ENABLED ? 1 : undefined,
             friendshipOverride: DEBUG_FEATURE_ENABLED ? 255 : undefined,
@@ -1250,7 +1314,10 @@ function RoutedApp({runtime}: AppProps) {
           navigate("/formal/battle-result-transition", {replace: true});
         }}
         onBattleComplete={result => {
-          if (result.sessionId) setBattleSessionId(result.sessionId);
+          if (result.sessionId) {
+            setBattleSessionId(result.sessionId);
+            safeSessionStorageSet(formalBattleSessionStorageKey, result.sessionId);
+          }
           const suffix = result.reason === "surrender" ? "?reason=surrender" : "";
           navigate(`/formal/battle-result-transition${suffix}`, {replace: true});
         }}
@@ -1260,7 +1327,7 @@ function RoutedApp({runtime}: AppProps) {
     ) : (
       <Navigate to="/main" replace />
     )
-  ) : <Navigate to="/" replace />;
+  ) : missingProfileFormalPage;
 
   const formalBattleResultTransitionPage = profile ? (
     formalRun?.restRunSnapshot ? (
@@ -1269,7 +1336,7 @@ function RoutedApp({runtime}: AppProps) {
         formalGameBridge={formalGameBattleResultBridge}
         run={formalRun}
         playerVault={playerVault}
-        sessionId={battleSessionId || window.sessionStorage?.getItem(`changebattle-v2:${runtime}:formal-battle-session`) || ""}
+        sessionId={formalBattleSessionId}
         reason={parseFormalBattleResultReason(new URLSearchParams(location.search).get("reason"))}
         onSavePlayerVault={api.savePlayerVault}
         onPlayerVaultChange={nextPlayerVault => {
@@ -1291,7 +1358,7 @@ function RoutedApp({runtime}: AppProps) {
     ) : (
       <Navigate to="/main" replace />
     )
-  ) : <Navigate to="/" replace />;
+  ) : missingProfileFormalPage;
 
   const settlementReason = parseSettlementReason(new URLSearchParams(location.search).get("reason"));
   const formalSettlementTransitionPage = profile ? (
@@ -1308,6 +1375,12 @@ function RoutedApp({runtime}: AppProps) {
         onSavePlayerVault={api.savePlayerVault}
         onSettled={(run, nextProfile, nextPlayerVault) => {
           clearFormalRoomCredential();
+          setBattleSessionId("");
+          try {
+            window.sessionStorage?.removeItem(formalBattleSessionStorageKey);
+          } catch {
+            // Best-effort cleanup only.
+          }
           setFormalRun(run);
           setProfile(nextProfile);
           setPlayerVault(nextPlayerVault);
@@ -1320,7 +1393,7 @@ function RoutedApp({runtime}: AppProps) {
     ) : (
       <Navigate to="/main" replace />
     )
-  ) : <Navigate to="/" replace />;
+  ) : missingProfileFormalPage;
 
   const formalSettlementPage = profile ? (
     formalRun?.settlement ? (
@@ -1334,7 +1407,7 @@ function RoutedApp({runtime}: AppProps) {
     ) : (
       <Navigate to="/main" replace />
     )
-  ) : <Navigate to="/" replace />;
+  ) : missingProfileFormalPage;
 
   const bgmScene = bgmSceneForRoute(location.pathname, formalRun);
   const versionBadgeLabel = desktopVersionBadgeLabel();
@@ -1512,6 +1585,22 @@ function parseSettlementReason(value: unknown): FormalSettlementReasonV4 {
 
 function parseFormalBattleResultReason(value: unknown): FormalBattleResultFinalizeReasonV4 | undefined {
   return value === "surrender" || value === "loss" || value === "complete" ? value : undefined;
+}
+
+function safeSessionStorageGet(key: string): string {
+  try {
+    return window.sessionStorage?.getItem(key) || "";
+  } catch {
+    return "";
+  }
+}
+
+function safeSessionStorageSet(key: string, value: string): void {
+  try {
+    window.sessionStorage?.setItem(key, value);
+  } catch {
+    // Best-effort cache only.
+  }
 }
 
 function isFormalRestRunComplete(run: TrainingRunGameV4 | null | undefined): boolean {

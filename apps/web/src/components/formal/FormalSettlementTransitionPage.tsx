@@ -18,18 +18,25 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!ready || startedRef.current) return;
     startedRef.current = true;
-    let cancelled = false;
     const timer = window.setTimeout(() => {
       void settleFormalRun()
         .then(result => {
-          if (!cancelled) onSettled(result.run, result.profile, result.playerVault);
+          if (mountedRef.current) onSettled(result.run, result.profile, result.playerVault);
         })
         .catch(caught => {
-          if (!cancelled) setError(caught instanceof Error ? caught.message : "正式结算失败。");
+          if (mountedRef.current) setError(caught instanceof Error ? caught.message : "正式结算失败。");
         });
     });
     async function settleFormalRun() {
@@ -129,10 +136,9 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
       };
     }
     return () => {
-      cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [api, formalGameBridge, formalRoomCredential, onSavePlayerVault, onSaveProfile, onSettled, playerVault, profile, ready, reason, run]);
+  }, [ready]);
 
   return (
     <section className="formal-game-transition-wrap">
