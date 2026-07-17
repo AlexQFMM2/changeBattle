@@ -1280,11 +1280,21 @@ async function loadRoom(roomId: string): Promise<FormalRoomRecordV1 | null> {
 
 async function saveRoom(room: FormalRoomRecordV1, ttlMs = config.sessionTtlMs): Promise<void> {
   ensureRedisEnabled();
-  const raw = JSON.stringify(room);
+  const compactRoom = compactRoomForSave(room);
+  const raw = JSON.stringify(compactRoom);
   if (Buffer.byteLength(raw, "utf8") > config.roomMaxBytes) {
     throw new HttpError(413, "room_too_large", "房间数据过大。");
   }
-  await redisCommand("SET", roomKey(room.roomId), raw, "PX", String(ttlMs));
+  await redisCommand("SET", roomKey(compactRoom.roomId), raw, "PX", String(ttlMs));
+}
+
+function compactRoomForSave(room: FormalRoomRecordV1): FormalRoomRecordV1 {
+  if (!room.restActionResults && !room.draftSyncResults) return room;
+  return {
+    ...room,
+    restActionResults: room.restActionResults ? pruneRestActionResults(room.restActionResults) : undefined,
+    draftSyncResults: room.draftSyncResults ? pruneDraftSyncResults(room.draftSyncResults) : undefined,
+  };
 }
 
 async function deleteRoom(roomId: string): Promise<void> {
