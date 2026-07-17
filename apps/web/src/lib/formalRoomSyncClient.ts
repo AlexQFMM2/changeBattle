@@ -48,6 +48,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   let revision: number | null = null;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   const pending = new Map<string, PendingMutation>();
+  let httpFallbackActive = 0;
   const baseState = {
     lastSuccessAt: null,
     lastErrorAt: null,
@@ -61,19 +62,24 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     config.onConnectionState(state);
   }
 
+  function setWsBackgroundFailure(): void {
+    if (httpFallbackActive > 0 || pending.size > 0) return;
+    setState({state: "reconnecting", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
+  }
+
   function connect(): Promise<void> {
     if (disposed) return Promise.reject(new Error("room sync disposed"));
     if (ready && socket?.readyState === WebSocket.OPEN) return Promise.resolve();
     if (readyPromise) return readyPromise;
     if (typeof WebSocket === "undefined") return Promise.reject(new Error("WebSocket unavailable"));
-    setState({state: state.failureCount > 0 ? "reconnecting" : "connecting"});
+    if (httpFallbackActive <= 0) setState({state: state.failureCount > 0 ? "reconnecting" : "connecting"});
     readyPromise = new Promise<void>((resolve, reject) => {
       readyResolve = resolve;
       readyReject = reject;
       const timer = setTimeout(() => {
         rejectReady(new Error("WebSocket 连接超时。"));
         try {
-          socket?.close();
+          socket?.close(4000, "connect_timeout");
         } catch {
           // Ignore browser close errors.
         }
@@ -94,7 +100,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
         if (ready) clearTimeout(timer);
       };
       socket.onerror = () => {
-        setState({state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
+        setWsBackgroundFailure();
       };
       socket.onclose = () => {
         clearTimeout(timer);
@@ -127,7 +133,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   function scheduleReconnect(): void {
     if (disposed || reconnectTimer) return;
     stopHeartbeat();
-    setState({state: "reconnecting"});
+    if (httpFallbackActive <= 0) setState({state: "reconnecting"});
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
       void connect().catch(() => undefined);
@@ -250,15 +256,32 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     return withQueue(async () => {
       const clientActionId = input.clientActionId || createRoomClientActionId("draft");
       const baseRevision = revision ?? undefined;
+      const fallback = async () => {
+        httpFallbackActive += 1;
+        setState({state: "syncing"});
+        try {
+          const response = await config.fallbackSyncDraft({clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, label: input.label});
+          if (!response.ok) {
+            setState(response.retryable
+              ? {state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1}
+              : {state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
+            throw new Error(response.message);
+          }
+          revision = Number(response.data.room.revision);
+          setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
+          return response.data;
+        } catch (error) {
+          if (state.state === "syncing") {
+            setState({state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
+          }
+          throw error;
+        } finally {
+          httpFallbackActive = Math.max(0, httpFallbackActive - 1);
+        }
+      };
       try {
         if (!wsReady()) {
-          void connect().catch(() => undefined);
-          setState({state: "syncing"});
-          const fallback = await config.fallbackSyncDraft({clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, label: input.label});
-          if (!fallback.ok) throw new Error(fallback.message);
-          revision = Number(fallback.data.room.revision);
-          setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
-          return fallback.data;
+          return await fallback();
         }
         return await sendWsMutation<FormalRoomDraftSyncResultV1>({
           type: "rest.syncDraft",
@@ -268,11 +291,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
           label: input.label,
         }, clientActionId);
       } catch {
-        const fallback = await config.fallbackSyncDraft({clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, label: input.label});
-        if (!fallback.ok) throw new Error(fallback.message);
-        revision = Number(fallback.data.room.revision);
-        setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
-        return fallback.data;
+        return await fallback();
       }
     });
   }
@@ -280,15 +299,32 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   async function submitRestAction(input: {formalRunDraft: FormalGameRunV4; action: FormalRoomRestActionV1; clientActionId: string; label: string}): Promise<FormalRoomRestActionResultV1> {
     return withQueue(async () => {
       const baseRevision = revision ?? undefined;
+      const fallback = async () => {
+        httpFallbackActive += 1;
+        setState({state: "syncing"});
+        try {
+          const response = await config.fallbackRestAction({clientActionId: input.clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, action: input.action});
+          if (!response.ok) {
+            setState(response.retryable
+              ? {state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1}
+              : {state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
+            throw new Error(response.message);
+          }
+          revision = Number(response.data.room.revision);
+          setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
+          return response.data;
+        } catch (error) {
+          if (state.state === "syncing") {
+            setState({state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
+          }
+          throw error;
+        } finally {
+          httpFallbackActive = Math.max(0, httpFallbackActive - 1);
+        }
+      };
       try {
         if (!wsReady()) {
-          void connect().catch(() => undefined);
-          setState({state: "syncing"});
-          const fallback = await config.fallbackRestAction({clientActionId: input.clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, action: input.action});
-          if (!fallback.ok) throw new Error(fallback.message);
-          revision = Number(fallback.data.room.revision);
-          setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
-          return fallback.data;
+          return await fallback();
         }
         return await sendWsMutation<FormalRoomRestActionResultV1>({
           type: "rest.action",
@@ -299,11 +335,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
           label: input.label,
         }, input.clientActionId);
       } catch {
-        const fallback = await config.fallbackRestAction({clientActionId: input.clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, action: input.action});
-        if (!fallback.ok) throw new Error(fallback.message);
-        revision = Number(fallback.data.room.revision);
-        setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
-        return fallback.data;
+        return await fallback();
       }
     });
   }
@@ -322,7 +354,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     stopHeartbeat();
     rejectPending(new Error("room sync disposed"));
     try {
-      socket?.close();
+      socket?.close(1000, "room_sync_dispose");
     } catch {
       // Ignore browser close errors.
     }

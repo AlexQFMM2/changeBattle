@@ -126,6 +126,11 @@ type RoomWsClient = {
   authed: boolean;
   buffer: Buffer;
   closed: boolean;
+  createdAtMs: number;
+  closeLogged: boolean;
+  closeCode: number | null;
+  closeReason: string | null;
+  closeSource: string | null;
   authTimer: NodeJS.Timeout;
 };
 
@@ -1316,6 +1321,11 @@ function attachRoomWebSocket(socket: net.Socket, roomId: string): void {
     authed: false,
     buffer: Buffer.alloc(0),
     closed: false,
+    createdAtMs: Date.now(),
+    closeLogged: false,
+    closeCode: null,
+    closeReason: null,
+    closeSource: null,
     authTimer,
   };
   socket.on("data", chunk => {
@@ -1332,10 +1342,12 @@ function attachRoomWebSocket(socket: net.Socket, roomId: string): void {
       log("warn", "room-ws-parse-failed", {roomId, clientId: client.id, error: error instanceof Error ? error.message : String(error)});
     }
   });
-  socket.on("close", () => {
+  socket.on("close", hadError => {
+    markWsCloseDetails(client, hadError ? "socket_close_error" : "socket_close", client.closeCode, client.closeReason);
     unregisterWsClient(client);
   });
-  socket.on("error", () => {
+  socket.on("error", error => {
+    markWsCloseDetails(client, "socket_error", client.closeCode, error instanceof Error ? error.message : String(error));
     unregisterWsClient(client);
   });
 }
@@ -1346,6 +1358,8 @@ function drainWsFrames(client: RoomWsClient): void {
     if (!parsed) return;
     client.buffer = client.buffer.subarray(parsed.consumed);
     if (parsed.opcode === 0x8) {
+      const closePayload = parseWsClosePayload(parsed.payload);
+      markWsCloseDetails(client, "client_close_frame", closePayload.code, closePayload.reason || "client_close");
       closeWsClient(client, 1000, "client_close");
       return;
     }
@@ -1389,6 +1403,14 @@ function readWsFrame(buffer: Buffer): {opcode: number; payload: Buffer; consumed
     }
   }
   return {opcode, payload, consumed: offset + length};
+}
+
+function parseWsClosePayload(payload: Buffer): {code: number | null; reason: string} {
+  if (payload.byteLength < 2) return {code: null, reason: ""};
+  return {
+    code: payload.readUInt16BE(0),
+    reason: payload.subarray(2).toString("utf8"),
+  };
 }
 
 async function handleRoomWsMessage(client: RoomWsClient, raw: string): Promise<void> {
@@ -1497,25 +1519,34 @@ function unregisterWsClient(client: RoomWsClient): void {
   if (client.closed) return;
   client.closed = true;
   clearTimeout(client.authTimer);
+  logWsClose(client);
   const sockets = roomSockets.get(client.roomId);
   sockets?.delete(client);
   if (sockets && sockets.size === 0) {
     roomSockets.delete(client.roomId);
-    void markRoomDisconnected(client.roomId);
   }
 }
 
-async function markRoomDisconnected(roomId: string): Promise<void> {
-  try {
-    await withRoomLock(roomId, async () => {
-      const room = await loadRoom(roomId);
-      if (!room || room.connectionState === "closed" || room.closeReason) return;
-      const next = {...room, connectionState: "disconnected" as const, updatedAt: new Date().toISOString()};
-      await saveRoom(next);
-    });
-  } catch (error) {
-    log("warn", "room-disconnect-mark-failed", {roomId, error: error instanceof Error ? error.message : String(error)});
-  }
+function markWsCloseDetails(client: RoomWsClient, source: string, code: number | null, reason: string | null): void {
+  if (!client.closeSource) client.closeSource = source;
+  if (client.closeCode === null && code !== null) client.closeCode = code;
+  if (!client.closeReason && reason) client.closeReason = reason;
+}
+
+function logWsClose(client: RoomWsClient): void {
+  if (client.closeLogged) return;
+  client.closeLogged = true;
+  log("info", "room-ws-closed", {
+    roomId: client.roomId,
+    clientId: client.id,
+    authed: client.authed,
+    source: client.closeSource || "unknown",
+    code: client.closeCode,
+    reason: client.closeReason,
+    durationMs: Date.now() - client.createdAtMs,
+    bytesRead: client.socket.bytesRead,
+    bytesWritten: client.socket.bytesWritten,
+  });
 }
 
 function broadcastRoomUpdated(room: FormalRoomRecordV1 | undefined, except?: RoomWsClient): void {
@@ -1562,6 +1593,7 @@ function sendWsFrame(socket: net.Socket, payload: Buffer, opcode: number): void 
 
 function closeWsClient(client: RoomWsClient, code: number, reason: string): void {
   if (client.closed) return;
+  markWsCloseDetails(client, "server_close", code, reason);
   const reasonBuffer = Buffer.from(reason.slice(0, 80), "utf8");
   const payload = Buffer.alloc(2 + reasonBuffer.byteLength);
   payload.writeUInt16BE(code, 0);

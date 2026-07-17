@@ -154,6 +154,7 @@ function RoutedApp({runtime}: AppProps) {
   const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
   const [formalRunLoaded, setFormalRunLoaded] = useState(false);
   const formalRoomSyncClientRef = useRef<FormalRoomSyncClientV4 | null>(null);
+  const apiRef = useRef(api);
   const confirmedFormalRunRef = useRef<FormalGameRunV4 | null>(null);
   const formalTransitionProfile = useMemo(() => profile ? releaseGuardProfileBattlePreferenceV4(profile, DEBUG_FEATURE_ENABLED) : null, [profile]);
   const formalRoomCredential = useMemo(() => loadFormalRoomCredential(), [formalRun?.currentRoundIndex, formalRun?.id, location.pathname]);
@@ -183,14 +184,18 @@ function RoutedApp({runtime}: AppProps) {
   const [desktopManualUpdateCheckActive, setDesktopManualUpdateCheckActive] = useState(false);
 
   useEffect(() => {
+    apiRef.current = api;
+  }, [api]);
+
+  useEffect(() => {
     confirmedFormalRunRef.current = formalRun;
   }, [formalRun?.id]);
 
   useEffect(() => {
     formalRoomSyncClientRef.current?.dispose();
     formalRoomSyncClientRef.current = null;
-    if (!formalRoomRouteActive || !formalRoomCredential || !formalRun?.id) return;
-    confirmedFormalRunRef.current = formalRun;
+    if (!formalRoomCredential) return;
+    if (formalRun) confirmedFormalRunRef.current = formalRun;
     const client = createFormalRoomSyncClient({
       baseUrl: battleServiceUrl,
       roomId: formalRoomCredential.roomId,
@@ -199,17 +204,17 @@ function RoutedApp({runtime}: AppProps) {
       onRoomUpdated: payload => {
         confirmedFormalRunRef.current = payload.formalRun;
         setFormalRun(payload.formalRun);
-        void api.saveFormalGameRun(payload.formalRun).catch(() => undefined);
+        void apiRef.current.saveFormalGameRun(payload.formalRun).catch(() => undefined);
       },
       onRoomClosed: reason => {
         setFormalRestInitialNotice(reason === "deleted" ? "房间已经关闭。" : `房间连接已关闭：${reason}`);
       },
-      fallbackSyncDraft: input => api.syncFormalRoomDraft({
+      fallbackSyncDraft: input => apiRef.current.syncFormalRoomDraft({
         roomId: formalRoomCredential.roomId,
         roomToken: formalRoomCredential.roomToken,
         ...input,
       }),
-      fallbackRestAction: input => api.submitFormalRoomRestAction({
+      fallbackRestAction: input => apiRef.current.submitFormalRoomRestAction({
         roomId: formalRoomCredential.roomId,
         roomToken: formalRoomCredential.roomToken,
         ...input,
@@ -220,7 +225,7 @@ function RoutedApp({runtime}: AppProps) {
       client.dispose();
       if (formalRoomSyncClientRef.current === client) formalRoomSyncClientRef.current = null;
     };
-  }, [api, battleServiceUrl, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRun?.id, formalRoomRouteActive]);
+  }, [battleServiceUrl, formalRoomCredential?.roomId, formalRoomCredential?.roomToken]);
 
   useEffect(() => {
     if (!formalRun?.settled) return;
