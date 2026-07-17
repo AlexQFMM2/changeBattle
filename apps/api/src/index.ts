@@ -343,6 +343,21 @@ export type FormalRoomBattleFinalizeResultV1 = {
   settlementNotice?: string;
 };
 
+export type FormalRoomRunFinalizeResultV1 = {
+  room: FormalRoomV1;
+  formalRun: FormalGameRunV4;
+  profile: UserProfileV2;
+  playerVault: PlayerVaultV4;
+  settlementId: string;
+  summary: {
+    reason: FormalSettlementReasonV4;
+    bpGained: number;
+    depositedItemCount: number;
+    rejectedItemCount: number;
+  };
+  reused: boolean;
+};
+
 export type FormalRoomRestActionV1 =
   | {type: "team.heal"}
   | {type: "pokemon.exchange"; sourcePokemonId: string; targetPokemonId: string}
@@ -571,6 +586,16 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
         reason: input.reason,
         playerVaultSnapshot: input.playerVaultSnapshot,
       }, {roomToken: input.roomToken}),
+    finalizeFormalRoomRun: (input: {roomId: string; roomToken: string; clientRequestId: string; reason: FormalSettlementReasonV4; profileSnapshot: UserProfileV2; playerVaultSnapshot: PlayerVaultV4}): Promise<PostServiceResultV4<FormalRoomRunFinalizeResultV1>> =>
+      serverApi.postApi<FormalRoomRunFinalizeResultV1>("rooms.finalizeRun", {
+        roomId: input.roomId,
+        clientRequestId: input.clientRequestId,
+        reason: input.reason,
+        profileSnapshot: input.profileSnapshot,
+        playerVaultSnapshot: input.playerVaultSnapshot,
+      }, {roomToken: input.roomToken}),
+    getFormalRoomFinalResult: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomRunFinalizeResultV1>> =>
+      serverApi.postApi<FormalRoomRunFinalizeResultV1>("rooms.getFinalResult", {roomId: input.roomId}, {roomToken: input.roomToken}),
     createFormalRoomBattleServiceClient: (input: {roomId: string; roomToken: string}): BattleServiceClientV4 => createFormalRoomBattleServiceClient(serverApi, input),
     getServerConnectionState: () => serverApi.getConnectionState(),
     createFormalGameRun: formalRuns.createFormalGameRun,

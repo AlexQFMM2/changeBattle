@@ -3,13 +3,14 @@ import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalGameRunV4, Formal
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import "./FormalGameTransitionPage.css";
 
-export function FormalSettlementTransitionPage({api, formalGameBridge, run, profile, playerVault, reason, onSettled, onSaveProfile, onSavePlayerVault}: {
+export function FormalSettlementTransitionPage({api, formalGameBridge, run, profile, playerVault, reason, formalRoomCredential, onSettled, onSaveProfile, onSavePlayerVault}: {
   api: ChangeBattleV2Api;
   formalGameBridge?: DesktopFormalGameBridge;
   run: FormalGameRunV4;
   profile: UserProfileV2;
   playerVault: PlayerVaultV4;
   reason: FormalSettlementReasonV4;
+  formalRoomCredential?: {roomId: string; roomToken: string} | null;
   onSettled: (run: FormalGameRunV4, profile: UserProfileV2, playerVault: PlayerVaultV4) => void;
   onSaveProfile?: (profile: UserProfileV2) => Promise<UserProfileV2>;
   onSavePlayerVault?: (vault: PlayerVaultV4) => Promise<PlayerVaultV4>;
@@ -33,6 +34,37 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
     });
     async function settleFormalRun() {
       if (run.settled !== false) return {run, profile, playerVault};
+      if (formalRoomCredential) {
+        const clientRequestId = loadOrCreateSettlementRequestId(formalRoomCredential.roomId, run.id);
+        let finalized = await api.finalizeFormalRoomRun({
+          roomId: formalRoomCredential.roomId,
+          roomToken: formalRoomCredential.roomToken,
+          clientRequestId,
+          reason,
+          profileSnapshot: profile,
+          playerVaultSnapshot: playerVault,
+        });
+        if (!finalized.ok) {
+          const recovered = await api.getFormalRoomFinalResult({
+            roomId: formalRoomCredential.roomId,
+            roomToken: formalRoomCredential.roomToken,
+          });
+          if (!recovered.ok) throw new Error(finalized.message);
+          finalized = recovered;
+        }
+        const applied = hasAppliedSettlement(profile.id, finalized.data.settlementId);
+        const savedProfile = applied
+          ? profile
+          : onSaveProfile ? await onSaveProfile(finalized.data.profile) : finalized.data.profile;
+        const savedVault = applied
+          ? playerVault
+          : onSavePlayerVault ? await onSavePlayerVault(finalized.data.playerVault) : await api.savePlayerVault(finalized.data.playerVault);
+        const savedRun = await api.saveFormalGameRun(finalized.data.formalRun);
+        if (!applied) markSettlementApplied(profile.id, finalized.data.settlementId);
+        clearSettlementRequestId(formalRoomCredential.roomId, run.id);
+        await api.deleteFormalRoom(formalRoomCredential).catch(() => undefined);
+        return {run: savedRun, profile: savedProfile, playerVault: savedVault};
+      }
       if (formalGameBridge) {
         const prepared = await formalGameBridge.prepareFormalSettlement(run, profile, reason);
         const savedProfile = onSaveProfile ? await onSaveProfile(prepared.profile) : prepared.profile;
@@ -100,7 +132,7 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [api, formalGameBridge, onSavePlayerVault, onSaveProfile, onSettled, playerVault, profile, ready, reason, run]);
+  }, [api, formalGameBridge, formalRoomCredential, onSavePlayerVault, onSaveProfile, onSettled, playerVault, profile, ready, reason, run]);
 
   return (
     <section className="formal-game-transition-wrap">
@@ -112,4 +144,49 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
       />
     </section>
   );
+}
+
+function loadOrCreateSettlementRequestId(roomId: string, runId: string): string {
+  const key = settlementRequestStorageKey(roomId, runId);
+  try {
+    const existing = window.sessionStorage?.getItem(key);
+    if (existing) return existing;
+    const next = `finalize-run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    window.sessionStorage?.setItem(key, next);
+    return next;
+  } catch {
+    return `finalize-run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+}
+
+function clearSettlementRequestId(roomId: string, runId: string): void {
+  try {
+    window.sessionStorage?.removeItem(settlementRequestStorageKey(roomId, runId));
+  } catch {
+    // Best effort cleanup only.
+  }
+}
+
+function settlementRequestStorageKey(roomId: string, runId: string): string {
+  return `changebattle-v2:formal-room:${roomId}:finalize-run:${runId}`;
+}
+
+function hasAppliedSettlement(profileId: string, settlementId: string): boolean {
+  try {
+    return window.localStorage?.getItem(appliedSettlementStorageKey(profileId, settlementId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markSettlementApplied(profileId: string, settlementId: string): void {
+  try {
+    window.localStorage?.setItem(appliedSettlementStorageKey(profileId, settlementId), "1");
+  } catch {
+    // If storage is unavailable, server idempotency still prevents duplicate final results.
+  }
+}
+
+function appliedSettlementStorageKey(profileId: string, settlementId: string): string {
+  return `changebattle-v2:formal-settlement-applied:${profileId}:${settlementId}`;
 }

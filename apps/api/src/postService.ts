@@ -14,6 +14,8 @@ export type PostServiceActionNameV4 =
   | "rooms.getBattlePlaybackTimeline"
   | "rooms.submitBattleChoice"
   | "rooms.finalizeBattle"
+  | "rooms.finalizeRun"
+  | "rooms.getFinalResult"
   | "battle.createSession";
 
 export type PostServiceResultV4<T> =
@@ -143,6 +145,21 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
       reason: input?.reason,
       playerVaultSnapshot: input?.playerVaultSnapshot,
     }),
+  },
+  "rooms.finalizeRun": {
+    method: "POST",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/finalize-run`,
+    body: input => ({
+      clientRequestId: input?.clientRequestId,
+      reason: input?.reason,
+      profileSnapshot: input?.profileSnapshot,
+      playerVaultSnapshot: input?.playerVaultSnapshot,
+    }),
+  },
+  "rooms.getFinalResult": {
+    method: "GET",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/final-result`,
+    latencySample: true,
   },
   "battle.createSession": {
     method: "POST",

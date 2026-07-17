@@ -26,9 +26,13 @@ services:
         required: false
     environment:
       CHANGEBATTLE_REDIS_URL: redis://changebattle-redis:6379
-      CHANGEBATTLE_ROOM_MAX_COUNT: "100"
-      CHANGEBATTLE_ROOM_MAX_BYTES: "1048576"
-      CHANGEBATTLE_ROOM_MEMORY_SAFETY_BYTES: "33554432"
+      CHANGEBATTLE_ROOM_MAX_COUNT: ${CHANGEBATTLE_ROOM_MAX_COUNT:-100}
+      CHANGEBATTLE_ROOM_MAX_BYTES: ${CHANGEBATTLE_ROOM_MAX_BYTES:-1048576}
+      CHANGEBATTLE_ROOM_MEMORY_SAFETY_BYTES: ${CHANGEBATTLE_ROOM_MEMORY_SAFETY_BYTES:-33554432}
+      CHANGEBATTLE_ROOM_FINAL_RESULT_TTL_MS: ${CHANGEBATTLE_ROOM_FINAL_RESULT_TTL_MS:-1800000}
+      CHANGEBATTLE_ROOM_DISCONNECTED_AFTER_MS: ${CHANGEBATTLE_ROOM_DISCONNECTED_AFTER_MS:-300000}
+      CHANGEBATTLE_ROOM_CLOSED_AFTER_MS: ${CHANGEBATTLE_ROOM_CLOSED_AFTER_MS:-600000}
+      CHANGEBATTLE_ROOM_SWEEP_INTERVAL_MS: ${CHANGEBATTLE_ROOM_SWEEP_INTERVAL_MS:-60000}
     ports:
       - "127.0.0.1:5191:5191"
     depends_on:
@@ -40,3 +44,30 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+
+  changebattle-loki:
+    image: ${CHANGEBATTLE_LOKI_IMAGE:-registry.cn-shanghai.aliyuncs.com/xstack/loki:dcoding-20260607-1}
+    container_name: changebattle-v2-loki
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./loki-config.yml:/etc/loki/local-config.yaml:ro
+      - changebattle-loki-data:/loki
+    ports:
+      - "127.0.0.1:3100:3100"
+
+  changebattle-promtail:
+    image: ${CHANGEBATTLE_PROMTAIL_IMAGE:-registry.cn-shanghai.aliyuncs.com/xstack/promtail:dcoding-20260607-1}
+    container_name: changebattle-v2-promtail
+    profiles: ["observability"]
+    restart: unless-stopped
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - changebattle-loki
+
+volumes:
+  changebattle-loki-data:

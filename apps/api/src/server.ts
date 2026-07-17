@@ -2,7 +2,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import net from "node:net";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import {createChangeBattleV2Api, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
+import {claimFormalSettlementBp, createChangeBattleV2Api, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type FormalSettlementReasonV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 
 type ServerConfig = {
   host: string;
@@ -19,6 +19,10 @@ type ServerConfig = {
   roomMaxBytes: number;
   roomMemorySafetyBytes: number;
   roomCreateMaxConcurrency: number;
+  roomFinalResultTtlMs: number;
+  roomDisconnectedAfterMs: number;
+  roomClosedAfterMs: number;
+  roomSweepIntervalMs: number;
   startedAt: number;
   version: string;
 };
@@ -68,6 +72,32 @@ type FormalRoomDraftSyncStoredResultV1 = {
   createdAt: string;
 };
 
+type FormalRoomFinalResultV1 = {
+  clientRequestId: string;
+  settlementId: string;
+  formalRun: FormalGameRunV4;
+  profile: UserProfileV2;
+  playerVault: PlayerVaultV4;
+  summary: {
+    reason: FormalSettlementReasonV4;
+    bpGained: number;
+    depositedItemCount: number;
+    rejectedItemCount: number;
+  };
+  createdAt: string;
+  expiresAt: string;
+};
+
+type FormalRoomFinalResultResponseV1 = {
+  room: ReturnType<typeof publicRoom>;
+  formalRun: FormalGameRunV4;
+  profile: UserProfileV2;
+  playerVault: PlayerVaultV4;
+  settlementId: string;
+  summary: FormalRoomFinalResultV1["summary"];
+  reused: boolean;
+};
+
 type FormalRoomRecordV1 = {
   roomId: string;
   roomTokenHash: string;
@@ -75,6 +105,7 @@ type FormalRoomRecordV1 = {
   activeBattle?: FormalRoomActiveBattleV1 | null;
   restActionResults?: Record<string, FormalRoomRestActionStoredResultV1>;
   draftSyncResults?: Record<string, FormalRoomDraftSyncStoredResultV1>;
+  finalResult?: FormalRoomFinalResultV1 | null;
   revision: number;
   status: RoomStatus;
   connectionState: RoomConnectionState;
@@ -157,6 +188,8 @@ const server = http.createServer(async (request, response) => {
     const roomSyncDraftMatch = /^\/rooms\/([^/]+)\/formal\/sync-rest-draft$/.exec(pathname);
     const roomPrepareBattleMatch = /^\/rooms\/([^/]+)\/formal\/prepare-battle$/.exec(pathname);
     const roomFinalizeBattleMatch = /^\/rooms\/([^/]+)\/formal\/finalize-battle$/.exec(pathname);
+    const roomFinalizeRunMatch = /^\/rooms\/([^/]+)\/formal\/finalize-run$/.exec(pathname);
+    const roomFinalResultMatch = /^\/rooms\/([^/]+)\/final-result$/.exec(pathname);
     const roomBattleSnapshotMatch = /^\/rooms\/([^/]+)\/battle\/snapshot$/.exec(pathname);
     const roomBattleTimelineMatch = /^\/rooms\/([^/]+)\/battle\/playback-timeline$/.exec(pathname);
     const roomBattleChoiceMatch = /^\/rooms\/([^/]+)\/battle\/choices$/.exec(pathname);
@@ -266,6 +299,28 @@ const server = http.createServer(async (request, response) => {
       const result = await withRoomLock(roomId, async () => finalizeFormalRoomBattle(roomId, request, body));
       sendJson(response, 200, result);
       log("info", "room-formal-battle-finalized", {requestId, roomId, destination: result.destination, elapsedMs: Date.now() - startedAt});
+      return;
+    }
+    if (request.method === "POST" && roomFinalizeRunMatch) {
+      const roomId = decodeURIComponent(roomFinalizeRunMatch[1]!);
+      const body = await readJson(request);
+      const result = await withRoomLock(roomId, async () => finalizeFormalRoomRun(roomId, request, body));
+      sendJson(response, 200, result);
+      log("info", "room-formal-run-finalized", {
+        requestId,
+        roomId,
+        settlementId: result.settlementId,
+        bpGained: result.summary.bpGained,
+        reused: result.reused,
+        elapsedMs: Date.now() - startedAt,
+      });
+      return;
+    }
+    if (request.method === "GET" && roomFinalResultMatch) {
+      const roomId = decodeURIComponent(roomFinalResultMatch[1]!);
+      const room = await loadAuthorizedRoom(roomId, request);
+      const result = getRoomFinalResult(room);
+      sendJson(response, 200, result);
       return;
     }
     if (request.method === "DELETE" && roomMatch) {
@@ -435,7 +490,12 @@ server.listen(config.port, config.host, () => {
     maxSessions: config.maxSessions,
     sessionTtlMs: config.sessionTtlMs,
   });
+  void markRestartedBattleRooms();
 });
+
+setInterval(() => {
+  void sweepRoomLifecycle();
+}, config.roomSweepIntervalMs).unref();
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
@@ -452,10 +512,14 @@ function loadConfig(): ServerConfig {
     token: process.env.CHANGEBATTLE_BATTLE_SERVICE_TOKEN || "",
     corsOrigin: process.env.CHANGEBATTLE_BATTLE_SERVICE_CORS_ORIGIN || "*",
     redisUrl: process.env.CHANGEBATTLE_REDIS_URL || "",
-    roomMaxCount: numberEnv("CHANGEBATTLE_ROOM_MAX_COUNT", 100),
+    roomMaxCount: numberEnv("CHANGEBATTLE_ROOM_MAX_COUNT", 100, 0),
     roomMaxBytes: numberEnv("CHANGEBATTLE_ROOM_MAX_BYTES", 1024 * 1024),
     roomMemorySafetyBytes: numberEnv("CHANGEBATTLE_ROOM_MEMORY_SAFETY_BYTES", 32 * 1024 * 1024),
     roomCreateMaxConcurrency: numberEnv("CHANGEBATTLE_ROOM_CREATE_MAX_CONCURRENCY", 1),
+    roomFinalResultTtlMs: numberEnv("CHANGEBATTLE_ROOM_FINAL_RESULT_TTL_MS", 30 * 60 * 1000),
+    roomDisconnectedAfterMs: numberEnv("CHANGEBATTLE_ROOM_DISCONNECTED_AFTER_MS", 5 * 60 * 1000),
+    roomClosedAfterMs: numberEnv("CHANGEBATTLE_ROOM_CLOSED_AFTER_MS", 10 * 60 * 1000),
+    roomSweepIntervalMs: numberEnv("CHANGEBATTLE_ROOM_SWEEP_INTERVAL_MS", 60 * 1000),
     startedAt: Date.now(),
     version: process.env.npm_package_version || process.env.CHANGEBATTLE_VERSION || "0.1.0",
   };
@@ -986,8 +1050,121 @@ async function finalizeFormalRoomBattle(roomId: string, request: http.IncomingMe
   return {...finalResult, formalRun, room: publicRoom(next)};
 }
 
+async function finalizeFormalRoomRun(roomId: string, request: http.IncomingMessage, body: any): Promise<FormalRoomFinalResultResponseV1> {
+  const clientRequestId = requiredString(body?.clientRequestId, "clientRequestId");
+  const current = await loadAuthorizedRoom(roomId, request);
+  if (current.finalResult) {
+    return finalResultResponse(current, current.finalResult, current.finalResult.clientRequestId === clientRequestId);
+  }
+  if (current.connectionState === "closed" || current.closeReason) {
+    throw new HttpError(409, "room_closed", "房间已经关闭。");
+  }
+  if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
+    throw new HttpError(409, "room_not_settleable", "当前房间仍在战斗，不能最终结算。");
+  }
+  if (!current.formalRun.restRunSnapshot) {
+    throw new HttpError(409, "room_not_settleable", "当前房间还没有可结算的正式流程。");
+  }
+  const profileSnapshot = body?.profileSnapshot as UserProfileV2 | undefined;
+  if (!profileSnapshot || typeof profileSnapshot !== "object") {
+    throw new HttpError(400, "bad_request", "缺少玩家画像快照。");
+  }
+  const playerVaultSnapshot = body?.playerVaultSnapshot as PlayerVaultV4 | undefined;
+  const reason = normalizeSettlementReason(body?.reason);
+  const now = new Date();
+  const prepared = runFormalStep(() => formalApi.prepareFormalSettlement(current.formalRun, reason));
+  let formalRun = prepared;
+  let profile = profileSnapshot;
+  if (prepared.settlement && !prepared.settlement.claimedAt) {
+    profile = claimFormalSettlementBp(profileSnapshot, prepared.settlement, now);
+    formalRun = {
+      ...prepared,
+      settlement: {...prepared.settlement, claimedAt: now.toISOString()},
+      updatedAt: now.toISOString(),
+    };
+  }
+  let playerVault = formalApi.syncFormalSoulmateLocalTeamToVault(formalRun, playerVaultSnapshot || null);
+  let depositedItemCount = 0;
+  let rejectedItemCount = 0;
+  if (formalRun.settlement && !formalRun.settlement.playerVaultItemsClaimedAt) {
+    const claimedAt = now.toISOString();
+    if (formalRun.pendingSettlementExportItemInstanceIds?.length) {
+      const mergeResult = formalApi.mergeFormalRunBagIntoPlayerVault(playerVault, formalRun);
+      playerVault = mergeResult.vault;
+      depositedItemCount = mergeResult.depositedItemCount;
+      rejectedItemCount = mergeResult.rejectedItemCount;
+    }
+    formalRun = {
+      ...formalRun,
+      settlement: {
+        ...formalRun.settlement,
+        playerVaultItemsClaimedAt: claimedAt,
+        playerVaultItemsClaimedCount: depositedItemCount,
+        playerVaultItemsRejectedCount: rejectedItemCount,
+      },
+      updatedAt: claimedAt,
+    };
+  }
+  if (!formalRun.settlement?.id) {
+    throw new HttpError(400, "formal_flow_error", "最终结算生成失败。");
+  }
+  const expiresAt = new Date(now.getTime() + config.roomFinalResultTtlMs).toISOString();
+  const finalResult: FormalRoomFinalResultV1 = {
+    clientRequestId,
+    settlementId: formalRun.settlement.id,
+    formalRun,
+    profile,
+    playerVault,
+    summary: {
+      reason,
+      bpGained: Math.max(0, Math.round(Number(formalRun.settlement.bpGained || 0))),
+      depositedItemCount,
+      rejectedItemCount,
+    },
+    createdAt: now.toISOString(),
+    expiresAt,
+  };
+  const next: FormalRoomRecordV1 = {
+    ...advanceRoom(current, formalRun),
+    status: "ended",
+    connectionState: "closed",
+    closeReason: "finalized",
+    finalResult,
+    expiresAt,
+  };
+  await saveRoom(next, config.roomFinalResultTtlMs);
+  broadcastRoomUpdated(next);
+  broadcastRoomClosed(next.roomId, "finalized");
+  return finalResultResponse(next, finalResult, false);
+}
+
+function getRoomFinalResult(room: FormalRoomRecordV1): FormalRoomFinalResultResponseV1 {
+  const finalResult = room.finalResult;
+  if (!finalResult) throw new HttpError(404, "final_result_not_found", "最终结算结果不存在或已过期。");
+  if (Date.parse(finalResult.expiresAt) <= Date.now()) {
+    throw new HttpError(410, "final_result_expired", "最终结算结果已过期。");
+  }
+  return finalResultResponse(room, finalResult, true);
+}
+
+function finalResultResponse(room: FormalRoomRecordV1, finalResult: FormalRoomFinalResultV1, reused: boolean): FormalRoomFinalResultResponseV1 {
+  return {
+    room: publicRoom(room),
+    formalRun: finalResult.formalRun,
+    profile: finalResult.profile,
+    playerVault: finalResult.playerVault,
+    settlementId: finalResult.settlementId,
+    summary: finalResult.summary,
+    reused,
+  };
+}
+
 function normalizeFinalizeReason(value: unknown): FormalBattleResultFinalizeReasonV4 | undefined {
   return value === "loss" || value === "surrender" || value === "complete" ? value : undefined;
+}
+
+function normalizeSettlementReason(value: unknown): FormalSettlementReasonV4 {
+  return value === "complete" || value === "loss" || value === "surrender" || value === "abandon" ? value : "loss";
 }
 
 function markFormalRestBattleState(run: TrainingRunGameV4, nodeId: string, state: "running" | "blocked", battleGameId: string): TrainingRunGameV4 {
@@ -1070,13 +1247,13 @@ async function loadRoom(roomId: string): Promise<FormalRoomRecordV1 | null> {
   return parsed && parsed.roomId === roomId ? parsed : null;
 }
 
-async function saveRoom(room: FormalRoomRecordV1): Promise<void> {
+async function saveRoom(room: FormalRoomRecordV1, ttlMs = config.sessionTtlMs): Promise<void> {
   ensureRedisEnabled();
   const raw = JSON.stringify(room);
   if (Buffer.byteLength(raw, "utf8") > config.roomMaxBytes) {
     throw new HttpError(413, "room_too_large", "房间数据过大。");
   }
-  await redisCommand("SET", roomKey(room.roomId), raw, "PX", String(config.sessionTtlMs));
+  await redisCommand("SET", roomKey(room.roomId), raw, "PX", String(ttlMs));
 }
 
 async function deleteRoom(roomId: string): Promise<void> {
@@ -1097,9 +1274,14 @@ function touchRoom(room: FormalRoomRecordV1): FormalRoomRecordV1 {
 }
 
 function publicRoom(room: FormalRoomRecordV1): Record<string, unknown> {
-  const {roomTokenHash: _roomTokenHash, activeBattle, restActionResults: _restActionResults, draftSyncResults: _draftSyncResults, ...safeRoom} = room;
+  const {roomTokenHash: _roomTokenHash, activeBattle, restActionResults: _restActionResults, draftSyncResults: _draftSyncResults, finalResult: _finalResult, ...safeRoom} = room;
   return {
     ...safeRoom,
+    finalResult: room.finalResult ? {
+      settlementId: room.finalResult.settlementId,
+      createdAt: room.finalResult.createdAt,
+      expiresAt: room.finalResult.expiresAt,
+    } : null,
     activeBattle: activeBattle ? {
       sessionId: activeBattle.sessionId,
       nodeId: activeBattle.nodeId,
@@ -1394,6 +1576,85 @@ async function cleanupRoomIndex(): Promise<void> {
   }
 }
 
+async function markRestartedBattleRooms(): Promise<void> {
+  if (!config.redisUrl) return;
+  try {
+    await cleanupRoomIndex();
+    const members = await redisCommand("SMEMBERS", roomIndexKey);
+    if (!Array.isArray(members)) return;
+    for (const roomId of members) {
+      if (typeof roomId !== "string") continue;
+      await withRoomLock(roomId, async () => {
+        const room = await loadRoom(roomId);
+        if (!room || room.closeReason || room.finalResult) return;
+        if (room.activeBattle?.status !== "preparing" && room.activeBattle?.status !== "running") return;
+        const now = new Date().toISOString();
+        const next: FormalRoomRecordV1 = {
+          ...room,
+          status: "closed",
+          connectionState: "closed",
+          closeReason: "server-restarted",
+          activeBattle: room.activeBattle ? {...room.activeBattle, updatedAt: now} : room.activeBattle,
+          updatedAt: now,
+        };
+        await saveRoom(next);
+        broadcastRoomClosed(roomId, "server-restarted");
+        log("warn", "room-closed-server-restarted", {roomId, sessionId: room.activeBattle?.sessionId});
+      });
+    }
+  } catch (error) {
+    log("warn", "room-restart-scan-failed", {error: error instanceof Error ? error.message : String(error)});
+  }
+}
+
+async function sweepRoomLifecycle(): Promise<void> {
+  if (!config.redisUrl) return;
+  try {
+    await cleanupRoomIndex();
+    const members = await redisCommand("SMEMBERS", roomIndexKey);
+    if (!Array.isArray(members)) return;
+    const nowMs = Date.now();
+    for (const roomId of members) {
+      if (typeof roomId !== "string") continue;
+      await withRoomLock(roomId, async () => {
+        const room = await loadRoom(roomId);
+        if (!room) return;
+        if (room.finalResult) return;
+        if (room.connectionState === "closed" || room.closeReason) return;
+        const lastActiveMs = Date.parse(room.lastHeartbeatAt || room.updatedAt || room.createdAt);
+        if (!Number.isFinite(lastActiveMs)) return;
+        const idleMs = nowMs - lastActiveMs;
+        if (idleMs >= config.roomClosedAfterMs) {
+          const now = new Date(nowMs).toISOString();
+          const next: FormalRoomRecordV1 = {
+            ...room,
+            status: "closed",
+            connectionState: "closed",
+            closeReason: "timeout",
+            updatedAt: now,
+          };
+          await saveRoom(next);
+          broadcastRoomClosed(roomId, "timeout");
+          log("warn", "room-closed-timeout", {roomId, idleMs});
+          return;
+        }
+        if (idleMs >= config.roomDisconnectedAfterMs && room.connectionState !== "disconnected") {
+          const next: FormalRoomRecordV1 = {
+            ...room,
+            connectionState: "disconnected",
+            updatedAt: new Date(nowMs).toISOString(),
+          };
+          await saveRoom(next);
+          broadcastRoomUpdated(next);
+          log("info", "room-disconnected", {roomId, idleMs});
+        }
+      });
+    }
+  } catch (error) {
+    log("warn", "room-lifecycle-sweep-failed", {error: error instanceof Error ? error.message : String(error)});
+  }
+}
+
 async function redisHealth(): Promise<RedisStatus> {
   if (!config.redisUrl) return "disabled";
   try {
@@ -1551,9 +1812,9 @@ function createRequestId(): string {
   return `req-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function numberEnv(name: string, fallback: number): number {
+function numberEnv(name: string, fallback: number, min = 1): number {
   const value = Number(process.env[name]);
-  return Number.isFinite(value) && value > 0 ? value : fallback;
+  return Number.isFinite(value) && value >= min ? value : fallback;
 }
 
 function booleanEnv(name: string, fallback: boolean): boolean {

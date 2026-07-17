@@ -87,9 +87,14 @@ GET    /rooms/:roomId/battle/snapshot
 GET    /rooms/:roomId/battle/playback-timeline?from=0
 POST   /rooms/:roomId/battle/choices
 POST   /rooms/:roomId/formal/finalize-battle
+POST   /rooms/:roomId/formal/finalize-run
+GET    /rooms/:roomId/final-result
+GET    /rooms/:roomId/ws
 ```
 
-仍未完成：最终 `finalize-run`、`final-result`、完整 heartbeat 过期清理、容器重启 `server-restarted` 处理、Loki，以及 Desk/Android/公网服务器 smoke。休整 `rest-action` 和 WebSocket draft sync 已在本地 Docker + Web smoke 中跑通。
+已完成：最终 `finalize-run`、`final-result`、WebSocket 固定 heartbeat、room disconnected/timeout sweep、容器重启 `server-restarted` 处理、Loki/Promtail 可选 compose profile，以及本地 API smoke。休整 `rest-action` 和 WebSocket draft sync 已在本地 Docker + Web smoke 中跑通。
+
+仍未完成：Desk/Android/公网服务器完整 smoke、Redis 不可用/低内存容量测试、线上 Nginx/证书 smoke，以及 battle 中断后的失败结算细化。
 
 后续如需管理员 debug，不混入普通接口，单独开受保护入口，例如：
 
@@ -147,7 +152,13 @@ Battle API 输出 JSON log 到 stdout，字段建议：
 - `error`: create session failed、Showdown crash、uncaught exception。
 - `debug`: value breakdown / diagnostics，只在服务器配置允许时输出。
 
-Loki v1 可以后置，但日志格式现在就按 JSON 写，避免后续返工。
+Loki v1 已加入 compose `observability` profile，默认使用本地/服务器更容易拉取的阿里云 xstack 镜像：
+
+```bash
+docker compose -f docker/battle-api/docker-compose.yml --profile observability up -d changebattle-loki changebattle-promtail
+```
+
+Promtail 只采集 `changebattle-v2-battle-api` 的 Docker stdout，流标签控制在 `service/channel/scope`；`roomId/sessionId/clientActionId` 作为 structured metadata/JSON 字段查询，不作为 Loki 高基数 label。首次接入已有历史 Docker 日志时，Loki 可能拒绝过旧 timestamp；这不影响 Battle API 主服务，生产首次部署建议用新容器日志或持久化 positions。
 
 ## Traffic Policy
 

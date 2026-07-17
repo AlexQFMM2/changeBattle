@@ -43,6 +43,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   let readyReject: ((error: Error) => void) | null = null;
   let queue: Promise<void> = Promise.resolve();
   let revision: number | null = null;
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   const pending = new Map<string, PendingMutation>();
   const baseState = {
     lastSuccessAt: null,
@@ -110,6 +111,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     readyResolve?.();
     readyResolve = null;
     readyReject = null;
+    startHeartbeat();
   }
 
   function rejectReady(error: Error): void {
@@ -121,6 +123,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
 
   function scheduleReconnect(): void {
     if (disposed || reconnectTimer) return;
+    stopHeartbeat();
     setState({state: "reconnecting"});
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
@@ -191,6 +194,24 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     });
   }
 
+  function startHeartbeat(): void {
+    if (heartbeatTimer || disposed) return;
+    heartbeatTimer = setInterval(() => {
+      if (!socket || socket.readyState !== WebSocket.OPEN || !ready) return;
+      try {
+        socket.send(JSON.stringify({type: "room.heartbeat", clientActionId: createRoomClientActionId("heartbeat")}));
+      } catch {
+        // The close handler will drive reconnect if the socket is actually broken.
+      }
+    }, 60000);
+  }
+
+  function stopHeartbeat(): void {
+    if (!heartbeatTimer) return;
+    clearInterval(heartbeatTimer);
+    heartbeatTimer = null;
+  }
+
   async function withQueue<T>(task: () => Promise<T>): Promise<T> {
     const previous = queue;
     let release!: () => void;
@@ -257,6 +278,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   function dispose(): void {
     disposed = true;
     if (reconnectTimer) clearTimeout(reconnectTimer);
+    stopHeartbeat();
     rejectPending(new Error("room sync disposed"));
     try {
       socket?.close();

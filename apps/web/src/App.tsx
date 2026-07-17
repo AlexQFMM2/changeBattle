@@ -69,7 +69,7 @@ import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransi
 import {showdownAssetPrefix} from "./lib/assetUrl";
 import {releaseGuardProfileBattlePreferenceV4} from "./lib/battlePreferenceReleaseGuard";
 import {CHANGE_BATTLE_DEBUG_FEATURES_ENABLED, CHANGE_BATTLE_RELEASE_CHANNEL} from "./lib/debugFeatures";
-import {loadFormalRoomCredential} from "./lib/formalRoomCredential";
+import {clearFormalRoomCredential, loadFormalRoomCredential} from "./lib/formalRoomCredential";
 import {createFormalRoomSyncClient, type FormalRoomSyncClientV4} from "./lib/formalRoomSyncClient";
 
 type AppProps = {
@@ -1303,9 +1303,11 @@ function RoutedApp({runtime}: AppProps) {
         profile={profile}
         playerVault={playerVault}
         reason={settlementReason}
+        formalRoomCredential={formalRoomCredential}
         onSaveProfile={userProfileAdapter.saveUserProfile}
         onSavePlayerVault={api.savePlayerVault}
         onSettled={(run, nextProfile, nextPlayerVault) => {
+          clearFormalRoomCredential();
           setFormalRun(run);
           setProfile(nextProfile);
           setPlayerVault(nextPlayerVault);

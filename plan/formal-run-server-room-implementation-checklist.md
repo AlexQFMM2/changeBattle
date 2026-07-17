@@ -29,7 +29,11 @@
 - [x] `postService.ts` 已接入 room action registry，并统一标准错误、token header、timeout 和连接状态。
 - [x] 全局连接 badge 已接入 WebSocket 优先状态：在线、同步中、重连中、连接失败；业务失败不再误报为网络失败。
 - [x] 前端已补恢复保护：正式中转页不再依赖 rAF-only 调度，刷新/热更新时不会在 formalRun 读完前跳回主菜单，战斗页轮询不会被 run patch 反复打断。
-- [ ] 尚未完成：最终 `finalize-run` / `final-result` / 本地 profile-vault delta 写回、room 过期清理与容器重启 `server-restarted` 自动标记、Loki、Desk/Android/公网服务器 smoke，以及故障/容量测试。
+- [x] 最终 `finalize-run` / `final-result` 已接入服务端 room，Web settlement 中转页 room 模式会写回本地 profile/vault，并用 `settlementId` 防重复应用。
+- [x] room 生命周期已收口：固定 heartbeat、5 分钟 disconnected、10 分钟 timeout closed、ended final-result 默认保留 30 分钟。
+- [x] 容器重启失败路径已接入：API 启动时会扫描 Redis，把不可恢复的 active battle room 标记为 `closed/server-restarted`。
+- [x] Loki/Promtail 可选 compose profile 已补齐，默认使用本地已有的阿里云 xstack 镜像，stdout JSON 可被采集；首次接入旧 Docker 日志可能会出现历史 timestamp 拒绝，后续新日志不影响主服务。
+- [ ] 尚未完成：Desk/Android/公网服务器完整 smoke、Redis 不可用/低内存安全水位测试、旧 `baseRevision` 深度冲突测试，以及 battle 中断后的失败结算细化。
 
 ## 0. 本地 Docker 模拟环境
 
@@ -38,7 +42,8 @@
 - [x] 本地 Battle API 暴露到 `127.0.0.1:5191`，方便 Web/Desk/Android 模拟器调试；Redis 只在 Docker network 内访问。
 - [x] Web/Desk/App debug 配置可切换到本地 Battle API URL。
 - [x] 本地先跑通 `/health`、Redis health、room create/read/heartbeat/delete。
-- [ ] 本地模拟容器重启，确认不可恢复 battle room 会标记 `closed/server-restarted`。
+- [x] 本地模拟容器重启，确认不可恢复 battle room 会标记 `closed/server-restarted`。
+- [x] 本地模拟 `ROOM_MAX_COUNT=0`，确认创建 room 返回 `server_busy` 和“服务器已爆满，稍等片刻再试试”。
 - [ ] 本地模拟 Redis 不可用和内存安全水位不足，确认返回可展示错误。
 - [ ] 本地 room + battle + formal run 全链路稳定后，再迁移服务器。
 - [ ] 本地 `docker build` 生成 Battle API image，使用 `docker save` 导出镜像包。
@@ -58,8 +63,8 @@
 - [x] Battle API 增加 Redis 连接配置：`REDIS_URL`、`ROOM_MAX_COUNT=100`、`ROOM_MAX_BYTES=1048576`。
 - [x] 创建 room 前检查 Redis/宿主机安全水位，剩余内存低于安全阈值时拒绝新房间并提示“服务器已爆满，稍等片刻再试试”。
 - [x] 定义 room key 规范：`cb:room:<roomId>`、可选索引 key、TTL key。
-- [ ] 定义 room TTL：活跃 room 每次成功读写刷新；`ended` room 保留 30 分钟只读 final result。
-- [ ] 定义 Battle API 重启降级：debug v1 不恢复内存 battle session，启动时把不可恢复的 battling room 标记为 `closed/server-restarted`。
+- [x] 定义 room TTL：活跃 room 每次成功读写刷新；`ended` room 保留 30 分钟只读 final result。
+- [x] 定义 Battle API 重启降级：debug v1 不恢复内存 battle session，启动时把不可恢复的 battling room 标记为 `closed/server-restarted`。
 - [x] 实现 Redis health check，Battle API `/health` 可展示 Redis 是否可用，但不泄露连接信息。
 - [x] 增加 Redis 不可用时的精简错误响应：不静默回本地流程。
 - [ ] 本地和服务器分别跑一次 Redis smoke：写入、读取、TTL 刷新、删除。
@@ -96,8 +101,8 @@
 - [x] 新增 `POST /rooms/:roomId/formal/prepare-battle`，支持 `clientRequestId` 和 `baseRevision`。
 - [x] 新增 `POST /rooms/:roomId/battle/choices`，支持 `clientActionId / expectedTurn / expectedRqid`。
 - [x] 新增 `POST /rooms/:roomId/formal/finalize-battle`。
-- [ ] 新增 `POST /rooms/:roomId/formal/finalize-run`。
-- [ ] 新增 `GET /rooms/:roomId/final-result`，只允许 ended room 短期读取。
+- [x] 新增 `POST /rooms/:roomId/formal/finalize-run`。
+- [x] 新增 `GET /rooms/:roomId/final-result`，只允许 ended room 短期读取。
 - [x] 新增 `POST /rooms/:roomId/heartbeat`。
 - [x] 新增 `DELETE /rooms/:roomId`，用于主动关闭 room。
 - [x] 给 heavy job 增加并发限制：队伍生成、AI 选择、正式流程大计算不能无限并发打满 2C/2G。
@@ -107,7 +112,7 @@
 验收：
 
 - [ ] 错误 token 不能读取或推进 room。
-- [ ] `maxRooms=100` 时超额返回服务器繁忙。
+- [x] `maxRooms` 超额返回服务器繁忙；已用临时 `CHANGEBATTLE_ROOM_MAX_COUNT=0` smoke 验证。
 - [ ] 单 room JSON 超过 1MB 时拒绝写入并记录服务端错误日志。
 - [ ] 并发推进同一个 room 时，只能有一个 mutation 成功提交。
 - [ ] 所有 room endpoint 错误响应都精简、可展示、无内部 stack/token。
@@ -162,10 +167,10 @@
 
 - [x] 新增全局 room connection monitor，维护请求 RTT、最近成功请求时间、连续失败次数、在线/同步中/重连/失败状态。
 - [x] 正式 room 进入后建立 WebSocket 长连接；任意成功 room mutation 也刷新 `lastHeartbeatAt`。
-- [ ] 正式 room 流程活跃时补固定 60 秒 heartbeat 定时器。
-- [ ] 心跳不做后台强保活；用户长时间不操作、页面挂起或 App 被系统杀掉，room 超时按断线/放弃处理。
-- [ ] 5 分钟无有效心跳或请求时，客户端进入 reconnecting；服务器标记 disconnected。
-- [ ] 10 分钟无响应后，服务器关闭 room；客户端显示 room 已过期/关闭。
+- [x] 正式 room 流程活跃时补固定 60 秒 heartbeat 定时器。
+- [x] 心跳不做后台强保活；用户长时间不操作、页面挂起或 App 被系统杀掉，room 超时按断线/放弃处理。
+- [x] 5 分钟无有效心跳或请求时，客户端进入 reconnecting；服务器标记 disconnected。
+- [x] 10 分钟无响应后，服务器关闭 room；客户端显示 room 已过期/关闭。
 - [ ] 新增通用连接遮罩/弹窗，覆盖 `connecting`、`reconnecting`、`submitting`、`recovering`、`failed`；当前已有左下角状态徽标。
 - [x] 开始游戏、恢复 room、进入战斗、提交指令、战斗结算、最终结算都复用同一个连接状态来源。
 - [x] 新增最小全局延迟信号组件，不绑定 BattleV4Page。
@@ -181,11 +186,11 @@
 
 ## 6. Loki 接入
 
-- [ ] Docker compose 增加 Loki 和 Promtail/Alloy，第一版只收 Battle API stdout JSON log。
+- [x] Docker compose 增加 Loki 和 Promtail，第一版只收 Battle API stdout JSON log。
 - [x] 服务端日志统一 JSON 字段：`scope`、`roomId`、`sessionId`、`turn`、`playerId`、`mode`、`status`、`elapsedMs`、`warnings`。
 - [x] AI debug 日志增加 `roomId/sessionId` 关联，但不进入普通客户端响应。
 - [x] 日志不记录明文 `roomToken`、玩家隐私原文或大体积无用对象。
-- [ ] Loki 标签控制基数：优先 `service/channel/scope`，`roomId/sessionId` 可作为字段查询，避免高基数标签炸内存。
+- [x] Loki 标签控制基数：优先 `service/channel/scope`，`roomId/sessionId` 可作为 structured metadata/字段查询，避免高基数标签炸内存。
 - [ ] 设置 debug/beta 保留策略，优先保当天/近几天日志。
 - [ ] 预留 COS 归档入口：每日压缩 JSONL 或重要 room 日志包后续上传 COS。
 
@@ -220,28 +225,28 @@
 
 ## 8. 结算返回更新
 
-- [ ] `finalize-run` 由服务器根据权威 room formalRun 生成最终结算。
-- [ ] 返回 `settlement / profileDelta / vaultDelta / summary`。
-- [ ] 返回稳定 `settlementId`。
-- [ ] `finalize-run` 必须幂等；重复调用不重复发奖、不重复推进。
-- [ ] 客户端本地 profile/vault 记录已应用的 `settlementId`，防止最终响应丢失后重复应用 delta。
-- [ ] 客户端收到 final result 后应用本地 profile/vault delta。
-- [ ] 本地写入成功后，客户端 ACK 或调用关闭接口，room 进入可清理状态。
-- [ ] 如果最终结算响应丢失，客户端可用 `GET /rooms/:roomId/final-result` 在 30 分钟内读取。
-- [ ] final result 读取只允许 ended room，不允许继续推进游戏。
-- [ ] 结算应用失败时保留 room credential 和 final result，允许用户重试本地写回。
+- [x] `finalize-run` 由服务器根据权威 room formalRun 生成最终结算。
+- [x] 返回完整更新后的 `formalRun / profile / playerVault / summary`。
+- [x] 返回稳定 `settlementId`。
+- [x] `finalize-run` 必须幂等；重复调用不重复发奖、不重复推进。
+- [x] 客户端本地 profile/vault 记录已应用的 `settlementId`，防止最终响应丢失后重复应用 delta。
+- [x] 客户端收到 final result 后应用本地 profile/vault。
+- [x] 本地写入成功后，客户端调用关闭接口，room 进入可清理状态。
+- [x] 如果最终结算响应丢失，客户端可用 `GET /rooms/:roomId/final-result` 在 30 分钟内读取。
+- [x] final result 读取只允许 ended room，不允许继续推进游戏。
+- [x] 结算应用失败时保留 room credential 和 final result，允许用户重试本地写回。
 
 验收：
 
-- [ ] 最终结算响应丢失后能重新取回同一个 final result。
-- [ ] 本地 profile/vault 只应用一次 delta。
-- [ ] room 结束后不能继续 prepare battle 或 submit choice。
+- [x] 最终结算响应丢失后能重新取回同一个 final result。
+- [x] 本地 profile/vault 只应用一次 delta。
+- [x] room 结束后不能继续 prepare battle 或 submit choice。
 
 ## 横向测试清单
 
 - [ ] Room store/token 单测：创建、读取、错误 token、TTL 刷新、关闭、ended 清理。
 - [ ] Room capacity 单测：内存安全水位不足时拒绝创建 room。
-- [ ] Room restart 单测：Battle API 重启后不可恢复 battle room 标记为 `closed/server-restarted`。
+- [x] Room restart smoke：Battle API 重启后不可恢复 battle room 标记为 `closed/server-restarted`。
 - [ ] 幂等单测：prepare battle、submit choice、finalize battle、finalize run。
 - [ ] CAS/lock 单测：同 room 并发推进只有一个成功。
 - [ ] Revision 单测：旧 `baseRevision` 不能覆盖新 checkpoint。
@@ -252,10 +257,12 @@
 - [x] Web UI smoke：开始正式 singles -> starter -> round -> 休整页，连接显示在线；治疗金币不足显示业务错误且不误报连接失败。
 - [ ] Rest-action UI 测试：pending -> ACK 更新本地 cache，失败回滚；committed 操作不被 prepare-battle 重复提交。
 - [ ] 网络恢复测试：创建战斗响应丢失、提交指令响应丢失、App/Desk 重启恢复。
-- [ ] 心跳测试：5 分钟 disconnected，10 分钟 closed，ended 30 分钟 final-result。
-- [ ] 响应体测试：普通 API 不包含 AI debug 大对象。
-- [ ] 容量保护测试：`maxRooms=100`、room JSON `<=1MB`、heavy job 并发限制。
-- [ ] 端到端 smoke：开始游戏 -> 选择 starter -> 生成赛程 -> 休整 draft -> 进入战斗 -> 提交指令 -> 战后结算 -> 最终结算 -> 本地 delta 写回。
+- [x] 心跳测试：用临时 env 快速验证 disconnected/closed timeout；默认配置为 5 分钟/10 分钟，ended 30 分钟 final-result。
+- [x] 响应体测试：final-result 普通 API 不包含 AI debug 大对象。
+- [x] 容量保护 smoke：`maxRooms` 超额拒绝已验证。
+- [ ] 容量保护测试：room JSON `<=1MB`、heavy job 并发限制、Redis 低内存安全水位。
+- [x] API smoke：开始游戏 -> 选择 starter -> 生成赛程 -> finalize-run -> final-result，验证 `settlementId` 幂等和无 AI debug 泄漏。
+- [ ] 端到端 UI smoke：开始游戏 -> 选择 starter -> 生成赛程 -> 休整 draft -> 进入战斗 -> 提交指令 -> 战后结算 -> 最终结算 -> 本地 delta 写回。
 - [ ] Battle中断 smoke：战斗中关闭/退出，room 仍在则按失败结算；room 已清理则按结束/放弃提示。
 
 ## 必跑验证
