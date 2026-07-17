@@ -315,6 +315,11 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
     playbackTimelinePending ||
     submittedTurnPlaybackPending
   ));
+  const recoveringScene = Boolean(sessionId && (
+    !snapshot ||
+    playbackTimelinePending ||
+    (snapshot.rawLog.length > 30 && !playback.playbackComplete && playbackTimeline?.sessionId === sessionId && playbackTimeline.rawFrom === 0)
+  ));
   const commandsLocked = Boolean(narrativeActive || playbackBlockingCommands);
   const shouldShowResultPanel = Boolean(endFlow === "result-panel" && snapshot?.status === "ended" && !playbackBlockingCommands && !narrativeActive && outroPlayedSessionId === narrativeSessionKey);
   const shouldShowSwitchPanel = Boolean(!commandsLocked && snapshot && viewModel && (
@@ -823,6 +828,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
         commentaryItems={playback.commentaryItems}
         api={api}
       />
+      {recoveringScene ? <BattleV4RestoreOverlay snapshotReady={Boolean(snapshot)} /> : null}
       <header className="battle-v4-hud">
         <button type="button" onClick={() => setBattleStatusOpen(true)} disabled={!snapshot}>场地状态</button>
         <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft, playback.debug, lastSubmitError, diagnosticsContext, {pendingMoveAction, visualNearTeam, visualFarTeam})} disabled={!snapshot}>导出诊断</button>
@@ -970,6 +976,15 @@ function BattleV4GlobalNotice({message}: {message: string}) {
   return (
     <div className="battle-v4-global-notice" role="status" aria-live="polite">
       {message}
+    </div>
+  );
+}
+
+function BattleV4RestoreOverlay({snapshotReady}: {snapshotReady: boolean}) {
+  return (
+    <div className="battle-v4-restore-overlay" role="status" aria-live="polite">
+      <strong>正在恢复现场</strong>
+      <span>{snapshotReady ? "正在同步战斗回放和当前局面" : "正在连接战斗房间"}</span>
     </div>
   );
 }
@@ -1660,7 +1675,7 @@ function buildBattleBagTargets(api: ChangeBattleV2Api, bagItems: PlayerItemInsta
     const pokemon = obj.localPokemon;
     const name = obj.displayName || obj.name || obj.battleSpeciesId || `宝可梦 ${index + 1}`;
     return {
-      key: obj.showdownIdentityToken || obj.showdownId || obj.pokeballId || obj.pokeball || obj.localPokemonId || obj.battleKey,
+      key: battleObjIdentityKey(obj, index),
       name,
       nameZh: obj.nameZh || name,
       level: obj.level,
@@ -1776,8 +1791,8 @@ function BattleV4TargetPanel({api, viewModel, visualNearTeam, visualFarTeam, act
   }, [action, api, viewModel.nearTeam, visualFarTeam, visualNearTeam]);
   const shouldSubmitTargetSuffix = moveNeedsSubmittedTarget(moveCard.displayedMove);
   const targets = useMemo(
-    () => buildBattleV4TargetCards(visualNearTeam, visualFarTeam, action, moveCard.displayedMove, moveCard.detail, shouldSubmitTargetSuffix, api),
-    [visualNearTeam, visualFarTeam, action, moveCard.displayedMove, moveCard.detail, shouldSubmitTargetSuffix, api],
+    () => buildBattleV4TargetCards(visualNearTeam, visualFarTeam, viewModel.nearTeam, action, moveCard.displayedMove, moveCard.detail, shouldSubmitTargetSuffix, api),
+    [visualNearTeam, visualFarTeam, viewModel.nearTeam, action, moveCard.displayedMove, moveCard.detail, shouldSubmitTargetSuffix, api],
   );
   return (
     <section className="battle-v4-target-modal" aria-label="攻击对象选择">
@@ -2077,10 +2092,10 @@ function specialDisplayedMoveDisabled(card: BattleV4MoveCardView): boolean {
   return Boolean(card.selectedSpecial && card.displayedMove.disabled);
 }
 
-function buildBattleV4TargetCards(nearTeam: BattleViewSlotV4[], farTeam: BattleViewSlotV4[], action: MoveActionV4, displayedMove: BattleMoveRequestV4, detail: DexMoveDetail | null, submitTargetSuffix: boolean, api: ChangeBattleV2Api): BattleV4TargetCardView[] {
+function buildBattleV4TargetCards(nearTeam: BattleViewSlotV4[], farTeam: BattleViewSlotV4[], requestNearTeam: BattleViewSlotV4[], action: MoveActionV4, displayedMove: BattleMoveRequestV4, detail: DexMoveDetail | null, submitTargetSuffix: boolean, api: ChangeBattleV2Api): BattleV4TargetCardView[] {
   const visualFarTeam = sortSlotsForArena(farTeam, "far");
   const visualNearTeam = sortSlotsForArena(nearTeam, "near");
-  const active = visualNearTeam[action.activeIndex] || visualNearTeam.find(slot => slot.active) || visualNearTeam[0] || null;
+  const active = resolveMoveActionActiveSlot(visualNearTeam, requestNearTeam, action);
   const slots: Array<BattleViewSlotV4 | null> = [
     visualFarTeam[0] || null,
     visualFarTeam[1] || null,
@@ -2107,6 +2122,14 @@ function buildBattleV4TargetCards(nearTeam: BattleViewSlotV4[], farTeam: BattleV
       effectivenessTone: effectiveness.tone,
     };
   });
+}
+
+function resolveMoveActionActiveSlot(visualNearTeam: BattleViewSlotV4[], requestNearTeam: BattleViewSlotV4[], action: MoveActionV4): BattleViewSlotV4 | null {
+  const requestActive = requestNearTeam[action.activeIndex] || null;
+  if (requestActive) {
+    return visualNearTeam.find(slot => sameBattleViewSlotIdentity(slot, requestActive)) || requestActive;
+  }
+  return visualNearTeam[action.activeIndex] || visualNearTeam.find(slot => slot.active) || visualNearTeam[0] || null;
 }
 
 function battleV4TargetCardKey(slot: BattleViewSlotV4, index: number): string {
@@ -2223,6 +2246,12 @@ type SwitchCandidateV4 = {
   reason: string;
 };
 
+type ResolvedSwitchActionV4 = {
+  action: SwitchActionV4 | null;
+  matchReason: string;
+  matchedToken?: string;
+};
+
 type SwitchPanelTeamV4 = {
   playerId: string;
   title: string;
@@ -2244,7 +2273,7 @@ function BattleV4SwitchPanel({api, snapshot, request, pokemonBattleOBJ, switchAc
   onClose: () => void;
   onConfirm: (choice: string) => void;
 }) {
-  const candidates = useMemo(() => buildSwitchCandidates(pokemonBattleOBJ.partyByPlayer.p1, switchActions, debugConfig), [pokemonBattleOBJ.partyByPlayer.p1, switchActions, debugConfig]);
+  const candidates = useMemo(() => buildSwitchCandidates(pokemonBattleOBJ.partyByPlayer.p1, switchActions, request, debugConfig), [pokemonBattleOBJ.partyByPlayer.p1, switchActions, request, debugConfig]);
   const panelTeams = useMemo(() => buildSwitchPanelTeams(pokemonBattleOBJ, candidates), [pokemonBattleOBJ, candidates]);
   const enemies = useMemo(() => buildNonCoopEnemySwitchCandidates(pokemonBattleOBJ), [pokemonBattleOBJ]);
   const isCoop = snapshot.mode === "coop";
@@ -2494,17 +2523,21 @@ function BattleV4SwitchMove({move}: {move: TrainingMoveSlotV4}) {
   );
 }
 
-function buildSwitchCandidates(party: PokemonBattleOBJ[], switchActions: SwitchActionV4[], debugConfig?: AppDebugConfigV4): SwitchCandidateV4[] {
-  const actionByIndex = new Map(switchActions.map(action => [action.pokemonIndex, action]));
+function buildSwitchCandidates(party: PokemonBattleOBJ[], switchActions: SwitchActionV4[], request: BattleNormalizedRequestV4 | null, debugConfig?: AppDebugConfigV4): SwitchCandidateV4[] {
   return party.map((obj, index) => {
-    const action = actionByIndex.get(obj.teamIndex) || null;
+    const resolved = resolveSwitchActionForBattleObj(obj, switchActions, request);
+    const action = resolved.action;
     battleDebugLog(debugConfig, "ui", "resolve-switch-candidate", {
       requestIndex: obj.teamIndex,
       choiceIndex: obj.choiceIndex,
+      actionPokemonIndex: action?.pokemonIndex ?? null,
+      actionChoice: action?.choice || null,
+      actionRequestPokeball: action ? request?.sidePokemon[action.pokemonIndex]?.pokeball || "" : "",
       rowPokeball: obj.row?.pokeball || "",
       resolvedLocalPokemonId: obj.localPokemonId || null,
       resolvedToken: obj.showdownIdentityToken || obj.pokeball || "",
-      fallbackReason: "pokemon-battle-obj",
+      matchedToken: resolved.matchedToken || "",
+      fallbackReason: resolved.matchReason,
       finalChoice: action?.choice || null,
     });
     const label = obj.displayName || obj.nameZh || obj.name || `空位 ${index + 1}`;
@@ -2533,6 +2566,70 @@ function buildSwitchCandidates(party: PokemonBattleOBJ[], switchActions: SwitchA
       reason,
     };
   });
+}
+
+function resolveSwitchActionForBattleObj(obj: PokemonBattleOBJ, switchActions: SwitchActionV4[], request: BattleNormalizedRequestV4 | null): ResolvedSwitchActionV4 {
+  const actionRows = switchActions.map(action => ({
+    action,
+    row: request?.sidePokemon[action.pokemonIndex] || null,
+  }));
+  if (obj.row) {
+    const rowMatch = actionRows.find(entry => entry.row === obj.row);
+    if (rowMatch) return {action: rowMatch.action, matchReason: "request-row-identity"};
+  }
+  const objTokens = battleObjIdentityTokens(obj);
+  for (const entry of actionRows) {
+    const matchedToken = firstSharedIdentityToken(objTokens, requestRowIdentityTokens(entry.row));
+    if (matchedToken) return {action: entry.action, matchReason: "showdown-identity-token", matchedToken};
+  }
+  const choiceIndexFallback = switchActions.find(action => action.pokemonIndex + 1 === obj.choiceIndex);
+  if (choiceIndexFallback) return {action: choiceIndexFallback, matchReason: "choice-index-fallback"};
+  const requestIndexFallback = switchActions.find(action => action.pokemonIndex === obj.teamIndex);
+  if (requestIndexFallback) return {action: requestIndexFallback, matchReason: "request-index-fallback"};
+  return {action: null, matchReason: objTokens.size ? "identity-missing-action" : "missing-identity-and-action"};
+}
+
+function battleObjIdentityKey(obj: PokemonBattleOBJ, index: number): string {
+  return obj.showdownIdentityToken
+    || obj.showdownId
+    || obj.pokeballId
+    || obj.pokeball
+    || obj.row?.pokeball
+    || obj.localPokemon?.showdownIdentityToken
+    || obj.localPokemon?.showdownId
+    || obj.localPokemon?.pokeballId
+    || obj.localPokemonId
+    || obj.battleKey
+    || `protocol:${obj.playerId}:${index + 1}`;
+}
+
+function battleObjIdentityTokens(obj: PokemonBattleOBJ): Set<string> {
+  return identityTokenSet([
+    obj.showdownIdentityToken,
+    obj.showdownId,
+    obj.pokeballId,
+    obj.pokeball,
+    obj.row?.pokeball,
+    obj.localPokemon?.showdownIdentityToken,
+    obj.localPokemon?.showdownId,
+    obj.localPokemon?.pokeballId,
+    obj.localPokemonId,
+  ]);
+}
+
+function requestRowIdentityTokens(row: RequestPokemonV4 | null): Set<string> {
+  return identityTokenSet([row?.pokeball]);
+}
+
+function identityTokenSet(values: Array<string | null | undefined>): Set<string> {
+  return new Set(values.map(value => toId(value || "")).filter(Boolean));
+}
+
+function firstSharedIdentityToken(left: Set<string>, right: Set<string>): string {
+  for (const token of left) {
+    if (right.has(token)) return token;
+  }
+  return "";
 }
 
 function buildSwitchPanelTeams(pokemonBattleOBJ: PokemonBattleOBJState, selfCandidates: SwitchCandidateV4[]): SwitchPanelTeamV4[] {

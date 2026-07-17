@@ -1341,11 +1341,11 @@ function syncTrainerItemTargetLocalPokemon(
 ): LocalPokemonLikeForBattleV4 {
   const key = normalizeIdentityToken(targetKey);
   const rows = session.snapshot.requests[playerId]?.side?.pokemon || session.snapshot.debug.latestSidePokemon?.[playerId] || [];
-  const row = rows.find((entry, index) =>
+  const identityRow = key ? rows.find(entry =>
     normalizeIdentityToken(entry.pokeball) === key ||
-    normalizeIdentityToken(entry.ident) === key ||
-    index === teamIndex
-  ) || null;
+    normalizeIdentityToken(entry.ident) === key
+  ) || null : null;
+  const row = identityRow || (teamIndex >= 0 ? rows[teamIndex] || null : null);
   const condition = row?.condition ? parseCondition(row.condition) : null;
   const battleHp = battlePokemon ? {
     hp: Math.max(0, Number(battlePokemon.hp ?? localPokemon.entryHp ?? 0) || 0),
@@ -1414,7 +1414,8 @@ function findBattlePokemon(session: RuntimeSession, playerId: ShowdownPlayerIdV4
   const side = battle?.sides?.[sideIndex];
   if (!side) return null;
   const key = normalizeIdentityToken(targetKey);
-  return side.pokemon?.find((pokemon: any, index: number) => index === teamIndex || normalizeIdentityToken(pokemon.set?.pokeball) === key) || null;
+  const identityMatch = key ? side.pokemon?.find((pokemon: any) => normalizeIdentityToken(pokemon.set?.pokeball) === key) || null : null;
+  return identityMatch || (teamIndex >= 0 ? side.pokemon?.[teamIndex] || null : null);
 }
 
 function applyTrainerItemEffectToBattlePokemon(session: RuntimeSession, pokemon: any, effect: RecoveryEffect, result: ReturnType<typeof applyTrainerItemEffectToLocalPokemon>, itemName: string): void {

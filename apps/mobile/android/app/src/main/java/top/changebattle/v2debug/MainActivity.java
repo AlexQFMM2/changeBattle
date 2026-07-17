@@ -1,11 +1,14 @@
 package top.changebattle.v2debug;
 
 import android.graphics.Color;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.WebView;
 
+import com.getcapacitor.BridgeWebChromeClient;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -13,6 +16,12 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         enableImmersiveFullscreen();
+    }
+
+    @Override
+    protected void load() {
+        super.load();
+        installVideoChromeClient();
     }
 
     @Override
@@ -37,5 +46,26 @@ public class MainActivity extends BridgeActivity {
                 | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                 | View.SYSTEM_UI_FLAG_LAYOUT_STABLE
         );
+    }
+
+    private void installVideoChromeClient() {
+        if (bridge == null || bridge.getWebView() == null) {
+            return;
+        }
+        WebView webView = bridge.getWebView();
+        webView.setBackgroundColor(Color.rgb(5, 8, 7));
+        webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
+        webView.setWebChromeClient(new ChangeBattleWebChromeClient());
+    }
+
+    private class ChangeBattleWebChromeClient extends BridgeWebChromeClient {
+        ChangeBattleWebChromeClient() {
+            super(bridge);
+        }
+
+        @Override
+        public Bitmap getDefaultVideoPoster() {
+            return Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888);
+        }
     }
 }

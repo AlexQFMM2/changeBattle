@@ -40,6 +40,41 @@
   pointer-events: none;
 }
 
+.battle-v4-restore-overlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 68;
+  display: grid;
+  gap: 5px;
+  min-width: 168px;
+  padding: 10px 14px;
+  border: 1px solid rgb(194 232 255 / 58%);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgb(19 37 56 / 92%), rgb(8 16 30 / 90%));
+  box-shadow:
+    0 10px 24px rgb(0 0 0 / 42%),
+    inset 0 0 0 1px rgb(255 255 255 / 10%);
+  color: #f5fbff;
+  text-align: center;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.battle-v4-restore-overlay strong {
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.1;
+}
+
+.battle-v4-restore-overlay span {
+  color: rgb(218 239 255 / 86%);
+  font-size: 9px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
 .battle-v4-persistent-field-layer {
   position: absolute;
   inset: 0;

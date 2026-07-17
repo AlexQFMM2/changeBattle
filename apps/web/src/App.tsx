@@ -27,6 +27,7 @@ import {
   type FormalGameModeV4,
   type FormalGameRunV4,
   type FormalMedicalInsuranceChoiceV4,
+  type FormalRoomV1,
   type FormalRoomRestActionV1,
   type FormalRoundSettlementV4,
   type FormalSettlementReasonV4,
@@ -156,6 +157,7 @@ function RoutedApp({runtime}: AppProps) {
   const confirmedFormalRunRef = useRef<FormalGameRunV4 | null>(null);
   const formalTransitionProfile = useMemo(() => profile ? releaseGuardProfileBattlePreferenceV4(profile, DEBUG_FEATURE_ENABLED) : null, [profile]);
   const formalRoomCredential = useMemo(() => loadFormalRoomCredential(), [formalRun?.currentRoundIndex, formalRun?.id, location.pathname]);
+  const formalRoomRouteActive = isFormalRoomConnectionRoute(location.pathname);
   const formalRoomBattleService = useMemo(() => formalRoomCredential
     ? api.createFormalRoomBattleServiceClient({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken})
     : undefined, [api, formalRoomCredential?.roomId, formalRoomCredential?.roomToken]);
@@ -185,7 +187,7 @@ function RoutedApp({runtime}: AppProps) {
   useEffect(() => {
     formalRoomSyncClientRef.current?.dispose();
     formalRoomSyncClientRef.current = null;
-    if (!formalRoomCredential || !formalRun?.id) return;
+    if (!formalRoomRouteActive || !formalRoomCredential || !formalRun?.id) return;
     confirmedFormalRunRef.current = formalRun;
     const client = createFormalRoomSyncClient({
       baseUrl: battleServiceUrl,
@@ -215,7 +217,7 @@ function RoutedApp({runtime}: AppProps) {
       client.dispose();
       if (formalRoomSyncClientRef.current === client) formalRoomSyncClientRef.current = null;
     };
-  }, [api, battleServiceUrl, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRun?.id]);
+  }, [api, battleServiceUrl, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRun?.id, formalRoomRouteActive]);
 
   useEffect(() => {
     if (!formalRun?.settled) return;
@@ -560,6 +562,11 @@ function RoutedApp({runtime}: AppProps) {
       return;
     }
     setFormalRun(current);
+    navigate("/formal/resume-transition", {replace: true});
+  }
+
+  function routeResumedFormalRun(current: FormalGameRunV4) {
+    setFormalRun(current);
     if (current.restRunSnapshot) {
       if (current.restRunSnapshot.status === "battling" || hasRunningFormalBattleNode(current)) {
         navigate("/formal/battle", {replace: true});
@@ -593,6 +600,19 @@ function RoutedApp({runtime}: AppProps) {
       return;
     }
     navigate(`/formal/transition/${current.mode}`, {replace: true});
+  }
+
+  function enterClosedFormalRoomSettlement(run: FormalGameRunV4) {
+    clearFormalRoomCredential();
+    setBattleSessionId("");
+    try {
+      window.sessionStorage?.removeItem(formalBattleSessionStorageKey);
+    } catch {
+      // Best-effort cleanup only.
+    }
+    setFormalRun(run);
+    setMessage("房间已关闭，对局判定非正常结束。");
+    navigate("/formal/settlement-transition?reason=loss", {replace: true});
   }
 
   async function continueSavedRunGame() {
@@ -804,7 +824,7 @@ function RoutedApp({runtime}: AppProps) {
       onCreate={startCreate}
       onDelete={deleteProfile}
       onOpenOfficialSite={desktopAppBridge ? () => desktopAppBridge.openOfficialSite() : undefined}
-      preferStaticBackground={runtime === "mobile"}
+      preferStaticBackground={false}
     />
   );
 
@@ -818,7 +838,7 @@ function RoutedApp({runtime}: AppProps) {
         catalog={catalog.trainers}
         trainingRun={trainingRun}
         continueGameLabel={continueGameLabel}
-        preferStaticBackground={runtime === "mobile"}
+        preferStaticBackground={false}
         onOpenDex={() => openDex()}
         onOpenDexCard={openDexCard}
         onTraining={() => void createTrainingRunAndOpenConfig()}
@@ -1012,6 +1032,23 @@ function RoutedApp({runtime}: AppProps) {
         navigate("/formal/starter-select", {replace: true});
       }}
     />
+  ) : missingProfileFormalPage;
+
+  const formalResumeTransitionPage = profile ? (
+    formalRun ? (
+      <FormalResumeTransitionPage
+        api={api}
+        run={formalRun}
+        formalRoomCredential={formalRoomCredential}
+        onRunSynced={setFormalRun}
+        onResumeReady={routeResumedFormalRun}
+        onClosedConfirm={enterClosedFormalRoomSettlement}
+      />
+    ) : !formalRunLoaded ? (
+      <FormalRouteLoadingPage />
+    ) : (
+      <Navigate to="/main" replace />
+    )
   ) : missingProfileFormalPage;
 
   const formalStarterSelectPage = profile ? (
@@ -1437,6 +1474,7 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/training/battle" element={trainingBattlePage} />
         <Route path="/training/battle-result-transition" element={trainingBattleResultTransitionPage} />
         <Route path="/formal/transition/:mode" element={formalTransitionPage} />
+        <Route path="/formal/resume-transition" element={formalResumeTransitionPage} />
         <Route path="/formal/starter-select" element={formalStarterSelectPage} />
         <Route path="/formal/round-transition" element={formalRoundTransitionPage} />
         <Route path="/formal/rest" element={formalRestPage} />
@@ -1469,7 +1507,7 @@ function RoutedApp({runtime}: AppProps) {
           onOpenOfficialSite={() => desktopAppBridge.openOfficialSite()}
         />
       ) : null}
-      <ServerConnectionBadge state={serverConnectionState} />
+      <ServerConnectionBadge state={formalRoomCredential && formalRoomRouteActive ? serverConnectionState : null} />
     </GameViewport>
   );
 }
@@ -1567,6 +1605,21 @@ function continueGameLabelFor(formalRun: FormalGameRunV4 | null, trainingRun: Tr
   return undefined;
 }
 
+function isFormalRoomConnectionRoute(pathname: string): boolean {
+  return pathname === "/formal/resume-transition"
+    || pathname === "/formal/starter-select"
+    || pathname === "/formal/round-transition"
+    || pathname === "/formal/rest"
+    || pathname === "/formal/battle-transition"
+    || pathname === "/formal/battle"
+    || pathname === "/formal/battle-result-transition"
+    || pathname === "/formal/settlement-transition";
+}
+
+function isClosedFormalRoom(room: FormalRoomV1): boolean {
+  return room.status === "closed" || room.connectionState === "closed" || Boolean(room.closeReason);
+}
+
 function isFormalRunContinuable(run: FormalGameRunV4 | null | undefined): run is FormalGameRunV4 {
   return Boolean(run && run.settled === false);
 }
@@ -1656,6 +1709,103 @@ function FormalRouteLoadingPage() {
         </div>
       </section>
     </section>
+  );
+}
+
+function FormalResumeTransitionPage({api, run, formalRoomCredential, onRunSynced, onResumeReady, onClosedConfirm}: {
+  api: ReturnType<typeof createChangeBattleV2Api>;
+  run: FormalGameRunV4;
+  formalRoomCredential?: {roomId: string; roomToken: string} | null;
+  onRunSynced: (run: FormalGameRunV4) => void;
+  onResumeReady: (run: FormalGameRunV4) => void;
+  onClosedConfirm: (run: FormalGameRunV4) => void;
+}) {
+  const [transitionReady, setTransitionReady] = useState(false);
+  const [closedRoom, setClosedRoom] = useState<FormalRoomV1 | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (!transitionReady || startedRef.current) return;
+    startedRef.current = true;
+    let cancelled = false;
+    void (async () => {
+      if (!formalRoomCredential) {
+        onResumeReady(run);
+        return;
+      }
+      const result = await api.getFormalRoom(formalRoomCredential);
+      if (cancelled) return;
+      if (!result.ok) {
+        if (result.error === "room_not_found") {
+          setClosedRoom({
+            roomId: formalRoomCredential.roomId,
+            formalRun: run,
+            activeBattle: null,
+            revision: 0,
+            status: "closed",
+            connectionState: "closed",
+            closeReason: "expired",
+            createdAt: "",
+            updatedAt: "",
+            lastHeartbeatAt: "",
+            expiresAt: "",
+          });
+          return;
+        }
+        setError(result.message);
+        return;
+      }
+      const room = result.data;
+      onRunSynced(room.formalRun);
+      if (isClosedFormalRoom(room)) {
+        setClosedRoom(room);
+        return;
+      }
+      const saved = await api.saveFormalGameRun(room.formalRun);
+      if (cancelled) return;
+      onRunSynced(saved);
+      onResumeReady(saved);
+    })().catch(caught => {
+      if (!cancelled) setError(caught instanceof Error ? caught.message : "恢复正式游戏失败。");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, onResumeReady, onRunSynced, run, transitionReady]);
+
+  if (closedRoom) {
+    return (
+      <section className="training-transition-page" aria-live="polite">
+        <div className="training-transition-video-fallback" aria-hidden="true">
+          <span />
+          <i />
+        </div>
+        <div className="training-transition-shade" aria-hidden="true" />
+        <section className="training-transition-loading">
+          <div className="training-transition-copy">
+            <strong>房间已关闭</strong>
+            <span>{closedRoom.closeReason === "timeout" ? "对局长时间无响应，判定为非正常结束。" : "对局已无法恢复，判定为非正常结束。"}</span>
+          </div>
+          <p className="training-transition-tip">
+            <strong>提示</strong>
+            <span>确认后会按失败结算本局，并清理本地房间凭证。</span>
+          </p>
+          <button type="button" className="training-transition-action" onClick={() => onClosedConfirm(closedRoom.formalRun)}>
+            进入结算
+          </button>
+        </section>
+      </section>
+    );
+  }
+
+  return (
+    <TrainingRunTransitionPage
+      title="恢复正式游戏"
+      detail="正在检查房间状态"
+      tip={error ? `恢复失败：${error}` : "正在连接服务器确认本局是否仍可继续。"}
+      onReady={() => setTransitionReady(true)}
+    />
   );
 }
 

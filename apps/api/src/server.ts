@@ -203,6 +203,7 @@ const server = http.createServer(async (request, response) => {
     if (request.method === "POST" && roomHeartbeatMatch) {
       const roomId = decodeURIComponent(roomHeartbeatMatch[1]!);
       const room = await loadAuthorizedRoom(roomId, request);
+      assertRoomOpen(room);
       const next = touchRoom(room);
       await saveRoom(next);
       broadcastRoomUpdated(next);
@@ -724,7 +725,18 @@ function formalFlowError(error: unknown): HttpError {
   return new HttpError(400, "formal_flow_error", message || "正式流程计算失败。");
 }
 
+function roomIsClosed(room: FormalRoomRecordV1): boolean {
+  return room.status === "closed" || room.connectionState === "closed" || Boolean(room.closeReason);
+}
+
+function assertRoomOpen(room: FormalRoomRecordV1): void {
+  if (roomIsClosed(room)) {
+    throw new HttpError(409, "room_closed", "房间已经关闭。");
+  }
+}
+
 function advanceRoom(room: FormalRoomRecordV1, formalRun: FormalGameRunV4): FormalRoomRecordV1 {
+  assertRoomOpen(room);
   const now = new Date();
   return {
     ...room,
@@ -741,6 +753,7 @@ function advanceRoom(room: FormalRoomRecordV1, formalRun: FormalGameRunV4): Form
 async function syncFormalRoomDraft(roomId: string, roomToken: string, body: any): Promise<{room: Record<string, unknown>; formalRun: FormalGameRunV4; label: string; reused: boolean}> {
   const clientActionId = requiredString(body?.clientActionId, "clientActionId");
   const current = await loadAuthorizedRoomByToken(roomId, roomToken);
+  assertRoomOpen(current);
   const repeated = current.draftSyncResults?.[clientActionId];
   if (repeated) {
     return {
@@ -749,9 +762,6 @@ async function syncFormalRoomDraft(roomId: string, roomToken: string, body: any)
       label: repeated.label,
       reused: true,
     };
-  }
-  if (current.connectionState === "closed" || current.closeReason) {
-    throw new HttpError(409, "room_closed", "房间已经关闭。");
   }
   if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
     throw new HttpError(409, "room_not_resting", "当前房间正在战斗，不能修改休整状态。");
@@ -789,6 +799,7 @@ function roomStatusFromFormalRun(run: FormalGameRunV4): RoomStatus {
 async function prepareFormalRoomBattle(roomId: string, request: http.IncomingMessage, body: any): Promise<Record<string, unknown>> {
   const clientRequestId = requiredString(body?.clientRequestId, "clientRequestId");
   const current = await loadAuthorizedRoom(roomId, request);
+  assertRoomOpen(current);
   if (current.activeBattle?.status !== "finalized" && current.activeBattle?.sessionId) {
     if (current.activeBattle.clientRequestId !== clientRequestId && current.activeBattle.status === "preparing") {
       throw new HttpError(409, "active_battle_exists", "当前房间已有战斗正在创建。");
@@ -854,6 +865,7 @@ function validateFormalRunDraft(room: FormalRoomRecordV1, value: unknown): Forma
 async function applyFormalRoomRestAction(roomId: string, roomToken: string, body: any): Promise<{room: Record<string, unknown>; formalRun: FormalGameRunV4; actionType: string; message: string; moneyDelta: number; result: unknown; reused: boolean}> {
   const clientActionId = requiredString(body?.clientActionId, "clientActionId");
   const current = await loadAuthorizedRoomByToken(roomId, roomToken);
+  assertRoomOpen(current);
   const repeated = current.restActionResults?.[clientActionId];
   if (repeated) {
     return {
@@ -865,9 +877,6 @@ async function applyFormalRoomRestAction(roomId: string, roomToken: string, body
       result: repeated.result,
       reused: true,
     };
-  }
-  if (current.connectionState === "closed" || current.closeReason) {
-    throw new HttpError(409, "room_closed", "房间已经关闭。");
   }
   if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
     throw new HttpError(409, "room_not_resting", "当前房间正在战斗，不能修改休整状态。");
@@ -954,6 +963,7 @@ function pruneDraftSyncResults(results: Record<string, FormalRoomDraftSyncStored
 }
 
 async function getRoomBattleSnapshot(room: FormalRoomRecordV1): Promise<any> {
+  assertRoomOpen(room);
   const activeBattle = room.activeBattle;
   if (!activeBattle?.sessionId) throw new HttpError(409, "active_battle_missing", "当前房间没有进行中的战斗。");
   try {
@@ -969,6 +979,7 @@ async function getRoomBattleSnapshot(room: FormalRoomRecordV1): Promise<any> {
 async function submitFormalRoomBattleChoice(roomId: string, request: http.IncomingMessage, body: any): Promise<any> {
   const clientActionId = requiredString(body?.clientActionId, "clientActionId");
   const current = await loadAuthorizedRoom(roomId, request);
+  assertRoomOpen(current);
   const activeBattle = current.activeBattle;
   if (!activeBattle?.sessionId) throw new HttpError(409, "active_battle_missing", "当前房间没有进行中的战斗。");
   if (activeBattle.choiceActionIds.includes(clientActionId)) {
@@ -1008,6 +1019,7 @@ async function submitFormalRoomBattleChoice(roomId: string, request: http.Incomi
 async function finalizeFormalRoomBattle(roomId: string, request: http.IncomingMessage, body: any): Promise<Record<string, unknown>> {
   const clientRequestId = requiredString(body?.clientRequestId, "clientRequestId");
   const current = await loadAuthorizedRoom(roomId, request);
+  assertRoomOpen(current);
   const activeBattle = current.activeBattle;
   if (!activeBattle?.sessionId) throw new HttpError(409, "active_battle_missing", "当前房间没有可结算的战斗。");
   if (activeBattle.finalizeRequestId === clientRequestId && activeBattle.finalizeResult) {
@@ -1395,6 +1407,12 @@ async function handleRoomWsMessage(client: RoomWsClient, raw: string): Promise<v
       }
       const roomToken = requiredString(message?.roomToken, "roomToken");
       const room = await loadAuthorizedRoomByToken(client.roomId, roomToken);
+      if (roomIsClosed(room)) {
+        sendWsJson(client, {type: "room.closed", room: publicRoom(room), reason: room.closeReason || "closed"});
+        closeWsClient(client, 4409, room.closeReason || "room_closed");
+        log("info", "room-ws-closed-rejected", {roomId: client.roomId, clientId: client.id, reason: room.closeReason || "closed"});
+        return;
+      }
       client.authed = true;
       client.roomTokenHash = hashToken(roomToken);
       clearTimeout(client.authTimer);
@@ -1457,6 +1475,7 @@ async function loadAuthorizedWsRoom(client: RoomWsClient): Promise<FormalRoomRec
   if (!client.roomTokenHash || client.roomTokenHash !== room.roomTokenHash) {
     throw new HttpError(403, "room_forbidden", "房间凭证无效。");
   }
+  assertRoomOpen(room);
   return room;
 }
 
@@ -1626,6 +1645,7 @@ async function sweepRoomLifecycle(): Promise<void> {
         const idleMs = nowMs - lastActiveMs;
         if (idleMs >= config.roomClosedAfterMs) {
           const now = new Date(nowMs).toISOString();
+          const activeSessionId = room.activeBattle?.sessionId || "";
           const next: FormalRoomRecordV1 = {
             ...room,
             status: "closed",
@@ -1633,7 +1653,12 @@ async function sweepRoomLifecycle(): Promise<void> {
             closeReason: "timeout",
             updatedAt: now,
           };
-          await saveRoom(next);
+          await saveRoom(next, config.roomFinalResultTtlMs);
+          if (activeSessionId) {
+            await closeSession(activeSessionId).catch(error => {
+              log("warn", "room-timeout-session-close-failed", {roomId, sessionId: activeSessionId, error: error instanceof Error ? error.message : String(error)});
+            });
+          }
           broadcastRoomClosed(roomId, "timeout");
           log("warn", "room-closed-timeout", {roomId, idleMs});
           return;
