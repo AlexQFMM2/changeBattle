@@ -69,12 +69,14 @@ export type TrainingRestHealController = {
 export type TrainingRestTeamRerollController = {
   money: number;
   locksEnabled?: boolean;
+  serverCommitted?: boolean;
   onRerollStats: (input: {pokemonId: string; part: "ivs" | "evs"; lockedStats: DexStatId[]}) => Promise<FormalRestPokemonStatRerollResultV4> | FormalRestPokemonStatRerollResultV4;
 };
 
 export type TrainingRestOpponentPreviewController = {
   enabled: boolean;
   cost: number;
+  serverCommitted?: boolean;
   onUnlock: (input: {unlockKey: string}) => Promise<FormalRestOpponentPreviewUnlockResultV4> | FormalRestOpponentPreviewUnlockResultV4;
 };
 
@@ -107,6 +109,7 @@ export type TrainingRestNewPageProps = {
   opponentPreviewController?: TrainingRestOpponentPreviewController;
   exchangeController?: TrainingRestExchangeController;
   initialNotice?: string | null;
+  serverBusyMessage?: string | null;
   onInitialNoticeConsumed?: () => void;
   soulmateRewardEnabled?: boolean;
   onSoulmateEggPrepare?: (input: {candidateId: string}) => Promise<FormalSoulmateEggHatchResultV4> | FormalSoulmateEggHatchResultV4;
@@ -125,7 +128,7 @@ type SoulmateHatchState =
   | {phase: "done"; result: FormalSoulmateEggClaimResultV4}
   | {phase: "error"; message: string};
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, hideSaveAction = false, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, initialNotice, onInitialNoticeConsumed, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, hideSaveAction = false, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, initialNotice, serverBusyMessage, onInitialNoticeConsumed, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -146,6 +149,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const [soulmateHatch, setSoulmateHatch] = useState<SoulmateHatchState>({phase: "idle"});
   const [message, setMessage] = useState("休息室已就绪。");
   const [toast, setToast] = useState<{id: number; message: string; tone?: TrainingRestToastTone} | null>(null);
+  const activeBusyMessage = serverBusyMessage || restBusyMessage;
   const p1Team = run.players.p1?.localTeam || null;
   const pendingSettlement = run.status === "battleEndedPendingSettlement";
   const soulmateCandidates = useMemo(() => createRestSoulmateCandidates(run), [run]);
@@ -184,7 +188,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       players: {...run.players, p1: nextP1},
       updatedAt: new Date().toISOString(),
     };
-    void Promise.resolve(onRunChange(nextRun)).catch(error => {
+    void withRestBusy(hideSaveAction ? "正在同步中" : "正在整理队伍中", () => onRunChange(nextRun)).catch(error => {
       const nextMessage = error instanceof Error ? error.message : "队伍调整同步失败。";
       setMessage(nextMessage);
       showNotice(nextMessage, "danger");
@@ -201,7 +205,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
 
   function updateRunGameDraft(nextRun: TrainingRunGameV4, nextMessage: string) {
     if (nextRun !== run) {
-      void Promise.resolve(onRunChange(nextRun)).catch(error => {
+      void withRestBusy(hideSaveAction ? "正在同步中" : "正在更新中", () => onRunChange(nextRun)).catch(error => {
         const message = error instanceof Error ? error.message : "休整同步失败。";
         setMessage(message);
         showNotice(message, "danger");
@@ -212,6 +216,15 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
 
   function showNotice(nextMessage: string, tone: TrainingRestToastTone = "normal") {
     setToast({id: Date.now(), message: nextMessage, tone});
+  }
+
+  async function withRestBusy<T>(nextMessage: string, task: () => Promise<T> | T): Promise<T> {
+    setRestBusyMessage(nextMessage);
+    try {
+      return await task();
+    } finally {
+      setRestBusyMessage(null);
+    }
   }
 
   async function startSoulmateEggHatch(candidate: SoulmateCandidateV4) {
@@ -266,7 +279,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         showNotice(result.message, "danger");
         return;
       }
-      void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+      if (!hideSaveAction) void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
         const nextMessage = error instanceof Error ? error.message : "灵魂伴侣同步失败。";
         setMessage(nextMessage);
         showNotice(nextMessage, "danger");
@@ -318,8 +331,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
 
   async function unlockPreviewPokemon(target: PreviewPokemonEntry) {
     if (opponentPreviewController) {
-      const result = await opponentPreviewController.onUnlock({unlockKey: target.unlockKey});
-      if (result.ok) void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+      const result = await withRestBusy("正在打听中", () => opponentPreviewController.onUnlock({unlockKey: target.unlockKey}));
+      if (result.ok && !opponentPreviewController.serverCommitted) void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
         const nextMessage = error instanceof Error ? error.message : "情报同步失败。";
         setMessage(nextMessage);
         showNotice(nextMessage, "danger");
@@ -354,7 +367,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     setExchangeBusy(true);
     setMessage("正在交换...");
     try {
-      const result = await exchangeController.onExchange(exchangeSelection);
+      const result = await withRestBusy("正在交换中", () => exchangeController.onExchange(exchangeSelection));
       if (result.ok) {
         const commit = exchangeController.serverCommitted ? Promise.resolve() : Promise.resolve(onRunChange(result.run.restRunSnapshot || run));
         void commit.catch(error => {
@@ -386,9 +399,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       return;
     }
     try {
-      setRestBusyMessage("正在治疗中");
       setMessage("正在治疗...");
-      const result = await healController.onHeal();
+      const result = await withRestBusy("正在治疗中", () => healController.onHeal());
       if (result.ok && !healController.serverCommitted) {
         void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
           const nextMessage = error instanceof Error ? error.message : "治疗同步失败。";
@@ -402,8 +414,6 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       const nextMessage = error instanceof Error ? error.message : "治疗失败。";
       setMessage(nextMessage);
       showNotice(nextMessage, "danger");
-    } finally {
-      setRestBusyMessage(null);
     }
   }
 
@@ -558,6 +568,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             shop={shopController?.getShop?.() || shopController?.shop || null}
             player={shopController?.player}
             money={shopController?.money ?? moneyAmount ?? 0}
+            onBusyChange={setRestBusyMessage}
             onBuy={shopController?.onBuy}
             onSell={shopController?.onSell}
             onBack={() => {
@@ -607,11 +618,11 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             lessonOptions={selectedTrainingLesson ? [] : currentTrainingLessons()}
             player={trainingGroundController?.player}
             money={trainingGroundController?.money ?? moneyAmount ?? 0}
-            onApply={trainingGroundController?.onApply ? input => trainingGroundController.onApply({
+            onApply={trainingGroundController?.onApply ? input => withRestBusy("正在学习中", () => trainingGroundController.onApply({
               ...input,
               lessonId: selectedTrainingLesson?.lessonId,
               lessonKind: selectedTrainingLesson?.kind,
-            }) : undefined}
+            })) : undefined}
             onLessonComplete={nextMessage => {
               setMessage(nextMessage);
               setLessonEndOpen(true);
@@ -652,7 +663,14 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
               money: teamRerollController.money,
               locksEnabled: teamRerollController.locksEnabled,
               onRerollStats: async input => {
-                const result = await teamRerollController.onRerollStats(input);
+                const result = await withRestBusy("正在重随中", () => teamRerollController.onRerollStats(input));
+                if (result.ok && !teamRerollController.serverCommitted) {
+                  void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+                    const nextMessage = error instanceof Error ? error.message : "重随同步失败。";
+                    setMessage(nextMessage);
+                    showNotice(nextMessage, "danger");
+                  });
+                }
                 setMessage(result.message);
                 showNotice(result.message, result.ok ? "normal" : "danger");
                 return result;
@@ -691,10 +709,10 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           onDone={() => setToast(current => current?.id === toast.id ? null : current)}
         />
       ) : null}
-      {restBusyMessage ? (
+      {activeBusyMessage ? (
         <div className="training-rest-new-modal-layer training-rest-new-busy-layer" role="presentation">
           <div className="training-rest-new-busy-dialog" role="status" aria-live="polite">
-            <strong>{restBusyMessage}</strong>
+            <strong>{activeBusyMessage}</strong>
             <span>请稍候...</span>
           </div>
         </div>

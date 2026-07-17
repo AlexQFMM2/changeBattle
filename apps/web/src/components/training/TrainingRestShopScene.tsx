@@ -14,6 +14,7 @@ export type TrainingRestShopSceneProps = {
   player?: TrainingPlayerDraftV4 | null;
   money: number;
   busy?: boolean;
+  onBusyChange?: (message: string | null) => void;
   onBuy?: (slotId: string) => Promise<string> | string;
   onSell?: (itemInstanceIds: string[]) => Promise<string> | string;
   onBack: () => void;
@@ -46,7 +47,7 @@ const SHOP_RESIST_BERRY_EFFECTS: Record<string, {attackType: string; weakTo: str
   roseliberry: {attackType: "Fairy", weakTo: ["Fighting", "Dragon", "Dark"]},
 };
 
-export function TrainingRestShopScene({api, open, shop, player, money, busy = false, onBuy, onSell, onBack}: TrainingRestShopSceneProps) {
+export function TrainingRestShopScene({api, open, shop, player, money, busy = false, onBusyChange, onBuy, onSell, onBack}: TrainingRestShopSceneProps) {
   const [dialogueText, setDialogueText] = useState(SHOP_WELCOME_TEXT);
   const [interactionMode, setInteractionMode] = useState<TrainingRestShopInteractionMode | null>(null);
   const [selectedShopItem, setSelectedShopItem] = useState<FormalShopProductViewV4 | null>(null);
@@ -146,6 +147,7 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
       return;
     }
     setBuyingSlotId(item.slotId);
+    onBusyChange?.("正在购买中");
     setDialogueText("正在购买...");
     try {
       const message = await onBuy(item.slotId);
@@ -163,6 +165,7 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
     } catch (error) {
       setDialogueText(shopBuyErrorMessage(error));
     } finally {
+      onBusyChange?.(null);
       setBuyingSlotId(null);
     }
   }
@@ -192,6 +195,7 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
       return;
     }
     setSelling(true);
+    onBusyChange?.("正在出售中");
     try {
       const message = await onSell(selectedSellItems.map(item => item.id));
       setSelectedSellIds(new Set());
@@ -199,6 +203,7 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
     } catch (error) {
       setDialogueText(shopSellErrorMessage(error));
     } finally {
+      onBusyChange?.(null);
       setSelling(false);
     }
   }

@@ -174,6 +174,7 @@ function RoutedApp({runtime}: AppProps) {
   const [formalBattleRecoveredSceneSessionId, setFormalBattleRecoveredSceneSessionId] = useState("");
   const [seenRoundSettlementNodeIds, setSeenRoundSettlementNodeIds] = useState<Record<string, true>>({});
   const [formalRestInitialNotice, setFormalRestInitialNotice] = useState<string | null>(null);
+  const [formalRestBusyMessage, setFormalRestBusyMessage] = useState<string | null>(null);
   const [medicalInsuranceBusy, setMedicalInsuranceBusy] = useState(false);
   const [medicalInsuranceError, setMedicalInsuranceError] = useState<string | null>(null);
   const [desktopUpdateStatus, setDesktopUpdateStatus] = useState<DesktopUpdateStatusV4 | null>(null);
@@ -198,6 +199,7 @@ function RoutedApp({runtime}: AppProps) {
       onRoomUpdated: payload => {
         confirmedFormalRunRef.current = payload.formalRun;
         setFormalRun(payload.formalRun);
+        void api.saveFormalGameRun(payload.formalRun).catch(() => undefined);
       },
       onRoomClosed: reason => {
         setFormalRestInitialNotice(reason === "deleted" ? "房间已经关闭。" : `房间连接已关闭：${reason}`);
@@ -688,6 +690,7 @@ function RoutedApp({runtime}: AppProps) {
     if (!formalRun || medicalInsuranceBusy) return;
     setMedicalInsuranceBusy(true);
     setMedicalInsuranceError(null);
+    setFormalRestBusyMessage(formalServerBusyMessageForLabel(choice === "decline" ? "医疗保险" : "购买保险"));
     try {
       const result = formalGameBridge
         ? await formalGameBridge.chooseFormalMedicalInsurance(formalRun, choice)
@@ -706,6 +709,30 @@ function RoutedApp({runtime}: AppProps) {
       setMedicalInsuranceError(caught instanceof Error ? caught.message : "医疗保险处理失败。");
     } finally {
       setMedicalInsuranceBusy(false);
+      setFormalRestBusyMessage(null);
+    }
+  }
+
+  async function withFormalRestServerBusy<T>(message: string, task: () => Promise<T>): Promise<T> {
+    setFormalRestBusyMessage(message);
+    try {
+      return await task();
+    } finally {
+      setFormalRestBusyMessage(null);
+    }
+  }
+
+  async function persistServerConfirmedFormalRun(nextRun: FormalGameRunV4): Promise<FormalGameRunV4> {
+    confirmedFormalRunRef.current = nextRun;
+    try {
+      const saved = await api.saveFormalGameRun(nextRun);
+      setFormalRun(saved);
+      return saved;
+    } catch (error) {
+      setFormalRun(nextRun);
+      const message = error instanceof Error ? error.message : "本地缓存写入失败。";
+      setFormalRestInitialNotice(`服务器已同步，但本地缓存写入失败：${message}`);
+      return nextRun;
     }
   }
 
@@ -716,29 +743,31 @@ function RoutedApp({runtime}: AppProps) {
     }
     const previousConfirmed = confirmedFormalRunRef.current || formalRun || nextRun;
     setFormalRun(nextRun);
+    let syncedRun: FormalGameRunV4;
     try {
-      const client = formalRoomSyncClientRef.current;
-      const result = client
-        ? await client.syncDraft({formalRunDraft: nextRun, label})
-        : await api.syncFormalRoomDraft({
-          roomId: formalRoomCredential.roomId,
-          roomToken: formalRoomCredential.roomToken,
-          clientActionId: createFormalSyncClientId("draft"),
-          formalRunDraft: nextRun,
-          label,
-        }).then(response => {
-          if (!response.ok) throw new Error(response.message);
-          return response.data;
-        });
-      confirmedFormalRunRef.current = result.formalRun;
-      setFormalRun(result.formalRun);
-      return result.formalRun;
+      const result = await withFormalRestServerBusy(formalServerBusyMessageForLabel(label), async () => {
+        const client = formalRoomSyncClientRef.current;
+        return client
+          ? await client.syncDraft({formalRunDraft: nextRun, label})
+          : await api.syncFormalRoomDraft({
+            roomId: formalRoomCredential.roomId,
+            roomToken: formalRoomCredential.roomToken,
+            clientActionId: createFormalSyncClientId("draft"),
+            formalRunDraft: nextRun,
+            label,
+          }).then(response => {
+            if (!response.ok) throw new Error(response.message);
+            return response.data;
+          });
+      });
+      syncedRun = result.formalRun;
     } catch (error) {
       setFormalRun(previousConfirmed);
       const message = error instanceof Error ? error.message : "服务器同步失败。";
       setFormalRestInitialNotice(`网络异常，${label}未成功：${message}`);
       throw error;
     }
+    return persistServerConfirmedFormalRun(syncedRun);
   }
 
   function syncFormalRestSnapshot(restRunSnapshot: TrainingRunGameV4, label: string): void {
@@ -756,30 +785,32 @@ function RoutedApp({runtime}: AppProps) {
     if (!formalRoomCredential) throw new Error("正式房间凭证不存在。");
     const actionKey = formalRestActionStorageKey(formalRoomCredential.roomId, formalRun, action);
     const clientActionId = loadOrCreateFormalRestActionClientId(actionKey, action.type);
-    const client = formalRoomSyncClientRef.current;
-    const result = client ? {
-      ok: true as const,
-      data: await client.submitRestAction({
+    const label = formalRestActionLabel(action);
+    const result = await withFormalRestServerBusy(formalServerBusyMessageForLabel(label), async () => {
+      const client = formalRoomSyncClientRef.current;
+      return client ? {
+        ok: true as const,
+        data: await client.submitRestAction({
+          clientActionId,
+          formalRunDraft: formalRun,
+          action,
+          label,
+        }),
+      } : await api.submitFormalRoomRestAction({
+        roomId: formalRoomCredential.roomId,
+        roomToken: formalRoomCredential.roomToken,
         clientActionId,
         formalRunDraft: formalRun,
         action,
-        label: formalRestActionLabel(action),
-      }),
-    } : await api.submitFormalRoomRestAction({
-      roomId: formalRoomCredential.roomId,
-      roomToken: formalRoomCredential.roomToken,
-      clientActionId,
-      formalRunDraft: formalRun,
-      action,
+      });
     });
     if (!result.ok) {
       if (!result.retryable) clearFormalRestActionClientId(actionKey);
       throw new Error(result.message);
     }
     clearFormalRestActionClientId(actionKey);
-    confirmedFormalRunRef.current = result.data.formalRun;
-    setFormalRun(result.data.formalRun);
-    return result.data;
+    const saved = await persistServerConfirmedFormalRun(result.data.formalRun);
+    return {...result.data, formalRun: saved};
   }
 
   function openDex(initialPokemonId: string | null = null) {
@@ -1130,6 +1161,7 @@ function RoutedApp({runtime}: AppProps) {
             return saved.restRunSnapshot || restRunSnapshot;
           }}
           hideSaveAction={Boolean(formalRoomCredential)}
+          serverBusyMessage={formalRestBusyMessage}
           onBackToConfig={() => navigate("/main", {replace: true})}
           onAbandonRun={async () => {
             if (formalRoomCredential && formalRun) {
@@ -1171,20 +1203,30 @@ function RoutedApp({runtime}: AppProps) {
           teamRerollController={{
             money: formalRun.money,
             locksEnabled: starChartHasSpecialTrainingLockV4(formalRun.starChartSnapshot),
-            onRerollStats: input => {
+            serverCommitted: Boolean(formalRoomCredential),
+            onRerollStats: async input => {
               if (!formalRun) throw new Error("正式存档不存在。");
               const result = api.rerollFormalRestPokemonStats(formalRun, input);
-              if (result.ok) void syncFormalRunDraft(result.run, "重随能力").catch(() => undefined);
+              if (result.ok && formalRoomCredential) {
+                const syncedRun = await syncFormalRunDraft(result.run, "重随能力");
+                return {...result, run: syncedRun};
+              }
+              if (result.ok) setFormalRun(result.run);
               return result;
             },
           }}
           opponentPreviewController={{
             enabled: starChartHasOpponentRumorV4(formalRun.starChartSnapshot),
             cost: 10,
-            onUnlock: input => {
+            serverCommitted: Boolean(formalRoomCredential),
+            onUnlock: async input => {
               if (!formalRun) throw new Error("正式存档不存在。");
               const result = api.unlockFormalRestOpponentPreview(formalRun, input);
-              if (result.ok) void syncFormalRunDraft(result.run, "打听情报").catch(() => undefined);
+              if (result.ok && formalRoomCredential) {
+                const syncedRun = await syncFormalRunDraft(result.run, "打听情报");
+                return {...result, run: syncedRun};
+              }
+              if (result.ok) setFormalRun(result.run);
               return result;
             },
           }}
@@ -1282,7 +1324,9 @@ function RoutedApp({runtime}: AppProps) {
             onAdvance: () => {
               if (!formalRun) return;
               const nextRun = api.advanceFormalTrainingGroundLesson(formalRun);
-              if (formalRoomCredential) void syncFormalRunDraft(nextRun, "训练换课").catch(() => undefined);
+              if (formalRoomCredential) void syncFormalRunDraft(nextRun, "训练换课").catch(error => {
+                setFormalRestInitialNotice(error instanceof Error ? `网络异常，训练换课未成功：${error.message}` : "网络异常，训练换课未成功。");
+              });
               else setFormalRun(nextRun);
             },
           }}
@@ -1988,6 +2032,20 @@ function formalRestActionLabel(action: FormalRoomRestActionV1): string {
   if (action.type === "shop.buy") return "购买";
   if (action.type === "training.apply") return "学习";
   return "休整操作";
+}
+
+function formalServerBusyMessageForLabel(label: string): string {
+  if (label.includes("治疗")) return "正在治疗中";
+  if (label.includes("交换")) return "正在交换中";
+  if (label.includes("购买") || label.includes("保险")) return "正在购买中";
+  if (label.includes("出售")) return "正在出售中";
+  if (label.includes("学习") || label.includes("训练")) return "正在学习中";
+  if (label.includes("打听") || label.includes("情报")) return "正在打听中";
+  if (label.includes("重随")) return "正在重随中";
+  if (label.includes("灵魂蛋")) return "正在领取中";
+  if (label.includes("放弃")) return "正在放弃中";
+  if (label.includes("结算")) return "正在结算中";
+  return "正在同步中";
 }
 
 function createFormalSyncClientId(prefix: string): string {

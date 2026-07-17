@@ -12,6 +12,7 @@ export type FormalRoomSyncClientV4 = {
   syncDraft(input: {formalRunDraft: FormalGameRunV4; label: string; clientActionId?: string}): Promise<FormalRoomDraftSyncResultV1>;
   submitRestAction(input: {formalRunDraft: FormalGameRunV4; action: FormalRoomRestActionV1; clientActionId: string; label: string}): Promise<FormalRoomRestActionResultV1>;
   getRevision(): number | null;
+  getConnectionState(): PostServiceConnectionStateV4;
   dispose(): void;
 };
 
@@ -209,6 +210,10 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     });
   }
 
+  function wsReady(): boolean {
+    return Boolean(ready && socket?.readyState === WebSocket.OPEN);
+  }
+
   function startHeartbeat(): void {
     if (heartbeatTimer || disposed) return;
     heartbeatTimer = setInterval(() => {
@@ -246,7 +251,15 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
       const clientActionId = input.clientActionId || createRoomClientActionId("draft");
       const baseRevision = revision ?? undefined;
       try {
-        await connect();
+        if (!wsReady()) {
+          void connect().catch(() => undefined);
+          setState({state: "syncing"});
+          const fallback = await config.fallbackSyncDraft({clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, label: input.label});
+          if (!fallback.ok) throw new Error(fallback.message);
+          revision = Number(fallback.data.room.revision);
+          setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
+          return fallback.data;
+        }
         return await sendWsMutation<FormalRoomDraftSyncResultV1>({
           type: "rest.syncDraft",
           clientActionId,
@@ -268,7 +281,15 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     return withQueue(async () => {
       const baseRevision = revision ?? undefined;
       try {
-        await connect();
+        if (!wsReady()) {
+          void connect().catch(() => undefined);
+          setState({state: "syncing"});
+          const fallback = await config.fallbackRestAction({clientActionId: input.clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, action: input.action});
+          if (!fallback.ok) throw new Error(fallback.message);
+          revision = Number(fallback.data.room.revision);
+          setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
+          return fallback.data;
+        }
         return await sendWsMutation<FormalRoomRestActionResultV1>({
           type: "rest.action",
           clientActionId: input.clientActionId,
@@ -314,6 +335,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     syncDraft,
     submitRestAction,
     getRevision: () => revision,
+    getConnectionState: () => state,
     dispose,
   };
 }
