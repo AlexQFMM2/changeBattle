@@ -20,6 +20,10 @@
   filter: saturate(1.08) contrast(1.04) brightness(.88);
 }
 
+.main-menu-static-bg {
+  display: block;
+}
+
 .main-menu-shade {
   position: absolute;
   inset: 0;

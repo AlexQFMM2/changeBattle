@@ -1,6 +1,6 @@
 :root {
   color: #fff8e8;
-  background: #232830;
+  background: #050807;
   font-family: "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -26,6 +26,9 @@ body,
   height: 100%;
   min-height: 100vh;
   margin: 0;
+  background: #050807;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 input,
@@ -76,12 +79,13 @@ p {
 
 .game-shell {
   height: 100vh;
+  height: 100dvh;
   min-height: 0;
   display: grid;
   grid-template-rows: minmax(0, 1fr);
   gap: 0;
   padding: 0;
-  background: #232830;
+  background: #050807;
 }
 
 .game-screen {
@@ -96,7 +100,7 @@ p {
   place-items: center;
   min-height: 0;
   overflow: hidden;
-  background: #11161b;
+  background: #050807;
 }
 
 .game-viewport {

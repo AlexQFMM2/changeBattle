@@ -10,7 +10,7 @@ import "./MainMenuPage.css";
 
 export type MainMenuManualSaveState = "idle" | "saving" | "saved" | "error";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", debugFeatureEnabled = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVault, onManualSave, onBattlePreference, onEnableTestMode, onUserInfo, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", debugFeatureEnabled = false, preferStaticBackground = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVault, onManualSave, onBattlePreference, onEnableTestMode, onUserInfo, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
@@ -18,6 +18,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   continueGameLabel?: string;
   manualSaveState?: MainMenuManualSaveState;
   debugFeatureEnabled?: boolean;
+  preferStaticBackground?: boolean;
   onOpenDex: () => void;
   onOpenDexCard: (seed: MainMenuQuickDexSeed) => void;
   onTraining: () => void;
@@ -101,9 +102,13 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
 
   return (
     <AnimatedPage className="main-menu-page">
-      <video className="main-menu-video-bg" autoPlay muted loop playsInline controls={false} aria-hidden="true">
-        <source src={assetUrl("title/pokemon-room-bg.mp4")} type="video/mp4" />
-      </video>
+      {preferStaticBackground ? (
+        <img className="main-menu-video-bg main-menu-static-bg" src={assetUrl("title/may-pokemon-bg-poster.jpg")} alt="" aria-hidden="true" />
+      ) : (
+        <video className="main-menu-video-bg" autoPlay muted loop playsInline controls={false} disablePictureInPicture controlsList="nodownload nofullscreen noplaybackrate" aria-hidden="true">
+          <source src={assetUrl("title/pokemon-room-bg.mp4")} type="video/mp4" />
+        </video>
+      )}
       <div className="video-startup-mask" aria-hidden="true" />
       <div className="main-menu-shade" aria-hidden="true" />
       <TrainerSummaryPanel profile={profile} catalog={catalog} leaving={leaving} />

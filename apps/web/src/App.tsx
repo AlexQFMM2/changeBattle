@@ -818,6 +818,7 @@ function RoutedApp({runtime}: AppProps) {
         catalog={catalog.trainers}
         trainingRun={trainingRun}
         continueGameLabel={continueGameLabel}
+        preferStaticBackground={runtime === "mobile"}
         onOpenDex={() => openDex()}
         onOpenDexCard={openDexCard}
         onTraining={() => void createTrainingRunAndOpenConfig()}
@@ -1098,9 +1099,6 @@ function RoutedApp({runtime}: AppProps) {
             enterFormalSettlement("complete");
           }}
           onStartBattle={async () => {
-            if (formalRoomCredential && formalRun) {
-              await syncFormalRunDraft(formalRun, "进入战斗");
-            }
             startFormalBattleFromRest();
           }}
           onOpenDex={() => openDex()}
