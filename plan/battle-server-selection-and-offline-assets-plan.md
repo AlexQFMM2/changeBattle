@@ -494,6 +494,94 @@ Web 只服务开发测试和 ChromeAutomation，不进入玩家侧资源缓存�
 - Desktop 离线包会重新带 Node-side Battle API / Showdown vendor，这是离线正式战斗的必要成本；公共 assets 仍然不能回到 release 包。
 - Web 只作为 ChromeAutomation/dev smoke，不作为玩家端验收口径；Android 只做官方/自建服务器和后续资源缓存，不做第一版离线 Battle API。
 
+## 2026-07-19 Room / Match / V5 Recheck
+
+当前正式主线已经迁到：
+
+```text
+Room Shell
+  -> RoomLobbyPage
+  -> Match
+  -> RunGameV5 server authority
+  -> HTTP command
+  -> final-result
+  -> ack-final-result
+  -> 返回房间
+```
+
+因此 Desktop 离线服务的边界需要按新模型收口：
+
+- 离线服务必须复用同一套 `POST /rooms`、`POST /rooms/:roomId/matches`、`GET /rooms/:roomId/matches/:matchId/view` 和 `commands/*` API surface。
+- Renderer 不新增“离线正式流程”分支；它只从运行时配置拿到 `http://127.0.0.1:<port>/changebattle/battle`，后续仍按 Room Shell + HTTP command 跑。
+- WebSocket 仍只做通知和状态；离线模式也启动同一个 `/rooms/:roomId/ws`，不把 command ACK 搬到 WS。
+- `RunGameV5` 在离线服务里仍是唯一权威，存进 `MemoryRedisLike` 的 room JSON；前端不回传整份 `formalRunDraft`，也不恢复旧本地 `formalRun` 权威。
+- 旧 Desktop `formalGameBridge` / `battleService` 只能保留给训练场、dev fallback 或 legacy 页面；正式 room 主线不得调用它们推进状态。
+- 离线服务第一版是“进程内临时房间”，不是“离线可恢复云存档”：Electron 退出或离线 API 重启后，Memory room 丢失；本地 profile/vault 仍能保存最终结算，但未结算 room 按“离线房间已结束/无法恢复”处理。
+- `ack-final-result` 后仍要执行已结束 match 清理：清掉完整 `runGameV5/formalRun`，保留轻量 match 索引、结果摘要和 `finalResult` 短期读取。
+- 单人房间 V1 不做加入房间；但离线 API 的 room/members/matches 数据结构不能简化成单机直连，否则后续多人/自建服会再次分叉。
+
+### Updated Offline Service Shape
+
+Desktop 离线不是“绕过服务器”，而是“把服务器嵌进 Desktop”：
+
+```text
+Electron main
+  -> startEmbeddedBattleApi({host:"127.0.0.1", port:0, storage:"memory"})
+  -> write runtime actualBaseUrl
+Renderer
+  -> postService(baseUrl=actualBaseUrl)
+  -> RoomLobbyPage
+  -> commands/*
+Embedded Battle API
+  -> RunGameV5
+  -> MemoryRedisLike
+  -> in-memory BattleService
+```
+
+这样和官方/自建服的差别只剩部署位置：
+
+- 官方服务器：Battle API + Redis 在公网服务器。
+- 自建服务器：Battle API + Redis 在玩家自己的机器/NAS/云主机。
+- Desktop 离线：Battle API + MemoryRedisLike 在本机 Electron main。
+
+### Updated Implementation Red Lines
+
+- 禁止为 Desktop 离线新建 `offlineFormalRun`、`localRoomStore`、`ipc command` 之类平行主线。
+- 禁止在正式 room 主线重新依赖 `api.saveFormalGameRun()` 作为权威恢复。
+- 禁止让 renderer 直接 import API server、Showdown server 或 Redis provider。
+- 禁止离线服务监听 `0.0.0.0`；必须只监听 loopback。
+- 禁止把公共 assets 打进 Desktop 离线服务包；资源仍走 asset cache。
+- 禁止把 `actualBaseUrl` 的随机端口当长期配置；它是运行态结果，重启后重新分配/刷新。
+- 离线 health 必须让同一套 UI 能识别：`ok:true`、`redis:"ok"`、`storage:"memory"`、`service:"changebattle-v2-battle-service"`。
+
+### Updated Cut Plan
+
+1. **Server factory 化**
+   - 把 `apps/api/src/server.ts` 拆为 `createBattleApiServer(options)` 和 `startBattleApiServerFromEnv()`。
+   - 顶层 env 启动文件只负责读取 env、创建 Redis provider、调用 factory、注册 shutdown。
+   - Docker 行为和公网 API 路径保持不变。
+
+2. **Redis provider 化**
+   - 把 `redisCommand()` 改成 provider command。
+   - 真实 Redis provider 继续走 socket RESP。
+   - `MemoryRedisLikeProvider` 覆盖当前 room 需要的命令子集。
+   - `ensureRedisEnabled()` 改成 `ensureRoomStoreAvailable()`，离线 memory 也算 available。
+
+3. **嵌入式 Battle API**
+   - Electron main 新增 `startOfflineBattleServer / stopOfflineBattleServer / getOfflineBattleServerStatus`。
+   - 启动使用 `port:0` 动态分配端口，成功后写入内存运行态和 `.battleServer.json.desktopOffline.actualBaseUrl`。
+   - 退出 Desktop 时 stop server；异常退出不承诺恢复未结算 room。
+
+4. **设置 UI 接通**
+   - Desktop 点击“离线服务”时先启动本地 API，再 `/health`，成功后保存 mode。
+   - 启动失败不覆盖当前有效配置。
+   - 官方/自建/离线三种模式切换都必须清当前 room credential，避免旧 room 指向不同服务器。
+
+5. **Room 主线 smoke**
+   - 离线模式完整跑：创建房间 -> 创建单局对局 -> ready/start -> starter -> rest -> battle -> victory -> settlement -> 返回房间。
+   - 验证所有请求都打到 `127.0.0.1:<port>`，没有公网 Battle API 请求。
+   - `ack-final-result` 后 1 分钟清理完整 `runGameV5/formalRun`，房间页仍显示已结束 match。
+
 ### 1. 文档和配置模型
 
 - [ ] 新增自建服务器教程文档。
