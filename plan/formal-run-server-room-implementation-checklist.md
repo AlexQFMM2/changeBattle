@@ -138,6 +138,16 @@
 
 ## 4. Checkpoint 和交互计算：中转页
 
+- [ ] 建立服务化游戏 V2 状态层：`roomCredential / matchId / lastKnownRevision / phase / viewCache / pendingAction / localDraft`，替代页面到处读写权威 `formalRun`。
+- [ ] 新增 match view 获取入口：页面进入、刷新恢复、WS revision 落后时只 GET 一次当前 view；组件 render、动画播放、hover、普通 state update 不允许触发 GET。
+- [ ] 统计/排查正式流程网络调用：一局网络调用应接近“确认操作次数 + 页面恢复次数 + 心跳”，避免一局上万次请求。
+- [ ] 正式 room 主线收口为“HTTP command ACK 推进页面”，不再把 WebSocket 或本地 `saveFormalGameRun` 作为跳转前置条件。
+- [ ] 进入页面/刷新恢复/WS revision 落后时才 GET room/view；禁止渲染或普通 state update 触发循环 GET。
+- [ ] 所有推进型 POST 响应返回 `revision + phase + view/formalRun delta`，客户端用响应直接覆盖展示 cache。
+- [ ] 客户端 `formalRun` 从“本地权威副本”降级为 `viewCache`；只展示，不本地推进正式状态。
+- [ ] 本地保存 `formalRun/profile/vault` 改为后台补写或最终结算写回；保存失败不能阻塞 starter、round、rest、battle、settlement 跳转。
+- [ ] 新增 `lastKnownRevision` 和 `pendingAction` 口径：页面只基于 HTTP ACK 更新 revision；WS 只提示落后/需重拉。
+- [ ] 审计所有正式流程中转页：starter select、round transition、battle transition、battle result transition、settlement transition，全部按“POST command -> ACK -> 立即跳 phase -> 本地保存后台化”执行。
 - [x] 正式 server room 模式移除手动保存按钮。
 - [x] 休整页继续保留本地 draft，保证非金币类预览、技能调整草稿、交换预览等交互流畅。
 - [x] 治疗、交换、购买、训练学习调用 `rest-action` 强校验即时更新 room checkpoint。
@@ -145,6 +155,8 @@
 - [x] 休整同步改成“本地先改、异步同步、ACK 静默、失败回滚到最近确认 checkpoint 并提示 `网络异常，xx操作未成功`”。
 - [x] 业务失败保留当前页面并展示业务错误，不污染全局连接状态。
 - [ ] 后续仍可把休整操作进一步 command 化，减少完整 `formalRunDraft` 信任面。
+- [ ] 把 `rest-action` / `sync-rest-draft` 迁移为 command envelope：`commandId / baseRevision / payload`，服务端返回当前 view。
+- [ ] 把所有确认型休整操作拆成明确 payload：治疗、交换、购买、训练、排序、背包使用/携带/卸下/丢弃、出售、打听、重随、保险、灵魂蛋领取；浏览和草稿不请求。
 - [x] 第一版先不做完整反作弊；服务端只做结构/边界校验，后续再把休整操作完全 command 化。
 - [x] 未进入关键 checkpoint 前，刷新/重连丢弃未提交的非金币 draft，恢复服务器 checkpoint。
 - [x] 进入战斗按钮改成进入中转页，由中转页提交当前 rest draft 到 `prepare-battle`。
@@ -155,6 +167,7 @@
 - [ ] `finalize-battle` 支持非正常战斗结果：`battle-ended`、`forfeit`、`timeout`、`server-restarted`。
 - [x] `finalize-battle` 返回的新 formalRun 覆盖本地 cache。
 - [x] 所有中转页失败都显示可读错误和“重试/返回当前 checkpoint”的明确入口。
+- [ ] 中转页收到服务端成功 ACK 后立即进入下一 phase；本地缓存写入改成 fire-and-forget 或失败 toast。
 
 验收：
 
@@ -167,6 +180,11 @@
 
 - [x] 新增全局 room connection monitor，维护请求 RTT、最近成功请求时间、连续失败次数、在线/同步中/重连/失败状态。
 - [x] 正式 room 进入后建立 WebSocket 长连接，只接收服务器通知；任意成功 HTTP room mutation 也刷新 `lastHeartbeatAt`。
+- [ ] WS 只做 `room.updated / room.closed / match.updated / server.error` 等通知，不做 command ACK，不控制页面跳转。
+- [ ] WS 断开只影响连接徽标/重连提示；不把已成功的 HTTP command 回滚成失败。
+- [ ] WS 收到高 revision 通知时，只在当前页面需要最新数据时 GET view 一次，不做连续轮询。
+- [ ] WS 生命周期上移到 room shell：进入房间后连接，离开/关闭房间后断开；首页、设置、训练场、仓库、星图不自动连接服务器。
+- [ ] HTTP command 和 WS 连接状态分离：command 的 pending/成功/失败由 HTTP response 决定，WS 只更新在线徽标和 revision 提醒。
 - [x] 正式 room 流程活跃时补固定 60 秒 heartbeat 定时器。
 - [x] 心跳不做后台强保活；用户长时间不操作、页面挂起或 App 被系统杀掉，room 超时按断线/放弃处理。
 - [x] 5 分钟无有效心跳或请求时，客户端进入 reconnecting；服务器标记 disconnected。

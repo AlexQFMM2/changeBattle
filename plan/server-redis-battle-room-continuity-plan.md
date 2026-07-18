@@ -153,7 +153,15 @@ debug v1 明确接受 Battle API 容器重启会丢失内存 battle session。�
 
 - 正式流程全程网络化：
   - 第一版 room 化后，正式流程的创建、starter 确认、赛程推进、进入战斗 checkpoint、战斗创建、指令提交、战斗结算、最终结算都以服务器 room 为权威。
-  - 客户端只负责展示、页面内 draft、提交输入、保存 room credential 和 cache。
+  - 客户端只负责展示、页面内 draft、提交输入、保存 room credential 和 view cache；本地 `formalRun` 不是权威副本，不能本地推进正式状态。
+  - HTTP command ACK 是推进页面的唯一主链路；成功响应必须带 `revision + phase + view/delta`，客户端直接渲染响应。
+  - WebSocket 只做 `room.updated / room.closed / match.updated / server.error` 等通知，不做 command ACK，不控制跳转；WS 断线只影响连接提示。
+  - 只有进入页面、刷新恢复、或 WS 通知本地 revision 落后时才 GET room/view；禁止组件渲染或普通 state 更新触发循环 GET。
+  - 本地 `formalRun/profile/vault` 写入失败不能阻塞正式流程跳转；正式 room 模式下服务端 ACK 成功即进入下一 phase，本地保存后台补写或提示。
+  - 调用量按回合制游戏设计，不按实时游戏设计：浏览、hover、动画播放、抽屉草稿不请求；确认操作和页面恢复才请求。
+  - `viewCache` 只展示，`localDraft` 只在确认前存在，`profile/vault` 只在开房 snapshot 和最终结算写回时参与。
+  - 所有正式中转页必须审计为同一模板：读 credential -> POST command -> ACK 更新 revision/view -> 立即跳转 -> 本地保存后台化。
+  - 后续新增 match-scoped `commands/*` 和 `GET /matches/:matchId/view`，旧 room formal endpoint 迁移期映射 active match。
   - 后续再评估训练场、合作模式和联机是否复用同一 room 模型。
 
 - 本地模拟到服务器迁移：

@@ -164,6 +164,242 @@ FormalRun 只在 Match start 后创建。
 
 但 FormalRun 不再是 Room 本体。
 
+## Service Game Contract
+
+后续“服务化正式游戏”的核心规则从 **客户端/服务端各维护一份 runGame 再同步**，收口为：
+
+```text
+服务端 Redis formalRun = 唯一权威状态
+客户端 = 展示 view cache + pending UI + 本地草稿
+HTTP command = 推进游戏的唯一主链路
+WebSocket = 服务端通知/房间在线状态，不做主流程 ACK
+本地存档 = 长期 profile/vault 写回与离线缓存，不阻塞正式流程跳转
+```
+
+### 调用边界
+
+正式流程不能按“组件渲染时不断 GET”实现。网络调用只发生在事件边界：
+
+- 进入页面、刷新恢复、WS 通知本地 revision 落后时，`GET room/view` 一次。
+- 玩家确认一个会改变状态的操作时，`POST command` 一次。
+- `POST command` 成功响应必须包含最新 `revision + phase + view` 或足够的 delta；客户端直接渲染响应，不再额外 GET。
+- 战斗页不按动画帧请求；提交一次 choice 返回 `snapshot + timelineDelta`，客户端本地播放 timeline。
+- 本地保存 `formalRun` / `playerVault` 失败不能卡住正式流程；正式 room 模式下服务端 ACK 成功就进入下一页面，本地保存后台补写或提示。
+
+反例：
+
+```text
+React render/useEffect
+  -> GET room
+  -> setFormalRun
+  -> useEffect 依赖 formalRun 再 GET
+```
+
+这种会造成上百上千次无意义请求，禁止作为正式流程实现方式。
+
+### Client State
+
+客户端可以缓存数据用于展示，但不能把缓存当权威状态推进：
+
+```ts
+type FormalRoomClientStateV2 = {
+  roomCredential: {roomId: string; roomToken: string};
+  matchId?: string;
+  lastKnownRevision: number;
+  phase: "lobby" | "starter" | "roundPreparing" | "rest" | "battle" | "settling" | "ended";
+  viewCache?: FormalRoomViewV1;
+  pendingAction?: {
+    commandId: string;
+    label: string;
+    startedAt: string;
+  };
+  localDraft?: unknown;
+};
+```
+
+`localDraft` 只用于页面内未确认交互，例如选择项、拖拽排序、弹窗草稿。用户点击确认后必须变成 command 发给服务端；服务端 ACK 后用返回 view 覆盖 `viewCache`。
+
+### View Model
+
+短期为了少改组件，服务端可继续返回完整 `formalRun`，但客户端只把它当 `viewCache`。中期新增页面级 view：
+
+```text
+GET /rooms/:roomId/view
+GET /rooms/:roomId/matches/:matchId/view
+```
+
+返回：
+
+```ts
+type FormalRoomViewV1 = {
+  room: FormalLobbyRoomV1;
+  match?: FormalLobbyMatchV1;
+  revision: number;
+  phase: FormalRoomPhaseV1;
+  starterView?: FormalStarterViewV1;
+  restView?: FormalRestViewV1;
+  battleView?: FormalBattleViewV1;
+  settlementView?: FormalSettlementViewV1;
+};
+```
+
+页面只消费当前 phase 所需 view，避免把完整 `formalRun` 泄漏到所有组件里。
+
+### Command Model
+
+所有推进型操作统一为 command：
+
+```ts
+type FormalRoomCommandEnvelopeV1<T> = {
+  commandId: string;
+  baseRevision?: number;
+  payload: T;
+};
+```
+
+服务端规则：
+
+- `commandId` 幂等；重复提交返回第一次处理结果，不重复扣钱、开战、结算。
+- `baseRevision` 落后时拒绝或返回当前 view，客户端重拉后再提示/重试。
+- 每个 command 的响应都包含 `revision`。
+- 错误响应必须可展示，不返回 stack、token 或 AI debug 大对象。
+
+推荐 command endpoint：
+
+```text
+POST /rooms/:roomId/matches/:matchId/commands/select-starters
+POST /rooms/:roomId/matches/:matchId/commands/prepare-round
+POST /rooms/:roomId/matches/:matchId/commands/rest-action
+POST /rooms/:roomId/matches/:matchId/commands/prepare-battle
+POST /rooms/:roomId/matches/:matchId/commands/battle-choice
+POST /rooms/:roomId/matches/:matchId/commands/finalize-battle
+POST /rooms/:roomId/matches/:matchId/commands/finalize-run
+```
+
+迁移期可以继续保留现有 REST endpoint，但语义按 command ACK 处理。
+
+### WebSocket Scope
+
+WS 不做主流程成功/失败判定。它只推送：
+
+```json
+{"type":"room.updated","revision":12,"scope":"rest"}
+```
+
+客户端收到后：
+
+- 如果本地 `lastKnownRevision >= revision`，忽略。
+- 如果本地落后，且当前页面需要最新数据，GET 当前 view 一次。
+- 不能等 WS 消息才跳页；跳页依据 HTTP command ACK。
+- WS 断开只影响“在线/重连”提示，不直接判定本次 command 失败。
+
+### Turn-Based C/S Pattern
+
+这个游戏不是即时动作游戏，不需要每帧同步，也不需要把 WS 当成“操作成功”的主通道。更接近正常回合制/卡牌/策略游戏的模型：
+
+```text
+页面进入
+  -> GET 当前 view 一次
+玩家确认操作
+  -> POST command
+  -> 服务端校验 + 推进权威状态
+  -> 响应最新 revision/view/delta
+客户端播放动画/展示结果
+  -> 不再为了同一个结果额外 GET
+WS 收到通知
+  -> 只说明服务器 revision 变了或房间状态变了
+  -> 当前页面需要时再 GET view 一次
+```
+
+调用量不会是一局上万次。正常一局的网络调用规模应接近“玩家确认操作次数 + 页面恢复次数 + 轻量心跳”：
+
+- starter 选择：1 次 command。
+- 生成赛程：1 次 command。
+- 休整确认操作：每次确认 1 次 command；浏览、hover、打开弹窗、切换草稿不请求。
+- 进入战斗：1 次 `prepare-battle` command。
+- 每回合提交指令：1 次 command。
+- 战斗结果：1 次 `finalize-battle` command。
+- 最终结算：1 次 `finalize-run` command。
+- WS/heartbeat 只维持在线感知，不承载业务推进。
+
+所以“用户要看啥就 GET API”只适用于页面入口、刷新恢复、revision 落后时的 view 获取，不适用于 React render、动画播放、hover、选择草稿或普通 state update。
+
+### Client Authority Boundary
+
+客户端允许有三类状态，但它们的权重不同：
+
+```text
+viewCache
+  最近一次服务端返回的展示数据，只能展示，不能本地推进正式流程。
+
+localDraft
+  页面内草稿，例如抽屉选择、队伍拖拽预览、未确认的设置项。
+  用户确认后必须转成 command。
+
+localPersistentProfile/vault
+  长期本地存档。只在开房提供 snapshot，最终结算写回。
+  写入失败不能卡住 room phase 跳转。
+```
+
+禁止出现：
+
+- 客户端先本地推进 `formalRun.status`，再等待服务器“追上”。
+- 服务端 ACK 成功了，但因为 `saveFormalGameRun()` / `savePlayerVault()` 慢或失败而卡在中转页。
+- WS 断了就把正在进行的 HTTP command 判定为失败。
+- 页面组件因为 `formalRun` 改变而自动重新 `GET room`，形成循环请求。
+- 新旧两个本地 draft 同时可以覆盖 Redis checkpoint。
+
+### Transition Contract
+
+所有正式流程中转页都按同一个模板实现：
+
+```text
+1. 读取 roomCredential + matchId。
+2. 生成稳定 commandId/clientRequestId。
+3. POST command。
+4. command ok：
+   - 更新 lastKnownRevision。
+   - 用 response.view/formalRun 覆盖 viewCache。
+   - 立即导航到 response.phase 对应页面。
+   - 本地 cache/profile/vault 写入后台执行。
+5. command failed：
+   - 保持当前中转页。
+   - 展示业务错误或网络错误。
+   - 提供重试/返回房间当前 view。
+```
+
+中转页不等待 WS，也不等待本地存档成功。它只等待当前 HTTP command 的 ACK。
+
+### Migration Slices
+
+后续迁移按低风险切片推进：
+
+1. **中转页去本地阻塞**
+   - starter、round、battle prepare、battle result、settlement transition 全部改成“HTTP ACK 后立即跳 phase”。
+   - 本地 `saveFormalGameRun/profile/vault` 全部 background 化。
+
+2. **引入 `lastKnownRevision + viewCache`**
+   - App/FormalRoom state 层保存 `roomId/token/matchId/revision/phase/viewCache`。
+   - 页面不直接把本地 `formalRun` 当权威。
+
+3. **新增 view endpoint**
+   - `GET /rooms/:roomId/matches/:matchId/view` 返回当前 phase 所需 view。
+   - 迁移期可继续带完整 `formalRun`，但组件只按 view 消费。
+
+4. **command endpoint 统一**
+   - 新增 match-scoped `commands/*` endpoint。
+   - 旧 `/rooms/:roomId/formal/*` endpoint 内部映射 active match，逐步 deprecated。
+
+5. **休整页 command 化**
+   - 当前 `formalRunDraft` 作为 debug/beta checkpoint 暂保留。
+   - 逐步把治疗、交换、购买、训练、排序、背包、出售、打听、重随、保险等改成明确 command payload。
+   - 减少完整 draft 信任面。
+
+6. **WS 降级为通知层**
+   - WS client 上移到 room shell。
+   - 只处理 `room.updated/match.updated/room.closed/server.error`。
+   - command 成败、页面跳转、pending 文案只看 HTTP response。
+
 ## UX Structure
 
 房间页第一版按用户草图实现，先不追求视觉精细：

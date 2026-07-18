@@ -29,7 +29,7 @@
 
 - 正式游戏主流程已经进入可持续测试阶段：开局候选、星图扩展、选人、7 场计划、休整页、战斗页、单局战后结算、最终结算和 BP 发放都已接入。
 - 正式休整商店和训练场已经完成第一版闭环：购买/售出、加权补货、课程学习、自主训练、费用、金币流水和课后流程均已接入。
-- 正式流程重计算正在从客户端/desktop worker 迁到服务器 room。当前本地 Docker 已跑通 `Battle API + Redis`，Web 可完成开始正式 singles、选 starter、生成赛程、休整、WebSocket room 长连接、休整 RunGame 同步、进入 room-aware BattleV4、提交一次指令、战斗结束、服务端最终结算和 `final-result` 短期恢复；desktop worker 保留为开发/回退能力。下一步服务器房间模型将从旧 `room === formalRun` 迁到 `Room / Match / FormalRun` 三层结构，详见 Room Lobby 重构计划。
+- 正式流程重计算正在从客户端/desktop worker 迁到服务器 room。当前本地 Docker 已跑通 `Battle API + Redis`，Web 可完成开始正式 singles、选 starter、生成赛程、休整、WebSocket room 长连接、休整 RunGame 同步、进入 room-aware BattleV4、提交一次指令、战斗结束、服务端最终结算和 `final-result` 短期恢复；desktop worker 保留为开发/回退能力。下一步服务器房间模型将从旧 `room === formalRun` 迁到 `Room / Match / FormalRun` 三层结构，并把正式流程网络职责收口为“服务端 formalRun 唯一权威、HTTP command ACK 推进页面、客户端只缓存 view、WS 只做通知、本地保存不阻塞流程”，详见 Room Lobby 重构计划。
 - Battle V4 已完成 Showdown-style playback 重构、HP 缓动修正、投降框组件化、天气持久层资源重载、Substitute 持续标记、选人页两步选择交互，以及特殊系统目标选择修复；小图闪光因本地 picon 无 shiny sheet，采用普通 picon + 星标提示。
 - 正式模式稳定性继续收口：敌方 NPC 等级按玩家最高等级动态计算，究极异兽归入神兽候选，自习收益改为等级/数值约 3:7，战斗入场同步本地 PP。
 - 休整页弹窗栈已补齐：背包打开时，技能学习替换和 Mega/Z/太晶系统道具重铸面板会显示在背包之上。
@@ -51,7 +51,7 @@
 - 下一步 AI 主线是继续扩大单打/双打出题、做题、评估样本，结合人工 debug 对局验收，优先把 severe 犯病点稳定抓出来。
 - 下一步 coop 主线是复用 doubles 队伍生成器和 lead pair diagnostics，推进合作 AI 的 seat 映射、ally coordination、joint action 调试和出题评估。
 - 下一步 App 主线只做 Android：基于 Capacitor 复用 Web UI/API/CDN 资源，先验证 640x320 视口、存档、音频、网络/API、正式战斗和更新策略；iOS 暂不进入范围。
-- 下一步服务器主线是在本地 Docker room 全链路基础上做三端和公网验收：Desk/Android/公网 API smoke、Redis 不可用/容量保护测试、旧 revision 冲突测试、battle 中断后的失败结算细化，以及 Loki 查询体验打磨。公网响应默认不返回 AI debug，Redis 存对局连续性，Loki 存当天结构化日志，COS 存历史归档。
+- 下一步服务器主线是在本地 Docker room 全链路基础上做三端和公网验收，同时先按回合制 C/S 模型收紧正式流程边界：进入页面/恢复/落后 revision 才 GET view，浏览/动画/草稿不请求，所有玩家确认操作走 HTTP command 幂等 ACK，响应直接带最新 `revision + phase + view/delta`，WS 只通知 revision/房间状态、不做 ACK、不控制跳转，本地 `formalRun/profile/vault` 写入后台化。公网响应默认不返回 AI debug，Redis 存对局连续性，Loki 存当天结构化日志，COS 存历史归档。
 - 下一步运行时配置主线是把 Battle API 从构建时 env 升级为 Desktop / Android App 的运行时服务器选择：官方服务器、自建服务器和 Desktop-only 离线服务共用同一套 `postService`/room/WebSocket base URL；Desktop 离线服务通过 Electron 本地 Battle API + 进程内 `MemoryRedisLike` 保留 room 机制，不要求玩家安装 Docker/Redis；Web 端只服务本地开发和 ChromeAutomation 自动化测试，不作为上线产品；资源缓存单独做 Desktop-first，不把 500MB 公共 assets 打回 release 包。
 - 训练家仓库下一步重点是性能/体验回归、组件预览覆盖、解锁箱页的 draft/profile BP 边界、灵魂伴侣战后亲密度成长，以及 debug 添加与正式 release 隐藏入口的回归验证。
 - Battle V4 下一步继续按 diagnostics 驱动修问题：动画/顺序问题先走 playback probe，非法 AI 指令先走 `debug/README.md` 的 `allRequests` 复现方法。

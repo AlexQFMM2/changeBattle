@@ -32,18 +32,24 @@ export function FormalRoundTransitionPage({api, formalGameBridge, run, playerVau
     let cancelled = false;
     const timer = window.setTimeout(() => {
       try {
-        void api.loadFormalGameRun()
-          .then(saved => {
-            if (saved?.id === run.id && saved.restRunSnapshot) return saved;
-            const credential = loadFormalRoomCredential();
-            return credential
-              ? prepareServerRoomRound(api, credential.roomId, credential.roomToken)
-              : formalGameBridge
+        const credential = loadFormalRoomCredential();
+        const planPromise = credential
+          ? prepareServerRoomRound(api, credential.roomId, credential.roomToken)
+          : api.loadFormalGameRun()
+            .then(saved => {
+              if (saved?.id === run.id && saved.restRunSnapshot) return saved;
+              return formalGameBridge
                 ? formalGameBridge.prepareFormalRoundPlan(run)
                 : Promise.resolve(api.prepareFormalRoundPlan(run));
-          })
+            });
+        void planPromise
           .then(async planned => {
             const carryResult = api.applyFormalCarryPrepItems(planned, playerVault);
+            if (credential) {
+              void onSavePlayerVaultRef.current(carryResult.playerVault).catch(() => undefined);
+              void api.saveFormalGameRun(carryResult.run).catch(() => undefined);
+              return {savedRun: carryResult.run, savedVault: carryResult.playerVault};
+            }
             const savedVault = await onSavePlayerVaultRef.current(carryResult.playerVault);
             const savedRun = await api.saveFormalGameRun(carryResult.run);
             return {savedRun, savedVault};
