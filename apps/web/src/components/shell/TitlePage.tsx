@@ -9,7 +9,7 @@ import {TitleVideoBackground} from "./TitleVideoBackground";
 import {TrainerAvatar} from "./TrainerAvatar";
 import "./TitlePage.css";
 
-export function TitlePage({profile, catalog, loading, message, onLoad, onCreate, onDelete, onOpenOfficialSite, preferStaticBackground}: {
+export function TitlePage({profile, catalog, loading, message, onLoad, onCreate, onDelete, onOpenOfficialSite, onNetworkSettings, preferStaticBackground}: {
   profile: UserProfileV2 | null;
   catalog: TrainerCatalogEntryV2[];
   loading: boolean;
@@ -18,6 +18,7 @@ export function TitlePage({profile, catalog, loading, message, onLoad, onCreate,
   onCreate: () => void;
   onDelete: () => void | Promise<void>;
   onOpenOfficialSite?: () => void | Promise<void>;
+  onNetworkSettings: () => void;
   preferStaticBackground?: boolean;
 }) {
   const [savePickerOpen, setSavePickerOpen] = useState(false);
@@ -53,6 +54,7 @@ export function TitlePage({profile, catalog, loading, message, onLoad, onCreate,
               onLoadProfile={loadProfile}
               onCreateProfile={onCreate}
               onOpenOfficialSite={onOpenOfficialSite}
+              onNetworkSettings={onNetworkSettings}
             />
             <div className="title-save-strip">
               <span><TrainerAvatar profile={profile} /></span>

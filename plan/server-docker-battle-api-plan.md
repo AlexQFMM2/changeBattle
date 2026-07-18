@@ -58,6 +58,8 @@ VITE_CHANGEBATTLE_BATTLE_SERVICE_URL=https://api.65h26i.top/changebattle/battle
 CHANGEBATTLE_DESKTOP_BATTLE_SERVICE_URL=https://api.65h26i.top/changebattle/battle
 ```
 
+后续客户端会从“构建时固定 URL”升级为 Desktop / Android App 的运行时 Battle server 选择。官方服务器仍默认指向上面的公网 API；自建服务器使用玩家输入的 `http(s)://host:port/changebattle/battle` 并通过 `/health` 测试；Desktop-only 离线服务由 Electron main 启动本地 Battle API，renderer 只切换 base URL 到 `127.0.0.1`，本地 API 用 `MemoryRedisLike` 模拟 room 所需 Redis 子集。Web 不上线，只作为本地开发和 ChromeAutomation 自动化测试端；Docker 仍是服务器部署和高级玩家自建服工具，不作为普通 Desktop 离线的必需依赖。详细计划见 [`battle-server-selection-and-offline-assets-plan.md`](battle-server-selection-and-offline-assets-plan.md)。
+
 ## API Surface
 
 第一版保留现有 BattleService HTTP 形状，并新增正式 room v1。Docker 主入口已经切到 `apps/api/src/server.ts`；`packages/showdown-battle-core/src/server.ts` 只保留 battle-only/dev fallback。
@@ -306,7 +308,7 @@ location /changebattle/battle/ {
 - [x] 本地 Docker Compose smoke：Battle API + Redis。
 - [x] 本地 room API smoke：create/read/heartbeat/delete。
 - [x] 本地 formal run smoke：开始游戏 -> 战斗 -> 结算。
-- [x] 本地 WebSocket smoke：room auth、`rest.syncDraft`、`rest.action shop.buy`、ACK/revision。
+- [x] 本地 WebSocket smoke：room auth、HTTP mutation 后收到 `room.updated`，closed/timeout room 收到 `room.closed` 后客户端停止重连。
 - [x] 本地 Web UI smoke：开始正式 singles -> starter -> round -> 休整页，连接在线；业务失败不误报连接失败。
 - [ ] 本地故障 smoke：Battle API 容器重启、Redis 不可用、内存安全水位不足。
 - [x] 本地 build Battle API image，并记录 image tag / git sha。

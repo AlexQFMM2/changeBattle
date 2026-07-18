@@ -13,6 +13,16 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
       ipcRenderer.invoke("desktopApp:cancelUpdate") as ReturnType<DesktopAppBridge["cancelUpdate"]>,
     getBattleServiceConfig: () =>
       ipcRenderer.invoke("desktopApp:getBattleServiceConfig") as ReturnType<NonNullable<DesktopAppBridge["getBattleServiceConfig"]>>,
+    getBattleServerConfig: () =>
+      ipcRenderer.invoke("desktopApp:getBattleServerConfig") as ReturnType<NonNullable<DesktopAppBridge["getBattleServerConfig"]>>,
+    setBattleServerConfig: (config: Parameters<NonNullable<DesktopAppBridge["setBattleServerConfig"]>>[0]) =>
+      ipcRenderer.invoke("desktopApp:setBattleServerConfig", config) as ReturnType<NonNullable<DesktopAppBridge["setBattleServerConfig"]>>,
+    testBattleServer: (url: Parameters<NonNullable<DesktopAppBridge["testBattleServer"]>>[0]) =>
+      ipcRenderer.invoke("desktopApp:testBattleServer", url) as ReturnType<NonNullable<DesktopAppBridge["testBattleServer"]>>,
+    getAssetCacheStatus: () =>
+      ipcRenderer.invoke("desktopApp:getAssetCacheStatus") as ReturnType<NonNullable<DesktopAppBridge["getAssetCacheStatus"]>>,
+    clearAssetCache: () =>
+      ipcRenderer.invoke("desktopApp:clearAssetCache") as ReturnType<NonNullable<DesktopAppBridge["clearAssetCache"]>>,
     onUpdateStatus: (listener: Parameters<DesktopAppBridge["onUpdateStatus"]>[0]) => {
       const wrapped = (_event: unknown, status: Parameters<typeof listener>[0]) => listener(status);
       ipcRenderer.on("desktopApp:updateStatus", wrapped);

@@ -21,6 +21,7 @@
 - 服务器 Docker / Battle API：[`server-docker-battle-api-plan.md`](server-docker-battle-api-plan.md)
 - Redis 临时房间连续性：[`server-redis-battle-room-continuity-plan.md`](server-redis-battle-room-continuity-plan.md)
 - Formal Run Server Room 制作清单：[`formal-run-server-room-implementation-checklist.md`](formal-run-server-room-implementation-checklist.md)
+- Battle server 选择 / Desk 离线 / 资源缓存：[`battle-server-selection-and-offline-assets-plan.md`](battle-server-selection-and-offline-assets-plan.md)
 - Battle diagnostics / AI 出招复现：[`../debug/README.md`](../debug/README.md)
 
 ## 当前进度
@@ -50,6 +51,7 @@
 - 下一步 coop 主线是复用 doubles 队伍生成器和 lead pair diagnostics，推进合作 AI 的 seat 映射、ally coordination、joint action 调试和出题评估。
 - 下一步 App 主线只做 Android：基于 Capacitor 复用 Web UI/API/CDN 资源，先验证 640x320 视口、存档、音频、网络/API、正式战斗和更新策略；iOS 暂不进入范围。
 - 下一步服务器主线是在本地 Docker room 全链路基础上做三端和公网验收：Desk/Android/公网 API smoke、Redis 不可用/容量保护测试、旧 revision 冲突测试、battle 中断后的失败结算细化，以及 Loki 查询体验打磨。公网响应默认不返回 AI debug，Redis 存对局连续性，Loki 存当天结构化日志，COS 存历史归档。
+- 下一步运行时配置主线是把 Battle API 从构建时 env 升级为 Desktop / Android App 的运行时服务器选择：官方服务器、自建服务器和 Desktop-only 离线服务共用同一套 `postService`/room/WebSocket base URL；Desktop 离线服务通过 Electron 本地 Battle API + 进程内 `MemoryRedisLike` 保留 room 机制，不要求玩家安装 Docker/Redis；Web 端只服务本地开发和 ChromeAutomation 自动化测试，不作为上线产品；资源缓存单独做 Desktop-first，不把 500MB 公共 assets 打回 release 包。
 - 训练家仓库下一步重点是性能/体验回归、组件预览覆盖、解锁箱页的 draft/profile BP 边界、灵魂伴侣战后亲密度成长，以及 debug 添加与正式 release 隐藏入口的回归验证。
 - Battle V4 下一步继续按 diagnostics 驱动修问题：动画/顺序问题先走 playback probe，非法 AI 指令先走 `debug/README.md` 的 `allRequests` 复现方法。
 - 存档级结构迁移仍按运行时标准化计划推进；Pokemon/Item/Bag/Vault/Log 等规则性 helper 优先放 `packages/changebattle-v2-core`，API 主要做编排。

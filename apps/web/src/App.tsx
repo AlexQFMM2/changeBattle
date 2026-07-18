@@ -14,6 +14,7 @@ import {
   starChartHasOpponentRumorV4,
   starChartHasSoulmateRewardV4,
   type AppDebugConfigV4,
+  type BattleServerConfigV4,
   type DesktopBattleServiceBridge,
   type DesktopAppBridge,
   type DesktopFormalGameBridge,
@@ -58,6 +59,7 @@ import {FormalStarterSelectPage} from "./components/formal/FormalStarterSelectPa
 import {PlayerSettingsPage} from "./components/player/PlayerSettingsPage";
 import {GameViewport} from "./components/shell/GameViewport";
 import {MainMenuPage} from "./components/shell/MainMenuPage";
+import {NetworkOfflineSettingsModal} from "./components/shell/NetworkOfflineSettingsModal";
 import {DesktopUpdateModal, desktopUpdateStatusVisible} from "./components/shell/DesktopUpdateModal";
 import {TalentConfigPage} from "./components/star-chart/TalentConfigPage";
 import {TitlePage} from "./components/shell/TitlePage";
@@ -67,7 +69,8 @@ import {TrainingBattleResultTransitionPage} from "./components/training/Training
 import {TrainingRestNewPage} from "./components/training/TrainingRestNewPage";
 import {TrainingRestPage} from "./components/training/TrainingRestPage";
 import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransitionPage";
-import {showdownAssetPrefix} from "./lib/assetUrl";
+import {setAssetCacheRuntimeConfig, showdownAssetPrefix} from "./lib/assetUrl";
+import {battleServerBaseUrl, battleServerConfigWithEnvFallback, clearAssetRuntimeCache, loadBattleServerRuntimeConfig, saveBattleServerRuntimeConfig, testBattleServerRuntimeUrl} from "./lib/battleServerRuntimeConfig";
 import {releaseGuardProfileBattlePreferenceV4} from "./lib/battlePreferenceReleaseGuard";
 import {CHANGE_BATTLE_DEBUG_FEATURES_ENABLED, CHANGE_BATTLE_RELEASE_CHANNEL} from "./lib/debugFeatures";
 import {clearFormalRoomCredential, loadFormalRoomCredential} from "./lib/formalRoomCredential";
@@ -119,7 +122,14 @@ function RoutedApp({runtime}: AppProps) {
   const battleServiceBridge = desktopBridgeRoot?.battleService;
   const desktopAppBridge = desktopBridgeRoot?.app;
   const [desktopBattleServiceConfig, setDesktopBattleServiceConfig] = useState<{backend: "server" | "local-fallback"; url?: string} | null>(null);
-  const battleServiceUrl = useMemo(() => resolveBattleServiceUrl(runtime, desktopBattleServiceConfig), [desktopBattleServiceConfig, runtime]);
+  const [battleServerConfig, setBattleServerConfig] = useState<BattleServerConfigV4 | null>(null);
+  const [battleServerConfigLoaded, setBattleServerConfigLoaded] = useState(false);
+  const [networkSettingsOpen, setNetworkSettingsOpen] = useState(false);
+  const battleServiceUrl = useMemo(() => resolveBattleServiceUrl(runtime, battleServerConfig, desktopBattleServiceConfig), [battleServerConfig, desktopBattleServiceConfig, runtime]);
+  setAssetCacheRuntimeConfig({
+    enabled: Boolean(battleServerConfig?.assetCache.enabled),
+    provider: runtime === "desktop" ? "desktop" : "none",
+  });
   const useDesktopLocalBattleFallback = runtime === "desktop" && desktopBattleServiceConfig?.backend === "local-fallback" && !battleServiceUrl && Boolean(battleServiceBridge);
   const battleBackendLabel = useDesktopLocalBattleFallback ? "local-dev-fallback" : "server-api";
   const desktopUpdatesEnabled = runtime === "desktop" && !IS_DEV_BUILD && Boolean(desktopAppBridge);
@@ -135,7 +145,7 @@ function RoutedApp({runtime}: AppProps) {
     battleServiceUrl,
     onServerConnectionState: setServerConnectionState,
     resourcePrefix: showdownAssetPrefix(),
-  }), [battleServiceBridge, battleServiceUrl, playerVaultAdapter, runtime, useDesktopLocalBattleFallback, userProfileAdapter]);
+  }), [battleServerConfig?.assetCache.enabled, battleServiceBridge, battleServiceUrl, playerVaultAdapter, runtime, useDesktopLocalBattleFallback, userProfileAdapter]);
   const formalGameBridge = desktopBridgeRoot?.formalGame;
   const formalGameBattleResultBridge = useDesktopLocalBattleFallback ? formalGameBridge : undefined;
   const catalog = useMemo(() => api.getTrainerCatalog(), [api]);
@@ -316,6 +326,28 @@ function RoutedApp({runtime}: AppProps) {
       cancelled = true;
     };
   }, [runtime, profile]);
+
+  useEffect(() => {
+    if (runtime === "desktop" && !desktopAppBridge) {
+      setBattleServerConfigLoaded(false);
+      return;
+    }
+    let cancelled = false;
+    setBattleServerConfigLoaded(false);
+    loadBattleServerRuntimeConfig(desktopAppBridge)
+      .then(config => {
+        if (!cancelled) setBattleServerConfig(config);
+      })
+      .catch(() => {
+        if (!cancelled) setBattleServerConfig(null);
+      })
+      .finally(() => {
+        if (!cancelled) setBattleServerConfigLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [desktopAppBridge, runtime]);
 
   useEffect(() => {
     if (runtime !== "desktop") {
@@ -872,12 +904,48 @@ function RoutedApp({runtime}: AppProps) {
       onCreate={startCreate}
       onDelete={deleteProfile}
       onOpenOfficialSite={desktopAppBridge ? () => desktopAppBridge.openOfficialSite() : undefined}
+      onNetworkSettings={openNetworkSettings}
       preferStaticBackground={false}
     />
   );
 
   const missingProfileFormalPage = loading ? <FormalRouteLoadingPage /> : <Navigate to="/" replace />;
   const continueGameLabel = continueGameLabelFor(formalRun, trainingRun);
+  async function saveBattleServerSettings(nextConfig: BattleServerConfigV4): Promise<BattleServerConfigV4> {
+    const saved = await saveBattleServerRuntimeConfig(nextConfig, desktopAppBridge);
+    setBattleServerConfig(saved);
+    setBattleServerConfigLoaded(true);
+    return saved;
+  }
+
+  async function clearAssetCacheSettings(): Promise<BattleServerConfigV4> {
+    const saved = await clearAssetRuntimeCache(battleServerConfigWithDefault(battleServerConfig, runtime), desktopAppBridge);
+    setBattleServerConfig(saved);
+    setBattleServerConfigLoaded(true);
+    return saved;
+  }
+
+  function openNetworkSettings() {
+    setNetworkSettingsOpen(true);
+    setBattleServerConfigLoaded(false);
+    loadBattleServerRuntimeConfig(desktopAppBridge)
+      .then(config => setBattleServerConfig(config))
+      .catch(() => setBattleServerConfig(null))
+      .finally(() => setBattleServerConfigLoaded(true));
+  }
+
+  const networkSettingsModal = networkSettingsOpen ? (
+    <NetworkOfflineSettingsModal
+      runtime={runtime}
+      config={battleServerConfigWithDefault(battleServerConfig, runtime)}
+      configLoading={!battleServerConfigLoaded}
+      onClose={() => setNetworkSettingsOpen(false)}
+      onSave={saveBattleServerSettings}
+      onTestServer={url => testBattleServerRuntimeUrl(url, desktopAppBridge)}
+      onClearAssetCache={clearAssetCacheSettings}
+    />
+  ) : null;
+
   const mainPage = profile ? (
     <>
       <MainMenuPage
@@ -900,6 +968,7 @@ function RoutedApp({runtime}: AppProps) {
         debugFeatureEnabled={DEBUG_FEATURE_ENABLED}
         onEnableTestMode={() => void enableTestMode()}
         onUserInfo={startEdit}
+        onNetworkSettings={openNetworkSettings}
         onTitle={() => navigate("/", {replace: true})}
       />
     </>
@@ -1552,6 +1621,7 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/formal/pending" element={formalPendingPage} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      {networkSettingsModal}
       {dexOpen ? (
         <QuickDexModal
           api={api}
@@ -1641,19 +1711,24 @@ function desktopVersionBadgeLabel(): string {
   return `${CHANGE_BATTLE_RELEASE_CHANNEL === "beta" ? "debug" : "release"} ${version}`;
 }
 
-function resolveBattleServiceUrl(runtime: AppProps["runtime"], desktopConfig?: {backend: "server" | "local-fallback"; url?: string} | null): string | undefined {
+function resolveBattleServiceUrl(runtime: AppProps["runtime"], battleServerConfig?: BattleServerConfigV4 | null, desktopConfig?: {backend: "server" | "local-fallback"; url?: string} | null): string | undefined {
+  const envUrl = currentEnvBattleServiceUrl(runtime);
+  if (battleServerConfig) return battleServerBaseUrl(battleServerConfig, envUrl);
+  if (runtime === "desktop" && desktopConfig?.backend === "local-fallback") return undefined;
+  return battleServerBaseUrl(null, runtime === "desktop" ? desktopConfig?.url || envUrl : envUrl);
+}
+
+function battleServerConfigWithDefault(config: BattleServerConfigV4 | null, runtime: AppProps["runtime"]): BattleServerConfigV4 {
+  return battleServerConfigWithEnvFallback(config, currentEnvBattleServiceUrl(runtime));
+}
+
+function currentEnvBattleServiceUrl(runtime: AppProps["runtime"]): string {
   const env = import.meta.env as ImportMetaEnv & {
     VITE_CHANGEBATTLE_MOBILE_BATTLE_SERVICE_URL?: string;
     VITE_CHANGEBATTLE_BATTLE_SERVICE_URL?: string;
   };
   const webUrl = String(env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL || "").trim();
-  if (runtime === "mobile") {
-    return String(env.VITE_CHANGEBATTLE_MOBILE_BATTLE_SERVICE_URL || "").trim() || webUrl || DEFAULT_PUBLIC_BATTLE_SERVICE_URL;
-  }
-  if (runtime === "desktop") {
-    if (desktopConfig?.backend === "local-fallback") return undefined;
-    return desktopConfig?.url || webUrl || DEFAULT_PUBLIC_BATTLE_SERVICE_URL;
-  }
+  if (runtime === "mobile") return String(env.VITE_CHANGEBATTLE_MOBILE_BATTLE_SERVICE_URL || "").trim() || webUrl || DEFAULT_PUBLIC_BATTLE_SERVICE_URL;
   return webUrl || DEFAULT_PUBLIC_BATTLE_SERVICE_URL;
 }
 

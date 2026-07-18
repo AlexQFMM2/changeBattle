@@ -33,6 +33,8 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - **AI 验证流程**：单打和双打都已接入 self-play exam / report 流程，能批量生成题目、AI 自动答题、记录决策耗时、debug/value/reason tags，并按 severe/warning 找明显犯病点。
 - **Assets CDN**：公共图片、音频、Showdown sprites/fx、训练/商店/奖章等资源已迁到腾讯 COS/CDN，统一走 `https://assets.65h26i.top/beta/...`；`apps/web/public` 和根 `assets/` 不再作为运行时打包来源。
 - **Formal Run Server Room**：正式流程服务端化已完成第一段和战斗闭环的本地 Docker smoke。当前 `apps/api` 主服务提供 `/rooms`、starter 选择、赛程生成、`prepare-battle`、room-bound snapshot/timeline/choice、`finalize-battle`；Web 正式流程可从开房、选 starter、生成赛程、休整、进入战斗、提交一次指令、战斗结束并进入 settlement。Redis room 只承载单局临时连续性，不做账号或长期云存档。
+- **Battle Server 运行时选择**：下一步会把 Battle API URL 从构建时 env 升级为 Desktop / Android App 的运行时配置：官方服务器、自建服务器和 Desktop-only 离线服务共用同一套 `postService` / room WebSocket base URL；Desktop 离线服务由 Electron 自带 Node runtime 启动本地 Battle API，并用进程内 `MemoryRedisLike` 模拟 room 所需 Redis 子集，不要求用户安装 Node、Docker 或 Redis。Web 端不作为上线产品，只作为本地开发和 ChromeAutomation 自动化测试入口。
+- **资源缓存路线**：公共资源默认继续走 COS/CDN，不重新塞回 release zip；后续增加“缓存资源到本地”开关，Desktop first，首次联网下载约 `4-500MB`，缓存完成后优先本地读取，未命中再回退 CDN。
 - **Release 流程**：debug 桌面端主流程已迁到 GitHub Actions。完整包由 GitHub Release 托管，更新 metadata 由 Actions artifact 生成，本地下载 artifact 后上传到自有服务器；旧 scp 到 Windows 构建机流程已降级为备用方案。
 - **桌面更新**：增量更新从 `files/vX.Y.Z/` 版本镜像迁移为内容哈希对象池：服务器托管 `latest.json`、`manifests/current.json`、`manifests/vX.Y.Z.json` 和 `objects/<sha>`；客户端按本地实际 sha 与远端清单比较新增/修改/删除。当前 beta 服务器清理旧对象后约 `79M`，当前版本 live objects 约 `66M`。
 - **下一步重点**：继续把 Formal Run room 化补完整，优先做金币交易类 `rest-action`、最终 `finalize-run`、room heartbeat/断线恢复、容器重启失败结算和 Loki；继续扩大出题/做题/评估样本，做人工 debug 对局验收，完善报告可解释性；推进 coop AI 和 coop 队伍/lead pair 分配；启动 Android-only App 移植。
@@ -139,12 +141,15 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - 做人工 debug 对局验收：挑选 self-play 报告里的高价值局面逐回合讲解，检查 AI 是否像正常玩家一样处理 KO、换人、极巨/太晶、集火、Protect、Fake Out、Tailwind/Trick Room 和友伤。
 - 推进 coop AI：先复用 doubles 队伍生成器和 lead pair diagnostics，把 4v4 doubles 队伍拆成两个 NPC 视角，再做合作场景下的 ally coordination、seat 映射、joint action 调试和出题评估。
 - 完成 Formal Run room v1 的剩余切片：金币交易类休整操作即时 `rest-action`、最终 `finalize-run` 和本地 profile/vault delta 写回、room heartbeat/过期/重连 UI、容器重启后的 `server-restarted` 失败结算、Loki 日志接入。
+- 增加 Desktop / Android App 的“网络与离线”设置：战斗服务器支持官方服务器、自建服务器和 Desktop-only 离线服务；自建服务器保存前做 `/health` 测试；Desktop 离线服务通过本地 Battle API + `MemoryRedisLike` 保留 room 机制，不要求用户安装 Docker/Redis；资源缓存作为独立开关，先做 Desktop 本地缓存。Web 只保留给本地开发和 ChromeAutomation smoke，不进入玩家发布口径。
 - 启动 Android-only App 移植计划：优先基于 Capacitor 复用 Web UI/API/资源 CDN 和公网 Battle API；只做 Android，不做 iOS；第一轮先验证 640x320 视口、存档、网络/API、音频、资源 CDN 和正式战斗 room 流程。
 - 继续把正式 GameRun 和新队伍生成器磨稳：玩家画像、地区限制、是否神战、战斗系统、NPC 强度、Boss 偏好、特殊系统道具和旧生成器 fallback 都要在正式流程里可解释、可回退。
 - 继续回归 Battle V4 演出和状态继承：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择、双打/合作 seat 映射，以及灵魂伴侣战斗进化在 singles/doubles/coop 下的播放顺序。
 - 桌面 release 后续继续验证 GitHub Actions + 对象池增量更新链路；安装器、签名仍不在当前范围。
 
 详细路线见 `docs/training-and-battle-roadmap.md`、`plan/formal-game/README.md` 和 `plan/formal-game/formal-lan-coop-host-mode-plan.md`。
+
+Battle API 运行时服务器选择、Desktop 离线服务和资源缓存路线见 `plan/battle-server-selection-and-offline-assets-plan.md`。
 
 ## UI Rules
 
@@ -165,6 +170,8 @@ https://assets.65h26i.top/beta/
 业务代码仍然记录资源相对路径，例如 `runtime/items/redthread/icon.png`、`showdown/sprites/ani/pikachu.gif`、`music/battle/trainer.ogg`。Web/Desktop 通过 `assetUrl("...")` 或 `assetsTool("...")` 解析为 CDN URL；不要在组件里硬编码 `/showdown/...`、`/npc/...`、`/assets/...`、本机绝对路径或 `file://`。
 
 `apps/web/public` 和仓库根 `assets/` 不再是运行时打包来源，也不应为了让文件进入 release 而恢复大资源目录。`apps/web/vite.config.ts`、`apps/desktop/vite.config.ts` 和 desktop renderer 构建已经关闭 publicDir；桌面 release 只打包代码、vendor、launcher 需要的小图标和必要资源，不再携带约 500M 的公共 assets。
+
+后续“缓存资源到本地”不会改变 release 包体策略：资源仍不打入 zip/APK，玩家选择开启后由运行时下载到本地 cache。Desktop 优先实现完整缓存和本地读取；Android 后续评估 Capacitor 文件系统；Web 不上线，只做开发测试需要的轻量能力，不承诺浏览器完整保留约 `4-500MB` 缓存。
 
 资源来源与上传：
 

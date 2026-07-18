@@ -1,6 +1,17 @@
 import {DEFAULT_CHANGE_BATTLE_ASSET_BASE_URL, joinAssetBaseUrl} from "@changebattle-v2/assets-core";
 
-const EXTERNAL_URL_PATTERN = /^(https?:|data:|blob:|file:|capacitor:)/i;
+const EXTERNAL_URL_PATTERN = /^(https?:|data:|blob:|file:|capacitor:|changebattle-asset:)/i;
+
+type AssetCacheRuntimeConfig = {
+  enabled: boolean;
+  provider: "desktop" | "none";
+};
+
+let assetCacheRuntimeConfig: AssetCacheRuntimeConfig = {enabled: false, provider: "none"};
+
+export function setAssetCacheRuntimeConfig(config: AssetCacheRuntimeConfig): void {
+  assetCacheRuntimeConfig = config;
+}
 
 export function assetUrl(path?: string | null): string | undefined {
   if (!path) return undefined;
@@ -11,6 +22,9 @@ export function assetUrl(path?: string | null): string | undefined {
   const cleanPath = rawPath.replace(/^\/+/, "").replace(/^assets\//, "").replace(/\/+$/, "");
   if (!cleanPath) return publicAssetBase();
   const [, assetPath, suffix = ""] = /^([^?#]*)([?#].*)?$/.exec(cleanPath) || [];
+  if (assetCacheRuntimeConfig.enabled && assetCacheRuntimeConfig.provider === "desktop" && assetPath) {
+    return `changebattle-asset://beta/${encodeAssetPath(assetPath)}${suffix}`;
+  }
   return `${joinAssetBaseUrl(publicAssetBase(), assetPath || cleanPath)}${suffix}`;
 }
 
@@ -31,4 +45,8 @@ export function showdownAssetPrefix(): string {
 export function styleUrlAssetPath(url: string): string {
   const clean = url.trim().replace(/^["']|["']$/g, "");
   return assetUrl(clean) || clean;
+}
+
+function encodeAssetPath(path: string): string {
+  return path.split("/").filter(Boolean).map(part => encodeURIComponent(part)).join("/");
 }

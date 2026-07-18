@@ -10,7 +10,7 @@ import "./MainMenuPage.css";
 
 export type MainMenuManualSaveState = "idle" | "saving" | "saved" | "error";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", debugFeatureEnabled = false, preferStaticBackground = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVault, onManualSave, onBattlePreference, onEnableTestMode, onUserInfo, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", debugFeatureEnabled = false, preferStaticBackground = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVault, onManualSave, onBattlePreference, onEnableTestMode, onUserInfo, onNetworkSettings, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
@@ -30,6 +30,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   onBattlePreference: () => void;
   onEnableTestMode?: () => void;
   onUserInfo: () => void;
+  onNetworkSettings: () => void;
   onTitle: () => void;
 }) {
   const [leaving, setLeaving] = useState(false);
@@ -45,6 +46,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
     {label: "对局偏好", action: onBattlePreference},
     {label: "我的仓库", action: onTrainerVault},
     {label: "玩家设置", action: onUserInfo},
+    {label: "游戏设置", action: onNetworkSettings, instant: true},
     ...(debugFeatureEnabled && onEnableTestMode ? [{label: "测试模式", action: onEnableTestMode, instant: true}] : []),
     {label: manualSaveLabel(manualSaveState), action: onManualSave, instant: true},
     {label: "回到主页", action: onTitle},

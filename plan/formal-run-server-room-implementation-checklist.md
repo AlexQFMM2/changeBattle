@@ -24,7 +24,7 @@
 - [x] `apps/api` 已成为 room 主服务入口，legacy battle-only server 保留在 battle-core。
 - [x] Web 正式流程已完成 room 前半段：开始游戏、服务端生成 starter、选择 starter、服务端生成 round plan、进入休整。
 - [x] Web 正式战斗闭环已完成本地 smoke：休整页 `prepare-battle`、room-aware BattleV4 snapshot/timeline/choice、`finalize-battle`、进入 settlement。
-- [x] WebSocket room 长连接已完成本地 smoke：`/rooms/:roomId/ws` 首包 auth、`room.ready`、`room.updated`、`rest.syncDraft`、`rest.action`、`sync.ack/sync.failed`。
+- [x] WebSocket room 长连接已完成本地 smoke：`/rooms/:roomId/ws` 首包 auth、`room.ready`、`room.updated`、`room.closed`；WS 已收口为服务器通知通道，客户端 mutation/heartbeat 统一走 HTTP。
 - [x] 休整页 RunGame 更新已改成“本地先改 -> 异步同步 -> ACK 静默 -> 失败回滚/提示”；保存按钮在正式 room 模式隐藏。
 - [x] `postService.ts` 已接入 room action registry，并统一标准错误、token header、timeout 和连接状态。
 - [x] 全局连接 badge 已接入 WebSocket 优先状态：在线、同步中、重连中、连接失败；业务失败不再误报为网络失败。
@@ -97,7 +97,7 @@
 - [x] 新增 `POST /rooms/:roomId/formal/prepare-round`。
 - [x] 新增 `POST /rooms/:roomId/formal/rest-action`，用于治疗、交换、购买、训练学习等强校验休整操作即时 checkpoint。
 - [x] 新增 `POST /rooms/:roomId/formal/sync-rest-draft`，作为 WebSocket 断线时的休整 draft HTTP fallback。
-- [x] 新增 `GET /rooms/:roomId/ws`，用于 room 级 WebSocket 长连接、认证、ACK、广播和错误通知。
+- [x] 新增 `GET /rooms/:roomId/ws`，用于 room 级 WebSocket 长连接、认证、服务器广播和错误通知；客户端操作不再通过 WS 提交。
 - [x] 新增 `POST /rooms/:roomId/formal/prepare-battle`，支持 `clientRequestId` 和 `baseRevision`。
 - [x] 新增 `POST /rooms/:roomId/battle/choices`，支持 `clientActionId / expectedTurn / expectedRqid`。
 - [x] 新增 `POST /rooms/:roomId/formal/finalize-battle`。
@@ -161,12 +161,12 @@
 - [x] 多次点击进入战斗不会创建多个 battle session。
 - [x] `prepare-battle` 响应丢失后，重试同 `clientRequestId` 返回同一个 session。
 - [x] 旧休整页 draft 不能覆盖战斗后的服务器 checkpoint。
-- [x] `rest-action` / `sync-rest-draft` 响应丢失后，可通过 room WebSocket/HTTP fallback 重拉当前 checkpoint；相同 `clientActionId` 不重复提交。
+- [x] `rest-action` / `sync-rest-draft` 响应丢失后，可通过 HTTP room restore 或 WS `room.updated` 重拉当前 checkpoint；相同 `clientActionId` 不重复提交。
 
 ## 5. 网络连接和网络状态全局组件
 
 - [x] 新增全局 room connection monitor，维护请求 RTT、最近成功请求时间、连续失败次数、在线/同步中/重连/失败状态。
-- [x] 正式 room 进入后建立 WebSocket 长连接；任意成功 room mutation 也刷新 `lastHeartbeatAt`。
+- [x] 正式 room 进入后建立 WebSocket 长连接，只接收服务器通知；任意成功 HTTP room mutation 也刷新 `lastHeartbeatAt`。
 - [x] 正式 room 流程活跃时补固定 60 秒 heartbeat 定时器。
 - [x] 心跳不做后台强保活；用户长时间不操作、页面挂起或 App 被系统杀掉，room 超时按断线/放弃处理。
 - [x] 5 分钟无有效心跳或请求时，客户端进入 reconnecting；服务器标记 disconnected。
@@ -252,8 +252,8 @@
 - [ ] Revision 单测：旧 `baseRevision` 不能覆盖新 checkpoint。
 - [ ] Rest-action 单测：治疗、交换、购买、训练学习即时更新 checkpoint，重复 `clientActionId` 不重复扣钱或重复改状态。
 - [ ] Draft sync 单测：队伍、背包、出售、打听、重随、医保、训练换课、灵魂蛋等 RunGame 更新可写入 checkpoint，旧 revision 被拒绝。
-- [x] WebSocket smoke：auth -> `room.ready` -> `rest.syncDraft` -> `sync.ack`，revision 正常递增。
-- [x] WebSocket rest-action smoke：auth -> `rest.action shop.buy` -> `sync.ack`，购买成功且 revision 正常递增。
+- [x] WebSocket smoke：auth -> `room.ready` -> HTTP mutation -> `room.updated` 广播，revision 正常递增。
+- [x] WebSocket closed smoke：closed/timeout room 返回 `room.closed` 后客户端停止重连，进入房间关闭提示。
 - [x] Web UI smoke：开始正式 singles -> starter -> round -> 休整页，连接显示在线；治疗金币不足显示业务错误且不误报连接失败。
 - [ ] Rest-action UI 测试：pending -> ACK 更新本地 cache，失败回滚；committed 操作不被 prepare-battle 重复提交。
 - [ ] 网络恢复测试：创建战斗响应丢失、提交指令响应丢失、App/Desk 重启恢复。

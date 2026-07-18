@@ -6,7 +6,37 @@ import {fileURLToPath} from "node:url";
 import {Worker} from "node:worker_threads";
 import {app, BrowserWindow, ipcMain, protocol, shell, type IpcMainInvokeEvent} from "electron";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import type {BattleSessionCreateInputV4, BattleSessionSnapshotV4, BattleTrainerItemSubmitV4, CoopPartnerPreferenceV4, DesktopUpdateStatusV4, FormalBattleResultFinalizeReasonV4, FormalBattleResultFinalizeResultV4, FormalBattleSessionPreparationV4, FormalGameModeV4, FormalGameRunV4, FormalMedicalInsuranceChoiceResultV4, FormalMedicalInsuranceChoiceV4, FormalMedicalInsuranceEffectsV4, FormalMedicalInsuranceOfferV4, FormalRestTeamHealResultV4, FormalSettlementReasonV4, FormalTrainingGroundLessonViewV4, PlayerVaultV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import {
+  DEFAULT_CHANGE_BATTLE_BATTLE_SERVICE_URL,
+  battleServerBaseUrlForConfigV4,
+  normalizeBattleServerBaseUrl,
+  normalizeBattleServerConfigV4,
+  type AssetCacheStatusV4,
+  type BattleServerConfigV4,
+  type BattleServerHealthResultV4,
+  type BattleSessionCreateInputV4,
+  type BattleSessionSnapshotV4,
+  type BattleTrainerItemSubmitV4,
+  type CoopPartnerPreferenceV4,
+  type DesktopUpdateStatusV4,
+  type FormalBattleResultFinalizeReasonV4,
+  type FormalBattleResultFinalizeResultV4,
+  type FormalBattleSessionPreparationV4,
+  type FormalGameModeV4,
+  type FormalGameRunV4,
+  type FormalMedicalInsuranceChoiceResultV4,
+  type FormalMedicalInsuranceChoiceV4,
+  type FormalMedicalInsuranceEffectsV4,
+  type FormalMedicalInsuranceOfferV4,
+  type FormalRestTeamHealResultV4,
+  type FormalSettlementReasonV4,
+  type FormalTrainingGroundLessonViewV4,
+  type PlayerVaultV4,
+  type ShowdownPlaybackTimelineV4,
+  type ShowdownPlayerIdV4,
+  type TrainingRunGameV4,
+  type UserProfileV2,
+} from "@changebattle-v2/api";
 import {CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4, changeBattleDesktopUpdateIsNewerV4, changeBattleDesktopUpdateManifestUrlsV4, changeBattleDesktopUpdateOfficialSiteUrlV4, compareDesktopUpdateFileManifestsV4, desktopUpdateObjectUrlForFileV4, isDesktopUpdateIncrementalManagedPathV4, normalizeChangeBattleDesktopVersionV4, parseChangeBattleDesktopUpdateManifestV4, parseDesktopUpdateFileManifestV4, validateDesktopUpdateManagedPathV4, type ChangeBattleDesktopUpdateCheckResultV4, type ChangeBattleDesktopUpdateManifestV4, type DesktopUpdateFileDiffV4, type DesktopUpdateFileManifestV4, type DesktopUpdateManagedFileV4} from "@changebattle-v2/core";
 import type {BattleServiceApiV4} from "@changebattle-v2/showdown-battle-core";
 import {DesktopSaveStoreV2} from "./desktopSaveStore.js";
@@ -22,7 +52,14 @@ const rendererReadyRetryMs = 180;
 const rendererReadyTimeoutMs = 90_000;
 const desktopUpdateFetchTimeoutMs = 6_000;
 const desktopAppUserModelId = "com.changebattle.v2";
-const defaultPublicBattleServiceUrl = "https://api.65h26i.top/changebattle/battle";
+const defaultPublicBattleServiceUrl = DEFAULT_CHANGE_BATTLE_BATTLE_SERVICE_URL;
+const defaultPublicAssetBaseUrl = "https://assets.65h26i.top/beta";
+const battleServerConfigFileName = ".battleServer.json";
+const battleServerTypoConfigFileName = ".batterServer";
+
+protocol.registerSchemesAsPrivileged([
+  {scheme: "changebattle-asset", privileges: {standard: true, secure: true, supportFetchAPI: true}},
+]);
 
 app.setName("ChangeBattle V2 Dex Desktop");
 app.setAppUserModelId(desktopAppUserModelId);
@@ -129,6 +166,204 @@ function registerRendererAssetFileResolver() {
   });
 }
 
+function registerChangeBattleAssetCacheProtocol() {
+  protocol.handle("changebattle-asset", async request => {
+    const relativePath = assetRelativePathFromProtocolUrl(request.url);
+    if (!relativePath) return new Response("Bad asset path", {status: 400});
+    const config = await loadDesktopBattleServerConfig();
+    const cdnUrl = `${defaultPublicAssetBaseUrl}/${relativePath}`;
+    if (!config.assetCache.enabled) return fetch(cdnUrl);
+    const root = await ensureDesktopAssetsRoot();
+    const filePath = safeAssetCacheFilePath(root, relativePath);
+    if (!filePath) return new Response("Bad asset path", {status: 400});
+    if (existsSync(filePath)) {
+      return new Response(await fs.readFile(filePath), {headers: {"content-type": contentTypeForAsset(relativePath)}});
+    }
+    const response = await fetch(cdnUrl);
+    if (!response.ok) return response;
+    const bytes = Buffer.from(await response.arrayBuffer());
+    await fs.mkdir(path.dirname(filePath), {recursive: true});
+    await fs.writeFile(filePath, bytes);
+    void refreshDesktopAssetCacheStats().catch(error => {
+      console.warn("[changebattle-v2:desktop] asset cache stats refresh failed", error);
+    });
+    return new Response(bytes, {headers: {"content-type": response.headers.get("content-type") || contentTypeForAsset(relativePath)}});
+  });
+}
+
+async function loadDesktopBattleServerConfig(): Promise<BattleServerConfigV4> {
+  const found = await readDesktopBattleServerConfigFile();
+  const envUrl = normalizeBattleServerBaseUrl(String(process.env.CHANGEBATTLE_DESKTOP_BATTLE_SERVICE_URL || process.env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL || "").trim());
+  const config = normalizeBattleServerConfigV4(found?.config || null);
+  if (!found && envUrl) return {...config, officialUrl: envUrl};
+  return config;
+}
+
+async function readDesktopBattleServerConfigFile(): Promise<{config: BattleServerConfigV4; path: string} | null> {
+  for (const filePath of desktopBattleServerConfigCandidates()) {
+    try {
+      const raw = await fs.readFile(filePath, "utf8");
+      return {config: normalizeBattleServerConfigV4(JSON.parse(raw)), path: filePath};
+    } catch {
+      // Try the next location; corrupted config falls back to defaults for v1.
+    }
+  }
+  return null;
+}
+
+async function saveDesktopBattleServerConfig(config: BattleServerConfigV4): Promise<BattleServerConfigV4> {
+  const normalized = normalizeBattleServerConfigV4(config);
+  const raw = JSON.stringify(normalized, null, 2);
+  for (const filePath of [desktopPrimaryBattleServerConfigPath(), desktopFallbackBattleServerConfigPath()]) {
+    try {
+      await fs.mkdir(path.dirname(filePath), {recursive: true});
+      await fs.writeFile(filePath, raw, "utf8");
+      return normalized;
+    } catch {
+      // Portable roots may be read-only; fall back to userData.
+    }
+  }
+  return normalized;
+}
+
+function desktopBattleServerConfigCandidates(): string[] {
+  return [
+    desktopPrimaryBattleServerConfigPath(),
+    path.join(path.dirname(desktopPrimaryBattleServerConfigPath()), battleServerTypoConfigFileName),
+    desktopFallbackBattleServerConfigPath(),
+  ];
+}
+
+function desktopPrimaryBattleServerConfigPath(): string {
+  return path.join(desktopPortableRoot(), "config", battleServerConfigFileName);
+}
+
+function desktopFallbackBattleServerConfigPath(): string {
+  return path.join(app.getPath("userData"), "config", battleServerConfigFileName);
+}
+
+async function withAssetCacheStatus(config: BattleServerConfigV4): Promise<BattleServerConfigV4> {
+  const status = await desktopAssetCacheStatus();
+  return normalizeBattleServerConfigV4({...config, assetCache: {...config.assetCache, ...status}});
+}
+
+async function testBattleServerUrl(inputUrl: string): Promise<BattleServerHealthResultV4> {
+  const root = normalizeBattleServerBaseUrl(inputUrl);
+  const startedAt = Date.now();
+  if (!root) return {ok: false, url: inputUrl, elapsedMs: 0, error: "invalid_url", message: "服务器地址无效。"};
+  try {
+    const response = await fetch(`${root}/health`, {method: "GET"});
+    const payload = await response.json().catch(() => null) as any;
+    const elapsedMs = Date.now() - startedAt;
+    if (!response.ok || payload?.ok !== true) {
+      return {ok: false, url: root, elapsedMs, error: "health_failed", message: "服务器健康检查失败。"};
+    }
+    return {
+      ok: true,
+      url: root,
+      elapsedMs,
+      service: typeof payload.service === "string" ? payload.service : undefined,
+      version: typeof payload.version === "string" ? payload.version : undefined,
+      redis: typeof payload.redis === "string" ? payload.redis : undefined,
+      storage: typeof payload.storage === "string" ? payload.storage : undefined,
+    };
+  } catch {
+    return {ok: false, url: root, elapsedMs: Date.now() - startedAt, error: "network_error", message: "无法连接服务器。"};
+  }
+}
+
+async function desktopAssetCacheStatus(): Promise<AssetCacheStatusV4> {
+  const config = normalizeBattleServerConfigV4((await readDesktopBattleServerConfigFile())?.config || null);
+  const root = await ensureDesktopAssetsRoot();
+  const stats = await scanDirectoryStats(root);
+  return {
+    enabled: config.assetCache.enabled,
+    rootDir: root,
+    cachedBytes: stats.bytes,
+    cachedFileCount: stats.files,
+    lastUpdatedAt: config.assetCache.lastUpdatedAt,
+    available: true,
+  };
+}
+
+async function refreshDesktopAssetCacheStats(): Promise<void> {
+  const config = await loadDesktopBattleServerConfig();
+  const status = await desktopAssetCacheStatus();
+  await saveDesktopBattleServerConfig({
+    ...config,
+    assetCache: {
+      ...config.assetCache,
+      rootDir: status.rootDir,
+      cachedBytes: status.cachedBytes,
+      cachedFileCount: status.cachedFileCount,
+      lastUpdatedAt: new Date().toISOString(),
+    },
+  });
+}
+
+async function ensureDesktopAssetsRoot(): Promise<string> {
+  for (const root of [path.join(desktopPortableRoot(), "assets"), path.join(app.getPath("userData"), "assets")]) {
+    try {
+      await fs.mkdir(root, {recursive: true});
+      return root;
+    } catch {
+      // Try fallback.
+    }
+  }
+  return path.join(app.getPath("userData"), "assets");
+}
+
+async function scanDirectoryStats(root: string): Promise<{bytes: number; files: number}> {
+  let bytes = 0;
+  let files = 0;
+  async function walk(dir: string): Promise<void> {
+    const entries = await fs.readdir(dir, {withFileTypes: true}).catch(() => []);
+    for (const entry of entries) {
+      const filePath = path.join(dir, entry.name);
+      if (entry.isDirectory()) await walk(filePath);
+      else if (entry.isFile()) {
+        const stat = await fs.stat(filePath).catch(() => null);
+        if (stat) {
+          files += 1;
+          bytes += stat.size;
+        }
+      }
+    }
+  }
+  await walk(root);
+  return {bytes, files};
+}
+
+function assetRelativePathFromProtocolUrl(value: string): string {
+  const url = new URL(value);
+  const parts = [url.hostname, ...url.pathname.split("/")].filter(Boolean);
+  if (parts[0] === "beta") parts.shift();
+  return parts.join("/").replace(/^assets\//, "");
+}
+
+function safeAssetCacheFilePath(root: string, relativePath: string): string | null {
+  const normalized = relativePath.replace(/\\/g, "/").split("/").filter(Boolean);
+  if (!normalized.length || normalized.some(part => part === "." || part === "..")) return null;
+  const target = path.resolve(root, ...normalized);
+  const rootWithSep = path.resolve(root) + path.sep;
+  return target.startsWith(rootWithSep) ? target : null;
+}
+
+function contentTypeForAsset(relativePath: string): string {
+  const ext = path.extname(relativePath).toLowerCase();
+  if (ext === ".png") return "image/png";
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".gif") return "image/gif";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".svg") return "image/svg+xml";
+  if (ext === ".mp4") return "video/mp4";
+  if (ext === ".webm") return "video/webm";
+  if (ext === ".ogg") return "audio/ogg";
+  if (ext === ".mp3") return "audio/mpeg";
+  if (ext === ".json") return "application/json";
+  return "application/octet-stream";
+}
+
 ipcMain.handle("userProfile:load", async () => {
   console.info(`[changebattle-v2:desktop] loading profile from ${ensureSaveStore().path()}`);
   return ensureSaveStore().loadUserProfile();
@@ -161,12 +396,41 @@ ipcMain.handle("desktopApp:cancelUpdate", async () => {
 });
 
 ipcMain.handle("desktopApp:getBattleServiceConfig", async () => {
-  const configuredUrl = String(process.env.CHANGEBATTLE_DESKTOP_BATTLE_SERVICE_URL || process.env.VITE_CHANGEBATTLE_BATTLE_SERVICE_URL || "").trim();
+  const runtimeConfig = await loadDesktopBattleServerConfig();
+  const configuredUrl = battleServerBaseUrlForConfigV4(runtimeConfig);
   const allowLocalFallback = process.env.CHANGEBATTLE_DESKTOP_ALLOW_LOCAL_BATTLE_SERVICE === "1";
   const url = configuredUrl || (allowLocalFallback ? "" : defaultPublicBattleServiceUrl);
   return url
     ? {backend: "server" as const, url}
     : {backend: "local-fallback" as const};
+});
+
+ipcMain.handle("desktopApp:getBattleServerConfig", async () => {
+  return withAssetCacheStatus(await loadDesktopBattleServerConfig());
+});
+
+ipcMain.handle("desktopApp:setBattleServerConfig", async (_event: IpcMainInvokeEvent, input: BattleServerConfigV4) => {
+  const normalized = normalizeBattleServerConfigV4(input);
+  const saved = await saveDesktopBattleServerConfig(normalized);
+  if (saved.assetCache.enabled) await ensureDesktopAssetsRoot();
+  return withAssetCacheStatus(saved);
+});
+
+ipcMain.handle("desktopApp:testBattleServer", async (_event: IpcMainInvokeEvent, url: string) => {
+  return testBattleServerUrl(url);
+});
+
+ipcMain.handle("desktopApp:getAssetCacheStatus", async () => {
+  return desktopAssetCacheStatus();
+});
+
+ipcMain.handle("desktopApp:clearAssetCache", async () => {
+  const root = await ensureDesktopAssetsRoot();
+  await fs.rm(root, {recursive: true, force: true});
+  await fs.mkdir(root, {recursive: true});
+  const config = await loadDesktopBattleServerConfig();
+  await saveDesktopBattleServerConfig({...config, assetCache: {...config.assetCache, cachedBytes: 0, cachedFileCount: 0, lastUpdatedAt: new Date().toISOString()}});
+  return desktopAssetCacheStatus();
 });
 
 ipcMain.handle("playerVault:load", async () => {
@@ -703,6 +967,7 @@ function readDesktopLocalFileManifestVersionSync(): string {
 
 app.whenReady().then(() => {
   registerRendererAssetFileResolver();
+  registerChangeBattleAssetCacheProtocol();
   return createWindow();
 });
 app.on("window-all-closed", () => {

@@ -12,7 +12,9 @@ cleanup() {
 trap cleanup EXIT
 
 BATTLE_SERVICE_PORT="${CHANGEBATTLE_BATTLE_SERVICE_PORT:-5191}"
-BATTLE_SERVICE_DIR="$ROOT_DIR/packages/showdown-battle-core"
+BATTLE_SERVICE_HOST="${CHANGEBATTLE_BATTLE_SERVICE_HOST:-127.0.0.1}"
+BATTLE_SERVICE_BASE_URL="${CHANGEBATTLE_DESKTOP_LOCAL_BATTLE_SERVICE_URL:-http://$BATTLE_SERVICE_HOST:$BATTLE_SERVICE_PORT}"
+BATTLE_SERVICE_DIR="$ROOT_DIR/apps/api"
 BATTLE_SERVICE_ENTRY="$BATTLE_SERVICE_DIR/dist/server.js"
 DESKTOP_DEV_DIR="$ROOT_DIR/apps/desktop"
 RENDERER_DEV_PORT="${CHANGEBATTLE_RENDERER_DEV_PORT:-5181}"
@@ -35,6 +37,7 @@ is_project_battle_process() {
   cwd="$(readlink "/proc/$pid/cwd" 2>/dev/null || true)"
   cmd="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
   [[ "$cmd" == *"@changebattle-v2/showdown-battle-core dev"* ]] && return 0
+  [[ "$cmd" == *"@changebattle-v2/api dev"* ]] && return 0
   [[ "$cwd" == "$BATTLE_SERVICE_DIR"* && "$cmd" == *"node dist/server.js"* ]] && return 0
   [[ "$cmd" == *"$BATTLE_SERVICE_ENTRY"* ]] && return 0
   return 1
@@ -64,18 +67,28 @@ wait_for_port_free() {
   return 1
 }
 
+battle_service_health_ok() {
+  local path
+  for path in "/health" "/changebattle/battle/health"; do
+    if curl -fsS --max-time 2 "$BATTLE_SERVICE_BASE_URL$path" >/dev/null 2>&1; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 stop_existing_battle_service() {
   local pids=()
   local port_pids
   port_pids="$(ss -ltnp 2>/dev/null | awk -v port=":$BATTLE_SERVICE_PORT" '$4 ~ port {print $NF}' | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' | sort -u)"
   while read -r pid; do
-    [[ -n "$pid" ]] && pids+=("$pid")
+    [[ -n "$pid" ]] && is_project_battle_process "$pid" && pids+=("$pid")
   done <<< "$port_pids"
 
   local pid
   while read -r pid; do
     [[ -n "$pid" ]] && is_project_battle_process "$pid" && pids+=("$pid")
-  done < <(pgrep -f "(@changebattle-v2/showdown-battle-core dev|node dist/server.js)" 2>/dev/null || true)
+  done < <(pgrep -f "(@changebattle-v2/showdown-battle-core dev|@changebattle-v2/api dev|node dist/server.js)" 2>/dev/null || true)
 
   if [[ "${#pids[@]}" -gt 0 ]]; then
     local unique_pids
@@ -120,26 +133,48 @@ stop_existing_desktop_dev() {
   wait_for_port_free "$RENDERER_DEV_PORT" "renderer dev" || true
 }
 
-stop_existing_battle_service
+export CHANGEBATTLE_DESKTOP_BATTLE_SERVICE_URL="${CHANGEBATTLE_DESKTOP_BATTLE_SERVICE_URL:-$BATTLE_SERVICE_BASE_URL}"
+export VITE_CHANGEBATTLE_BATTLE_SERVICE_URL="${VITE_CHANGEBATTLE_BATTLE_SERVICE_URL:-$BATTLE_SERVICE_BASE_URL}"
+
+REUSE_EXISTING_BATTLE_SERVICE=0
+if battle_service_health_ok; then
+  echo "Reusing existing Battle API at $BATTLE_SERVICE_BASE_URL"
+  REUSE_EXISTING_BATTLE_SERVICE=1
+else
+  stop_existing_battle_service
+  if nc -z 127.0.0.1 "$BATTLE_SERVICE_PORT" >/dev/null 2>&1; then
+    echo "Error: port $BATTLE_SERVICE_PORT is occupied, but $BATTLE_SERVICE_BASE_URL/health is not a healthy Battle API."
+    echo "Stop the process using this port, or set CHANGEBATTLE_DESKTOP_LOCAL_BATTLE_SERVICE_URL / CHANGEBATTLE_BATTLE_SERVICE_PORT."
+    exit 1
+  fi
+fi
+
 if [[ "${1:-}" != "--battle-only" ]]; then
   stop_existing_desktop_dev
 fi
 pnpm --filter @changebattle-v2/core build
-pnpm --filter @changebattle-v2/showdown-battle-core exec tsc -p tsconfig.json
-(
-  cd "$BATTLE_SERVICE_DIR"
-  exec node dist/server.js
-) &
-BATTLE_SERVICE_PID=$!
+pnpm --filter @changebattle-v2/showdown-battle-core build
+if [[ "$REUSE_EXISTING_BATTLE_SERVICE" != "1" ]]; then
+  pnpm --filter @changebattle-v2/api build
+  (
+    cd "$BATTLE_SERVICE_DIR"
+    exec node dist/server.js
+  ) &
+  BATTLE_SERVICE_PID=$!
 
-for _ in {1..40}; do
-  if nc -z 127.0.0.1 "$BATTLE_SERVICE_PORT" >/dev/null 2>&1; then
-    break
-  fi
-  sleep 0.2
-done
+  for _ in {1..40}; do
+    if battle_service_health_ok; then
+      break
+    fi
+    sleep 0.2
+  done
+fi
 
 if [[ "${1:-}" == "--battle-only" ]]; then
+  if [[ "$REUSE_EXISTING_BATTLE_SERVICE" == "1" ]]; then
+    echo "Battle API is already running at $BATTLE_SERVICE_BASE_URL"
+    exit 0
+  fi
   wait "$BATTLE_SERVICE_PID"
   exit $?
 fi

@@ -1,11 +1,12 @@
 import "./TitleCommandMenu.css";
 
-export function TitleCommandMenu({hasProfile, loading, onLoadProfile, onCreateProfile, onOpenOfficialSite}: {
+export function TitleCommandMenu({hasProfile, loading, onLoadProfile, onCreateProfile, onOpenOfficialSite, onNetworkSettings}: {
   hasProfile: boolean;
   loading: boolean;
   onLoadProfile: () => void;
   onCreateProfile: () => void;
   onOpenOfficialSite?: () => void | Promise<void>;
+  onNetworkSettings: () => void;
 }) {
   return (
     <nav className="title-command-menu" aria-label="标题菜单">
@@ -20,6 +21,9 @@ export function TitleCommandMenu({hasProfile, loading, onLoadProfile, onCreatePr
           <span>前往游戏官网</span>
         </button>
       ) : null}
+      <button className="title-menu-item" type="button" onClick={onNetworkSettings}>
+        <span>游戏设置</span>
+      </button>
       <button className="title-menu-item quiet" type="button" onClick={() => window.close()}>
         <span>退出</span>
       </button>

@@ -48,6 +48,7 @@ import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type Bos
 import {applyPlayerVaultEvolutionItemV4, applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultEvolutionItemUseV4, previewPlayerVaultNumericItemUseV4, unequipPlayerVaultHeldItemV4, type PlayerVaultEvolutionApplyResultV4, type PlayerVaultEvolutionPreviewResultV4, type PlayerVaultFriendshipItemApplyResultV4, type PlayerVaultHeldItemApplyResultV4, type PlayerVaultHeldItemUnequipResultV4, type PlayerVaultMoveTeachingApplyResultV4 as PlayerVaultMoveTeachingApplyResultFromItemEffectsV4, type PlayerVaultMoveTeachingViewResultV4, type PlayerVaultNumericItemApplyResultV4, type PlayerVaultNumericItemPreviewResultV4} from "./itemEffects.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
 import {createPostServiceClient, type PostServiceClientV4, type PostServiceConnectionStateV4, type PostServiceResultV4} from "./postService.js";
+import type {AssetCacheStatusV4, BattleServerConfigV4, BattleServerHealthResultV4} from "./serverConfig.js";
 import {
   clearStarChartUnlocksForProfileV4,
   enableTestModeForProfileV4,
@@ -82,6 +83,17 @@ export type {NatureEffectV4} from "@changebattle-v2/core";
 export type {PostServiceConnectionStateV4, PostServiceResultV4} from "./postService.js";
 export type {BattleServiceClientV4, BattleSessionSnapshotV4, ShowdownPlaybackTimelineV4} from "./battle.js";
 export {normalizeShowdownChoiceRequestV4, showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, validShowdownTargetLocV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
+export {
+  DEFAULT_BATTLE_SERVER_CONFIG_V4,
+  DEFAULT_CHANGE_BATTLE_BATTLE_SERVICE_URL,
+  battleServerBaseUrlForConfigV4,
+  normalizeBattleServerBaseUrl,
+  normalizeBattleServerConfigV4,
+  type AssetCacheStatusV4,
+  type BattleServerConfigV4,
+  type BattleServerHealthResultV4,
+  type BattleServerModeV4,
+} from "./serverConfig.js";
 export {battleKeyFromRosterIdentityV4, canonicalBattleKeyV4, isProtocolBattleKeyV4} from "@changebattle-v2/showdown-battle-core/battleIdentity";
 export {dexLabelToId, toDexId, translateDexDescription, translateDexLabel} from "@changebattle-v2/showdown-dex-core";
 export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultPokemonReleaseResultV4, PlayerVaultV4, RestCenterActionEntryV4, SoulmateCandidateV4, TrainerVaultV2, UserProfileDraftV2, UserProfileV2};
@@ -264,6 +276,11 @@ export type DesktopAppBridge = {
   getUpdateStatus(): Promise<DesktopUpdateStatusV4>;
   cancelUpdate(): Promise<void>;
   getBattleServiceConfig?(): Promise<{backend: "server" | "local-fallback"; url?: string}>;
+  getBattleServerConfig?(): Promise<BattleServerConfigV4>;
+  setBattleServerConfig?(config: BattleServerConfigV4): Promise<BattleServerConfigV4>;
+  testBattleServer?(url: string): Promise<BattleServerHealthResultV4>;
+  getAssetCacheStatus?(): Promise<AssetCacheStatusV4>;
+  clearAssetCache?(): Promise<AssetCacheStatusV4>;
   onUpdateStatus(listener: (status: DesktopUpdateStatusV4) => void): () => void;
 };
 
