@@ -10,6 +10,16 @@ export type PostServiceActionNameV4 =
   | "rooms.matches.ready"
   | "rooms.matches.unready"
   | "rooms.matches.start"
+  | "rooms.matches.view"
+  | "rooms.matches.commands.selectStarters"
+  | "rooms.matches.commands.prepareRound"
+  | "rooms.matches.commands.teamReorder"
+  | "rooms.matches.commands.restAction"
+  | "rooms.matches.commands.prepareBattle"
+  | "rooms.matches.commands.battleChoice"
+  | "rooms.matches.commands.finalizeBattle"
+  | "rooms.matches.commands.finalizeRun"
+  | "rooms.matches.commands.ackFinalResult"
   | "rooms.selectStarters"
   | "rooms.prepareRound"
   | "rooms.syncDraft"
@@ -115,6 +125,56 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/matches/${encodeURIComponent(requiredString(input?.matchId, "matchId"))}/start`,
     body: input => ({clientRequestId: input?.clientRequestId}),
   },
+  "rooms.matches.view": {
+    method: "GET",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/matches/${encodeURIComponent(requiredString(input?.matchId, "matchId"))}/view`,
+    latencySample: true,
+  },
+  "rooms.matches.commands.selectStarters": {
+    method: "POST",
+    path: input => matchCommandPath(input, "select-starters"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.prepareRound": {
+    method: "POST",
+    path: input => matchCommandPath(input, "prepare-round"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.teamReorder": {
+    method: "POST",
+    path: input => matchCommandPath(input, "team.reorder"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.restAction": {
+    method: "POST",
+    path: input => matchCommandPath(input, "rest-action"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.prepareBattle": {
+    method: "POST",
+    path: input => matchCommandPath(input, "prepare-battle"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.battleChoice": {
+    method: "POST",
+    path: input => matchCommandPath(input, "battle-choice"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.finalizeBattle": {
+    method: "POST",
+    path: input => matchCommandPath(input, "finalize-battle"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.finalizeRun": {
+    method: "POST",
+    path: input => matchCommandPath(input, "finalize-run"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.ackFinalResult": {
+    method: "POST",
+    path: input => matchCommandPath(input, "ack-final-result"),
+    body: commandBody,
+  },
   "rooms.selectStarters": {
     method: "POST",
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/select-starters`,
@@ -157,12 +217,10 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
   "rooms.getBattleSnapshot": {
     method: "GET",
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/battle/snapshot`,
-    latencySample: true,
   },
   "rooms.getBattlePlaybackTimeline": {
     method: "GET",
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/battle/playback-timeline?from=${encodeURIComponent(String(input?.from || 0))}`,
-    latencySample: true,
   },
   "rooms.submitBattleChoice": {
     method: "POST",
@@ -206,6 +264,18 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
     body: input => input || {},
   },
 };
+
+function matchCommandPath(input: any, command: string): string {
+  return `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/matches/${encodeURIComponent(requiredString(input?.matchId, "matchId"))}/commands/${command}`;
+}
+
+function commandBody(input: any): unknown {
+  return {
+    commandId: input?.commandId ?? input?.clientRequestId ?? input?.clientActionId,
+    baseRevision: input?.baseRevision,
+    payload: input?.payload || {},
+  };
+}
 
 export function createPostServiceClient(config: PostServiceClientConfigV4 = {}): PostServiceClientV4 {
   const root = (config.baseUrl || DEFAULT_BATTLE_SERVICE_URL).replace(/\/$/, "");

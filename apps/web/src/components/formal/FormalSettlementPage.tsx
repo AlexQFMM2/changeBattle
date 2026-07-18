@@ -5,10 +5,11 @@ import {pokemonSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "./PokemonSprite.css";
 import "./FormalSettlementPage.css";
 
-export function FormalSettlementPage({run, profile, onBackToMain}: {
+export function FormalSettlementPage({run, profile, onBackToMain, backLabel = "返回主页"}: {
   run: FormalGameRunV4;
   profile: UserProfileV2;
   onBackToMain: () => void;
+  backLabel?: string;
 }) {
   const settlement = run.settlement;
   const stats = useMemo(() => (settlement?.pokemonStats || []).filter(hasBattleActivity), [settlement?.pokemonStats]);
@@ -23,7 +24,7 @@ export function FormalSettlementPage({run, profile, onBackToMain}: {
       <main className="formal-settlement-page">
         <section className="formal-settlement-empty">
           <h1>暂无结算数据</h1>
-          <button type="button" onClick={onBackToMain}>返回主页</button>
+          <button type="button" onClick={onBackToMain}>{backLabel}</button>
         </section>
       </main>
     );
@@ -47,7 +48,7 @@ export function FormalSettlementPage({run, profile, onBackToMain}: {
         </dl>
         <div className="formal-settlement-actions">
           <button type="button" onClick={() => exportFormalSettlementDiagnostics(run, profile)}>导出</button>
-          <button type="button" onClick={onBackToMain}>返回主页</button>
+          <button type="button" onClick={onBackToMain}>{backLabel}</button>
         </div>
       </section>
 

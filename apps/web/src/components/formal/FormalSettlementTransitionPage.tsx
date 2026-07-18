@@ -10,12 +10,11 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
   profile: UserProfileV2;
   playerVault: PlayerVaultV4;
   reason: FormalSettlementReasonV4;
-  formalRoomCredential?: {roomId: string; roomToken: string} | null;
+  formalRoomCredential?: {roomId: string; roomToken: string; matchId?: string} | null;
   onSettled: (run: FormalGameRunV4, profile: UserProfileV2, playerVault: PlayerVaultV4) => void;
   onSaveProfile?: (profile: UserProfileV2) => Promise<UserProfileV2>;
   onSavePlayerVault?: (vault: PlayerVaultV4) => Promise<PlayerVaultV4>;
 }) {
-  const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
   const mountedRef = useRef(false);
@@ -28,21 +27,49 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
   }, []);
 
   useEffect(() => {
-    if (!ready || startedRef.current) return;
+    if (startedRef.current) return;
     startedRef.current = true;
-    const timer = window.setTimeout(() => {
-      void settleFormalRun()
-        .then(result => {
-          if (mountedRef.current) onSettled(result.run, result.profile, result.playerVault);
-        })
-        .catch(caught => {
-          if (mountedRef.current) setError(caught instanceof Error ? caught.message : "正式结算失败。");
-        });
-    });
+    void settleFormalRun()
+      .then(result => {
+        if (mountedRef.current) onSettled(result.run, result.profile, result.playerVault);
+      })
+      .catch(caught => {
+        if (mountedRef.current) setError(caught instanceof Error ? caught.message : "正式结算失败。");
+      });
     async function settleFormalRun() {
       if (run.settled !== false) return {run, profile, playerVault};
       if (formalRoomCredential) {
         const clientRequestId = loadOrCreateSettlementRequestId(formalRoomCredential.roomId, run.id);
+        if (formalRoomCredential.matchId) {
+          const finalized = await api.submitFormalRoomMatchCommand({
+            roomId: formalRoomCredential.roomId,
+            roomToken: formalRoomCredential.roomToken,
+            matchId: formalRoomCredential.matchId,
+            actionName: "rooms.matches.commands.finalizeRun",
+            commandId: clientRequestId,
+            payload: {
+              reason,
+              profileSnapshot: profile,
+              playerVaultSnapshot: playerVault,
+            },
+          });
+          if (!finalized.ok) throw new Error(finalized.message);
+          const nextRun = finalized.data.view.formalRun;
+          const settlementId = finalized.data.settlementId;
+          const nextProfile = finalized.data.profile;
+          const nextVault = finalized.data.playerVault;
+          if (!nextRun || !settlementId || !nextProfile || !nextVault) throw new Error("最终结算结果返回异常。");
+          const applied = hasAppliedSettlement(profile.id, settlementId);
+          const savedProfile = applied
+            ? profile
+            : onSaveProfile ? await onSaveProfile(nextProfile) : nextProfile;
+          const savedVault = applied
+            ? playerVault
+            : onSavePlayerVault ? await onSavePlayerVault(nextVault) : await api.savePlayerVault(nextVault);
+          if (!applied) markSettlementApplied(profile.id, settlementId);
+          clearSettlementRequestId(formalRoomCredential.roomId, run.id);
+          return {run: nextRun, profile: savedProfile, playerVault: savedVault};
+        }
         let finalized = await api.finalizeFormalRoomRun({
           roomId: formalRoomCredential.roomId,
           roomToken: formalRoomCredential.roomToken,
@@ -66,11 +93,10 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
         const savedVault = applied
           ? playerVault
           : onSavePlayerVault ? await onSavePlayerVault(finalized.data.playerVault) : await api.savePlayerVault(finalized.data.playerVault);
-        const savedRun = await api.saveFormalGameRun(finalized.data.formalRun);
         if (!applied) markSettlementApplied(profile.id, finalized.data.settlementId);
         clearSettlementRequestId(formalRoomCredential.roomId, run.id);
         await api.deleteFormalRoom(formalRoomCredential).catch(() => undefined);
-        return {run: savedRun, profile: savedProfile, playerVault: savedVault};
+        return {run: finalized.data.formalRun, profile: savedProfile, playerVault: savedVault};
       }
       if (formalGameBridge) {
         const prepared = await formalGameBridge.prepareFormalSettlement(run, profile, reason);
@@ -135,10 +161,7 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
         playerVault: savedVault,
       };
     }
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [ready]);
+  }, []);
 
   return (
     <section className="formal-game-transition-wrap">
@@ -146,7 +169,7 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
         title="结算本局"
         detail="正在整理 BP、金币流水、背包资产和宝可梦战绩"
         tip={error || "正在计算 MVP、KDA、输出、承伤，并整理可带出工厂的养成物资。"}
-        onReady={() => setReady(true)}
+        onReady={() => undefined}
       />
     </section>
   );

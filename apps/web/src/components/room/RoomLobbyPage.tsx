@@ -1,5 +1,5 @@
 import {useMemo, useState} from "react";
-import type {BattlePreferenceV4, ChangeBattleV2Api, FormalGameModeV4, FormalRoomMatchV1, FormalRoomMemberV1, FormalRoomV1, UserProfileV2} from "@changebattle-v2/api";
+import type {BattlePreferenceV4, ChangeBattleV2Api, FormalCompetitionModeV4, FormalGameModeV4, FormalRoomMatchV1, FormalRoomMemberV1, FormalRoomV1, UserProfileV2} from "@changebattle-v2/api";
 import {BATTLE_GENERATION_OPTIONS_V4, BATTLE_RULE_PRESET_OPTIONS_V4, normalizeBattlePreferenceV4} from "@changebattle-v2/api";
 import {assetUrl} from "../../lib/assetUrl";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
@@ -19,7 +19,7 @@ export type RoomLobbyPageProps = {
   onLeave: () => void;
 };
 
-type DrawerKind = "mode" | "generations" | "rule-set" | "legendary" | "battle-bag" | "match-info" | null;
+type DrawerKind = "mode" | "competition" | "generations" | "rule-set" | "legendary" | "battle-bag" | "match-info" | null;
 
 const MODE_OPTIONS: Array<{mode: FormalGameModeV4; label: string; description: string}> = [
   {mode: "singles", label: "单打-AI", description: "标准单人流程，先跑通正式闭环。"},
@@ -38,6 +38,13 @@ export function RoomLobbyPage({api: _api, profile, room, busyMessage, error, onC
   const allReady = Boolean(activeMatch && (room.members || []).filter(member => activeMatch.participantMemberIds.includes(member.memberId)).every(member => member.ready));
   const modeLabel = modeLabelFor(draftMode);
   const preferenceCards = useMemo(() => [
+    {
+      key: "competition" as const,
+      label: "赛程长度",
+      value: competitionModeLabel(draftPreference.competitionMode),
+      caption: competitionModeCaption(draftPreference.competitionMode),
+      mark: "RUN",
+    },
     {
       key: "generations" as const,
       label: "地区限制",
@@ -180,8 +187,9 @@ function PreferenceDrawer({kind, preference, onChange, onClose}: {
   onChange: (preference: BattlePreferenceV4) => void;
   onClose: () => void;
 }) {
-  const open = kind === "generations" || kind === "rule-set" || kind === "legendary" || kind === "battle-bag";
-  const title = kind === "generations" ? "地区限制"
+  const open = kind === "competition" || kind === "generations" || kind === "rule-set" || kind === "legendary" || kind === "battle-bag";
+  const title = kind === "competition" ? "赛程长度"
+    : kind === "generations" ? "地区限制"
     : kind === "rule-set" ? "战斗环境"
     : kind === "legendary" ? "是否神战"
     : "战斗背包";
@@ -201,6 +209,12 @@ function PreferenceDrawer({kind, preference, onChange, onClose}: {
 
   return (
     <GameDrawer open={open} placement="right" title={title} width={240} onClose={onClose}>
+      {kind === "competition" ? (
+        <CompetitionChoiceDrawer
+          value={preference.competitionMode}
+          onSelect={value => { apply({competitionMode: value}); onClose(); }}
+        />
+      ) : null}
       {kind === "generations" ? (
         <div className="room-lobby-generation-grid">
           {BATTLE_GENERATION_OPTIONS_V4.map(option => {
@@ -245,6 +259,30 @@ function PreferenceDrawer({kind, preference, onChange, onClose}: {
         />
       ) : null}
     </GameDrawer>
+  );
+}
+
+function CompetitionChoiceDrawer({value, onSelect}: {value: FormalCompetitionModeV4; onSelect: (value: FormalCompetitionModeV4) => void}) {
+  const options: Array<{value: FormalCompetitionModeV4; label: string; text: string; disabled?: boolean}> = [
+    {value: "standard", label: "标准赛程", text: "完整正式流程，按当前赛制生成多场对局。"},
+    {value: "single", label: "单局验收", text: "只生成 1 场，适合快速测试休整、战斗和结算闭环。"},
+    {value: "leagueLoop", label: "循环联赛", text: "预留赛制，后续开放。", disabled: true},
+  ];
+  return (
+    <div className="room-lobby-drawer-list">
+      {options.map(option => (
+        <button
+          className={value === option.value ? "selected" : ""}
+          type="button"
+          key={option.value}
+          disabled={option.disabled}
+          onClick={() => onSelect(option.value)}
+        >
+          <strong>{option.label}</strong>
+          <span>{option.text}</span>
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -306,6 +344,7 @@ function RoomMemberListBoard({members, selfMemberId}: {members: FormalRoomMember
 function MatchDetailPanel({match, members, selfReady, allReady, busy, onReady, onStart}: {match: FormalRoomMatchV1; members: FormalRoomMemberV1[]; selfReady: boolean; allReady: boolean; busy: boolean; onReady: () => void; onStart: () => void}) {
   const participantMembers = match.participantMemberIds.map(id => members.find(member => member.memberId === id)).filter(Boolean) as FormalRoomMemberV1[];
   const slots = [...participantMembers, ...Array.from({length: Math.max(0, 4 - participantMembers.length)}, (_, index) => null)].slice(0, 4);
+  const ended = match.status === "ended";
   return (
     <section className="room-match-detail">
       <header className="room-match-detail-header">
@@ -321,8 +360,14 @@ function MatchDetailPanel({match, members, selfReady, allReady, busy, onReady, o
         ))}
       </div>
       <div className="room-match-actions">
-        <button type="button" disabled={busy || match.status !== "not_started"} onClick={onReady}>{selfReady ? "取消准备" : "准备"}</button>
-        <button type="button" disabled={busy || !allReady || match.status !== "not_started"} onClick={onStart}>开始游戏</button>
+        {ended ? (
+          <p className="room-match-ended-note">本场对局已结束，结果快照已保留在房间内。</p>
+        ) : (
+          <>
+            <button type="button" disabled={busy || match.status !== "not_started"} onClick={onReady}>{selfReady ? "取消准备" : "准备"}</button>
+            <button type="button" disabled={busy || !allReady || match.status !== "not_started"} onClick={onStart}>开始游戏</button>
+          </>
+        )}
       </div>
     </section>
   );
@@ -388,7 +433,20 @@ function preferenceSummary(preference: BattlePreferenceV4 | Record<string, unkno
   const rule = BATTLE_RULE_PRESET_OPTIONS_V4.find(option => option.id === ruleSet) || BATTLE_RULE_PRESET_OPTIONS_V4[0]!;
   const bag = (preference as BattlePreferenceV4 | undefined)?.battleBagEnabled === false ? "背包关" : "背包开";
   const legendary = (preference as BattlePreferenceV4 | undefined)?.legendaryBattle ? "神战开" : "神战关";
-  return `${rule.name} / ${legendary} / ${bag}`;
+  const competition = competitionModeLabel((preference as BattlePreferenceV4 | undefined)?.competitionMode || "standard");
+  return `${competition} / ${rule.name} / ${legendary} / ${bag}`;
+}
+
+function competitionModeLabel(mode: FormalCompetitionModeV4): string {
+  if (mode === "single") return "单局验收";
+  if (mode === "leagueLoop") return "循环联赛";
+  return "标准赛程";
+}
+
+function competitionModeCaption(mode: FormalCompetitionModeV4): string {
+  if (mode === "single") return "1 场后结算";
+  if (mode === "leagueLoop") return "后续开放";
+  return "完整流程";
 }
 
 function generationSummary(preference: BattlePreferenceV4): string {

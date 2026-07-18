@@ -21,17 +21,23 @@ export function FormalBattleTransitionPage({api, formalGameBridge, battleBackend
       const credential = loadFormalRoomCredential();
       if (credential) {
         const clientRequestId = formalBattleClientRequestId(credential.roomId, run);
-        const prepared = await api.prepareFormalRoomBattle({
-          roomId: credential.roomId,
-          roomToken: credential.roomToken,
-          clientRequestId,
-          formalRunDraft: run,
-        });
-        if (!prepared.ok) throw new Error(prepared.message);
-        const savedRun = await api.saveFormalGameRun(prepared.data.formalRun);
-        onRunChange(savedRun);
-        onReady(prepared.data.sessionId);
-        return;
+        if (credential.matchId) {
+          const prepared = await api.submitFormalRoomMatchCommand({
+            roomId: credential.roomId,
+            roomToken: credential.roomToken,
+            matchId: credential.matchId,
+            actionName: "rooms.matches.commands.prepareBattle",
+            commandId: clientRequestId,
+            payload: {},
+          });
+          if (!prepared.ok) throw new Error(prepared.message);
+          const nextRun = prepared.data.view.formalRun;
+          if (!nextRun) throw new Error("房间内对局尚未开始。");
+          onRunChange(nextRun);
+          onReady(String(prepared.data.sessionId || (prepared.data.result as any)?.sessionId || ""));
+          return;
+        }
+        throw new Error("当前房间缺少对局 ID，不能创建正式战斗。");
       }
       const prepared = formalGameBridge
         ? await formalGameBridge.prepareFormalBattleSession(run)
@@ -55,6 +61,7 @@ export function FormalBattleTransitionPage({api, formalGameBridge, battleBackend
     })().catch(async error => {
       console.error(error);
       setError(error instanceof Error ? error.message : "正式战斗创建失败。");
+      if (loadFormalRoomCredential()) return;
       const restRunSnapshot = run.restRunSnapshot;
       if (restRunSnapshot?.currentNodeId) {
         const blockedRestRun = markFormalRestBattleState(restRunSnapshot, restRunSnapshot.currentNodeId, "blocked", "battle-game-blocked");

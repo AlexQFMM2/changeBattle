@@ -47,7 +47,7 @@ import {generateRandomBattleTeamPreviewV4, type RandomBattleTeamPreviewInputV4} 
 import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type BossTrainerPresetMatrixSummaryV4} from "./bossTeamGenerator.js";
 import {applyPlayerVaultEvolutionItemV4, applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultEvolutionItemUseV4, previewPlayerVaultNumericItemUseV4, unequipPlayerVaultHeldItemV4, type PlayerVaultEvolutionApplyResultV4, type PlayerVaultEvolutionPreviewResultV4, type PlayerVaultFriendshipItemApplyResultV4, type PlayerVaultHeldItemApplyResultV4, type PlayerVaultHeldItemUnequipResultV4, type PlayerVaultMoveTeachingApplyResultV4 as PlayerVaultMoveTeachingApplyResultFromItemEffectsV4, type PlayerVaultMoveTeachingViewResultV4, type PlayerVaultNumericItemApplyResultV4, type PlayerVaultNumericItemPreviewResultV4} from "./itemEffects.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
-import {createPostServiceClient, type PostServiceClientV4, type PostServiceConnectionStateV4, type PostServiceResultV4} from "./postService.js";
+import {createPostServiceClient, type PostServiceActionNameV4, type PostServiceClientV4, type PostServiceConnectionStateV4, type PostServiceResultV4} from "./postService.js";
 import type {AssetCacheStatusV4, BattleServerConfigV4, BattleServerHealthResultV4} from "./serverConfig.js";
 import {
   clearStarChartUnlocksForProfileV4,
@@ -372,11 +372,13 @@ export type FormalRoomMatchV1 = {
   phaseLabel: "未开始" | "小组赛阶段" | "8强阶段" | "已结束";
   createdBy: string;
   participantMemberIds: string[];
-  formalRun: FormalGameRunV4;
+  formalRun: FormalGameRunV4 | null;
+  settlementSummary?: unknown;
   createdAt: string;
   updatedAt: string;
   startedAt?: string;
   endedAt?: string;
+  cleanupAt?: string;
 };
 
 export type FormalRoomCreateResultV1 = FormalRoomV1 & {
@@ -426,7 +428,16 @@ export type FormalRoomRestActionV1 =
   | {type: "team.heal"}
   | {type: "pokemon.exchange"; sourcePokemonId: string; targetPokemonId: string}
   | {type: "shop.buy"; slotId: string}
-  | {type: "training.apply"; input: Record<string, unknown>};
+  | {type: "shop.sell"; itemInstanceIds: string[]}
+  | {type: "training.apply"; input: Record<string, unknown>}
+  | {type: "pokemon.reroll-stats"; input: Record<string, unknown>}
+  | {type: "opponent-preview.unlock"; input: Record<string, unknown>}
+  | {type: "insurance.buy"; choice: FormalMedicalInsuranceChoiceV4}
+  | {type: "soulmate-egg.claim"; candidateId: string; nickname?: string; playerVaultSnapshot?: PlayerVaultV4}
+  | {type: "bag.use"; itemInstanceId: string; pokemonId: string; moveSlot?: number}
+  | {type: "bag.equip"; itemInstanceId: string; pokemonId: string}
+  | {type: "bag.unequip"; pokemonId: string}
+  | {type: "bag.discard"; itemInstanceId: string};
 
 export type FormalRoomRestActionResultV1 = {
   room: FormalRoomV1;
@@ -443,6 +454,46 @@ export type FormalRoomDraftSyncResultV1 = {
   formalRun: FormalGameRunV4;
   label: string;
   reused: boolean;
+};
+
+export type FormalRoomPhaseV1 =
+  | "lobby"
+  | "starter"
+  | "roundPreparing"
+  | "rest"
+  | "battlePreparing"
+  | "battle"
+  | "settling"
+  | "settlement"
+  | "ended";
+
+export type FormalRoomMatchViewV1 = {
+  room: FormalRoomV1;
+  match: FormalRoomMatchV1;
+  revision: number;
+  phase: FormalRoomPhaseV1;
+  view: {
+    formalRun: FormalGameRunV4 | null;
+    activeBattle?: FormalRoomV1["activeBattle"];
+    battleSnapshot?: BattleSessionSnapshotV4 | null;
+    finalResult?: {
+      settlementId: string;
+      createdAt?: string;
+      expiresAt?: string;
+    } | null;
+  };
+};
+
+export type FormalRoomCommandResultV1 = FormalRoomMatchViewV1 & {
+  reused?: boolean;
+  message?: string;
+  result?: unknown;
+  sessionId?: string;
+  destination?: "rest" | "settlement";
+  profile?: UserProfileV2;
+  playerVault?: PlayerVaultV4;
+  settlementId?: string;
+  summary?: FormalRoomRunFinalizeResultV1["summary"];
 };
 
 const DEFAULT_BROWSER_PROFILE_KEY = "changebattle-v2:user-profile";
@@ -626,6 +677,25 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
         matchId: input.matchId,
         clientRequestId: input.clientRequestId,
       }, {roomToken: input.roomToken}),
+    getFormalRoomMatchView: (input: {roomId: string; roomToken: string; matchId: string}): Promise<PostServiceResultV4<FormalRoomMatchViewV1>> =>
+      serverApi.postApi<FormalRoomMatchViewV1>("rooms.matches.view", {roomId: input.roomId, matchId: input.matchId}, {roomToken: input.roomToken}),
+    submitFormalRoomMatchCommand: (input: {roomId: string; roomToken: string; matchId: string; actionName: Extract<PostServiceActionNameV4,
+      | "rooms.matches.commands.selectStarters"
+      | "rooms.matches.commands.prepareRound"
+      | "rooms.matches.commands.teamReorder"
+      | "rooms.matches.commands.restAction"
+      | "rooms.matches.commands.prepareBattle"
+      | "rooms.matches.commands.battleChoice"
+      | "rooms.matches.commands.finalizeBattle"
+      | "rooms.matches.commands.finalizeRun"
+      | "rooms.matches.commands.ackFinalResult">; commandId: string; baseRevision?: number; payload?: Record<string, unknown>}): Promise<PostServiceResultV4<FormalRoomCommandResultV1>> =>
+      serverApi.postApi<FormalRoomCommandResultV1>(input.actionName, {
+        roomId: input.roomId,
+        matchId: input.matchId,
+        commandId: input.commandId,
+        baseRevision: input.baseRevision,
+        payload: input.payload || {},
+      }, {roomToken: input.roomToken}),
     selectFormalRoomStarters: (input: {roomId: string; roomToken: string; selectedIndexes: number[]}): Promise<PostServiceResultV4<FormalRoomV1>> =>
       serverApi.postApi<FormalRoomV1>("rooms.selectStarters", {roomId: input.roomId, selectedIndexes: input.selectedIndexes}, {roomToken: input.roomToken}),
     prepareFormalRoomRound: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomV1>> =>
@@ -684,7 +754,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       }, {roomToken: input.roomToken}),
     getFormalRoomFinalResult: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomRunFinalizeResultV1>> =>
       serverApi.postApi<FormalRoomRunFinalizeResultV1>("rooms.getFinalResult", {roomId: input.roomId}, {roomToken: input.roomToken}),
-    createFormalRoomBattleServiceClient: (input: {roomId: string; roomToken: string}): BattleServiceClientV4 => createFormalRoomBattleServiceClient(serverApi, input),
+    createFormalRoomBattleServiceClient: (input: {roomId: string; roomToken: string; matchId?: string}): BattleServiceClientV4 => createFormalRoomBattleServiceClient(serverApi, input),
     getServerConnectionState: () => serverApi.getConnectionState(),
     createFormalGameRun: formalRuns.createFormalGameRun,
     prepareFormalStarterCandidates: formalRuns.prepareFormalStarterCandidates,
@@ -840,16 +910,28 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
   }
 }
 
-function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, input: {roomId: string; roomToken: string}): BattleServiceClientV4 {
-  const {roomId, roomToken} = input;
+function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, input: {roomId: string; roomToken: string; matchId?: string}): BattleServiceClientV4 {
+  const {roomId, roomToken, matchId} = input;
   return {
     async createBattleSession() {
       throw new Error("正式房间战斗必须通过 prepareFormalRoomBattle 创建。");
     },
     async submitChoice(_sessionId, playerId, choice) {
+      const clientActionId = createClientActionIdV4("choice");
+      if (matchId) {
+        const result = await serverApi.postApi<FormalRoomCommandResultV1>("rooms.matches.commands.battleChoice", {
+          roomId,
+          matchId,
+          commandId: clientActionId,
+          payload: {playerId, choice},
+        }, {roomToken});
+        if (!result.ok) throw new Error(result.message);
+        if (!result.data.result || typeof result.data.result !== "object") throw new Error("战斗快照返回异常。");
+        return result.data.result as BattleSessionSnapshotV4;
+      }
       const result = await serverApi.postApi<BattleSessionSnapshotV4>("rooms.submitBattleChoice", {
         roomId,
-        clientActionId: createClientActionIdV4("choice"),
+        clientActionId,
         playerId,
         choice,
       }, {roomToken});
@@ -857,9 +939,21 @@ function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, inp
       return result.data;
     },
     async submitTrainerItem(submitInput) {
+      const clientActionId = createClientActionIdV4("trainer-item");
+      if (matchId) {
+        const result = await serverApi.postApi<FormalRoomCommandResultV1>("rooms.matches.commands.battleChoice", {
+          roomId,
+          matchId,
+          commandId: clientActionId,
+          payload: {playerId: submitInput.playerId, choice: submitInput.choice, trainerItems: submitInput.trainerItems},
+        }, {roomToken});
+        if (!result.ok) throw new Error(result.message);
+        if (!result.data.result || typeof result.data.result !== "object") throw new Error("战斗快照返回异常。");
+        return result.data.result as BattleSessionSnapshotV4;
+      }
       const result = await serverApi.postApi<BattleSessionSnapshotV4>("rooms.submitBattleChoice", {
         roomId,
-        clientActionId: createClientActionIdV4("trainer-item"),
+        clientActionId,
         playerId: submitInput.playerId,
         choice: submitInput.choice,
         trainerItems: submitInput.trainerItems,

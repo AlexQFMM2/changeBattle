@@ -35,27 +35,57 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
     void (async () => {
       const credential = loadFormalRoomCredential();
       if (credential) {
+        const clientRequestId = formalBattleFinalizeClientRequestId(credential.roomId, run);
+        if (credential.matchId) {
+          const finalized = await api.submitFormalRoomMatchCommand({
+            roomId: credential.roomId,
+            roomToken: credential.roomToken,
+            matchId: credential.matchId,
+            actionName: "rooms.matches.commands.finalizeBattle",
+            commandId: clientRequestId,
+            payload: {reason, playerVaultSnapshot: playerVault},
+          });
+          if (!finalized.ok) throw new Error(finalized.message);
+          const nextRun = finalized.data.view.formalRun;
+          if (!nextRun) throw new Error("房间内对局尚未开始。");
+          const resultPayload = finalized.data.result as any;
+          const nextVault = finalized.data.playerVault || resultPayload?.playerVault;
+          if (nextVault) {
+            void (onSavePlayerVault ? onSavePlayerVault(nextVault) : api.savePlayerVault(nextVault))
+              .then(savedVault => onPlayerVaultChange?.(savedVault))
+              .catch(() => undefined);
+          }
+          const notice = resultPayload?.settlementNotice;
+          if (notice) onSoulmateSettlementNotice?.(notice);
+          if (!mountedRef.current) return;
+          if (finalized.data.destination === "settlement") {
+            onSettlementReady(nextRun, (resultPayload?.reason || reason || "loss") as FormalBattleResultFinalizeReasonV4);
+            return;
+          }
+          onRestReady(nextRun);
+          return;
+        }
         const finalized = await api.finalizeFormalRoomBattle({
           roomId: credential.roomId,
           roomToken: credential.roomToken,
-          clientRequestId: formalBattleFinalizeClientRequestId(credential.roomId, run),
+          clientRequestId,
           reason,
           playerVaultSnapshot: playerVault,
         });
         if (!finalized.ok) throw new Error(finalized.message);
         const nextVault = finalized.data.playerVault;
         if (nextVault) {
-          const savedVault = onSavePlayerVault ? await onSavePlayerVault(nextVault) : await api.savePlayerVault(nextVault);
-          onPlayerVaultChange?.(savedVault);
+          void (onSavePlayerVault ? onSavePlayerVault(nextVault) : api.savePlayerVault(nextVault))
+            .then(savedVault => onPlayerVaultChange?.(savedVault))
+            .catch(() => undefined);
         }
         if (finalized.data.settlementNotice) onSoulmateSettlementNotice?.(finalized.data.settlementNotice);
-        const savedRun = await api.saveFormalGameRun(finalized.data.formalRun);
         if (!mountedRef.current) return;
         if (finalized.data.destination === "settlement") {
-          onSettlementReady(savedRun, finalized.data.reason || reason || "loss");
+          onSettlementReady(finalized.data.formalRun, finalized.data.reason || reason || "loss");
           return;
         }
-        onRestReady(savedRun);
+        onRestReady(finalized.data.formalRun);
         return;
       }
       if (!sessionId) {

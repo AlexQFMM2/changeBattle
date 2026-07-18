@@ -1,16 +1,11 @@
 import type {
   FormalGameRunV4,
-  FormalRoomDraftSyncResultV1,
-  FormalRoomRestActionResultV1,
-  FormalRoomRestActionV1,
   FormalRoomV1,
   PostServiceConnectionStateV4,
   PostServiceResultV4,
 } from "@changebattle-v2/api";
 
 export type FormalRoomSyncClientV4 = {
-  syncDraft(input: {formalRunDraft: FormalGameRunV4; label: string; clientActionId?: string}): Promise<FormalRoomDraftSyncResultV1>;
-  submitRestAction(input: {formalRunDraft: FormalGameRunV4; action: FormalRoomRestActionV1; clientActionId: string; label: string}): Promise<FormalRoomRestActionResultV1>;
   getRevision(): number | null;
   getConnectionState(): PostServiceConnectionStateV4;
   dispose(): void;
@@ -24,8 +19,6 @@ export type FormalRoomSyncClientConfigV4 = {
   onRoomUpdated: (payload: {room: FormalRoomV1; formalRun: FormalGameRunV4; revision: number}) => void;
   onRoomClosed: (message: string) => void;
   fallbackHeartbeat: () => Promise<PostServiceResultV4<FormalRoomV1>>;
-  fallbackSyncDraft: (input: {clientActionId: string; baseRevision?: number; formalRunDraft: FormalGameRunV4; label?: string}) => Promise<PostServiceResultV4<FormalRoomDraftSyncResultV1>>;
-  fallbackRestAction: (input: {clientActionId: string; baseRevision?: number; formalRunDraft: FormalGameRunV4; action: FormalRoomRestActionV1}) => Promise<PostServiceResultV4<FormalRoomRestActionResultV1>>;
 };
 
 const WS_CONNECT_TIMEOUT_MS = 3500;
@@ -39,7 +32,6 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   let readyPromise: Promise<void> | null = null;
   let readyResolve: (() => void) | null = null;
   let readyReject: ((error: Error) => void) | null = null;
-  let queue: Promise<void> = Promise.resolve();
   let revision: number | null = null;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let httpCommandActive = 0;
@@ -209,81 +201,6 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     }
   }
 
-  async function withQueue<T>(task: () => Promise<T>): Promise<T> {
-    const previous = queue;
-    let release!: () => void;
-    queue = new Promise(resolve => {
-      release = resolve;
-    });
-    await previous.catch(() => undefined);
-    try {
-      return await task();
-    } finally {
-      release();
-    }
-  }
-
-  async function syncDraft(input: {formalRunDraft: FormalGameRunV4; label: string; clientActionId?: string}): Promise<FormalRoomDraftSyncResultV1> {
-    return withQueue(async () => {
-      const clientActionId = input.clientActionId || createRoomClientActionId("draft");
-      const baseRevision = revision ?? undefined;
-      const sendHttpCommand = async () => {
-        httpCommandActive += 1;
-        setState({state: "syncing"});
-        try {
-          const response = await config.fallbackSyncDraft({clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, label: input.label});
-          if (!response.ok) {
-            setState(response.retryable
-              ? {state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1}
-              : {state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
-            throw new Error(response.message);
-          }
-          revision = Number(response.data.room.revision);
-          setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
-          return response.data;
-        } catch (error) {
-          if (state.state === "syncing") {
-            setState({state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
-          }
-          throw error;
-        } finally {
-          httpCommandActive = Math.max(0, httpCommandActive - 1);
-        }
-      };
-      return sendHttpCommand();
-    });
-  }
-
-  async function submitRestAction(input: {formalRunDraft: FormalGameRunV4; action: FormalRoomRestActionV1; clientActionId: string; label: string}): Promise<FormalRoomRestActionResultV1> {
-    return withQueue(async () => {
-      const baseRevision = revision ?? undefined;
-      const sendHttpCommand = async () => {
-        httpCommandActive += 1;
-        setState({state: "syncing"});
-        try {
-          const response = await config.fallbackRestAction({clientActionId: input.clientActionId, baseRevision, formalRunDraft: input.formalRunDraft, action: input.action});
-          if (!response.ok) {
-            setState(response.retryable
-              ? {state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1}
-              : {state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
-            throw new Error(response.message);
-          }
-          revision = Number(response.data.room.revision);
-          setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
-          return response.data;
-        } catch (error) {
-          if (state.state === "syncing") {
-            setState({state: "failed", lastErrorAt: new Date().toISOString(), failureCount: state.failureCount + 1});
-          }
-          throw error;
-        } finally {
-          httpCommandActive = Math.max(0, httpCommandActive - 1);
-        }
-      };
-      return sendHttpCommand();
-    });
-  }
-
   function dispose(): void {
     disposed = true;
     if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -299,8 +216,6 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
   void connect().catch(() => undefined);
 
   return {
-    syncDraft,
-    submitRestAction,
     getRevision: () => revision,
     getConnectionState: () => state,
     dispose,
@@ -312,11 +227,4 @@ function roomWsUrl(baseUrl: string | undefined, roomId: string): string {
   const url = new URL(`${root}/rooms/${encodeURIComponent(roomId)}/ws`);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.toString();
-}
-
-function createRoomClientActionId(prefix: string): string {
-  const random = typeof crypto !== "undefined" && "randomUUID" in crypto
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2);
-  return `${prefix}-${Date.now().toString(36)}-${random}`;
 }

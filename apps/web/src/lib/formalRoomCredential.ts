@@ -3,14 +3,16 @@ const FORMAL_ROOM_CREDENTIAL_KEY = "changebattle-v2:formal-room";
 export type FormalRoomCredentialV4 = {
   roomId: string;
   roomToken: string;
+  matchId?: string;
   savedAt: string;
 };
 
-export function saveFormalRoomCredential(roomId: string, roomToken: string): void {
+export function saveFormalRoomCredential(roomId: string, roomToken: string, matchId?: string): void {
   try {
     window.localStorage?.setItem(FORMAL_ROOM_CREDENTIAL_KEY, JSON.stringify({
       roomId,
       roomToken,
+      matchId,
       savedAt: new Date().toISOString(),
     }));
   } catch {
@@ -27,6 +29,7 @@ export function loadFormalRoomCredential(): FormalRoomCredentialV4 | null {
     return {
       roomId: String(parsed.roomId),
       roomToken: String(parsed.roomToken),
+      matchId: parsed.matchId ? String(parsed.matchId) : undefined,
       savedAt: String(parsed.savedAt || ""),
     };
   } catch {

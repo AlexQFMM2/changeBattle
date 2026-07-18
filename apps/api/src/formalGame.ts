@@ -1158,7 +1158,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const {battleGame, sessionInput} = createBattleGameFromNodeDraft({
       runId: nextRestRunSnapshot.id,
       node: nextNode,
-      playersById: {...nextRestRunSnapshot.players, ...(nextNode.participants || {})},
+      playersById: {...(nextNode.participants || {}), ...nextRestRunSnapshot.players},
     });
     return {restRunSnapshot: nextRestRunSnapshot, battleGame, sessionInput};
   }
@@ -1284,7 +1284,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         } : settledSnapshot,
         updatedAt: now,
       });
-      return {run: pendingRun, destination: "rest"};
+      return {run: pendingRun, destination: "settlement", reason: "complete"};
     }
     return {run: settled, destination: "rest"};
   }
@@ -3580,9 +3580,99 @@ export function createFormalStarterCandidatesV4(dex: ShowdownDexService, input: 
       ].filter(Boolean),
     });
   });
+  const qualityGuardedCandidates = ensureStarterCandidateQualityFloor(dex, candidates, rows, roles, powerProfiles, input.seed, battlePreference, rng);
   return battlePreference.ruleSet === "gen7"
-    ? ensureGen7StarterMegaCandidates(dex, candidates, rows, roles, powerProfiles, input.seed, battlePreference, rng)
-    : candidates;
+    ? ensureGen7StarterMegaCandidates(dex, qualityGuardedCandidates, rows, roles, powerProfiles, input.seed, battlePreference, rng)
+    : qualityGuardedCandidates;
+}
+
+function ensureStarterCandidateQualityFloor(
+  dex: ShowdownDexService,
+  candidates: FormalStarterCandidateV4[],
+  rows: Array<DexSearchRow & {rank: PokemonSpeciesRankV4; generation: number}>,
+  roles: FormalStarterRoleV4[],
+  powerProfiles: PokemonPowerProfileV4[],
+  seed: string,
+  battlePreference: BattlePreferenceV4,
+  rng: () => number,
+): FormalStarterCandidateV4[] {
+  if (candidates.length < 3) return candidates;
+  const targetHighRankCount = candidates.length >= 10 ? 4 : candidates.length >= 6 ? 2 : 1;
+  const targetTopRankCount = candidates.length >= 10 ? 2 : candidates.length >= 6 ? 1 : 0;
+  const targetLegendaryCount = battlePreference.legendaryBattle && candidates.length >= 6
+    ? Math.min(1, STARTER_MAX_LEGENDARY_CANDIDATES)
+    : 0;
+  const next = [...candidates];
+  const usedSpecies = new Set(next.map(candidate => baseSpeciesId(candidate.pokemon.speciesId)));
+
+  const replaceCandidate = (
+    rowPool: Array<DexSearchRow & {rank: PokemonSpeciesRankV4; generation: number}>,
+    eligibleReplacement: (candidate: FormalStarterCandidateV4) => boolean,
+    message: string,
+  ): boolean => {
+    const replaceIndex = next
+      .map((candidate, index) => ({candidate, index}))
+      .filter(entry => eligibleReplacement(entry.candidate))
+      .sort((left, right) => starterSpeciesRankScore(left.candidate.speciesRank) - starterSpeciesRankScore(right.candidate.speciesRank) || right.index - left.index)[0]?.index;
+    if (replaceIndex === undefined) return false;
+    const row = shuffle(rowPool.filter(candidate => !usedSpecies.has(baseSpeciesId(candidate.id))), rng)[0];
+    if (!row) return false;
+    usedSpecies.delete(baseSpeciesId(next[replaceIndex]!.pokemon.speciesId));
+    usedSpecies.add(baseSpeciesId(row.id));
+    const role = roles[replaceIndex] || next[replaceIndex]!.role || "balanced";
+    const powerProfile = powerProfiles[replaceIndex] || next[replaceIndex]!.powerProfile || "elite";
+    next[replaceIndex] = buildFormalStarterCandidate(dex, {
+      row,
+      index: replaceIndex,
+      role,
+      powerProfile,
+      rng,
+      seed,
+      battlePreference,
+      poolSize: rowPool.length,
+      messages: [message, row.description || ""].filter(Boolean),
+    });
+    return true;
+  };
+
+  const legendaryRows = rows.filter(row => row.rank === "legendary");
+  while (next.filter(candidate => candidate.speciesRank === "legendary").length < targetLegendaryCount) {
+    if (!replaceCandidate(
+      legendaryRows,
+      candidate => candidate.speciesRank !== "legendary",
+      "starter-quality-floor:legendary",
+    )) break;
+  }
+
+  const topRows = rows.filter(row => row.rank === "rank6");
+  while (next.filter(candidate => candidate.speciesRank === "rank6" || candidate.speciesRank === "legendary").length < targetTopRankCount) {
+    if (!replaceCandidate(
+      topRows,
+      candidate => candidate.speciesRank !== "rank6" && candidate.speciesRank !== "legendary",
+      "starter-quality-floor:top-rank",
+    )) break;
+  }
+
+  const highRows = rows.filter(row => row.rank === "rank5" || row.rank === "rank6");
+  while (next.filter(candidate => candidate.speciesRank === "rank5" || candidate.speciesRank === "rank6" || candidate.speciesRank === "legendary").length < targetHighRankCount) {
+    if (!replaceCandidate(
+      highRows,
+      candidate => candidate.speciesRank === "rank4",
+      "starter-quality-floor:high-rank",
+    )) break;
+  }
+
+  return next;
+}
+
+function starterSpeciesRankScore(rank: PokemonSpeciesRankV4): number {
+  if (rank === "legendary") return 7;
+  if (rank === "rank6") return 6;
+  if (rank === "rank5") return 5;
+  if (rank === "rank4") return 4;
+  if (rank === "rank3") return 3;
+  if (rank === "rank2") return 2;
+  return 1;
 }
 
 function buildFormalStarterCandidate(dex: ShowdownDexService, input: {
@@ -4073,8 +4163,20 @@ function normalizeMovesForDetail(
   const learnablePool = starterLearnableMovePool(dex, detail);
   const fallbackPool = learnablePool.length ? learnablePool : learnset.length ? learnset : FALLBACK_MOVES.map(moveId => safeMove(dex, moveId));
   const recommendedPool = recommendedMovesForDetail(detail, fallbackPool);
+  const speciesTypes = new Set(detail.types.map(toID));
+  const stabDamagingPool = fallbackPool.filter(move => move.power > 0 && move.pp > 0 && speciesTypes.has(toID(move.typeId || move.type)));
   const roleMoves = preferredMovesForRole(fallbackPool, role, rng);
-  const recommendedMoves = preferredMovesForRole(recommendedPool, role, rng).slice(0, Math.max(0, moveRule.correctMoveCount));
+  const isPlayerStarterRule = moveRule.correctMoveCount <= 1 && !moveRule.preferPresetMoves;
+  const starterCoreMoves = isPlayerStarterRule
+    ? uniqueById([
+      ...strongStarterDamagingMoves(recommendedPool.filter(move => move.power > 0 && move.pp > 0), rng),
+      ...strongStarterDamagingMoves(stabDamagingPool, rng),
+      ...preferredMovesForRole(recommendedPool, role, rng),
+    ]).slice(0, 2)
+    : [];
+  const recommendedMoves = isPlayerStarterRule
+    ? starterCoreMoves
+    : preferredMovesForRole(recommendedPool, role, rng).slice(0, Math.max(0, moveRule.correctMoveCount));
   const presetMoves = moveRule.preferPresetMoves ? presetMovesForDetail(dex, presetMoveIds, fallbackPool) : [];
   let selected: DexMoveSummary[];
   if (presetMoves.length) {
@@ -4090,6 +4192,18 @@ function normalizeMovesForDetail(
   }
   const moveIds = uniqueById(selected).map(move => move.id);
   return normalizeMoves(dex, moveIds, 4);
+}
+
+function strongStarterDamagingMoves(moves: DexMoveSummary[], rng: () => number): DexMoveSummary[] {
+  return shuffle(moves.filter(move => move.power > 0 && move.pp > 0), rng)
+    .sort((left, right) => starterMoveQualityScore(right) - starterMoveQualityScore(left));
+}
+
+function starterMoveQualityScore(move: DexMoveSummary): number {
+  const accuracy = move.accuracy === null ? 100 : Math.max(1, Math.min(100, Number(move.accuracy || 0)));
+  const power = Math.max(1, Number(move.power || 0));
+  const priorityBonus = Math.max(0, Number(move.priority || 0)) * 10;
+  return power * (accuracy / 100) + priorityBonus;
 }
 
 function presetMovesForDetail(dex: ShowdownDexService, moveIds: string[], learnablePool: DexMoveSummary[]): DexMoveSummary[] {

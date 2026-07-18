@@ -618,6 +618,8 @@ assert(FORMAL_STARTING_MONEY === 0, "formal base starting money should be star-c
 assert(STARTER_ROLE_PLAN.slice(0, 6).join(",") === "weather,trick-room,offense,offense,support,defense", "starter role plan first 6 roles should stay stable");
 assert(prepared.starterCandidates.every(candidate => candidate.speciesRank !== "legendary"), "legendaryBattle false should exclude legendary rank");
 assert(prepared.starterCandidates.every(candidate => ["rank4", "rank5", "rank6"].includes(candidate.speciesRank)), "player starter candidates should only use rank4-rank6");
+assert(prepared.starterCandidates.filter(candidate => candidate.speciesRank === "rank5" || candidate.speciesRank === "rank6").length >= 2, "starter quality floor should keep at least two high-rank choices in base six");
+assert(prepared.starterCandidates.filter(candidate => candidate.speciesRank === "rank6").length >= 1, "starter quality floor should keep at least one top-rank choice in base six");
 assert(prepared.starterCandidates.every(candidate => !["squirtle", "charizardmegax", "charizardgmax", "walkingwake", "blacephalon", "greninjabond"].includes(candidate.pokemon.speciesId)), "starter filters should remove low rank, legendary, mega, gmax, and battle-only forms");
 assert(prepared.starterCandidates.map(candidate => candidate.pokemon.speciesId).join(",") === preparedAgain.starterCandidates.map(candidate => candidate.pokemon.speciesId).join(","), "same seed should be stable");
 assert(prepared.starterCandidates.map(candidate => candidate.role).join(",") === "weather,trick-room,offense,offense,support,defense", "base six starter roles should match formal plan");
@@ -984,7 +986,10 @@ assert(failedStarUnlock, "star chart should reject repeated unlock");
 
 const testModeProfile = enableTestModeForProfileV4(profile);
 assert(testModeProfile.battlePoints === 99999, "test mode should set BP to 99999");
-assert(starterCandidateCountForStarChart(testModeProfile.starChart) === 6, "test mode should not unlock star chart nodes");
+assert(starterCandidateCountForStarChart(testModeProfile.starChart) === 10, "test mode should unlock starter choice nodes");
+assert(STAR_CHART_NODES_V4
+  .filter(node => !node.disabled && node.kind !== "event_preview")
+  .every(node => (testModeProfile.starChart?.nodes[node.id] || 0) >= Math.max(1, Math.floor(Number(node.max_level || 1)))), "test mode should unlock all available star chart nodes");
 
 const legendaryProfile = {
   ...profile,
@@ -999,6 +1004,8 @@ const legendaryProfile = {
 const legendaryRun = api.createFormalGameRun(legendaryProfile, {mode: "singles", seed: "formal-smoke-legendary-seed"});
 const legendaryPrepared = api.prepareFormalStarterCandidates(legendaryRun);
 assert(legendaryPrepared.starterCandidates.filter(candidate => candidate.speciesRank === "legendary").length <= 1, "legendaryBattle true should cap starter legendary candidates");
+assert(legendaryPrepared.starterCandidates.some(candidate => candidate.speciesRank === "legendary"), "legendaryBattle true should surface one legendary starter choice when the pool allows it");
+assert(legendaryPrepared.starterCandidates.filter(candidate => candidate.speciesRank === "rank5" || candidate.speciesRank === "rank6" || candidate.speciesRank === "legendary").length >= 4, "ten starter candidates should keep several high-rank choices without making every choice top-tier");
 
 let failed = false;
 try {
@@ -2007,7 +2014,7 @@ const singleBattleSnapshot = {
   ],
 } as never;
 const singleFinalizedBattleResult = await api.finalizeFormalBattleResultV4(singlePlanned, singleBattleSnapshot);
-assert(singleFinalizedBattleResult.destination === "rest", "final formal battle should route to pending settlement rest page");
+assert(singleFinalizedBattleResult.destination === "settlement", "final formal battle should route to settlement transition");
 assert(singleFinalizedBattleResult.run.restRunSnapshot?.status === "battleEndedPendingSettlement", "final formal battle should mark rest snapshot as pending settlement");
 assert(singleFinalizedBattleResult.run.roundSettlementByNodeId?.[singlePlanned.roundPlan[0]!.id], "final formal battle should write round settlement before pending settlement rest");
 assert(singleFinalizedBattleResult.run.money === singlePlanned.money + 500, "final formal battle should apply round reward before pending settlement rest");

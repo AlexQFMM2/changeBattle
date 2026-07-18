@@ -1,5 +1,5 @@
 import {useMemo, useState} from "react";
-import type {ChangeBattleV2Api, DexItemDetail, DexSystemBattleReforgeOption, LocalPokemonV4, PlayerItemInstanceV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DexItemDetail, DexSystemBattleReforgeOption, FormalRoomRestActionV1, LocalPokemonV4, PlayerItemInstanceV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmMoveIdForItemV4, tmUseFailureReasonV4} from "@changebattle-v2/api";
 import {PlayerBagPanel, itemDetailFor, type PlayerBagAction, type PlayerBagPokemonTarget} from "./PlayerBagPanel";
 import {PokemonMoveReplacePanel} from "./PokemonMoveReplacePanel";
@@ -11,12 +11,16 @@ export type TrainingRestNewBagPanelProps = {
   run: TrainingRunGameV4;
   onClose: () => void;
   onRunDraftChange: (run: TrainingRunGameV4, message: string) => void;
+  bagActionController?: {
+    serverCommitted?: boolean;
+    onAction: (action: Extract<FormalRoomRestActionV1, {type: "bag.use" | "bag.equip" | "bag.unequip" | "bag.discard"}>) => Promise<{ok: boolean; run: TrainingRunGameV4; message: string}> | {ok: boolean; run: TrainingRunGameV4; message: string};
+  };
   onNotice?: (message: string, tone?: "normal" | "danger") => void;
 };
 
 const EQUIPPABLE_ITEM_KINDS = new Set(["battle", "held", "berry", "special"]);
 
-export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChange, onNotice}: TrainingRestNewBagPanelProps) {
+export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChange, bagActionController, onNotice}: TrainingRestNewBagPanelProps) {
   const p1 = run.players.p1 || null;
   const bag = useMemo(() => api.normalizeBagState(p1?.bag), [api, p1?.bag]);
   const team = p1?.localTeam.pokemon || [];
@@ -50,8 +54,27 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   const systemReforgePokemon = systemReforge ? team.find(pokemon => pokemon.localPokemonId === systemReforge.pokemonId) || null : null;
   const systemReforgeOptions = useMemo(() => systemReforgeItem && systemReforgePokemon ? api.getSystemBattleReforgeOptions(systemReforgeItem.itemID, systemReforgePokemon) : [], [api, systemReforgeItem, systemReforgePokemon]);
 
-  function equipSelectedItem() {
+  async function commitServerBagAction(action: Extract<FormalRoomRestActionV1, {type: "bag.use" | "bag.equip" | "bag.unequip" | "bag.discard"}>): Promise<boolean> {
+    if (!bagActionController?.serverCommitted) return false;
+    try {
+      const result = await bagActionController.onAction(action);
+      if (!result.ok) {
+        onNotice?.(result.message, "danger");
+        return true;
+      }
+      onRunDraftChange(result.run, result.message);
+      onNotice?.(result.message);
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "背包操作失败。";
+      onNotice?.(`网络异常，背包操作未成功：${message}`, "danger");
+      return true;
+    }
+  }
+
+  async function equipSelectedItem() {
     if (!p1 || !selectedItem || !selectedPokemon || !equipEligibility.canEquip || selectedPokemonIsSoulmate || selectedItemIsSoulmateBound) return;
+    if (await commitServerBagAction({type: "bag.equip", itemInstanceId: selectedItem.id, pokemonId: selectedPokemon.localPokemonId})) return;
     const heldItemPatch = heldItemPatchForEquip(selectedItem);
     const nextTeam = {
       ...p1.localTeam,
@@ -72,6 +95,10 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
 
   function openSystemReforge() {
     if (!selectedItem || !selectedPokemon || !isRecastCandidate(selectedItem)) return;
+    if (bagActionController?.serverCommitted) {
+      onNotice?.("系统道具重铸需要服务端重铸命令，当前版本暂不可在房间模式使用。", "danger");
+      return;
+    }
     setSystemReforge({item: selectedItem, pokemonId: selectedPokemon.localPokemonId});
   }
 
@@ -103,8 +130,9 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     onRunDraftChange(nextRun, `${message} 记得手动保存。`);
   }
 
-  function untakeSelectedPokemonItem() {
+  async function untakeSelectedPokemonItem() {
     if (!p1 || !selectedPokemon || !canUntake) return;
+    if (await commitServerBagAction({type: "bag.unequip", pokemonId: selectedPokemon.localPokemonId})) return;
     const nextTeam = {
       ...p1.localTeam,
       pokemon: p1.localTeam.pokemon.map(pokemon => pokemon.localPokemonId === selectedPokemon.localPokemonId
@@ -116,8 +144,9 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     onRunDraftChange(nextRun, `${selectedPokemon.nameZh || selectedPokemon.name} 已卸下${heldName}，记得手动保存。`);
   }
 
-  function discardSelectedItem() {
+  async function discardSelectedItem() {
     if (!p1 || !selectedItem || !canDiscard || selectedItemIsSoulmateBound) return;
+    if (await commitServerBagAction({type: "bag.discard", itemInstanceId: selectedItem.id})) return;
     const nextBag = {...bag, items: bag.items.filter(item => item.id !== selectedItem.id)};
     const nextTeam = {
       ...p1.localTeam,
@@ -135,7 +164,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     onRunDraftChange(run, message);
   }
 
-  function useSelectedItem() {
+  async function useSelectedItem() {
     if (!p1 || !selectedItem || !selectedPokemon) return;
     if (!canUseItemKind) {
       noticeUseFailure(selectedPokemonIsSoulmate && (canUseTmItemV4(selectedItem, selectedDetail) || canUseTrainingItemV4(selectedItem, selectedDetail))
@@ -151,6 +180,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
       setTmReplace({item: selectedItem, pokemonId: selectedPokemon.localPokemonId});
       return;
     }
+    if (await commitServerBagAction({type: "bag.use", itemInstanceId: selectedItem.id, pokemonId: selectedPokemon.localPokemonId})) return;
     const result = canUseRecovery
       ? applyRecoveryItemToPokemonV4({
         item: selectedItem,
@@ -184,8 +214,12 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
     onRunDraftChange(nextRun, `${result.message} 记得手动保存。`);
   }
 
-  function confirmTmReplace(moveSlot: number) {
+  async function confirmTmReplace(moveSlot: number) {
     if (!p1 || !tmReplaceItem || !tmReplacePokemon) return;
+    if (await commitServerBagAction({type: "bag.use", itemInstanceId: tmReplaceItem.id, pokemonId: tmReplacePokemon.localPokemonId, moveSlot})) {
+      setTmReplace(null);
+      return;
+    }
     const result = applyTmItemToPokemonV4({
       item: tmReplaceItem,
       detail: tmReplaceDetail,

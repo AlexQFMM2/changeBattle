@@ -11,6 +11,7 @@ import {
   type FormalPokemonExchangeResultV4,
   type FormalPokemonExchangeViewV4,
   type FormalRestOpponentPreviewUnlockResultV4,
+  type FormalRoomRestActionV1,
   type FormalSoulmateEggClaimResultV4,
   type FormalSoulmateEggHatchResultV4,
   type FormalRoundSettlementV4,
@@ -87,6 +88,11 @@ export type TrainingRestExchangeController = {
   onExchange: (input: {sourcePokemonId: string; targetPokemonId: string}) => Promise<FormalPokemonExchangeResultV4> | FormalPokemonExchangeResultV4;
 };
 
+export type TrainingRestBagActionController = {
+  serverCommitted?: boolean;
+  onAction: (action: Extract<FormalRoomRestActionV1, {type: "bag.use" | "bag.equip" | "bag.unequip" | "bag.discard"}>) => Promise<{ok: boolean; run: TrainingRunGameV4; message: string}> | {ok: boolean; run: TrainingRunGameV4; message: string};
+};
+
 export type TrainingRestNewPageProps = {
   api: ChangeBattleV2Api;
   run: TrainingRunGameV4;
@@ -96,6 +102,7 @@ export type TrainingRestNewPageProps = {
   onOpenDex: () => void;
   onOpenPokemonDex: (speciesId: string) => void;
   onSaveRunSnapshot?: (run: TrainingRunGameV4) => Promise<TrainingRunGameV4> | TrainingRunGameV4;
+  onTeamReorderSave?: (pokemonIds: string[]) => Promise<void> | void;
   hideSaveAction?: boolean;
   onAbandonRun?: () => Promise<void> | void;
   onProceedToSettlement?: () => Promise<void> | void;
@@ -108,6 +115,7 @@ export type TrainingRestNewPageProps = {
   teamRerollController?: TrainingRestTeamRerollController;
   opponentPreviewController?: TrainingRestOpponentPreviewController;
   exchangeController?: TrainingRestExchangeController;
+  bagActionController?: TrainingRestBagActionController;
   initialNotice?: string | null;
   serverBusyMessage?: string | null;
   onInitialNoticeConsumed?: () => void;
@@ -128,7 +136,7 @@ type SoulmateHatchState =
   | {phase: "done"; result: FormalSoulmateEggClaimResultV4}
   | {phase: "error"; message: string};
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, hideSaveAction = false, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, initialNotice, serverBusyMessage, onInitialNoticeConsumed, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onTeamReorderSave, hideSaveAction = false, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, bagActionController, initialNotice, serverBusyMessage, onInitialNoticeConsumed, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -188,12 +196,15 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       players: {...run.players, p1: nextP1},
       updatedAt: new Date().toISOString(),
     };
-    void withRestBusy(hideSaveAction ? "正在同步中" : "正在整理队伍中", () => onRunChange(nextRun)).catch(error => {
-      const nextMessage = error instanceof Error ? error.message : "队伍调整同步失败。";
-      setMessage(nextMessage);
-      showNotice(nextMessage, "danger");
-    });
-    setMessage(hideSaveAction ? "队伍已调整，正在同步。" : "队伍已调整，记得手动保存。");
+    void withRestBusy(hideSaveAction ? "正在同步中" : "正在整理队伍中", () => onRunChange(nextRun))
+      .then(() => {
+        setMessage(hideSaveAction ? "队伍已同步。" : "队伍已调整，记得手动保存。");
+      })
+      .catch(error => {
+        const nextMessage = error instanceof Error ? error.message : "队伍调整同步失败。";
+        setMessage(nextMessage);
+        showNotice(nextMessage, "danger");
+      });
   }
 
   async function saveRunGameSnapshot() {
@@ -205,11 +216,14 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
 
   function updateRunGameDraft(nextRun: TrainingRunGameV4, nextMessage: string) {
     if (nextRun !== run) {
-      void withRestBusy(hideSaveAction ? "正在同步中" : "正在更新中", () => onRunChange(nextRun)).catch(error => {
-        const message = error instanceof Error ? error.message : "休整同步失败。";
-        setMessage(message);
-        showNotice(message, "danger");
-      });
+      void withRestBusy(hideSaveAction ? "正在同步中" : "正在更新中", () => onRunChange(nextRun))
+        .then(() => setMessage(nextMessage))
+        .catch(error => {
+          const message = error instanceof Error ? error.message : "休整同步失败。";
+          setMessage(message);
+          showNotice(message, "danger");
+        });
+      return;
     }
     setMessage(nextMessage);
   }
@@ -659,6 +673,18 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             localTeam={p1Team}
             onClose={() => setTeamPanelOpen(false)}
             onLocalTeamChange={updateP1Team}
+            onTeamReorderSave={onTeamReorderSave ? async pokemonIds => {
+              try {
+                await withRestBusy("正在保存顺序", () => onTeamReorderSave(pokemonIds));
+                setMessage("队伍顺序已保存。");
+                showNotice("队伍顺序已保存。", "normal");
+              } catch (error) {
+                const nextMessage = error instanceof Error ? error.message : "顺序保存失败。";
+                setMessage(nextMessage);
+                showNotice(`网络异常，调整顺序未成功：${nextMessage}`, "danger");
+                throw error;
+              }
+            } : undefined}
             statRerollController={teamRerollController ? {
               money: teamRerollController.money,
               locksEnabled: teamRerollController.locksEnabled,
@@ -683,6 +709,19 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             run={run}
             onClose={() => setBagPanelOpen(false)}
             onRunDraftChange={updateRunGameDraft}
+            bagActionController={bagActionController ? {
+              serverCommitted: Boolean(bagActionController.serverCommitted),
+              onAction: async action => {
+                const label = action.type === "bag.use" ? "正在使用道具"
+                  : action.type === "bag.equip" ? "正在携带道具"
+                    : action.type === "bag.unequip" ? "正在卸下道具"
+                      : "正在丢弃道具";
+                const result = await withRestBusy(label, () => bagActionController.onAction(action));
+                setMessage(result.message);
+                showNotice(result.message, result.ok ? "normal" : "danger");
+                return result;
+              },
+            } : undefined}
             onNotice={showNotice}
           />
         </div>

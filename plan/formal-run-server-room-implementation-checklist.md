@@ -148,6 +148,11 @@
 - [ ] 本地保存 `formalRun/profile/vault` 改为后台补写或最终结算写回；保存失败不能阻塞 starter、round、rest、battle、settlement 跳转。
 - [ ] 新增 `lastKnownRevision` 和 `pendingAction` 口径：页面只基于 HTTP ACK 更新 revision；WS 只提示落后/需重拉。
 - [ ] 审计所有正式流程中转页：starter select、round transition、battle transition、battle result transition、settlement transition，全部按“POST command -> ACK -> 立即跳 phase -> 本地保存后台化”执行。
+- [ ] 明确中转页只做 command runner：发起 command、展示 pending、处理 ACK 跳转、展示失败重试；不本地计算、不等 WS、不循环 GET、不等本地保存。
+- [ ] `选完宝可梦 -> 休整页`：starter ACK 后进入 round transition，`prepare-round` ACK 后立即进休整页。
+- [ ] `战斗完 -> 休整页/结算中转页`：battle result transition 调 `finalize-battle`，ACK 后按服务端 phase 去下一休整或结算中转。
+- [ ] `休整页 -> 结算页`：settlement transition 调 `finalize-run`，ACK 后立即进入结算页展示 final result。
+- [ ] `结算页 -> 返回房间`：本地 profile/vault 和 `settlementId` 写回成功后关闭/ACK match 或 room，返回房间页，不走旧“继续游戏”恢复逻辑。
 - [x] 正式 server room 模式移除手动保存按钮。
 - [x] 休整页继续保留本地 draft，保证非金币类预览、技能调整草稿、交换预览等交互流畅。
 - [x] 治疗、交换、购买、训练学习调用 `rest-action` 强校验即时更新 room checkpoint。

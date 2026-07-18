@@ -370,6 +370,38 @@ localPersistentProfile/vault
 
 中转页不等待 WS，也不等待本地存档成功。它只等待当前 HTTP command 的 ACK。
 
+中转页的职责因此变成很薄的一层：
+
+- 负责发起当前 phase 的唯一 command。
+- 负责展示当前 command 的 pending 文案。
+- 负责处理 ACK 后的 phase 跳转。
+- 负责展示失败和重试入口。
+- 不负责本地计算正式流程。
+- 不负责监听 WS 作为主流程回调。
+- 不负责反复 GET 等服务器“变成目标状态”。
+- 不负责把本地保存成功当成跳转前置条件。
+
+第一版必须明确收口的四个跳转节点：
+
+1. **选完宝可梦 -> 休整页**
+   - starter 选择成功 ACK 后，round transition 发起 `prepare-round` command。
+   - `prepare-round` ACK 返回 rest phase/view 后立即进入休整页。
+
+2. **战斗完 -> 休整页**
+   - 战斗页检测 battle ended 后进入 battle result transition。
+   - transition 发起 `finalize-battle` command。
+   - ACK 返回下一轮 rest phase/view 后立即进入休整页；如果已经到最终阶段，则进入结算中转页。
+
+3. **休整页 -> 结算页**
+   - 休整页触发放弃/结束/最终结算时进入 settlement transition。
+   - transition 发起 `finalize-run` command。
+   - ACK 返回 settlement view/final result 后立即进入结算页。
+
+4. **结算页 -> 返回房间**
+   - 结算页展示服务端 final result。
+   - 本地 profile/vault 写回和 `settlementId` 标记完成后，关闭/ACK 当前 match 或 room。
+   - 成功后返回房间页，而不是回到旧的“继续游戏”恢复逻辑。
+
 ### Migration Slices
 
 后续迁移按低风险切片推进：

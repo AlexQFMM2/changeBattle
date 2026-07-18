@@ -22,6 +22,7 @@ export type TrainingRestNewTeamPanelProps = {
   localTeam: TrainingPlayerDraftV4["localTeam"] | null;
   onClose: () => void;
   onLocalTeamChange: (localTeam: TrainingPlayerDraftV4["localTeam"]) => void;
+  onTeamReorderSave?: (pokemonIds: string[]) => Promise<void> | void;
   statRerollController?: TrainingRestNewTeamStatRerollController;
 };
 
@@ -29,22 +30,46 @@ const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 
 type LockKindV4 = "ivs" | "evs" | "moves";
 
-export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocalTeamChange, statRerollController}: TrainingRestNewTeamPanelProps) {
+export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocalTeamChange, onTeamReorderSave, statRerollController}: TrainingRestNewTeamPanelProps) {
   const team = localTeam?.pokemon || [];
+  const teamIdsKey = useMemo(() => team.map(pokemon => pokemon.localPokemonId).join("|"), [team]);
+  const [reorderMode, setReorderMode] = useState(false);
+  const [reorderSaving, setReorderSaving] = useState(false);
+  const [orderDraftIds, setOrderDraftIds] = useState<string[]>([]);
   const [selectedPokemonId, setSelectedPokemonId] = useState(team[0]?.localPokemonId || "");
   const [temporaryLocks, setTemporaryLocks] = useState<TemporaryStatLocksV4>({});
-  const selectedPokemon = team.find(pokemon => pokemon.localPokemonId === selectedPokemonId) || team[0] || null;
+  const displayedTeam = useMemo(() => reorderMode ? orderDraftIds
+    .map(id => team.find(pokemon => pokemon.localPokemonId === id) || null)
+    .filter((pokemon): pokemon is LocalPokemonV4 => Boolean(pokemon))
+    .concat(team.filter(pokemon => !orderDraftIds.includes(pokemon.localPokemonId))) : team, [orderDraftIds, reorderMode, team]);
+  const selectedPokemon = team.find(pokemon => pokemon.localPokemonId === selectedPokemonId) || displayedTeam[0] || team[0] || null;
   const statLocksEnabled = statRerollController?.locksEnabled ?? !statRerollController;
 
   useEffect(() => {
-    if (!team.length) {
+    if (!displayedTeam.length) {
       setSelectedPokemonId("");
       return;
     }
-    if (!team.some(pokemon => pokemon.localPokemonId === selectedPokemonId)) {
-      setSelectedPokemonId(team[0]?.localPokemonId || "");
+    if (!displayedTeam.some(pokemon => pokemon.localPokemonId === selectedPokemonId)) {
+      setSelectedPokemonId(displayedTeam[0]?.localPokemonId || "");
     }
-  }, [selectedPokemonId, team]);
+  }, [displayedTeam, selectedPokemonId]);
+
+  useEffect(() => {
+    if (!open) {
+      setReorderMode(false);
+      setOrderDraftIds([]);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!reorderMode) return;
+    const currentIds = teamIdsKey ? teamIdsKey.split("|") : [];
+    setOrderDraftIds(current => {
+      const reconciled = current.filter(id => currentIds.includes(id)).concat(currentIds.filter(id => !current.includes(id)));
+      return reconciled.join("|") === current.join("|") ? current : reconciled;
+    });
+  }, [reorderMode, teamIdsKey]);
 
   function updatePokemon(pokemonId: string, updater: (pokemon: LocalPokemonV4) => LocalPokemonV4) {
     if (!localTeam) return;
@@ -118,16 +143,47 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
     });
   }
 
+  function beginReorder() {
+    setOrderDraftIds(team.map(pokemon => pokemon.localPokemonId));
+    setReorderMode(true);
+  }
+
+  function cancelReorder() {
+    if (reorderSaving) return;
+    setOrderDraftIds([]);
+    setReorderMode(false);
+  }
+
+  async function saveReorder() {
+    if (!localTeam || !reorderMode || reorderSaving) return;
+    const orderedPokemon = orderDraftIds
+      .map(id => team.find(pokemon => pokemon.localPokemonId === id) || null)
+      .filter((pokemon): pokemon is LocalPokemonV4 => Boolean(pokemon));
+    const missingPokemon = team.filter(pokemon => !orderDraftIds.includes(pokemon.localPokemonId));
+    const nextTeam = orderedPokemon.concat(missingPokemon);
+    const nextIds = nextTeam.map(pokemon => pokemon.localPokemonId);
+    setReorderSaving(true);
+    try {
+      if (onTeamReorderSave) await onTeamReorderSave(nextIds);
+      else onLocalTeamChange({...localTeam, pokemon: nextTeam});
+      setReorderMode(false);
+      setOrderDraftIds([]);
+    } finally {
+      setReorderSaving(false);
+    }
+  }
+
   function movePokemon(fromIndex: number, direction: -1 | 1) {
-    if (!localTeam) return;
+    if (!localTeam || !reorderMode) return;
     const toIndex = fromIndex + direction;
-    if (fromIndex < 0 || toIndex < 0 || fromIndex >= localTeam.pokemon.length || toIndex >= localTeam.pokemon.length) return;
-    const nextPokemon = [...localTeam.pokemon];
-    const [moved] = nextPokemon.splice(fromIndex, 1);
+    if (fromIndex < 0 || toIndex < 0 || fromIndex >= displayedTeam.length || toIndex >= displayedTeam.length) return;
+    const moved = displayedTeam[fromIndex];
     if (!moved) return;
-    nextPokemon.splice(toIndex, 0, moved);
+    const nextIds = displayedTeam.map(pokemon => pokemon.localPokemonId);
+    nextIds.splice(fromIndex, 1);
+    nextIds.splice(toIndex, 0, moved.localPokemonId);
     setSelectedPokemonId(moved.localPokemonId);
-    onLocalTeamChange({...localTeam, pokemon: nextPokemon});
+    setOrderDraftIds(nextIds);
   }
 
   return (
@@ -159,14 +215,26 @@ export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocal
         animate={open ? {y: 0, opacity: 1} : {y: "110%", opacity: 0}}
         transition={{duration: 0.18}}
       >
+        <div className={`training-rest-new-team-order-toolbar ${reorderMode ? "editing" : ""}`}>
+          {reorderMode ? (
+            <>
+              <span>草稿调整中</span>
+              <button type="button" disabled={reorderSaving} onClick={cancelReorder}>取消</button>
+              <button type="button" className="primary" disabled={reorderSaving} onClick={() => void saveReorder()}>{reorderSaving ? "保存中..." : "保存顺序"}</button>
+            </>
+          ) : (
+            <button type="button" disabled={team.length < 2} onClick={beginReorder}>调整顺序</button>
+          )}
+        </div>
         <div className="training-rest-new-team-slots">
-          {team.length ? team.slice(0, 6).map((pokemon, index) => (
+          {displayedTeam.length ? displayedTeam.slice(0, 6).map((pokemon, index) => (
             <TrainingRestNewTeamSlot
               api={api}
               pokemon={pokemon}
               index={index}
-              canMoveUp={index > 0}
-              canMoveDown={index < Math.min(team.length, 6) - 1}
+              reorderMode={reorderMode}
+              canMoveUp={reorderMode && index > 0}
+              canMoveDown={reorderMode && index < Math.min(displayedTeam.length, 6) - 1}
               selected={pokemon.localPokemonId === selectedPokemon?.localPokemonId}
               onSelect={() => setSelectedPokemonId(pokemon.localPokemonId)}
               onMoveUp={() => movePokemon(index, -1)}
@@ -184,6 +252,7 @@ function TrainingRestNewTeamSlot({
   api,
   pokemon,
   index,
+  reorderMode,
   canMoveUp,
   canMoveDown,
   selected,
@@ -194,6 +263,7 @@ function TrainingRestNewTeamSlot({
   api: ChangeBattleV2Api;
   pokemon: LocalPokemonV4;
   index: number;
+  reorderMode: boolean;
   canMoveUp: boolean;
   canMoveDown: boolean;
   selected: boolean;
@@ -207,7 +277,7 @@ function TrainingRestNewTeamSlot({
   const display = pokemon.nickname || pokemon.nameZh || pokemon.name;
   return (
     <div
-      className={`training-rest-new-team-slot ${selected ? "selected" : ""} ${pokemon.entryHp <= 0 ? "status-fnt" : ""} ${isSoulmate ? "soulmate" : ""}`}
+      className={`training-rest-new-team-slot ${reorderMode ? "reordering" : ""} ${selected ? "selected" : ""} ${pokemon.entryHp <= 0 ? "status-fnt" : ""} ${isSoulmate ? "soulmate" : ""}`}
       role="button"
       tabIndex={0}
       onClick={onSelect}
@@ -218,7 +288,7 @@ function TrainingRestNewTeamSlot({
       }}
     >
       <span className="training-rest-new-team-slot-index">{index + 1}</span>
-      <span className="training-rest-new-team-order-controls" aria-label="调整队伍顺序">
+      {reorderMode ? <span className="training-rest-new-team-order-controls" aria-label="调整队伍顺序">
         <button
           type="button"
           disabled={!canMoveUp}
@@ -239,7 +309,7 @@ function TrainingRestNewTeamSlot({
             onMoveDown();
           }}
         >▼</button>
-      </span>
+      </span> : null}
       {status && status !== "正常" ? <em>{status}</em> : null}
       <TrainingRestNewPokemonSprite pokemon={pokemon} kind="icon" />
       <strong>{display}</strong>

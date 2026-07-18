@@ -244,10 +244,15 @@ export function clearStarChartUnlocksForProfileV4<T extends StarChartProfileV4>(
 }
 
 export function enableTestModeForProfileV4<T extends StarChartProfileV4>(profile: T, now = new Date()): T {
+  const nodes = {...normalizeStarChartV4(profile.starChart).nodes};
+  for (const node of STAR_CHART_NODES_V4) {
+    if (node.disabled || node.kind === "event_preview") continue;
+    nodes[node.id] = Math.max(1, Math.floor(Number(node.max_level || 1)));
+  }
   return {
     ...profile,
     battlePoints: MAX_BP_V4,
-    starChart: normalizeStarChartV4(profile.starChart),
+    starChart: normalizeStarChartV4({nodes}),
     updatedAt: now.toISOString(),
   };
 }
