@@ -1233,8 +1233,25 @@ function RoutedApp({runtime}: AppProps) {
 
   const missingProfileFormalPage = loading ? <FormalRouteLoadingPage /> : <Navigate to="/" replace />;
   async function saveBattleServerSettings(nextConfig: BattleServerConfigV4): Promise<BattleServerConfigV4> {
+    const previousConfig = battleServerConfigWithDefault(battleServerConfig, runtime);
+    const previousUrl = battleServerBaseUrl(previousConfig, currentEnvBattleServiceUrl(runtime));
     const saved = await saveBattleServerRuntimeConfig(nextConfig, desktopAppBridge);
+    const nextUrl = battleServerBaseUrl(saved, currentEnvBattleServiceUrl(runtime));
+    if (previousConfig.mode !== saved.mode || previousUrl !== nextUrl) {
+      deactivateFormalRoomConnection();
+      clearFormalRoomCredential();
+      setFormalRoomCredentialVersion(version => version + 1);
+      setFormalRun(null);
+      setLobbyRoom(null);
+      setLobbyRoomToken("");
+      setLobbyError(null);
+    }
     setBattleServerConfig(saved);
+    if (runtime === "desktop" && desktopAppBridge?.getBattleServiceConfig) {
+      desktopAppBridge.getBattleServiceConfig()
+        .then(config => setDesktopBattleServiceConfig(config))
+        .catch(() => setDesktopBattleServiceConfig({backend: "server", url: DEFAULT_PUBLIC_BATTLE_SERVICE_URL}));
+    }
     setBattleServerConfigLoaded(true);
     return saved;
   }

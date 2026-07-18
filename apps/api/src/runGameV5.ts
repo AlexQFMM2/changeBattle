@@ -32,6 +32,15 @@ export type RunGameConfigV5 = {
   battlePreference: BattlePreferenceV4;
 };
 
+const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET_V5: Record<TrainingRuleSetV4, string[]> = {
+  standard: [],
+  gen7: ["system-mega-stone", "system-z-crystal"],
+  gen8: ["system-dynamax-band"],
+  gen9: ["system-tera-orb"],
+};
+
+const MANAGED_SYSTEM_ITEM_IDS_V5 = new Set(Object.values(DEFAULT_SYSTEM_ITEMS_BY_RULE_SET_V5).flat());
+
 export type PlayerInstanceV5 = {
   playerId: PlayerInstanceIdV5;
   slot: ShowdownPlayerIdV4;
@@ -173,6 +182,7 @@ export function createRunGameV5FromStarterRun(input: {
   const selfPlayerId = `player:${input.matchId}:self`;
   const selfBagId = `bag:${selfPlayerId}`;
   const pokemonById: Record<PokemonInstanceIdV5, PokemonInstanceV5> = {};
+  const selfSystemItems = createSystemItemInstancesForRuleSetV5(input.starterRun.battlePreference.ruleSet, selfBagId, input.matchId, iso);
   const starterCandidates = input.starterRun.starterCandidates.map((candidate, index) => {
     const pokemonId = `candidate:${input.matchId}:${index + 1}`;
     pokemonById[pokemonId] = {
@@ -234,15 +244,90 @@ export function createRunGameV5FromStarterRun(input: {
     },
     pokemonById,
     bagsById: {
-      [selfBagId]: {bagId: selfBagId, ownerPlayerId: selfPlayerId, maxSize: 50, itemInstanceIds: [], battleBagEnabled: Boolean(input.starterRun.battlePreference.battleBagEnabled), createdAt: iso, updatedAt: iso},
+      [selfBagId]: {bagId: selfBagId, ownerPlayerId: selfPlayerId, maxSize: 50, itemInstanceIds: selfSystemItems.map(item => item.itemInstanceId), battleBagEnabled: Boolean(input.starterRun.battlePreference.battleBagEnabled), createdAt: iso, updatedAt: iso},
     },
-    itemInstancesById: {},
+    itemInstancesById: Object.fromEntries(selfSystemItems.map(item => [item.itemInstanceId, item])),
     gameMap: {nodes: []},
     roundPlan: [],
     currentNodeId: null,
     restState: {},
     commandLog: {},
   });
+}
+
+export function ensureDefaultSystemItemsForSelfV5(run: RunGameV5, now = new Date()): RunGameV5 {
+  const self = requirePlayer(run, run.selfPlayerId);
+  const bag = run.bagsById[self.bagId];
+  if (!bag) return run;
+  const iso = now.toISOString();
+  const managedItems = new Set(DEFAULT_SYSTEM_ITEMS_BY_RULE_SET_V5[run.config.ruleSet] || []);
+  const retainedItemIds = bag.itemInstanceIds.filter(itemInstanceId => {
+    const item = run.itemInstancesById[itemInstanceId]?.item;
+    return !item || !MANAGED_SYSTEM_ITEM_IDS_V5.has(item.itemID) || managedItems.has(item.itemID);
+  });
+  const existingItemIds = new Set(retainedItemIds.map(itemInstanceId => run.itemInstancesById[itemInstanceId]?.item.itemID).filter(Boolean));
+  const additions = [...managedItems].filter(itemID => !existingItemIds.has(itemID));
+  if (!additions.length && retainedItemIds.length === bag.itemInstanceIds.length) return run;
+  const openSlots = Math.max(0, bag.maxSize - retainedItemIds.length);
+  const addedItems = additions.slice(0, openSlots).map((itemID, index) => createSystemItemInstanceV5(itemID, self.bagId, run.matchId, iso, retainedItemIds.length + index));
+  return assertRunGameV5RedLines({
+    ...run,
+    updatedAt: iso,
+    bagsById: {
+      ...run.bagsById,
+      [self.bagId]: {
+        ...bag,
+        itemInstanceIds: [...retainedItemIds, ...addedItems.map(item => item.itemInstanceId)],
+        updatedAt: iso,
+      },
+    },
+    itemInstancesById: {
+      ...run.itemInstancesById,
+      ...Object.fromEntries(addedItems.map(item => [item.itemInstanceId, item])),
+    },
+  });
+}
+
+function createSystemItemInstancesForRuleSetV5(ruleSet: TrainingRuleSetV4, bagId: BagInstanceIdV5, matchId: string, iso: string): ItemInstanceV5[] {
+  return (DEFAULT_SYSTEM_ITEMS_BY_RULE_SET_V5[ruleSet] || []).map((itemID, index) => createSystemItemInstanceV5(itemID, bagId, matchId, iso, index));
+}
+
+function createSystemItemInstanceV5(itemID: string, bagId: BagInstanceIdV5, matchId: string, iso: string, index: number): ItemInstanceV5 {
+  const itemInstanceId = `item:${matchId}:self-system:${itemID}:${index + 1}`;
+  return {
+    itemInstanceId,
+    ownerBagId: bagId,
+    item: createSystemPlayerItemV5(itemID, itemInstanceId),
+    createdAt: iso,
+    updatedAt: iso,
+  };
+}
+
+function createSystemPlayerItemV5(itemID: string, itemInstanceId: string): PlayerItemInstanceV4 {
+  const names: Record<string, string> = {
+    "system-mega-stone": "Mega系统",
+    "system-z-crystal": "Z招式系统",
+    "system-dynamax-band": "极巨化系统",
+    "system-tera-orb": "太晶系统",
+  };
+  return {
+    id: itemInstanceId,
+    itemID,
+    name: names[itemID] || itemID,
+    image: "",
+    cost: 0,
+    canSale: false,
+    type: "system",
+    canBattleUse: false,
+    canUse: false,
+    canUseToPokemon: false,
+    canTake: false,
+    effectRound: null,
+    getRound: 0,
+    maxUseCount: null,
+    useCount: 0,
+    systemReforgeKind: itemID === "system-mega-stone" ? "mega" : itemID === "system-z-crystal" ? "z-crystal" : itemID === "system-tera-orb" ? "tera" : undefined,
+  };
 }
 
 export function selectStarterPokemonV5(run: RunGameV5, selectedIndexes: number[], requiredCount: number, commandId: string, now = new Date()): RunGameV5 {

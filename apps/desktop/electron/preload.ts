@@ -19,6 +19,12 @@ contextBridge.exposeInMainWorld("changeBattleV2", {
       ipcRenderer.invoke("desktopApp:setBattleServerConfig", config) as ReturnType<NonNullable<DesktopAppBridge["setBattleServerConfig"]>>,
     testBattleServer: (url: Parameters<NonNullable<DesktopAppBridge["testBattleServer"]>>[0]) =>
       ipcRenderer.invoke("desktopApp:testBattleServer", url) as ReturnType<NonNullable<DesktopAppBridge["testBattleServer"]>>,
+    startOfflineBattleServer: () =>
+      ipcRenderer.invoke("desktopApp:startOfflineBattleServer") as ReturnType<NonNullable<DesktopAppBridge["startOfflineBattleServer"]>>,
+    stopOfflineBattleServer: () =>
+      ipcRenderer.invoke("desktopApp:stopOfflineBattleServer") as ReturnType<NonNullable<DesktopAppBridge["stopOfflineBattleServer"]>>,
+    getOfflineBattleServerStatus: () =>
+      ipcRenderer.invoke("desktopApp:getOfflineBattleServerStatus") as ReturnType<NonNullable<DesktopAppBridge["getOfflineBattleServerStatus"]>>,
     getAssetCacheStatus: () =>
       ipcRenderer.invoke("desktopApp:getAssetCacheStatus") as ReturnType<NonNullable<DesktopAppBridge["getAssetCacheStatus"]>>,
     clearAssetCache: () =>

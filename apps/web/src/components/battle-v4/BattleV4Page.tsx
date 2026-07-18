@@ -846,11 +846,11 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
         {recoveringScene ? (
           <BattleV4RestoreOverlay snapshotReady={Boolean(snapshot)} />
         ) : (
-          <>
+          <div className="battle-v4-hud-actions">
             <button type="button" onClick={() => setBattleStatusOpen(true)} disabled={!snapshot}>场地状态</button>
             <button type="button" onClick={() => exportBattleV4Diagnostics(snapshot, commandDraft, playback.debug, lastSubmitError, diagnosticsContext, {pendingMoveAction, visualNearTeam, visualFarTeam})} disabled={!snapshot}>导出诊断</button>
             {canSurrender ? <button className="danger" type="button" onClick={openSurrenderDialog} disabled={!snapshot || surrenderOpen || narrativeActive}>投降</button> : null}
-          </>
+          </div>
         )}
       </header>
       {!commandsLocked && !battleError ? (

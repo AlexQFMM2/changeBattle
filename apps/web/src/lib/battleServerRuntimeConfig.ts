@@ -13,7 +13,7 @@ const STORAGE_KEY = "changebattle-v2:battle-server-config";
 
 export type BattleServerRuntimeConfigBridgeV4 = Pick<
   DesktopAppBridge,
-  "getBattleServerConfig" | "setBattleServerConfig" | "testBattleServer" | "getAssetCacheStatus" | "clearAssetCache"
+  "getBattleServerConfig" | "setBattleServerConfig" | "testBattleServer" | "startOfflineBattleServer" | "stopOfflineBattleServer" | "getOfflineBattleServerStatus" | "getAssetCacheStatus" | "clearAssetCache"
 >;
 
 export async function loadBattleServerRuntimeConfig(bridge?: BattleServerRuntimeConfigBridgeV4): Promise<BattleServerConfigV4> {

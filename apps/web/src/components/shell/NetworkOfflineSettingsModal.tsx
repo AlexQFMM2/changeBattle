@@ -36,8 +36,6 @@ export function NetworkOfflineSettingsModal({
     if (!host) return "";
     return `${draft.custom.protocol}://${host}:${draft.custom.port}${draft.custom.basePath || ""}`;
   }, [draft.custom.basePath, draft.custom.host, draft.custom.port, draft.custom.protocol]);
-  const offlineAvailable = runtime === "desktop" && Boolean(draft.desktopOffline.actualBaseUrl);
-
   useEffect(() => {
     if (configLoading) return;
     setDraft(normalizeBattleServerConfigV4(config));
@@ -115,7 +113,7 @@ export function NetworkOfflineSettingsModal({
             <div className="network-server-modes" role="group" aria-label="战斗服务器模式">
               <button className={draft.mode === "official" ? "selected" : ""} type="button" disabled={saving} onClick={() => setDraft({...draft, mode: "official"})}>官方服务器</button>
               <button className={draft.mode === "custom" ? "selected" : ""} type="button" disabled={saving} onClick={() => setDraft({...draft, mode: "custom"})}>自建服务器</button>
-              <button className={draft.mode === "desktop-offline" ? "selected" : ""} type="button" disabled={saving || runtime !== "desktop" || !offlineAvailable} onClick={() => setDraft({...draft, mode: "desktop-offline"})}>离线服务</button>
+              <button className={draft.mode === "desktop-offline" ? "selected" : ""} type="button" disabled={saving || runtime !== "desktop"} onClick={() => setDraft({...draft, mode: "desktop-offline"})}>离线服务</button>
             </div>
             {draft.mode === "custom" ? (
               <>
@@ -146,7 +144,11 @@ export function NetworkOfflineSettingsModal({
                 </footer>
               </>
             ) : draft.mode === "desktop-offline" ? (
-              runtime !== "desktop" ? <p className="network-offline-hint">离线服务仅桌面端支持。</p> : !offlineAvailable ? <p className="network-offline-hint">离线服务组件未安装，后续版本支持。</p> : null
+              runtime !== "desktop" ? (
+                <p className="network-offline-hint">离线服务仅桌面端支持。</p>
+              ) : (
+                <p className="network-offline-hint">{draft.desktopOffline.actualBaseUrl || "保存后启动本地离线服务。"}</p>
+              )
             ) : null}
           </section>
 

@@ -279,6 +279,9 @@ export type DesktopAppBridge = {
   getBattleServerConfig?(): Promise<BattleServerConfigV4>;
   setBattleServerConfig?(config: BattleServerConfigV4): Promise<BattleServerConfigV4>;
   testBattleServer?(url: string): Promise<BattleServerHealthResultV4>;
+  startOfflineBattleServer?(): Promise<BattleServerConfigV4>;
+  stopOfflineBattleServer?(): Promise<BattleServerConfigV4>;
+  getOfflineBattleServerStatus?(): Promise<{running: boolean; baseUrl: string | null; port: number | null; storage: "memory" | null}>;
   getAssetCacheStatus?(): Promise<AssetCacheStatusV4>;
   clearAssetCache?(): Promise<AssetCacheStatusV4>;
   onUpdateStatus(listener: (status: DesktopUpdateStatusV4) => void): () => void;

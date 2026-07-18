@@ -2660,9 +2660,17 @@ button.battle-v4-switch-card:hover {
 /* V1/reference-aligned command and switch corrections. */
 .battle-v4-hud {
   left: 10px;
-  top: 10px;
+  top: 34px;
   z-index: 70;
+  max-width: 216px;
   gap: 0;
+}
+
+.battle-v4-hud-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
 }
 
 .battle-v4-hud button {

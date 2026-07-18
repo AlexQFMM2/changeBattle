@@ -1,10 +1,12 @@
 import http from "node:http";
 import crypto from "node:crypto";
 import net from "node:net";
+import {pathToFileURL} from "node:url";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
 import {claimFormalSettlementBp, createChangeBattleV2Api, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmUseFailureReasonV4} from "./itemEffects.js";
-import {buildBattleSessionFormalRunV5, buildFormalRunCompatViewV5, createRunGameV5FromStarterRun, ingestFormalRunCompatStateV5, ingestPreparedRoundPlanV5, markBattleRunningV5, reorderPlayerTeamV5, selectStarterPokemonV5, type RunGameV5} from "./runGameV5.js";
+import {createMemoryRedisLikeProvider, createRedisSocketProvider, type RedisLikeCommandProvider} from "./roomStore.js";
+import {buildBattleSessionFormalRunV5, buildFormalRunCompatViewV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, ingestFormalRunCompatStateV5, ingestPreparedRoundPlanV5, markBattleRunningV5, reorderPlayerTeamV5, selectStarterPokemonV5, type RunGameV5} from "./runGameV5.js";
 import {normalizeBattlePreferenceV4} from "./training.js";
 
 type ServerConfig = {
@@ -179,17 +181,39 @@ type RoomWsClient = {
   authTimer: NodeJS.Timeout;
 };
 
-const service = createInMemoryBattleService();
-const formalApi = createChangeBattleV2Api();
-const config = loadConfig();
-const sessionMeta = new Map<string, SessionMeta>();
-const loggedAiDecisionCounts = new Map<string, number>();
-const roomLocks = new Map<string, Promise<void>>();
-const roomSockets = new Map<string, Set<RoomWsClient>>();
+export type BattleApiServerOptions = {
+  host?: string;
+  port?: number;
+  basePath?: string;
+  roomStore?: RedisLikeCommandProvider;
+  storageKind?: "redis" | "memory";
+  battleService?: ReturnType<typeof createInMemoryBattleService>;
+  configOverrides?: Partial<ServerConfig>;
+};
+
+export type BattleApiServerHandle = {
+  server: http.Server;
+  baseUrl: string;
+  actualPort: number;
+  start(): Promise<BattleApiServerHandle>;
+  close(): Promise<void>;
+};
+
+let service = createInMemoryBattleService();
+let formalApi = createChangeBattleV2Api();
+let config = loadConfig();
+let roomStore: RedisLikeCommandProvider | null = config.redisUrl ? createRedisSocketProvider(config.redisUrl) : null;
+let sessionMeta = new Map<string, SessionMeta>();
+let loggedAiDecisionCounts = new Map<string, number>();
+let roomLocks = new Map<string, Promise<void>>();
+let roomSockets = new Map<string, Set<RoomWsClient>>();
 const roomIndexKey = "cb:rooms";
 let roomCreateInFlightCount = 0;
+let roomSweepTimer: NodeJS.Timeout | null = null;
+let activeServerHandle: BattleApiServerHandle | null = null;
 
-const server = http.createServer(async (request, response) => {
+function createHttpRequestHandler(): http.RequestListener {
+  return async (request, response) => {
   setCorsHeaders(response);
   if (request.method === "OPTIONS") {
     response.writeHead(204);
@@ -218,6 +242,7 @@ const server = http.createServer(async (request, response) => {
         uptimeMs: Date.now() - config.startedAt,
         sessionCount: sessionMeta.size,
         redis,
+        storage: roomStore?.storageKind || "disabled",
       });
       return;
     }
@@ -555,9 +580,11 @@ const server = http.createServer(async (request, response) => {
       error: message,
     });
   }
-});
+  };
+}
 
-server.on("upgrade", (request, socket) => {
+function attachBattleApiServerUpgradeHandler(server: http.Server): void {
+  server.on("upgrade", (request, socket) => {
   try {
     const url = new URL(request.url || "/", `http://${request.headers.host || `${config.host}:${config.port}`}`);
     const pathname = normalizePathname(url.pathname);
@@ -589,25 +616,121 @@ server.on("upgrade", (request, socket) => {
     log("warn", "room-ws-upgrade-failed", {error: error instanceof Error ? error.message : String(error)});
     socket.destroy();
   }
-});
-
-server.listen(config.port, config.host, () => {
-  log("info", "server-listening", {
-    host: config.host,
-    port: config.port,
-    basePath: config.basePath,
-    maxSessions: config.maxSessions,
-    sessionTtlMs: config.sessionTtlMs,
   });
-  void markRestartedBattleRooms();
-});
+}
 
-setInterval(() => {
-  void sweepRoomLifecycle();
-}, config.roomSweepIntervalMs).unref();
+export function createBattleApiServer(options: BattleApiServerOptions = {}): BattleApiServerHandle {
+  const baseConfig = loadConfig();
+  const nextConfig: ServerConfig = {
+    ...baseConfig,
+    ...options.configOverrides,
+    host: options.host || options.configOverrides?.host || baseConfig.host,
+    port: options.port ?? options.configOverrides?.port ?? baseConfig.port,
+    basePath: normalizeBasePath(options.basePath ?? options.configOverrides?.basePath ?? baseConfig.basePath),
+    startedAt: Date.now(),
+  };
+  config = nextConfig;
+  service = options.battleService || createInMemoryBattleService();
+  formalApi = createChangeBattleV2Api();
+  roomStore = options.roomStore || (options.storageKind === "memory"
+    ? createMemoryRedisLikeProvider()
+    : config.redisUrl
+      ? createRedisSocketProvider(config.redisUrl)
+      : null);
+  sessionMeta = new Map<string, SessionMeta>();
+  loggedAiDecisionCounts = new Map<string, number>();
+  roomLocks = new Map<string, Promise<void>>();
+  roomSockets = new Map<string, Set<RoomWsClient>>();
+  roomCreateInFlightCount = 0;
+  if (roomSweepTimer) {
+    clearInterval(roomSweepTimer);
+    roomSweepTimer = null;
+  }
 
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
+  const server = http.createServer(createHttpRequestHandler());
+  attachBattleApiServerUpgradeHandler(server);
+
+  const handle: BattleApiServerHandle = {
+    server,
+    baseUrl: `http://${config.host}:${config.port}${config.basePath}`,
+    actualPort: config.port,
+    async start() {
+      await new Promise<void>((resolve, reject) => {
+        const onError = (error: Error) => {
+          server.off("listening", onListening);
+          reject(error);
+        };
+        const onListening = () => {
+          server.off("error", onError);
+          const address = server.address();
+          const actualPort = typeof address === "object" && address ? address.port : config.port;
+          handle.actualPort = actualPort;
+          handle.baseUrl = `http://${config.host}:${actualPort}${config.basePath}`;
+          log("info", "server-listening", {
+            host: config.host,
+            port: actualPort,
+            basePath: config.basePath,
+            maxSessions: config.maxSessions,
+            sessionTtlMs: config.sessionTtlMs,
+            storage: roomStore?.storageKind || "disabled",
+          });
+          void markRestartedBattleRooms();
+          roomSweepTimer = setInterval(() => {
+            void sweepRoomLifecycle();
+          }, config.roomSweepIntervalMs);
+          roomSweepTimer.unref();
+          resolve();
+        };
+        server.once("error", onError);
+        server.once("listening", onListening);
+        server.listen(config.port, config.host);
+      });
+      return handle;
+    },
+    async close() {
+      if (roomSweepTimer) {
+        clearInterval(roomSweepTimer);
+        roomSweepTimer = null;
+      }
+      for (const clients of roomSockets.values()) {
+        for (const client of clients) closeWsClient(client, 1001, "server_shutdown");
+      }
+      roomSockets.clear();
+      for (const sessionId of Array.from(sessionMeta.keys())) {
+        await closeSession(sessionId).catch(error => {
+          log("warn", "session-close-failed", {sessionId, error: error instanceof Error ? error.message : String(error)});
+        });
+      }
+      await new Promise<void>((resolve, reject) => {
+        if (!server.listening) {
+          resolve();
+          return;
+        }
+        server.close(error => {
+          if (error) reject(error);
+          else resolve();
+        });
+      });
+      await roomStore?.close?.().catch(error => {
+        log("warn", "room-store-close-failed", {error: error instanceof Error ? error.message : String(error)});
+      });
+      if (activeServerHandle === handle) activeServerHandle = null;
+    },
+  };
+  return handle;
+}
+
+export async function startBattleApiServerFromEnv(): Promise<BattleApiServerHandle> {
+  activeServerHandle = createBattleApiServer();
+  await activeServerHandle.start();
+  return activeServerHandle;
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  void startBattleApiServerFromEnv();
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+}
 
 function loadConfig(): ServerConfig {
   return {
@@ -751,7 +874,7 @@ class HttpError extends Error {
 }
 
 async function createFormalRoom(body: any): Promise<Record<string, unknown>> {
-  ensureRedisEnabled();
+  ensureRoomStoreAvailable();
   if (roomCreateInFlightCount >= config.roomCreateMaxConcurrency) {
     throw new HttpError(503, "server_busy", "服务器已爆满，稍等片刻再试试。");
   }
@@ -1148,13 +1271,14 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
         result: {sessionId: current.activeBattle.sessionId, snapshot: sanitizeSnapshot(snapshot)},
       });
     }
-    const compatRun = buildBattleSessionFormalRunV5(match.runGameV5);
+    const battleRunGameV5 = ensureDefaultSystemItemsForSelfV5(match.runGameV5);
+    const compatRun = buildBattleSessionFormalRunV5(battleRunGameV5);
     validateFormalRestActionDraft(compatRun);
     const prepared = await runFormalStepAsync(() => formalApi.prepareFormalBattleSession(compatRun));
     const snapshot = await service.createBattleSession(prepared.sessionInput);
     touchSession(snapshot.id);
     logAiDecisions(snapshot);
-    const runningV5 = markBattleRunningV5(match.runGameV5, {nodeId: prepared.sessionInput.nodeId, battleGameId: prepared.battleGame.id, commandId});
+    const runningV5 = markBattleRunningV5(battleRunGameV5, {nodeId: prepared.sessionInput.nodeId, battleGameId: prepared.battleGame.id, commandId});
     const now = new Date().toISOString();
     const activeBattle: FormalRoomActiveBattleV1 = {
       sessionId: snapshot.id,
@@ -2272,7 +2396,7 @@ async function loadAuthorizedRoomByToken(roomId: string, roomToken: string): Pro
 }
 
 async function loadRoom(roomId: string): Promise<FormalRoomRecordV1 | null> {
-  ensureRedisEnabled();
+  ensureRoomStoreAvailable();
   const raw = await redisCommand("GET", roomKey(roomId));
   if (typeof raw !== "string") return null;
   const parsed = JSON.parse(raw) as FormalRoomRecordV1;
@@ -2280,7 +2404,7 @@ async function loadRoom(roomId: string): Promise<FormalRoomRecordV1 | null> {
 }
 
 async function saveRoom(room: FormalRoomRecordV1, ttlMs = config.sessionTtlMs): Promise<void> {
-  ensureRedisEnabled();
+  ensureRoomStoreAvailable();
   const compactRoom = compactRoomForSave(room);
   const raw = JSON.stringify(compactRoom);
   if (Buffer.byteLength(raw, "utf8") > config.roomMaxBytes) {
@@ -2299,7 +2423,7 @@ function compactRoomForSave(room: FormalRoomRecordV1): FormalRoomRecordV1 {
 }
 
 async function deleteRoom(roomId: string): Promise<void> {
-  ensureRedisEnabled();
+  ensureRoomStoreAvailable();
   await redisCommand("DEL", roomKey(roomId));
   await redisCommand("SREM", roomIndexKey, roomId);
 }
@@ -2642,7 +2766,7 @@ async function cleanupRoomIndex(): Promise<void> {
 }
 
 async function markRestartedBattleRooms(): Promise<void> {
-  if (!config.redisUrl) return;
+  if (!roomStore) return;
   try {
     await cleanupRoomIndex();
     const members = await redisCommand("SMEMBERS", roomIndexKey);
@@ -2705,7 +2829,7 @@ function cleanupEndedMatches(room: FormalRoomRecordV1, nowMs: number): FormalRoo
 }
 
 async function sweepRoomLifecycle(): Promise<void> {
-  if (!config.redisUrl) return;
+  if (!roomStore) return;
   try {
     await cleanupRoomIndex();
     const members = await redisCommand("SMEMBERS", roomIndexKey);
@@ -2766,7 +2890,7 @@ async function sweepRoomLifecycle(): Promise<void> {
 }
 
 async function redisHealth(): Promise<RedisStatus> {
-  if (!config.redisUrl) return "disabled";
+  if (!roomStore) return "disabled";
   try {
     const pong = await redisCommand("PING");
     return pong === "PONG" ? "ok" : "unavailable";
@@ -2791,8 +2915,8 @@ async function redisMemoryInfo(): Promise<{used_memory: number; maxmemory: numbe
   };
 }
 
-function ensureRedisEnabled(): void {
-  if (!config.redisUrl) throw new HttpError(503, "redis_disabled", "服务器房间服务未启用。");
+function ensureRoomStoreAvailable(): void {
+  if (!roomStore) throw new HttpError(503, "room_store_disabled", "服务器房间服务未启用。");
 }
 
 function roomKey(roomId: string): string {
@@ -2814,95 +2938,8 @@ function hashToken(token: string): string {
 }
 
 async function redisCommand(...parts: string[]): Promise<unknown> {
-  const url = new URL(config.redisUrl);
-  const host = url.hostname;
-  const port = Number(url.port || 6379);
-  const password = decodeURIComponent(url.password || "");
-  const database = url.pathname && url.pathname !== "/" ? Number(url.pathname.slice(1)) : 0;
-  const commands: string[][] = [];
-  if (password) commands.push(["AUTH", password]);
-  if (database) commands.push(["SELECT", String(database)]);
-  commands.push(parts);
-  const socket = net.createConnection({host, port});
-  try {
-    await new Promise<void>((resolve, reject) => {
-      socket.once("connect", resolve);
-      socket.once("error", reject);
-      socket.setTimeout(5000, () => reject(new Error("redis_timeout")));
-    });
-    let last: unknown = null;
-    for (const command of commands) {
-      socket.write(encodeRedisCommand(command));
-      last = await readRedisResponse(socket);
-      if (last instanceof Error) throw last;
-    }
-    return last;
-  } finally {
-    socket.destroy();
-  }
-}
-
-function encodeRedisCommand(parts: string[]): string {
-  return `*${parts.length}\r\n${parts.map(part => {
-    const buffer = Buffer.from(part);
-    return `$${buffer.byteLength}\r\n${part}\r\n`;
-  }).join("")}`;
-}
-
-function readRedisResponse(socket: net.Socket): Promise<unknown> {
-  let buffer = Buffer.alloc(0);
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      socket.off("data", onData);
-      socket.off("error", onError);
-    };
-    const onError = (error: Error) => {
-      cleanup();
-      reject(error);
-    };
-    const onData = (chunk: Buffer) => {
-      buffer = Buffer.concat([buffer, chunk]);
-      const parsed = parseRedisValue(buffer, 0);
-      if (!parsed) return;
-      cleanup();
-      resolve(parsed.value);
-    };
-    socket.on("data", onData);
-    socket.once("error", onError);
-  });
-}
-
-function parseRedisValue(buffer: Buffer, offset: number): {value: unknown; next: number} | null {
-  if (offset >= buffer.length) return null;
-  const prefix = String.fromCharCode(buffer[offset]!);
-  const lineEnd = buffer.indexOf("\r\n", offset);
-  if (lineEnd < 0) return null;
-  const line = buffer.slice(offset + 1, lineEnd).toString("utf8");
-  const next = lineEnd + 2;
-  if (prefix === "+") return {value: line, next};
-  if (prefix === "-") return {value: new Error(line), next};
-  if (prefix === ":") return {value: Number(line), next};
-  if (prefix === "$") {
-    const length = Number(line);
-    if (length < 0) return {value: null, next};
-    const end = next + length;
-    if (buffer.length < end + 2) return null;
-    return {value: buffer.slice(next, end).toString("utf8"), next: end + 2};
-  }
-  if (prefix === "*") {
-    const length = Number(line);
-    if (length < 0) return {value: null, next};
-    const values: unknown[] = [];
-    let cursor = next;
-    for (let index = 0; index < length; index += 1) {
-      const parsed = parseRedisValue(buffer, cursor);
-      if (!parsed) return null;
-      values.push(parsed.value);
-      cursor = parsed.next;
-    }
-    return {value: values, next: cursor};
-  }
-  return null;
+  ensureRoomStoreAvailable();
+  return roomStore!.command(...parts);
 }
 
 function log(level: "info" | "warn" | "error", scope: string, data: Record<string, unknown> = {}): void {
@@ -2935,6 +2972,6 @@ function booleanEnv(name: string, fallback: boolean): boolean {
 
 function shutdown(signal: string): void {
   log("info", "server-shutdown", {signal});
-  server.close(() => process.exit(0));
+  void activeServerHandle?.close().finally(() => process.exit(0));
   setTimeout(() => process.exit(0), 5000).unref();
 }

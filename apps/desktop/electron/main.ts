@@ -37,6 +37,7 @@ import {
   type TrainingRunGameV4,
   type UserProfileV2,
 } from "@changebattle-v2/api";
+import {createBattleApiServer, type BattleApiServerHandle} from "@changebattle-v2/api/src/server";
 import {CHANGEBATTLE_DESKTOP_UPDATE_DEFAULT_OFFICIAL_SITE_URL_V4, changeBattleDesktopUpdateIsNewerV4, changeBattleDesktopUpdateManifestUrlsV4, changeBattleDesktopUpdateOfficialSiteUrlV4, compareDesktopUpdateFileManifestsV4, desktopUpdateObjectUrlForFileV4, isDesktopUpdateIncrementalManagedPathV4, normalizeChangeBattleDesktopVersionV4, parseChangeBattleDesktopUpdateManifestV4, parseDesktopUpdateFileManifestV4, validateDesktopUpdateManagedPathV4, type ChangeBattleDesktopUpdateCheckResultV4, type ChangeBattleDesktopUpdateManifestV4, type DesktopUpdateFileDiffV4, type DesktopUpdateFileManifestV4, type DesktopUpdateManagedFileV4} from "@changebattle-v2/core";
 import type {BattleServiceApiV4} from "@changebattle-v2/showdown-battle-core";
 import {DesktopSaveStoreV2} from "./desktopSaveStore.js";
@@ -45,6 +46,7 @@ import {rendererAssetFilePath} from "./rendererAssetResolver.js";
 let mainWindow: BrowserWindow | null = null;
 let formalComputeWorker: Worker | null = null;
 let battleService: BattleServiceApiV4 | null = null;
+let offlineBattleApi: BattleApiServerHandle | null = null;
 let saveStore: DesktopSaveStoreV2 | null = null;
 let formalComputeRequestId = 0;
 const formalComputePending = new Map<number, {resolve: (value: any) => void; reject: (error: Error) => void}>();
@@ -56,6 +58,7 @@ const defaultPublicBattleServiceUrl = DEFAULT_CHANGE_BATTLE_BATTLE_SERVICE_URL;
 const defaultPublicAssetBaseUrl = "https://assets.65h26i.top/beta";
 const battleServerConfigFileName = ".battleServer.json";
 const battleServerTypoConfigFileName = ".batterServer";
+const offlineBattleApiBasePath = "/changebattle/battle";
 
 protocol.registerSchemesAsPrivileged([
   {scheme: "changebattle-asset", privileges: {standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true}},
@@ -325,6 +328,59 @@ async function testBattleServerUrl(inputUrl: string): Promise<BattleServerHealth
   }
 }
 
+async function ensureDesktopOfflineBattleServer(input: BattleServerConfigV4): Promise<BattleServerConfigV4> {
+  const normalized = normalizeBattleServerConfigV4({
+    ...input,
+    mode: "desktop-offline",
+    desktopOffline: {
+      ...input.desktopOffline,
+      enabled: true,
+    },
+  });
+  if (!offlineBattleApi) {
+    offlineBattleApi = createBattleApiServer({
+      host: "127.0.0.1",
+      port: normalized.desktopOffline.port || 0,
+      basePath: offlineBattleApiBasePath,
+      storageKind: "memory",
+      configOverrides: {
+        token: "",
+        corsOrigin: "*",
+        roomCreateMaxConcurrency: 1,
+      },
+    });
+    try {
+      await offlineBattleApi.start();
+    } catch (error) {
+      offlineBattleApi = null;
+      throw new Error(`离线服务启动失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  const health = await testBattleServerUrl(offlineBattleApi.baseUrl);
+  if (!health.ok) {
+    await stopDesktopOfflineBattleServer();
+    throw new Error(`离线服务启动失败：${health.message}`);
+  }
+  return normalizeBattleServerConfigV4({
+    ...normalized,
+    desktopOffline: {
+      ...normalized.desktopOffline,
+      enabled: true,
+      actualBaseUrl: offlineBattleApi.baseUrl,
+      lastStartedAt: new Date().toISOString(),
+    },
+  });
+}
+
+async function stopDesktopOfflineBattleServer(): Promise<void> {
+  const handle = offlineBattleApi;
+  offlineBattleApi = null;
+  if (!handle) return;
+  await handle.close().catch(error => {
+    console.warn("[changebattle-v2:desktop] offline battle api close failed", error);
+  });
+}
+
 async function desktopAssetCacheStatus(): Promise<AssetCacheStatusV4> {
   const config = normalizeBattleServerConfigV4((await readDesktopBattleServerConfigFile())?.config || null);
   const root = await ensureDesktopAssetsRoot();
@@ -450,7 +506,10 @@ ipcMain.handle("desktopApp:cancelUpdate", async () => {
 
 ipcMain.handle("desktopApp:getBattleServiceConfig", async () => {
   const runtimeConfig = await loadDesktopBattleServerConfig();
-  const configuredUrl = battleServerBaseUrlForConfigV4(runtimeConfig);
+  const effectiveConfig = runtimeConfig.mode === "desktop-offline"
+    ? await ensureDesktopOfflineBattleServer(runtimeConfig)
+    : runtimeConfig;
+  const configuredUrl = battleServerBaseUrlForConfigV4(effectiveConfig);
   const allowLocalFallback = process.env.CHANGEBATTLE_DESKTOP_ALLOW_LOCAL_BATTLE_SERVICE === "1";
   const url = configuredUrl || (allowLocalFallback ? "" : defaultPublicBattleServiceUrl);
   return url
@@ -459,14 +518,37 @@ ipcMain.handle("desktopApp:getBattleServiceConfig", async () => {
 });
 
 ipcMain.handle("desktopApp:getBattleServerConfig", async () => {
-  return withAssetCacheStatus(await loadDesktopBattleServerConfig());
+  const config = await loadDesktopBattleServerConfig();
+  return withAssetCacheStatus(config.mode === "desktop-offline" ? await ensureDesktopOfflineBattleServer(config) : config);
 });
 
 ipcMain.handle("desktopApp:setBattleServerConfig", async (_event: IpcMainInvokeEvent, input: BattleServerConfigV4) => {
   const normalized = normalizeBattleServerConfigV4(input);
-  const saved = await saveDesktopBattleServerConfig(normalized);
+  const next = normalized.mode === "desktop-offline"
+    ? await ensureDesktopOfflineBattleServer(normalized)
+    : normalized;
+  if (next.mode !== "desktop-offline") await stopDesktopOfflineBattleServer();
+  const saved = await saveDesktopBattleServerConfig(next);
   if (saved.assetCache.enabled) await ensureDesktopAssetsRoot();
   return withAssetCacheStatus(saved);
+});
+
+ipcMain.handle("desktopApp:startOfflineBattleServer", async () => {
+  return withAssetCacheStatus(await ensureDesktopOfflineBattleServer(await loadDesktopBattleServerConfig()));
+});
+
+ipcMain.handle("desktopApp:stopOfflineBattleServer", async () => {
+  await stopDesktopOfflineBattleServer();
+  return withAssetCacheStatus(await loadDesktopBattleServerConfig());
+});
+
+ipcMain.handle("desktopApp:getOfflineBattleServerStatus", async () => {
+  return {
+    running: Boolean(offlineBattleApi),
+    baseUrl: offlineBattleApi?.baseUrl || null,
+    port: offlineBattleApi?.actualPort || null,
+    storage: offlineBattleApi ? "memory" as const : null,
+  };
 });
 
 ipcMain.handle("desktopApp:testBattleServer", async (_event: IpcMainInvokeEvent, url: string) => {
@@ -1026,6 +1108,9 @@ app.whenReady().then(() => {
 app.on("window-all-closed", () => {
   formalComputeWorker?.terminate();
   if (process.platform !== "darwin") app.quit();
+});
+app.on("before-quit", () => {
+  void stopDesktopOfflineBattleServer();
 });
 app.on("activate", () => {
   if (!BrowserWindow.getAllWindows().length) void createWindow();
