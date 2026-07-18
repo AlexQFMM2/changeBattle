@@ -79,5 +79,6 @@ export function FormalRoundTransitionPage({api, formalGameBridge, run, playerVau
 async function prepareServerRoomRound(api: ChangeBattleV2Api, roomId: string, roomToken: string): Promise<FormalGameRunV4> {
   const result = await api.prepareFormalRoomRound({roomId, roomToken});
   if (!result.ok) throw new Error(result.message);
+  if (!result.data.formalRun) throw new Error("房间内对局尚未开始。");
   return result.data.formalRun;
 }

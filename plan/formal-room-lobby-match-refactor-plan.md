@@ -26,6 +26,7 @@ FormalRun
   -> 房间页
   -> 右侧创建对局
   -> 选择赛制：单打-AI / 双打-AI / 合作-AI
+  -> 在创建对局面板里调整本场对局偏好
   -> 创建 Match，状态未开始
   -> 对局详情
   -> 开始对局
@@ -51,6 +52,8 @@ POST /rooms
 - 开房即生成正式流程，导致玩家还没选择赛制和准备，就已经消耗服务器正式流程计算。
 
 新的模型里，Room 是容器，Match 是房间内的对局，FormalRun 是 Match 开始后的业务状态机。
+
+对局偏好也跟着下沉到 Match 创建阶段：外层不再有一个“当前正式流程正在生效”的全局对局偏好。玩家进入房间后创建对局，在创建对局面板里选择赛制并调整偏好；确认创建时把偏好作为本场 Match 的配置快照保存。后续开始对局、生成 FormalRun、恢复房间，都以 Match 上的配置快照为准。
 
 ## Concept Model
 
@@ -112,6 +115,11 @@ type FormalLobbyMatchV1 = {
   matchId: string;
   title: string;
   mode: "singles" | "doubles" | "coop";
+  config: {
+    mode: "singles" | "doubles" | "coop";
+    battlePreferenceSnapshot: BattlePreferenceConfigV1;
+    rules?: Record<string, unknown>;
+  };
   status: FormalLobbyMatchStatusV1;
   phaseLabel: "未开始" | "小组赛阶段" | "8强阶段" | "已结束";
   createdBy: string;
@@ -130,6 +138,8 @@ type FormalLobbyMatchV1 = {
   settlementSummary?: unknown;
 };
 ```
+
+`BattlePreferenceConfigV1` 第一版复用现有“对局偏好”数据结构或由它裁剪而来。关键规则是：Match 创建后保存的是快照，后续外部设置变化不影响已经创建的 Match。
 
 阶段映射第一版：
 
@@ -205,14 +215,28 @@ Room ID: xxxx
 创建对局
 
 赛制：
-  [单打-AI] [双打-AI] [合作-AI]
+  当前：单打-AI
+  [调整赛制]
+
+对局偏好：
+  当前模板摘要
+  [调整偏好]
 
 [确认创建] [取消]
 ```
 
+UI 约定：
+
+- 创建对局面板只展示摘要和确认按钮，复杂选择都放进公共抽屉组件。
+- 赛制使用公共抽屉选择：单打-AI / 双打-AI / 合作-AI。
+- 对局偏好也使用公共抽屉承载，点击“调整偏好”从侧边打开。
+- 对局偏好抽屉内复用现有 `BattlePreferencePage` 的控件/校验逻辑，第一版可以抽成 `BattlePreferenceEditor`。
+- 两个抽屉确认后只更新创建面板里的待创建 Match 配置草稿。
+- 点击“确认创建”时，才把 `mode + battlePreferenceSnapshot` 提交给服务器。
+
 确认创建后：
 
-- 调 `POST /rooms/:roomId/matches`。
+- 调 `POST /rooms/:roomId/matches`，输入包含 `mode` 和 `battlePreferenceSnapshot`。
 - 返回 `matchId`。
 - 右侧回到对局详情或列表。
 - 对局状态为 `未开始`。
@@ -224,6 +248,7 @@ Room ID: xxxx
 
 Match ID: xxxx
 赛制：双打-AI
+对局偏好：困难度 / 规则 / 队伍生成摘要
 状态：未开始
 
 [开始对局] [返回列表]
@@ -273,6 +298,24 @@ GET    /rooms/:roomId/matches/:matchId
 POST   /rooms/:roomId/matches/:matchId/start
 DELETE /rooms/:roomId/matches/:matchId
 ```
+
+`POST /rooms/:roomId/matches` 输入第一版：
+
+```ts
+type CreateFormalLobbyMatchInputV1 = {
+  clientRequestId: string;
+  title?: string;
+  mode: "singles" | "doubles" | "coop";
+  battlePreferenceSnapshot: BattlePreferenceConfigV1;
+};
+```
+
+规则：
+
+- `mode` 来自创建对局面板里的赛制抽屉。
+- `battlePreferenceSnapshot` 来自创建对局面板里的对局偏好抽屉。
+- 服务端保存创建时快照；Match 创建后再改外部默认偏好，不影响已创建 Match。
+- Match 未开始前是否允许编辑配置可以后续做；第一版建议直接删除重建，降低状态复杂度。
 
 正式流程接口迁移到 match scope：
 
@@ -405,6 +448,8 @@ rooms.matches.delete
 rooms.matches.final.get
 ```
 
+`rooms.matches.create` 必须携带 `mode + battlePreferenceSnapshot`。前端不要从全局 BattlePreference 状态临时读取当前值来开始 FormalRun；所有正式流程 helper 只读 Match 上保存的配置快照。
+
 旧 formal room action 迁移为 match scope：
 
 ```text
@@ -462,6 +507,8 @@ rooms.matches.formal.finalizeRun
 - 右侧对局列表。
 - 右侧创建对局面板。
 - 右侧对局详情。
+- 创建对局面板只维护待创建 Match 草稿：`mode`、`battlePreferenceSnapshot`、`title`。
+- 赛制和对局偏好都通过公共抽屉编辑，右侧面板只展示摘要。
 
 状态来源：
 
@@ -470,6 +517,24 @@ rooms.matches.formal.finalizeRun
 - `selectedMatchId`
 - `rightPanel`
 - `connectionState`
+
+### 对局偏好迁移
+
+现有外层 `BattlePreferencePage` 不再直接决定当前正式对局。
+
+迁移方向：
+
+- 抽出可复用编辑器，例如 `BattlePreferenceEditor`。
+- 创建对局面板点击“调整偏好”时，用公共抽屉挂载该编辑器。
+- 抽屉确认后把结果写入 Match 创建草稿。
+- `POST /rooms/:roomId/matches` 保存该偏好快照。
+- `POST /rooms/:roomId/matches/:matchId/start` 只读取 Match 上的快照生成 FormalRun。
+
+外层入口处理：
+
+- 第一版可以隐藏旧“对局偏好”入口，避免误解。
+- 如果后续保留，则改名为“默认对局模板”，只影响新建 Match 的默认填充值。
+- 已创建 Match 不跟随默认模板变化。
 
 ## Migration Steps
 
@@ -490,11 +555,12 @@ rooms.matches.formal.finalizeRun
 
 ### Slice 3: Match API
 
-- [ ] `POST /rooms/:roomId/matches` 创建未开始对局。
+- [ ] `POST /rooms/:roomId/matches` 创建未开始对局，输入包含 `mode + battlePreferenceSnapshot`。
 - [ ] `GET /rooms/:roomId/matches/:matchId` 返回详情。
 - [ ] `POST /rooms/:roomId/matches/:matchId/start` 生成 FormalRun + starter candidates。
 - [ ] Match start 幂等，重复 `clientRequestId` 返回同一个 FormalRun。
 - [ ] Match 状态从 `not_started` 进入 `started_group_stage`。
+- [ ] Match start 使用 Match 保存的偏好快照，不读取外层全局偏好。
 
 ### Slice 4: Formal APIs Move Under Match
 
@@ -512,6 +578,9 @@ rooms.matches.formal.finalizeRun
 - [ ] 左侧用户信息和成员列表。
 - [ ] 右侧对局列表。
 - [ ] 点击“创建对局”右侧切创建面板。
+- [ ] 创建对局面板展示赛制摘要和对局偏好摘要。
+- [ ] 赛制使用公共抽屉选择单打-AI / 双打-AI / 合作-AI。
+- [ ] 对局偏好使用公共抽屉编辑，复用/抽出 `BattlePreferenceEditor`。
 - [ ] 创建对局后右侧显示对局详情。
 - [ ] 对局详情可开始对局。
 - [ ] 离开房间关闭 room 并清本地 credential/cache。
@@ -519,6 +588,8 @@ rooms.matches.formal.finalizeRun
 ### Slice 6: Client State Cleanup
 
 - [ ] 移除传统正式“继续游戏”自动恢复入口。
+- [ ] 移除或隐藏外层“对局偏好”作为当前正式对局入口的语义。
+- [ ] 如保留外层偏好，只作为新建 Match 的默认模板。
 - [ ] `formalRun` 本地只作为显示 cache，不作为权威继续入口。
 - [ ] room credential 只在房间页/正式流程内读取。
 - [ ] 首页、设置、训练场、星图、仓库不读 room、不连 WS。
@@ -599,4 +670,3 @@ git diff --check
 - 第一版 WS 只做服务端通知，所有 mutation 走 HTTP。
 - 首页不再自动继续正式游戏；正式流程只从房间页开始/恢复。
 - Room ID 可以展示；room token 不展示、不进 URL query、不写日志。
-

@@ -5,6 +5,11 @@ export type PostServiceActionNameV4 =
   | "rooms.get"
   | "rooms.heartbeat"
   | "rooms.delete"
+  | "rooms.matches.create"
+  | "rooms.matches.get"
+  | "rooms.matches.ready"
+  | "rooms.matches.unready"
+  | "rooms.matches.start"
   | "rooms.selectStarters"
   | "rooms.prepareRound"
   | "rooms.syncDraft"
@@ -75,6 +80,40 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
   "rooms.delete": {
     method: "DELETE",
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}`,
+  },
+  "rooms.matches.create": {
+    method: "POST",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/matches`,
+    body: input => ({
+      clientRequestId: input?.clientRequestId,
+      title: input?.title,
+      mode: input?.mode,
+      profileSnapshot: input?.profileSnapshot,
+      playerVaultSnapshot: input?.playerVaultSnapshot,
+      battlePreferenceSnapshot: input?.battlePreferenceSnapshot,
+      seed: input?.seed,
+      options: input?.options,
+    }),
+  },
+  "rooms.matches.get": {
+    method: "GET",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/matches/${encodeURIComponent(requiredString(input?.matchId, "matchId"))}`,
+    latencySample: true,
+  },
+  "rooms.matches.ready": {
+    method: "POST",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/matches/${encodeURIComponent(requiredString(input?.matchId, "matchId"))}/ready`,
+    body: () => ({}),
+  },
+  "rooms.matches.unready": {
+    method: "POST",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/matches/${encodeURIComponent(requiredString(input?.matchId, "matchId"))}/unready`,
+    body: () => ({}),
+  },
+  "rooms.matches.start": {
+    method: "POST",
+    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/matches/${encodeURIComponent(requiredString(input?.matchId, "matchId"))}/start`,
+    body: input => ({clientRequestId: input?.clientRequestId}),
   },
   "rooms.selectStarters": {
     method: "POST",

@@ -92,6 +92,7 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}:
 async function selectServerRoomStarters(api: ChangeBattleV2Api, roomId: string, roomToken: string, selectedIndexes: number[]): Promise<FormalGameRunV4> {
   const result = await api.selectFormalRoomStarters({roomId, roomToken, selectedIndexes});
   if (!result.ok) throw new Error(result.message);
+  if (!result.data.formalRun) throw new Error("房间内对局尚未开始。");
   return result.data.formalRun;
 }
 

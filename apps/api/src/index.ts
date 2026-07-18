@@ -320,7 +320,13 @@ export type ChangeBattleV2ApiOptions = {
 
 export type FormalRoomV1 = {
   roomId: string;
-  formalRun: FormalGameRunV4;
+  roomCustomId?: string;
+  selfMemberId?: string;
+  hostMemberId?: string;
+  members?: FormalRoomMemberV1[];
+  matches?: FormalRoomMatchV1[];
+  activeMatchId?: string | null;
+  formalRun: FormalGameRunV4 | null;
   activeBattle?: {
     sessionId: string;
     nodeId: string;
@@ -339,8 +345,49 @@ export type FormalRoomV1 = {
   expiresAt: string;
 };
 
+export type FormalRoomMemberV1 = {
+  memberId: string;
+  roomCustomId: string;
+  name: string;
+  avatarAsset?: string;
+  frontAsset?: string;
+  role: "host" | "guest";
+  connectionState: "online" | "disconnected";
+  ready: boolean;
+  joinedAt: string;
+  updatedAt: string;
+};
+
+export type FormalRoomMatchStatusV1 = "not_started" | "started_group_stage" | "started_top8_stage" | "ended";
+
+export type FormalRoomMatchV1 = {
+  matchId: string;
+  title: string;
+  mode: FormalGameModeV4;
+  config: {
+    mode: FormalGameModeV4;
+    battlePreferenceSnapshot: BattlePreferenceV4 | Record<string, unknown>;
+  };
+  status: FormalRoomMatchStatusV1;
+  phaseLabel: "未开始" | "小组赛阶段" | "8强阶段" | "已结束";
+  createdBy: string;
+  participantMemberIds: string[];
+  formalRun: FormalGameRunV4;
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string;
+  endedAt?: string;
+};
+
 export type FormalRoomCreateResultV1 = FormalRoomV1 & {
   roomToken: string;
+  selfRoomCustomId?: string;
+};
+
+export type FormalRoomMatchResultV1 = {
+  room: FormalRoomV1;
+  match: FormalRoomMatchV1;
+  formalRun?: FormalGameRunV4;
 };
 
 export type FormalRoomBattlePrepareResultV1 = {
@@ -547,7 +594,7 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     loadFormalGameRun: () => formalRuns.loadFormalGameRun(),
     saveFormalGameRun: formalRuns.saveFormalGameRun,
     deleteFormalGameRun: formalRuns.deleteFormalGameRun,
-    startFormalRoom: (input: {profileSnapshot: UserProfileV2; playerVaultSnapshot: PlayerVaultV4; mode: FormalGameModeV4; seed?: string; options?: Record<string, unknown>}): Promise<PostServiceResultV4<FormalRoomCreateResultV1>> =>
+    startFormalRoom: (input: {profileSnapshot?: UserProfileV2; playerVaultSnapshot?: PlayerVaultV4; mode?: FormalGameModeV4; seed?: string; options?: Record<string, unknown>; memberName?: string}): Promise<PostServiceResultV4<FormalRoomCreateResultV1>> =>
       serverApi.postApi<FormalRoomCreateResultV1>("rooms.start", input),
     getFormalRoom: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomV1>> =>
       serverApi.postApi<FormalRoomV1>("rooms.get", {roomId: input.roomId}, {roomToken: input.roomToken}),
@@ -555,6 +602,30 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       serverApi.postApi<FormalRoomV1>("rooms.heartbeat", {roomId: input.roomId}, {roomToken: input.roomToken}),
     deleteFormalRoom: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<{ok: true}>> =>
       serverApi.postApi<{ok: true}>("rooms.delete", {roomId: input.roomId}, {roomToken: input.roomToken}),
+    createFormalRoomMatch: (input: {roomId: string; roomToken: string; clientRequestId: string; profileSnapshot: UserProfileV2; playerVaultSnapshot: PlayerVaultV4; mode: FormalGameModeV4; battlePreferenceSnapshot?: BattlePreferenceV4 | Record<string, unknown>; title?: string; seed?: string; options?: Record<string, unknown>}): Promise<PostServiceResultV4<FormalRoomMatchResultV1>> =>
+      serverApi.postApi<FormalRoomMatchResultV1>("rooms.matches.create", {
+        roomId: input.roomId,
+        clientRequestId: input.clientRequestId,
+        title: input.title,
+        mode: input.mode,
+        profileSnapshot: input.profileSnapshot,
+        playerVaultSnapshot: input.playerVaultSnapshot,
+        battlePreferenceSnapshot: input.battlePreferenceSnapshot,
+        seed: input.seed,
+        options: input.options,
+      }, {roomToken: input.roomToken}),
+    getFormalRoomMatch: (input: {roomId: string; roomToken: string; matchId: string}): Promise<PostServiceResultV4<FormalRoomMatchResultV1>> =>
+      serverApi.postApi<FormalRoomMatchResultV1>("rooms.matches.get", {roomId: input.roomId, matchId: input.matchId}, {roomToken: input.roomToken}),
+    readyFormalRoomMatch: (input: {roomId: string; roomToken: string; matchId: string}): Promise<PostServiceResultV4<FormalRoomMatchResultV1>> =>
+      serverApi.postApi<FormalRoomMatchResultV1>("rooms.matches.ready", {roomId: input.roomId, matchId: input.matchId}, {roomToken: input.roomToken}),
+    unreadyFormalRoomMatch: (input: {roomId: string; roomToken: string; matchId: string}): Promise<PostServiceResultV4<FormalRoomMatchResultV1>> =>
+      serverApi.postApi<FormalRoomMatchResultV1>("rooms.matches.unready", {roomId: input.roomId, matchId: input.matchId}, {roomToken: input.roomToken}),
+    startFormalRoomMatch: (input: {roomId: string; roomToken: string; matchId: string; clientRequestId: string}): Promise<PostServiceResultV4<FormalRoomMatchResultV1>> =>
+      serverApi.postApi<FormalRoomMatchResultV1>("rooms.matches.start", {
+        roomId: input.roomId,
+        matchId: input.matchId,
+        clientRequestId: input.clientRequestId,
+      }, {roomToken: input.roomToken}),
     selectFormalRoomStarters: (input: {roomId: string; roomToken: string; selectedIndexes: number[]}): Promise<PostServiceResultV4<FormalRoomV1>> =>
       serverApi.postApi<FormalRoomV1>("rooms.selectStarters", {roomId: input.roomId, selectedIndexes: input.selectedIndexes}, {roomToken: input.roomToken}),
     prepareFormalRoomRound: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomV1>> =>

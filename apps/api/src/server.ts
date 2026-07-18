@@ -2,7 +2,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import net from "node:net";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import {claimFormalSettlementBp, createChangeBattleV2Api, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type FormalSettlementReasonV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
+import {claimFormalSettlementBp, createChangeBattleV2Api, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type FormalSettlementReasonV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 
 type ServerConfig = {
   host: string;
@@ -95,10 +95,50 @@ type FormalRoomFinalResultResponseV1 = {
   reused: boolean;
 };
 
+type FormalLobbyMemberV1 = {
+  memberId: string;
+  roomCustomId: string;
+  name: string;
+  avatarAsset?: string;
+  frontAsset?: string;
+  role: "host" | "guest";
+  connectionState: "online" | "disconnected";
+  ready: boolean;
+  joinedAt: string;
+  updatedAt: string;
+};
+
+type FormalLobbyMatchStatusV1 = "not_started" | "started_group_stage" | "started_top8_stage" | "ended";
+
+type FormalLobbyMatchV1 = {
+  matchId: string;
+  title: string;
+  mode: FormalGameModeV4;
+  config: {
+    mode: FormalGameModeV4;
+    battlePreferenceSnapshot: BattlePreferenceV4 | Record<string, unknown>;
+  };
+  status: FormalLobbyMatchStatusV1;
+  phaseLabel: "未开始" | "小组赛阶段" | "8强阶段" | "已结束";
+  createdBy: string;
+  participantMemberIds: string[];
+  formalRun: FormalGameRunV4;
+  createdAt: string;
+  updatedAt: string;
+  startedAt?: string;
+  endedAt?: string;
+};
+
 type FormalRoomRecordV1 = {
   roomId: string;
   roomTokenHash: string;
-  formalRun: FormalGameRunV4;
+  roomCustomId?: string;
+  hostMemberId?: string;
+  selfMemberId?: string;
+  members?: FormalLobbyMemberV1[];
+  matches?: FormalLobbyMatchV1[];
+  activeMatchId?: string | null;
+  formalRun?: FormalGameRunV4 | null;
   activeBattle?: FormalRoomActiveBattleV1 | null;
   restActionResults?: Record<string, FormalRoomRestActionStoredResultV1>;
   draftSyncResults?: Record<string, FormalRoomDraftSyncStoredResultV1>;
@@ -186,6 +226,11 @@ const server = http.createServer(async (request, response) => {
 
     const roomMatch = /^\/rooms\/([^/]+)$/.exec(pathname);
     const roomHeartbeatMatch = /^\/rooms\/([^/]+)\/heartbeat$/.exec(pathname);
+    const roomMatchesCreateMatch = /^\/rooms\/([^/]+)\/matches$/.exec(pathname);
+    const roomMatchDetailMatch = /^\/rooms\/([^/]+)\/matches\/([^/]+)$/.exec(pathname);
+    const roomMatchReadyMatch = /^\/rooms\/([^/]+)\/matches\/([^/]+)\/ready$/.exec(pathname);
+    const roomMatchUnreadyMatch = /^\/rooms\/([^/]+)\/matches\/([^/]+)\/unready$/.exec(pathname);
+    const roomMatchStartMatch = /^\/rooms\/([^/]+)\/matches\/([^/]+)\/start$/.exec(pathname);
     const roomSelectStartersMatch = /^\/rooms\/([^/]+)\/formal\/select-starters$/.exec(pathname);
     const roomPrepareRoundMatch = /^\/rooms\/([^/]+)\/formal\/prepare-round$/.exec(pathname);
     const roomRestActionMatch = /^\/rooms\/([^/]+)\/formal\/rest-action$/.exec(pathname);
@@ -215,12 +260,46 @@ const server = http.createServer(async (request, response) => {
       log("info", "room-heartbeat", {requestId, roomId, elapsedMs: Date.now() - startedAt});
       return;
     }
+    if (request.method === "POST" && roomMatchesCreateMatch) {
+      const roomId = decodeURIComponent(roomMatchesCreateMatch[1]!);
+      const body = await readJson(request);
+      const result = await withRoomLock(roomId, async () => createFormalLobbyMatch(roomId, request, body));
+      sendJson(response, 200, result);
+      log("info", "room-match-created", {requestId, roomId, matchId: result.match.matchId, revision: result.room.revision, elapsedMs: Date.now() - startedAt});
+      return;
+    }
+    if (request.method === "GET" && roomMatchDetailMatch) {
+      const roomId = decodeURIComponent(roomMatchDetailMatch[1]!);
+      const matchId = decodeURIComponent(roomMatchDetailMatch[2]!);
+      const room = await loadAuthorizedRoom(roomId, request);
+      const match = findRoomMatch(room, matchId);
+      sendJson(response, 200, {room: publicRoom(room), match});
+      return;
+    }
+    if (request.method === "POST" && (roomMatchReadyMatch || roomMatchUnreadyMatch)) {
+      const matched = roomMatchReadyMatch || roomMatchUnreadyMatch!;
+      const roomId = decodeURIComponent(matched[1]!);
+      const matchId = decodeURIComponent(matched[2]!);
+      const ready = Boolean(roomMatchReadyMatch);
+      const result = await withRoomLock(roomId, async () => setFormalLobbyMatchReady(roomId, request, matchId, ready));
+      sendJson(response, 200, result);
+      log("info", ready ? "room-match-ready" : "room-match-unready", {requestId, roomId, matchId, revision: result.room.revision, elapsedMs: Date.now() - startedAt});
+      return;
+    }
+    if (request.method === "POST" && roomMatchStartMatch) {
+      const roomId = decodeURIComponent(roomMatchStartMatch[1]!);
+      const matchId = decodeURIComponent(roomMatchStartMatch[2]!);
+      const result = await withRoomLock(roomId, async () => startFormalLobbyMatch(roomId, request, matchId));
+      sendJson(response, 200, result);
+      log("info", "room-match-started", {requestId, roomId, matchId, revision: result.room.revision, elapsedMs: Date.now() - startedAt});
+      return;
+    }
     if (request.method === "POST" && roomSelectStartersMatch) {
       const roomId = decodeURIComponent(roomSelectStartersMatch[1]!);
       const body = await readJson(request);
       const room = await withRoomLock(roomId, async () => {
         const current = await loadAuthorizedRoom(roomId, request);
-        const formalRun = runFormalStep(() => formalApi.selectFormalStarterPokemon(current.formalRun, body?.selectedIndexes || []));
+        const formalRun = runFormalStep(() => formalApi.selectFormalStarterPokemon(requireActiveFormalRun(current), body?.selectedIndexes || []));
         const next = advanceRoom(current, formalRun);
         await saveRoom(next);
         broadcastRoomUpdated(next);
@@ -234,7 +313,7 @@ const server = http.createServer(async (request, response) => {
       const roomId = decodeURIComponent(roomPrepareRoundMatch[1]!);
       const room = await withRoomLock(roomId, async () => {
         const current = await loadAuthorizedRoom(roomId, request);
-        const formalRun = await runFormalStepAsync(() => formalApi.prepareFormalRoundPlan(current.formalRun));
+        const formalRun = await runFormalStepAsync(() => formalApi.prepareFormalRoundPlan(requireActiveFormalRun(current)));
         const next = advanceRoom(current, formalRun);
         await saveRoom(next);
         broadcastRoomUpdated(next);
@@ -657,13 +736,40 @@ async function createFormalRoom(body: any): Promise<Record<string, unknown>> {
   const now = new Date();
   const roomId = randomToken(18);
   const roomToken = randomToken(32);
-  const formalRun = createInitialFormalRun(body, roomId);
+  const memberId = randomToken(14);
+  const roomCustomId = createRoomCustomId();
+  const profileSnapshot = body?.profileSnapshot && typeof body.profileSnapshot === "object" ? body.profileSnapshot as Partial<UserProfileV2> : null;
+  const memberName = typeof body?.memberName === "string" && body.memberName.trim()
+    ? body.memberName.trim().slice(0, 16)
+    : typeof profileSnapshot?.name === "string" && profileSnapshot.name.trim()
+      ? profileSnapshot.name.trim().slice(0, 16)
+      : "游客";
+  const avatarAsset = typeof profileSnapshot?.avatarAsset === "string" ? profileSnapshot.avatarAsset : "";
+  const frontAsset = typeof profileSnapshot?.frontAsset === "string" ? profileSnapshot.frontAsset : "";
+  const member: FormalLobbyMemberV1 = {
+    memberId,
+    roomCustomId,
+    name: memberName,
+    ...(avatarAsset ? {avatarAsset} : {}),
+    ...(frontAsset ? {frontAsset} : {}),
+    role: "host",
+    connectionState: "online",
+    ready: false,
+    joinedAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  };
   const record: FormalRoomRecordV1 = {
     roomId,
     roomTokenHash: hashToken(roomToken),
-    formalRun,
+    roomCustomId,
+    hostMemberId: memberId,
+    selfMemberId: memberId,
+    members: [member],
+    matches: [],
+    activeMatchId: null,
+    formalRun: null,
     revision: 1,
-    status: roomStatusFromFormalRun(formalRun),
+    status: "open",
     connectionState: "online",
     closeReason: null,
     createdAt: now.toISOString(),
@@ -673,10 +779,104 @@ async function createFormalRoom(body: any): Promise<Record<string, unknown>> {
   };
   await saveRoom(record);
   await redisCommand("SADD", roomIndexKey, roomId);
-  return {...publicRoom(record), roomToken};
+  return {...publicRoom(record), roomToken, selfMemberId: memberId, selfRoomCustomId: roomCustomId};
   } finally {
     roomCreateInFlightCount = Math.max(0, roomCreateInFlightCount - 1);
   }
+}
+
+async function createFormalLobbyMatch(roomId: string, request: http.IncomingMessage, body: any): Promise<{room: Record<string, unknown>; match: FormalLobbyMatchV1; formalRun: FormalGameRunV4}> {
+  const current = await loadAuthorizedRoom(roomId, request);
+  assertRoomOpen(current);
+  if ((current.matches || []).some(match => match.status !== "ended")) {
+    throw new HttpError(409, "match_exists", "当前房间已有对局。");
+  }
+  const now = new Date();
+  const member = getSelfMember(current);
+  const mode = normalizeFormalRoomMode(body?.mode);
+  const formalRun = createInitialFormalRun({
+    ...body,
+    mode,
+    options: {...(body?.options && typeof body.options === "object" ? body.options : {}), mode},
+  }, `${roomId}:${randomToken(8)}`);
+  const match: FormalLobbyMatchV1 = {
+    matchId: randomToken(16),
+    title: typeof body?.title === "string" && body.title.trim() ? body.title.trim().slice(0, 24) : formalModeMatchTitle(mode),
+    mode,
+    config: {
+      mode,
+      battlePreferenceSnapshot: body?.battlePreferenceSnapshot && typeof body.battlePreferenceSnapshot === "object" ? body.battlePreferenceSnapshot : {},
+    },
+    status: "not_started",
+    phaseLabel: "未开始",
+    createdBy: member.memberId,
+    participantMemberIds: [member.memberId],
+    formalRun,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  };
+  const nextMembers = (current.members || []).map(entry => entry.memberId === member.memberId ? {...entry, ready: false, updatedAt: now.toISOString()} : entry);
+  const next: FormalRoomRecordV1 = {
+    ...touchRoom(current),
+    members: nextMembers,
+    matches: [match],
+    activeMatchId: match.matchId,
+    formalRun,
+    revision: current.revision + 1,
+    status: "open",
+  };
+  await saveRoom(next);
+  broadcastRoomUpdated(next);
+  return {room: publicRoom(next), match, formalRun};
+}
+
+async function setFormalLobbyMatchReady(roomId: string, request: http.IncomingMessage, matchId: string, ready: boolean): Promise<{room: Record<string, unknown>; match: FormalLobbyMatchV1}> {
+  const current = await loadAuthorizedRoom(roomId, request);
+  assertRoomOpen(current);
+  const match = findRoomMatch(current, matchId);
+  if (match.status !== "not_started") throw new HttpError(409, "match_already_started", "对局已经开始。");
+  const member = getSelfMember(current);
+  const now = new Date();
+  const nextMembers = (current.members || []).map(entry => entry.memberId === member.memberId ? {...entry, ready, updatedAt: now.toISOString()} : entry);
+  const next: FormalRoomRecordV1 = {
+    ...touchRoom(current),
+    members: nextMembers,
+    revision: current.revision + 1,
+  };
+  await saveRoom(next);
+  broadcastRoomUpdated(next);
+  return {room: publicRoom(next), match: findRoomMatch(next, matchId)};
+}
+
+async function startFormalLobbyMatch(roomId: string, request: http.IncomingMessage, matchId: string): Promise<{room: Record<string, unknown>; match: FormalLobbyMatchV1; formalRun: FormalGameRunV4}> {
+  const current = await loadAuthorizedRoom(roomId, request);
+  assertRoomOpen(current);
+  const match = findRoomMatch(current, matchId);
+  if (match.status !== "not_started") return {room: publicRoom(current), match, formalRun: match.formalRun};
+  const members = current.members || [];
+  const participants = members.filter(member => match.participantMemberIds.includes(member.memberId));
+  if (!participants.length || participants.some(member => !member.ready)) {
+    throw new HttpError(409, "members_not_ready", "所有成员准备后才可以开始。");
+  }
+  const now = new Date();
+  const startedMatch: FormalLobbyMatchV1 = {
+    ...match,
+    status: "started_group_stage",
+    phaseLabel: "小组赛阶段",
+    updatedAt: now.toISOString(),
+    startedAt: now.toISOString(),
+  };
+  const next: FormalRoomRecordV1 = {
+    ...touchRoom(current),
+    matches: (current.matches || []).map(entry => entry.matchId === matchId ? startedMatch : entry),
+    activeMatchId: matchId,
+    formalRun: startedMatch.formalRun,
+    revision: current.revision + 1,
+    status: roomStatusFromFormalRun(startedMatch.formalRun),
+  };
+  await saveRoom(next);
+  broadcastRoomUpdated(next);
+  return {room: publicRoom(next), match: startedMatch, formalRun: startedMatch.formalRun};
 }
 
 function createInitialFormalRun(body: any, roomId: string): FormalGameRunV4 {
@@ -739,12 +939,57 @@ function assertRoomOpen(room: FormalRoomRecordV1): void {
   }
 }
 
+function requireActiveFormalRun(room: FormalRoomRecordV1): FormalGameRunV4 {
+  const run = room.formalRun || findActiveRoomMatch(room)?.formalRun || null;
+  if (!run) throw new HttpError(409, "match_not_started", "当前房间还没有开始对局。");
+  return run;
+}
+
+function findActiveRoomMatch(room: FormalRoomRecordV1): FormalLobbyMatchV1 | null {
+  const matches = room.matches || [];
+  return matches.find(match => match.matchId === room.activeMatchId) || matches.find(match => match.status !== "ended") || null;
+}
+
+function findRoomMatch(room: FormalRoomRecordV1, matchId: string): FormalLobbyMatchV1 {
+  const match = (room.matches || []).find(entry => entry.matchId === matchId);
+  if (!match) throw new HttpError(404, "match_not_found", "对局不存在。");
+  return match;
+}
+
+function getSelfMember(room: FormalRoomRecordV1): FormalLobbyMemberV1 {
+  const memberId = room.selfMemberId || room.hostMemberId || "";
+  const member = (room.members || []).find(entry => entry.memberId === memberId);
+  if (!member) throw new HttpError(409, "room_member_missing", "房间成员不存在。");
+  return member;
+}
+
+function createRoomCustomId(): string {
+  return `G${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function formalModeMatchTitle(mode: FormalGameModeV4): string {
+  if (mode === "doubles") return "双打-AI";
+  if (mode === "coop") return "合作-AI";
+  return "单打-AI";
+}
+
 function advanceRoom(room: FormalRoomRecordV1, formalRun: FormalGameRunV4): FormalRoomRecordV1 {
   assertRoomOpen(room);
   const now = new Date();
+  const activeMatchId = room.activeMatchId || findActiveRoomMatch(room)?.matchId || null;
+  const matches = activeMatchId ? (room.matches || []).map(match => match.matchId === activeMatchId ? {
+    ...match,
+    formalRun,
+    status: matchStatusFromFormalRun(formalRun),
+    phaseLabel: matchPhaseLabelFromFormalRun(formalRun),
+    updatedAt: now.toISOString(),
+    endedAt: formalRun.settled ? (match.endedAt || now.toISOString()) : match.endedAt,
+  } : match) : room.matches;
   return {
     ...room,
     formalRun,
+    matches,
+    activeMatchId,
     revision: room.revision + 1,
     status: roomStatusFromFormalRun(formalRun),
     connectionState: room.connectionState === "closed" ? "closed" : "online",
@@ -760,9 +1005,10 @@ async function syncFormalRoomDraft(roomId: string, roomToken: string, body: any)
   assertRoomOpen(current);
   const repeated = current.draftSyncResults?.[clientActionId];
   if (repeated) {
+    const activeFormalRun = requireActiveFormalRun(current);
     return {
       room: publicRoom(current),
-      formalRun: current.formalRun,
+      formalRun: activeFormalRun,
       label: repeated.label,
       reused: true,
     };
@@ -773,7 +1019,7 @@ async function syncFormalRoomDraft(roomId: string, roomToken: string, body: any)
   if (body?.baseRevision !== undefined && Number(body.baseRevision) !== current.revision) {
     throw new HttpError(409, "formal_revision_conflict", "正式流程状态已更新，请刷新后重试。");
   }
-  const draft = validateFormalRunDraft(current, body?.formalRunDraft || current.formalRun);
+  const draft = validateFormalRunDraft(current, body?.formalRunDraft || requireActiveFormalRun(current));
   validateFormalRestActionDraft(draft);
   const label = typeof body?.label === "string" && body.label.trim() ? body.label.trim().slice(0, 40) : "休整同步";
   const nextRoomBase = advanceRoom(current, draft);
@@ -792,11 +1038,25 @@ async function syncFormalRoomDraft(roomId: string, roomToken: string, body: any)
   };
   await saveRoom(next);
   broadcastRoomUpdated(next);
-  return {room: publicRoom(next), formalRun: next.formalRun, label, reused: false};
+  return {room: publicRoom(next), formalRun: requireActiveFormalRun(next), label, reused: false};
 }
 
 function roomStatusFromFormalRun(run: FormalGameRunV4): RoomStatus {
   return run.status || "preparing";
+}
+
+function matchStatusFromFormalRun(run: FormalGameRunV4): FormalLobbyMatchStatusV1 {
+  if (run.settled || run.status === "ended") return "ended";
+  return isFormalTop8Stage(run) ? "started_top8_stage" : "started_group_stage";
+}
+
+function matchPhaseLabelFromFormalRun(run: FormalGameRunV4): FormalLobbyMatchV1["phaseLabel"] {
+  if (run.settled || run.status === "ended") return "已结束";
+  return isFormalTop8Stage(run) ? "8强阶段" : "小组赛阶段";
+}
+
+function isFormalTop8Stage(run: FormalGameRunV4): boolean {
+  return /top.?8|quarter|semi|final|boss/i.test(String((run.restRunSnapshot as any)?.phase || (run.restRunSnapshot as any)?.stage || (run as any).phase || ""));
 }
 
 async function prepareFormalRoomBattle(roomId: string, request: http.IncomingMessage, body: any): Promise<Record<string, unknown>> {
@@ -810,13 +1070,13 @@ async function prepareFormalRoomBattle(roomId: string, request: http.IncomingMes
     const snapshot = await getRoomBattleSnapshot(current);
     return {
       room: publicRoom(current),
-      formalRun: current.formalRun,
+      formalRun: requireActiveFormalRun(current),
       sessionId: current.activeBattle.sessionId,
       snapshot: sanitizeSnapshot(snapshot),
       reused: true,
     };
   }
-  const draft = validateFormalRunDraft(current, body?.formalRunDraft || current.formalRun);
+  const draft = validateFormalRunDraft(current, body?.formalRunDraft || requireActiveFormalRun(current));
   const prepared = await runFormalStepAsync(() => formalApi.prepareFormalBattleSession(draft));
   const snapshot = await service.createBattleSession(prepared.sessionInput);
   touchSession(snapshot.id);
@@ -845,7 +1105,7 @@ async function prepareFormalRoomBattle(roomId: string, request: http.IncomingMes
   broadcastRoomUpdated(next);
   return {
     room: publicRoom(next),
-    formalRun: next.formalRun,
+    formalRun: requireActiveFormalRun(next),
     sessionId: snapshot.id,
     snapshot: sanitizeSnapshot(snapshot),
     reused: false,
@@ -855,9 +1115,10 @@ async function prepareFormalRoomBattle(roomId: string, request: http.IncomingMes
 function validateFormalRunDraft(room: FormalRoomRecordV1, value: unknown): FormalGameRunV4 {
   if (!value || typeof value !== "object") throw new HttpError(400, "formal_flow_error", "缺少正式流程草稿。");
   const draft = value as FormalGameRunV4;
-  if (draft.id !== room.formalRun.id) throw new HttpError(409, "formal_run_mismatch", "正式流程房间不匹配。");
-  if (draft.mode !== room.formalRun.mode) throw new HttpError(409, "formal_run_mismatch", "正式流程模式不匹配。");
-  if (Math.floor(Number(draft.currentRoundIndex || 0)) !== Math.floor(Number(room.formalRun.currentRoundIndex || 0))) {
+  const activeFormalRun = requireActiveFormalRun(room);
+  if (draft.id !== activeFormalRun.id) throw new HttpError(409, "formal_run_mismatch", "正式流程房间不匹配。");
+  if (draft.mode !== activeFormalRun.mode) throw new HttpError(409, "formal_run_mismatch", "正式流程模式不匹配。");
+  if (Math.floor(Number(draft.currentRoundIndex || 0)) !== Math.floor(Number(activeFormalRun.currentRoundIndex || 0))) {
     throw new HttpError(409, "formal_revision_conflict", "正式流程轮次已经变化，请刷新后重试。");
   }
   if (!draft.restRunSnapshot) throw new HttpError(400, "formal_flow_error", "缺少休整快照。");
@@ -871,9 +1132,10 @@ async function applyFormalRoomRestAction(roomId: string, roomToken: string, body
   assertRoomOpen(current);
   const repeated = current.restActionResults?.[clientActionId];
   if (repeated) {
+    const activeFormalRun = requireActiveFormalRun(current);
     return {
       room: publicRoom(current),
-      formalRun: current.formalRun,
+      formalRun: activeFormalRun,
       actionType: repeated.actionType,
       message: repeated.message,
       moneyDelta: repeated.moneyDelta,
@@ -887,14 +1149,14 @@ async function applyFormalRoomRestAction(roomId: string, roomToken: string, body
   if (body?.baseRevision !== undefined && Number(body.baseRevision) !== current.revision) {
     throw new HttpError(409, "formal_revision_conflict", "正式流程状态已更新，请刷新后重试。");
   }
-  const draft = validateFormalRunDraft(current, body?.formalRunDraft || current.formalRun);
+  const draft = validateFormalRunDraft(current, body?.formalRunDraft || requireActiveFormalRun(current));
   validateFormalRestActionDraft(draft);
   const action = body?.action && typeof body.action === "object" ? body.action : null;
   const actionType = requiredString(action?.type, "action.type");
   const result = runFormalStep(() => applyFormalRestActionToRun(draft, actionType, action));
   if (!result.ok) throw new HttpError(400, "formal_rest_action_failed", result.message || "休整操作失败。");
   const nextRoomBase = advanceRoom(current, result.run);
-  const moneyDelta = Math.floor(Number(nextRoomBase.formalRun.money || 0)) - Math.floor(Number(draft.money || 0));
+  const moneyDelta = Math.floor(Number(requireActiveFormalRun(nextRoomBase).money || 0)) - Math.floor(Number(draft.money || 0));
   const now = new Date().toISOString();
   const restActionResults = pruneRestActionResults({
     ...(current.restActionResults || {}),
@@ -914,7 +1176,7 @@ async function applyFormalRoomRestAction(roomId: string, roomToken: string, body
   broadcastRoomUpdated(next);
   return {
     room: publicRoom(next),
-    formalRun: next.formalRun,
+    formalRun: requireActiveFormalRun(next),
     actionType,
     message: result.message,
     moneyDelta,
@@ -1042,12 +1304,12 @@ async function finalizeFormalRoomBattle(roomId: string, request: http.IncomingMe
   const activeBattle = current.activeBattle;
   if (!activeBattle?.sessionId) throw new HttpError(409, "active_battle_missing", "当前房间没有可结算的战斗。");
   if (activeBattle.finalizeRequestId === clientRequestId && activeBattle.finalizeResult) {
-    return {...activeBattle.finalizeResult, formalRun: current.formalRun, room: publicRoom(current)};
+    return {...activeBattle.finalizeResult, formalRun: requireActiveFormalRun(current), room: publicRoom(current)};
   }
   const snapshot = await getRoomBattleSnapshot(current);
   const timeline = await service.getPlaybackTimeline(activeBattle.sessionId, 0).catch(() => null);
   const reason = normalizeFinalizeReason(body?.reason);
-  const finalized = await runFormalStepAsync(() => formalApi.finalizeFormalBattleResultV4(current.formalRun, snapshot, reason, {playbackTimeline: timeline}));
+  const finalized = await runFormalStepAsync(() => formalApi.finalizeFormalBattleResultV4(requireActiveFormalRun(current), snapshot, reason, {playbackTimeline: timeline}));
   let formalRun = finalized.run;
   let playerVault: PlayerVaultV4 | undefined;
   let settlementNotice = "";
@@ -1093,7 +1355,8 @@ async function finalizeFormalRoomRun(roomId: string, request: http.IncomingMessa
   if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
     throw new HttpError(409, "room_not_settleable", "当前房间仍在战斗，不能最终结算。");
   }
-  if (!current.formalRun.restRunSnapshot) {
+  const activeFormalRun = requireActiveFormalRun(current);
+  if (!activeFormalRun.restRunSnapshot) {
     throw new HttpError(409, "room_not_settleable", "当前房间还没有可结算的正式流程。");
   }
   const profileSnapshot = body?.profileSnapshot as UserProfileV2 | undefined;
@@ -1103,7 +1366,7 @@ async function finalizeFormalRoomRun(roomId: string, request: http.IncomingMessa
   const playerVaultSnapshot = body?.playerVaultSnapshot as PlayerVaultV4 | undefined;
   const reason = normalizeSettlementReason(body?.reason);
   const now = new Date();
-  const prepared = runFormalStep(() => formalApi.prepareFormalSettlement(current.formalRun, reason));
+  const prepared = runFormalStep(() => formalApi.prepareFormalSettlement(activeFormalRun, reason));
   let formalRun = prepared;
   let profile = profileSnapshot;
   if (prepared.settlement && !prepared.settlement.claimedAt) {
@@ -1316,8 +1579,11 @@ function touchRoom(room: FormalRoomRecordV1): FormalRoomRecordV1 {
 
 function publicRoom(room: FormalRoomRecordV1): Record<string, unknown> {
   const {roomTokenHash: _roomTokenHash, activeBattle, restActionResults: _restActionResults, draftSyncResults: _draftSyncResults, finalResult: _finalResult, ...safeRoom} = room;
+  const activeMatch = findActiveRoomMatch(room);
+  const formalRun = room.formalRun || activeMatch?.formalRun || null;
   return {
     ...safeRoom,
+    formalRun,
     finalResult: room.finalResult ? {
       settlementId: room.finalResult.settlementId,
       createdAt: room.finalResult.createdAt,
@@ -1488,7 +1754,7 @@ async function handleRoomWsMessage(client: RoomWsClient, raw: string): Promise<v
       registerWsClient(client);
       const next = touchRoom(room);
       await saveRoom(next);
-      sendWsJson(client, {type: "room.ready", room: publicRoom(next), formalRun: next.formalRun, revision: next.revision});
+      sendWsJson(client, {type: "room.ready", room: publicRoom(next), formalRun: next.formalRun || findActiveRoomMatch(next)?.formalRun || null, revision: next.revision});
       broadcastRoomUpdated(next, client);
       log("info", "room-ws-authed", {roomId: client.roomId, clientId: client.id});
       return;
@@ -1559,7 +1825,7 @@ function logWsClose(client: RoomWsClient): void {
 
 function broadcastRoomUpdated(room: FormalRoomRecordV1 | undefined, except?: RoomWsClient): void {
   if (!room) return;
-  broadcastRoomMessage(room.roomId, {type: "room.updated", room: publicRoom(room), formalRun: room.formalRun, revision: room.revision}, except);
+  broadcastRoomMessage(room.roomId, {type: "room.updated", room: publicRoom(room), formalRun: room.formalRun || findActiveRoomMatch(room)?.formalRun || null, revision: room.revision}, except);
 }
 
 function broadcastRoomClosed(roomId: string, reason: string): void {

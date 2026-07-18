@@ -12,6 +12,7 @@ import {VaultPokemonHonorBadgesPreview} from "../trainer-vault/VaultPokemonHonor
 import {GameDrawerPreview} from "../shared/GameDrawer.preview";
 import {GameEvolutionModalPreview} from "../shared/GameEvolutionModal.preview";
 import {RentalSelectPagePreview} from "../formal/rental-select/RentalSelectPage.preview";
+import {RoomLobbyPagePreview} from "../room/RoomLobbyPage.preview";
 
 export type ComponentPreviewEntry = {
   id: string;
@@ -26,6 +27,12 @@ export const COMPONENT_PREVIEWS: ComponentPreviewEntry[] = [
     title: "正式选人页",
     description: "复合组件：候选详情、已选队伍、普通候选和同行许可专属槽位。",
     render: api => <RentalSelectPagePreview api={api} />,
+  },
+  {
+    id: "room-lobby-page",
+    title: "正式房间页",
+    description: "复合页面：房间信息、成员列表、创建对局和准备开始。",
+    render: api => <RoomLobbyPagePreview api={api} />,
   },
   {
     id: "training-rest-new-team-panel",

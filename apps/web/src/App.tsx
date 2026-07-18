@@ -26,6 +26,7 @@ import {
   type DesktopTrainingRunBridge,
   type DesktopUserProfileBridge,
   type FormalBattleResultFinalizeReasonV4,
+  type BattlePreferenceV4,
   type FormalGameModeV4,
   type FormalGameRunV4,
   type FormalMedicalInsuranceChoiceV4,
@@ -59,6 +60,7 @@ import {FormalStarterSelectPage} from "./components/formal/FormalStarterSelectPa
 import {PlayerSettingsPage} from "./components/player/PlayerSettingsPage";
 import {GameViewport} from "./components/shell/GameViewport";
 import {MainMenuPage} from "./components/shell/MainMenuPage";
+import {RoomLobbyPage} from "./components/room/RoomLobbyPage";
 import {NetworkOfflineSettingsModal} from "./components/shell/NetworkOfflineSettingsModal";
 import {DesktopUpdateModal, desktopUpdateStatusVisible} from "./components/shell/DesktopUpdateModal";
 import {TalentConfigPage} from "./components/star-chart/TalentConfigPage";
@@ -166,6 +168,10 @@ function RoutedApp({runtime}: AppProps) {
   const [playerVaultDirty, setPlayerVaultDirty] = useState(false);
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
   const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
+  const [lobbyRoom, setLobbyRoom] = useState<FormalRoomV1 | null>(null);
+  const [lobbyRoomToken, setLobbyRoomToken] = useState("");
+  const [lobbyBusyMessage, setLobbyBusyMessage] = useState<string | null>(null);
+  const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [formalRunLoaded, setFormalRunLoaded] = useState(false);
   const formalRoomSyncClientRef = useRef<FormalRoomSyncClientV4 | null>(null);
   const apiRef = useRef(api);
@@ -290,13 +296,13 @@ function RoutedApp({runtime}: AppProps) {
           setFormalRestInitialNotice(`战斗房间恢复失败：${result.message}`);
           return;
         }
-        setFormalRun(result.data.formalRun);
+        if (result.data.formalRun) setFormalRun(result.data.formalRun);
         const sessionId = result.data.activeBattle?.sessionId || "";
         if (sessionId) {
           setBattleSessionId(sessionId);
           setFormalBattleRecoveredSceneSessionId(sessionId);
           safeSessionStorageSet(formalBattleSessionStorageKey, sessionId);
-        } else if (result.data.status === "ended" || result.data.formalRun.settled) {
+        } else if (result.data.status === "ended" || result.data.formalRun?.settled) {
           clearFormalRoomCredential();
         } else {
           setFormalRestInitialNotice("当前房间没有可恢复的战斗会话，请返回休整页重新进入。");
@@ -541,14 +547,126 @@ function RoutedApp({runtime}: AppProps) {
     navigate("/training/config", {replace: true});
   }
 
-  function startFormalGame(mode: FormalGameModeV4) {
+  async function createFormalLobbyRoom() {
     if (!profile) {
       navigate("/", {replace: true});
       return;
     }
     deactivateFormalRoomConnection();
     clearFormalRoomCredential();
-    navigate(`/formal/room/start/${mode}`, {replace: true});
+    setFormalRun(null);
+    setLobbyRoom(null);
+    setLobbyRoomToken("");
+    setLobbyError(null);
+    setLobbyBusyMessage("正在创建房间...");
+    navigate("/formal/room/create", {replace: true});
+    try {
+      const result = await api.startFormalRoom({memberName: profile.name, profileSnapshot: profile});
+      if (!result.ok) throw new Error(result.message);
+      saveFormalRoomCredential(result.data.roomId, result.data.roomToken);
+      setLobbyRoom(result.data);
+      setLobbyRoomToken(result.data.roomToken);
+      setFormalRoomConnectionEnabled(false);
+      setFormalRoomCredentialVersion(version => version + 1);
+    } catch (error) {
+      setLobbyError(error instanceof Error ? error.message : "创建房间失败。");
+    } finally {
+      setLobbyBusyMessage(null);
+    }
+  }
+
+  async function createFormalLobbyMatch(input: {mode: FormalGameModeV4; battlePreferenceSnapshot: BattlePreferenceV4}) {
+    if (!profile || !lobbyRoom || !lobbyRoomToken) throw new Error("房间不存在。");
+    setLobbyError(null);
+    setLobbyBusyMessage("正在创建对局...");
+    try {
+      const result = await api.createFormalRoomMatch({
+        roomId: lobbyRoom.roomId,
+        roomToken: lobbyRoomToken,
+        clientRequestId: `match-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        profileSnapshot: formalTransitionProfile || profile,
+        playerVaultSnapshot: playerVault,
+        mode: input.mode,
+        battlePreferenceSnapshot: input.battlePreferenceSnapshot,
+        options: {mode: input.mode},
+      });
+      if (!result.ok) throw new Error(result.message);
+      setLobbyRoom(result.data.room);
+      if (result.data.formalRun) {
+        setFormalRun(result.data.formalRun);
+        await api.saveFormalGameRun(result.data.formalRun).catch(() => undefined);
+      }
+    } catch (error) {
+      setLobbyError(error instanceof Error ? error.message : "创建对局失败。");
+      throw error;
+    } finally {
+      setLobbyBusyMessage(null);
+    }
+  }
+
+  async function setFormalLobbyMatchReady(ready: boolean, matchId: string) {
+    if (!lobbyRoom || !lobbyRoomToken) throw new Error("房间不存在。");
+    setLobbyError(null);
+    setLobbyBusyMessage(ready ? "正在准备..." : "正在取消准备...");
+    try {
+      const result = ready
+        ? await api.readyFormalRoomMatch({roomId: lobbyRoom.roomId, roomToken: lobbyRoomToken, matchId})
+        : await api.unreadyFormalRoomMatch({roomId: lobbyRoom.roomId, roomToken: lobbyRoomToken, matchId});
+      if (!result.ok) throw new Error(result.message);
+      setLobbyRoom(result.data.room);
+    } catch (error) {
+      setLobbyError(error instanceof Error ? error.message : "准备状态同步失败。");
+      throw error;
+    } finally {
+      setLobbyBusyMessage(null);
+    }
+  }
+
+  async function startFormalLobbyMatch(matchId: string) {
+    if (!lobbyRoom || !lobbyRoomToken) throw new Error("房间不存在。");
+    setLobbyError(null);
+    setLobbyBusyMessage("正在开始游戏...");
+    try {
+      const result = await api.startFormalRoomMatch({
+        roomId: lobbyRoom.roomId,
+        roomToken: lobbyRoomToken,
+        matchId,
+        clientRequestId: `start-${matchId}`,
+      });
+      if (!result.ok) throw new Error(result.message);
+      const nextRun = result.data.formalRun || result.data.match.formalRun;
+      setLobbyRoom(result.data.room);
+      setFormalRun(nextRun);
+      const saved = await api.saveFormalGameRun(nextRun).catch(() => nextRun);
+      setFormalRun(saved);
+      setFormalRoomConnectionEnabled(true);
+      setFormalRoomCredentialVersion(version => version + 1);
+      activateFormalRoomConnection();
+      navigate("/formal/starter-select", {replace: true});
+    } catch (error) {
+      setLobbyError(error instanceof Error ? error.message : "开始游戏失败。");
+      throw error;
+    } finally {
+      setLobbyBusyMessage(null);
+    }
+  }
+
+  async function leaveFormalLobbyRoom() {
+    const roomId = lobbyRoom?.roomId;
+    const roomToken = lobbyRoomToken;
+    setLobbyBusyMessage("正在关闭房间...");
+    try {
+      if (roomId && roomToken) await api.deleteFormalRoom({roomId, roomToken}).catch(() => undefined);
+    } finally {
+      deactivateFormalRoomConnection();
+      clearFormalRoomCredential();
+      setLobbyRoom(null);
+      setLobbyRoomToken("");
+      setFormalRun(null);
+      await api.deleteFormalGameRun().catch(() => undefined);
+      setLobbyBusyMessage(null);
+      navigate("/main", {replace: true});
+    }
   }
 
   async function enableTestMode() {
@@ -951,7 +1069,6 @@ function RoutedApp({runtime}: AppProps) {
   );
 
   const missingProfileFormalPage = loading ? <FormalRouteLoadingPage /> : <Navigate to="/" replace />;
-  const continueGameLabel = continueGameLabelFor(formalRun, trainingRun);
   async function saveBattleServerSettings(nextConfig: BattleServerConfigV4): Promise<BattleServerConfigV4> {
     const saved = await saveBattleServerRuntimeConfig(nextConfig, desktopAppBridge);
     setBattleServerConfig(saved);
@@ -994,18 +1111,15 @@ function RoutedApp({runtime}: AppProps) {
         profile={profile}
         catalog={catalog.trainers}
         trainingRun={trainingRun}
-        continueGameLabel={continueGameLabel}
         preferStaticBackground={false}
         onOpenDex={() => openDex()}
         onOpenDexCard={openDexCard}
         onTraining={() => void createTrainingRunAndOpenConfig()}
-        onFormalGame={startFormalGame}
-        onContinueGame={continueGameLabel ? () => void continueSavedRunGame() : undefined}
+        onCreateRoom={() => void createFormalLobbyRoom()}
         onStarChart={() => navigate("/star-chart")}
         onTrainerVault={() => navigate("/trainer-vault")}
         onManualSave={() => void saveAllCurrentState()}
         manualSaveState={manualSaveState}
-        onBattlePreference={() => navigate("/battle-preference")}
         debugFeatureEnabled={DEBUG_FEATURE_ENABLED}
         onEnableTestMode={() => void enableTestMode()}
         onUserInfo={startEdit}
@@ -1179,9 +1293,34 @@ function RoutedApp({runtime}: AppProps) {
 
   const formalMode = parseFormalMode(location.pathname.split("/").pop());
   const formalRoomGate = parseFormalRoomGatePath(location.pathname);
+  const formalLobbyPage = profile ? (
+    lobbyRoom && lobbyRoomToken ? (
+      <RoomLobbyPage
+        api={api}
+        profile={profile}
+        room={lobbyRoom}
+        roomToken={lobbyRoomToken}
+        busyMessage={lobbyBusyMessage}
+        error={lobbyError}
+        onCreateMatch={createFormalLobbyMatch}
+        onReadyChange={setFormalLobbyMatchReady}
+        onStartMatch={startFormalLobbyMatch}
+        onLeave={() => void leaveFormalLobbyRoom()}
+      />
+    ) : (
+      <section className="formal-room-page" style={{padding: 32, minHeight: "100%", color: "#f8f4df", background: "#101716"}}>
+        <h2 style={{margin: "0 0 12px"}}>正在进入房间</h2>
+        <p style={{margin: "0 0 20px", color: "#c9d8cb"}}>{lobbyError ? `房间创建失败：${lobbyError}` : lobbyBusyMessage || "正在连接服务器..."}</p>
+        <button type="button" onClick={() => navigate("/main", {replace: true})}>返回</button>
+      </section>
+    )
+  ) : missingProfileFormalPage;
   const formalRoomPage = profile ? (
     formalRoomGate ? (
-      <FormalRoomGatePage
+      formalRoomGate.action === "start" ? (
+        <Navigate to="/formal/room/create" replace />
+      ) : (
+        <FormalRoomGatePage
         api={api}
         profile={formalTransitionProfile || profile}
         playerVault={playerVault}
@@ -1207,6 +1346,7 @@ function RoutedApp({runtime}: AppProps) {
           navigate("/main", {replace: true});
         }}
       />
+      )
     ) : (
       <Navigate to="/main" replace />
     )
@@ -1687,6 +1827,7 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/training/battle-transition" element={trainingBattleTransitionPage} />
         <Route path="/training/battle" element={trainingBattlePage} />
         <Route path="/training/battle-result-transition" element={trainingBattleResultTransitionPage} />
+        <Route path="/formal/room/create" element={formalLobbyPage} />
         <Route path="/formal/room/start/:mode" element={formalRoomPage} />
         <Route path="/formal/room/continue" element={formalRoomPage} />
         <Route path="/formal/transition/:mode" element={formalTransitionPage} />
@@ -1797,6 +1938,7 @@ function FormalRoomGatePage({api, profile, playerVault, currentRun, action, mode
         if (cancelled) return;
         setRoomId(room.data.roomId);
         setRoomCredential({roomId: credential.roomId, roomToken: credential.roomToken});
+        if (!room.data.formalRun) throw new Error("房间内对局尚未开始。");
         setResolvedRun(room.data.formalRun);
         setRoomReady(true);
         onActivateRoom();
@@ -1816,6 +1958,7 @@ function FormalRoomGatePage({api, profile, playerVault, currentRun, action, mode
         })
           .then(result => {
             if (!result.ok) throw new Error(result.message);
+            if (!result.data.formalRun) throw new Error("房间内对局尚未开始。");
             return {roomId: result.data.roomId, roomToken: result.data.roomToken, formalRun: result.data.formalRun};
           }));
       if (cancelled) return;
@@ -1972,12 +2115,6 @@ function isFormalBossRound(run: FormalGameRunV4 | null): boolean {
     || run.restRunSnapshot.gameMap[run.currentRoundIndex]
     || null;
   return Boolean(node && node.index >= 5);
-}
-
-function continueGameLabelFor(formalRun: FormalGameRunV4 | null, trainingRun: TrainingRunGameV4 | null): string | undefined {
-  if (isFormalRunContinuable(formalRun)) return `继续游戏（${formalModeLabel(formalRun.mode)}）`;
-  if (trainingRun) return "继续游戏（训练场）";
-  return undefined;
 }
 
 function isFormalRoomConnectionRoute(pathname: string): boolean {
@@ -2137,6 +2274,10 @@ function FormalResumeTransitionPage({api, run, formalRoomCredential, onRunSynced
         return;
       }
       const room = result.data;
+      if (!room.formalRun) {
+        setError("房间内对局尚未开始。");
+        return;
+      }
       onRunSynced(room.formalRun);
       if (isClosedFormalRoom(room)) {
         setClosedRoom(room);
@@ -2171,7 +2312,7 @@ function FormalResumeTransitionPage({api, run, formalRoomCredential, onRunSynced
             <strong>提示</strong>
             <span>确认后会按失败结算本局，并清理本地房间凭证。</span>
           </p>
-          <button type="button" className="training-transition-action" onClick={() => onClosedConfirm(closedRoom.formalRun)}>
+          <button type="button" className="training-transition-action" disabled={!closedRoom.formalRun} onClick={() => closedRoom.formalRun ? onClosedConfirm(closedRoom.formalRun) : undefined}>
             进入结算
           </button>
         </section>

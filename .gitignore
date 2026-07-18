@@ -10,10 +10,7 @@ coverage/
 packages/showdown-battle-core/test/
 
 # Local generated/copied assets; keep out of git.
-assets/*
-!assets/rest/
-assets/rest/*
-!assets/rest/heal.png
+assets/
 debug/*
 !debug/
 !debug/README.md

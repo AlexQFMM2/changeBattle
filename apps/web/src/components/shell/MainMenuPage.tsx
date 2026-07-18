@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, FormalGameModeV4, TrainerCatalogEntryV2, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, TrainerCatalogEntryV2, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import {AnimatedPage} from "../motion/Animated";
 import {MainMenuCommandBar, type MainMenuCommandItem} from "./MainMenuCommandBar";
 import {MainMenuHome} from "./MainMenuHome";
@@ -10,24 +10,21 @@ import "./MainMenuPage.css";
 
 export type MainMenuManualSaveState = "idle" | "saving" | "saved" | "error";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLabel, manualSaveState = "idle", debugFeatureEnabled = false, preferStaticBackground = false, onOpenDex, onOpenDexCard, onTraining, onFormalGame, onContinueGame, onStarChart, onTrainerVault, onManualSave, onBattlePreference, onEnableTestMode, onUserInfo, onNetworkSettings, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, manualSaveState = "idle", debugFeatureEnabled = false, preferStaticBackground = false, onOpenDex, onOpenDexCard, onTraining, onCreateRoom, onStarChart, onTrainerVault, onManualSave, onEnableTestMode, onUserInfo, onNetworkSettings, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
   trainingRun: TrainingRunGameV4 | null;
-  continueGameLabel?: string;
   manualSaveState?: MainMenuManualSaveState;
   debugFeatureEnabled?: boolean;
   preferStaticBackground?: boolean;
   onOpenDex: () => void;
   onOpenDexCard: (seed: MainMenuQuickDexSeed) => void;
   onTraining: () => void;
-  onFormalGame: (mode: FormalGameModeV4) => void;
-  onContinueGame?: () => void;
+  onCreateRoom: () => void;
   onStarChart: () => void;
   onTrainerVault: () => void;
   onManualSave: () => void;
-  onBattlePreference: () => void;
   onEnableTestMode?: () => void;
   onUserInfo: () => void;
   onNetworkSettings: () => void;
@@ -39,11 +36,9 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
   const actionTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
   const mainMenuItems: MainMenuCommandItem[] = [
-    ...(continueGameLabel && onContinueGame ? [{label: continueGameLabel, action: onContinueGame}] : []),
     {label: "开始新游戏", action: () => setGameMenuOpen(true), instant: true},
     {label: "图鉴", action: onOpenDex, instant: true},
     {label: "训练家星图", action: onStarChart},
-    {label: "对局偏好", action: onBattlePreference},
     {label: "我的仓库", action: onTrainerVault},
     {label: "玩家设置", action: onUserInfo},
     {label: "游戏设置", action: onNetworkSettings, instant: true},
@@ -52,10 +47,8 @@ export function MainMenuPage({api, profile, catalog, trainingRun, continueGameLa
     {label: "回到主页", action: onTitle},
   ];
   const gameMenuItems: MainMenuCommandItem[] = [
-    {label: "单打-AI", action: () => onFormalGame("singles"), instant: true},
-    {label: "双打-AI", action: () => onFormalGame("doubles"), instant: true},
-    {label: "合作-AI", action: () => onFormalGame("coop"), instant: true},
-    {label: "合作-玩家", action: () => showNotice("合作-玩家 后续开发"), instant: true},
+    {label: "创建房间", action: onCreateRoom, instant: true},
+    {label: "加入房间", action: () => showNotice("加入房间后续开放"), instant: true},
     {label: "训练场", action: onTraining},
     {label: "返回", action: closeGameMenu, instant: true},
   ];
