@@ -58,7 +58,7 @@ const battleServerConfigFileName = ".battleServer.json";
 const battleServerTypoConfigFileName = ".batterServer";
 
 protocol.registerSchemesAsPrivileged([
-  {scheme: "changebattle-asset", privileges: {standard: true, secure: true, supportFetchAPI: true}},
+  {scheme: "changebattle-asset", privileges: {standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true}},
 ]);
 
 app.setName("ChangeBattle V2 Dex Desktop");
@@ -177,18 +177,71 @@ function registerChangeBattleAssetCacheProtocol() {
     const filePath = safeAssetCacheFilePath(root, relativePath);
     if (!filePath) return new Response("Bad asset path", {status: 400});
     if (existsSync(filePath)) {
-      return new Response(await fs.readFile(filePath), {headers: {"content-type": contentTypeForAsset(relativePath)}});
+      return localAssetCacheResponse(filePath, relativePath, request.headers.get("range"));
     }
     const response = await fetch(cdnUrl);
-    if (!response.ok) return response;
+    if (!response.ok) {
+      console.warn(`[changebattle-v2:desktop] asset cache download failed ${response.status}: ${relativePath}`);
+      return response;
+    }
     const bytes = Buffer.from(await response.arrayBuffer());
     await fs.mkdir(path.dirname(filePath), {recursive: true});
     await fs.writeFile(filePath, bytes);
+    console.info(`[changebattle-v2:desktop] asset cached: ${relativePath}`);
     void refreshDesktopAssetCacheStats().catch(error => {
       console.warn("[changebattle-v2:desktop] asset cache stats refresh failed", error);
     });
-    return new Response(bytes, {headers: {"content-type": response.headers.get("content-type") || contentTypeForAsset(relativePath)}});
+    return localAssetCacheResponse(filePath, relativePath, request.headers.get("range"), response.headers.get("content-type") || undefined);
   });
+}
+
+async function localAssetCacheResponse(filePath: string, relativePath: string, rangeHeader?: string | null, contentType?: string): Promise<Response> {
+  const stat = await fs.stat(filePath);
+  const headers = new Headers({
+    "accept-ranges": "bytes",
+    "cache-control": "public, max-age=31536000, immutable",
+    "content-type": contentType || contentTypeForAsset(relativePath),
+  });
+  const range = parseHttpRange(rangeHeader, stat.size);
+  if (range) {
+    const length = range.end - range.start + 1;
+    const handle = await fs.open(filePath, "r");
+    try {
+      const body = Buffer.alloc(length);
+      await handle.read(body, 0, length, range.start);
+      headers.set("content-length", String(length));
+      headers.set("content-range", `bytes ${range.start}-${range.end}/${stat.size}`);
+      return new Response(body, {status: 206, headers});
+    } finally {
+      await handle.close();
+    }
+  }
+  const body = await fs.readFile(filePath);
+  headers.set("content-length", String(stat.size));
+  return new Response(body, {headers});
+}
+
+function parseHttpRange(value: string | null | undefined, size: number): {start: number; end: number} | null {
+  if (!value || size <= 0) return null;
+  const match = /^bytes=(\d*)-(\d*)$/i.exec(value.trim());
+  if (!match) return null;
+  const rawStart = match[1];
+  const rawEnd = match[2];
+  if (!rawStart && !rawEnd) return null;
+  let start: number;
+  let end: number;
+  if (!rawStart) {
+    const suffixLength = Number(rawEnd);
+    start = Math.max(0, size - suffixLength);
+    end = size - 1;
+  } else {
+    start = Number(rawStart);
+    end = rawEnd ? Number(rawEnd) : size - 1;
+  }
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  start = Math.max(0, Math.floor(start));
+  end = Math.min(size - 1, Math.floor(end));
+  return start <= end ? {start, end} : null;
 }
 
 async function loadDesktopBattleServerConfig(): Promise<BattleServerConfigV4> {

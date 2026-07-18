@@ -15,6 +15,7 @@ import {
   starChartHasSoulmateRewardV4,
   type AppDebugConfigV4,
   type BattleServerConfigV4,
+  type ChangeBattleV2Api,
   type DesktopBattleServiceBridge,
   type DesktopAppBridge,
   type DesktopFormalGameBridge,
@@ -53,7 +54,6 @@ import {FormalSettlementPage} from "./components/formal/FormalSettlementPage";
 import {FormalSettlementTransitionPage} from "./components/formal/FormalSettlementTransitionPage";
 import {FormalBattleResultTransitionPage} from "./components/formal/FormalBattleResultTransitionPage";
 import {FormalBattleTransitionPage} from "./components/formal/FormalBattleTransitionPage";
-import {FormalGameTransitionPage} from "./components/formal/FormalGameTransitionPage";
 import {FormalRoundTransitionPage} from "./components/formal/FormalRoundTransitionPage";
 import {FormalStarterSelectPage} from "./components/formal/FormalStarterSelectPage";
 import {PlayerSettingsPage} from "./components/player/PlayerSettingsPage";
@@ -73,7 +73,7 @@ import {setAssetCacheRuntimeConfig, showdownAssetPrefix} from "./lib/assetUrl";
 import {battleServerBaseUrl, battleServerConfigWithEnvFallback, clearAssetRuntimeCache, loadBattleServerRuntimeConfig, saveBattleServerRuntimeConfig, testBattleServerRuntimeUrl} from "./lib/battleServerRuntimeConfig";
 import {releaseGuardProfileBattlePreferenceV4} from "./lib/battlePreferenceReleaseGuard";
 import {CHANGE_BATTLE_DEBUG_FEATURES_ENABLED, CHANGE_BATTLE_RELEASE_CHANNEL} from "./lib/debugFeatures";
-import {clearFormalRoomCredential, loadFormalRoomCredential} from "./lib/formalRoomCredential";
+import {clearFormalRoomCredential, loadFormalRoomCredential, saveFormalRoomCredential} from "./lib/formalRoomCredential";
 import {createFormalRoomSyncClient, type FormalRoomSyncClientV4} from "./lib/formalRoomSyncClient";
 
 type AppProps = {
@@ -116,6 +116,8 @@ export function App({runtime}: AppProps) {
 function RoutedApp({runtime}: AppProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const initialDesktopPathnameRef = useRef(location.pathname);
+  const [desktopStartupRouteResetting, setDesktopStartupRouteResetting] = useState(() => runtime === "desktop" && location.pathname !== "/");
   const desktopBridgeRoot = useMemo(() => runtime === "desktop" && typeof window !== "undefined"
     ? (window as ChangeBattleV2Window).changeBattleV2
     : undefined, [runtime]);
@@ -125,6 +127,8 @@ function RoutedApp({runtime}: AppProps) {
   const [battleServerConfig, setBattleServerConfig] = useState<BattleServerConfigV4 | null>(null);
   const [battleServerConfigLoaded, setBattleServerConfigLoaded] = useState(false);
   const [networkSettingsOpen, setNetworkSettingsOpen] = useState(false);
+  const [formalRoomConnectionEnabled, setFormalRoomConnectionEnabled] = useState(false);
+  const [formalRoomCredentialVersion, setFormalRoomCredentialVersion] = useState(0);
   const battleServiceUrl = useMemo(() => resolveBattleServiceUrl(runtime, battleServerConfig, desktopBattleServiceConfig), [battleServerConfig, desktopBattleServiceConfig, runtime]);
   setAssetCacheRuntimeConfig({
     enabled: Boolean(battleServerConfig?.assetCache.enabled),
@@ -167,8 +171,11 @@ function RoutedApp({runtime}: AppProps) {
   const apiRef = useRef(api);
   const confirmedFormalRunRef = useRef<FormalGameRunV4 | null>(null);
   const formalTransitionProfile = useMemo(() => profile ? releaseGuardProfileBattlePreferenceV4(profile, DEBUG_FEATURE_ENABLED) : null, [profile]);
-  const formalRoomCredential = useMemo(() => loadFormalRoomCredential(), [formalRun?.currentRoundIndex, formalRun?.id, location.pathname]);
   const formalRoomRouteActive = isFormalRoomConnectionRoute(location.pathname);
+  const formalRoomCredential = useMemo(() => {
+    if (desktopStartupRouteResetting || !formalRoomConnectionEnabled || !formalRoomRouteActive) return null;
+    return loadFormalRoomCredential();
+  }, [desktopStartupRouteResetting, formalRoomConnectionEnabled, formalRoomCredentialVersion, formalRoomRouteActive, formalRun?.currentRoundIndex, formalRun?.id, location.pathname]);
   const formalRoomBattleService = useMemo(() => formalRoomCredential
     ? api.createFormalRoomBattleServiceClient({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken})
     : undefined, [api, formalRoomCredential?.roomId, formalRoomCredential?.roomToken]);
@@ -192,6 +199,23 @@ function RoutedApp({runtime}: AppProps) {
   const [desktopUpdateModalDismissed, setDesktopUpdateModalDismissed] = useState(false);
   const [desktopUpdateChecking, setDesktopUpdateChecking] = useState(false);
   const [desktopManualUpdateCheckActive, setDesktopManualUpdateCheckActive] = useState(false);
+
+  useEffect(() => {
+    if (runtime !== "desktop") return;
+    if (!desktopStartupRouteResetting) return;
+    if (initialDesktopPathnameRef.current === "/") {
+      setDesktopStartupRouteResetting(false);
+      return;
+    }
+    navigate("/", {replace: true});
+    setDesktopStartupRouteResetting(false);
+  }, [desktopStartupRouteResetting, navigate, runtime]);
+
+  useEffect(() => {
+    if (!formalRoomConnectionEnabled) return;
+    if (isFormalRoomSessionRoute(location.pathname)) return;
+    deactivateFormalRoomConnection();
+  }, [formalRoomConnectionEnabled, location.pathname]);
 
   useEffect(() => {
     apiRef.current = api;
@@ -479,6 +503,8 @@ function RoutedApp({runtime}: AppProps) {
 
   async function deleteProfile() {
     try {
+      deactivateFormalRoomConnection();
+      clearFormalRoomCredential();
       await api.deleteTrainingRun();
       await api.deleteFormalGameRun();
       await api.deletePlayerVault();
@@ -520,7 +546,9 @@ function RoutedApp({runtime}: AppProps) {
       navigate("/", {replace: true});
       return;
     }
-    navigate(`/formal/transition/${mode}`, {replace: true});
+    deactivateFormalRoomConnection();
+    clearFormalRoomCredential();
+    navigate(`/formal/room/start/${mode}`, {replace: true});
   }
 
   async function enableTestMode() {
@@ -608,7 +636,7 @@ function RoutedApp({runtime}: AppProps) {
       return;
     }
     setFormalRun(current);
-    navigate("/formal/resume-transition", {replace: true});
+    navigate("/formal/room/continue", {replace: true});
   }
 
   function routeResumedFormalRun(current: FormalGameRunV4) {
@@ -651,6 +679,7 @@ function RoutedApp({runtime}: AppProps) {
   }
 
   function enterClosedFormalRoomSettlement(run: FormalGameRunV4) {
+    deactivateFormalRoomConnection();
     clearFormalRoomCredential();
     setBattleSessionId("");
     setFormalBattleRecoveredSceneSessionId("");
@@ -725,6 +754,18 @@ function RoutedApp({runtime}: AppProps) {
       // Best-effort cleanup only.
     }
     navigate(`/formal/settlement-transition?reason=${reason}`, {replace: true});
+  }
+
+  function activateFormalRoomConnection() {
+    setFormalRoomConnectionEnabled(true);
+    setFormalRoomCredentialVersion(current => current + 1);
+  }
+
+  function deactivateFormalRoomConnection() {
+    formalRoomSyncClientRef.current?.dispose();
+    formalRoomSyncClientRef.current = null;
+    setFormalRoomConnectionEnabled(false);
+    setServerConnectionState(null);
   }
 
   async function chooseMedicalInsurance(choice: FormalMedicalInsuranceChoiceV4) {
@@ -1137,18 +1178,41 @@ function RoutedApp({runtime}: AppProps) {
   ) : <Navigate to="/" replace />;
 
   const formalMode = parseFormalMode(location.pathname.split("/").pop());
+  const formalRoomGate = parseFormalRoomGatePath(location.pathname);
+  const formalRoomPage = profile ? (
+    formalRoomGate ? (
+      <FormalRoomGatePage
+        api={api}
+        profile={formalTransitionProfile || profile}
+        playerVault={playerVault}
+        currentRun={formalRun}
+        action={formalRoomGate.action}
+        mode={formalRoomGate.mode}
+        onActivateRoom={activateFormalRoomConnection}
+        onRunReady={run => {
+          setFormalRun(run);
+          navigate("/formal/starter-select", {replace: true});
+        }}
+        onResumeReady={routeResumedFormalRun}
+        onBack={() => {
+          deactivateFormalRoomConnection();
+          navigate("/main", {replace: true});
+        }}
+        onLeave={async credential => {
+          await api.deleteFormalRoom(credential).catch(() => undefined);
+          deactivateFormalRoomConnection();
+          clearFormalRoomCredential();
+          setFormalRun(null);
+          await api.deleteFormalGameRun().catch(() => undefined);
+          navigate("/main", {replace: true});
+        }}
+      />
+    ) : (
+      <Navigate to="/main" replace />
+    )
+  ) : missingProfileFormalPage;
   const formalTransitionPage = formalTransitionProfile ? (
-    <FormalGameTransitionPage
-      api={api}
-      formalGameBridge={formalGameBridge}
-      profile={formalTransitionProfile}
-      playerVault={playerVault}
-      mode={formalMode}
-      onRunReady={run => {
-        setFormalRun(run);
-        navigate("/formal/starter-select", {replace: true});
-      }}
-    />
+    <Navigate to={`/formal/room/start/${formalMode}`} replace />
   ) : missingProfileFormalPage;
 
   const formalResumeTransitionPage = profile ? (
@@ -1543,6 +1607,7 @@ function RoutedApp({runtime}: AppProps) {
         onSaveProfile={userProfileAdapter.saveUserProfile}
         onSavePlayerVault={api.savePlayerVault}
         onSettled={(run, nextProfile, nextPlayerVault) => {
+          deactivateFormalRoomConnection();
           clearFormalRoomCredential();
           setBattleSessionId("");
           setFormalBattleRecoveredSceneSessionId("");
@@ -1582,6 +1647,20 @@ function RoutedApp({runtime}: AppProps) {
   const bgmScene = bgmSceneForRoute(location.pathname, formalRun);
   const versionBadgeLabel = desktopVersionBadgeLabel();
 
+  if (desktopStartupRouteResetting) {
+    return (
+      <GameViewport
+        showVersion
+        versionLabel={versionBadgeLabel}
+        versionChecking={desktopUpdateChecking}
+        onVersionClick={desktopUpdatesEnabled ? checkDesktopUpdatesFromVersionBadge : undefined}
+      >
+        <BgmController scene="nonBattle" />
+        <FormalRouteLoadingPage />
+      </GameViewport>
+    );
+  }
+
   return (
     <GameViewport
       showVersion={location.pathname === "/"}
@@ -1608,6 +1687,8 @@ function RoutedApp({runtime}: AppProps) {
         <Route path="/training/battle-transition" element={trainingBattleTransitionPage} />
         <Route path="/training/battle" element={trainingBattlePage} />
         <Route path="/training/battle-result-transition" element={trainingBattleResultTransitionPage} />
+        <Route path="/formal/room/start/:mode" element={formalRoomPage} />
+        <Route path="/formal/room/continue" element={formalRoomPage} />
         <Route path="/formal/transition/:mode" element={formalTransitionPage} />
         <Route path="/formal/resume-transition" element={formalResumeTransitionPage} />
         <Route path="/formal/starter-select" element={formalStarterSelectPage} />
@@ -1683,8 +1764,161 @@ function ServerConnectionBadge({state}: {state: PostServiceConnectionStateV4 | n
   );
 }
 
+function FormalRoomGatePage({api, profile, playerVault, currentRun, action, mode, onActivateRoom, onRunReady, onResumeReady, onBack, onLeave}: {
+  api: ChangeBattleV2Api;
+  profile: UserProfileV2;
+  playerVault: PlayerVaultV4;
+  currentRun: FormalGameRunV4 | null;
+  action: "start" | "continue";
+  mode: FormalGameModeV4;
+  onActivateRoom: () => void;
+  onRunReady: (run: FormalGameRunV4) => void;
+  onResumeReady: (run: FormalGameRunV4) => void;
+  onBack: () => void;
+  onLeave: (credential: {roomId: string; roomToken: string}) => Promise<void>;
+}) {
+  const [roomReady, setRoomReady] = useState(false);
+  const [playerReady, setPlayerReady] = useState(false);
+  const [resolvedRun, setResolvedRun] = useState<FormalGameRunV4 | null>(null);
+  const [roomCredential, setRoomCredential] = useState<{roomId: string; roomToken: string} | null>(null);
+  const [roomId, setRoomId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (action === "continue") {
+        const credential = loadFormalRoomCredential();
+        if (!currentRun) throw new Error("没有可继续的正式游戏存档。");
+        if (!credential) throw new Error("没有可恢复的房间凭证，请重新开始正式游戏。");
+        const room = await api.getFormalRoom(credential);
+        if (!room.ok) throw new Error(room.message);
+        if (cancelled) return;
+        setRoomId(room.data.roomId);
+        setRoomCredential({roomId: credential.roomId, roomToken: credential.roomToken});
+        setResolvedRun(room.data.formalRun);
+        setRoomReady(true);
+        onActivateRoom();
+        void api.saveFormalGameRun(room.data.formalRun).then(saved => {
+          if (!cancelled) setResolvedRun(saved);
+        }).catch(error => {
+          if (!cancelled) setError(error instanceof Error ? `本地缓存写入失败：${error.message}` : "本地缓存写入失败。");
+        });
+        return;
+      }
+
+      const room = await getOrStartFormalRoomForGate(formalRoomGateStartKey(profile, playerVault, mode), () => api.startFormalRoom({
+          profileSnapshot: profile,
+          playerVaultSnapshot: playerVault,
+          mode,
+          options: {mode},
+        })
+          .then(result => {
+            if (!result.ok) throw new Error(result.message);
+            return {roomId: result.data.roomId, roomToken: result.data.roomToken, formalRun: result.data.formalRun};
+          }));
+      if (cancelled) return;
+      clearFormalRoomCredential();
+      saveFormalRoomCredential(room.roomId, room.roomToken);
+      setRoomId(room.roomId);
+      setRoomCredential({roomId: room.roomId, roomToken: room.roomToken});
+      setResolvedRun(room.formalRun);
+      setRoomReady(true);
+      onActivateRoom();
+      void api.saveFormalGameRun(room.formalRun).then(saved => {
+        if (!cancelled) setResolvedRun(saved);
+      }).catch(error => {
+        if (!cancelled) setError(error instanceof Error ? `本地缓存写入失败：${error.message}` : "本地缓存写入失败。");
+      });
+    })().catch(caught => {
+      if (!cancelled) setError(caught instanceof Error ? caught.message : "正式房间准备失败。");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [action, api, currentRun, mode, onActivateRoom, playerVault, profile]);
+
+  function startGameFromRoom() {
+    if (!resolvedRun) return;
+    if (action === "continue") onResumeReady(resolvedRun);
+    else onRunReady(resolvedRun);
+  }
+
+  async function leaveRoom() {
+    if (!roomCredential || leaving) {
+      onBack();
+      return;
+    }
+    setLeaving(true);
+    try {
+      await onLeave(roomCredential);
+    } catch {
+      onBack();
+    }
+  }
+
+  return (
+    <section className="formal-room-page" style={{padding: 32, minHeight: "100%", color: "#f8f4df", background: "#101716"}}>
+      <h2 style={{margin: "0 0 12px"}}>{action === "continue" ? "正式房间" : `${formalModeLabel(mode)}房间`}</h2>
+      <p style={{margin: "0 0 24px", color: "#c9d8cb"}}>
+        {leaving ? "正在关闭房间..." : error ? `房间连接失败：${error}` : roomReady ? "房间已连接。" : "正在连接服务器..."}
+      </p>
+      {roomId ? (
+        <p style={{margin: "0 0 20px", color: "#9fb8aa", fontFamily: "monospace"}}>Room ID: {roomId}</p>
+      ) : null}
+      <div style={{display: "flex", gap: 12, flexWrap: "wrap"}}>
+        <button type="button" disabled={!roomReady || Boolean(error) || leaving} onClick={() => setPlayerReady(true)}>
+          {playerReady ? "已准备" : "准备"}
+        </button>
+        <button type="button" disabled={!roomReady || !playerReady || Boolean(error) || leaving} onClick={startGameFromRoom}>
+          {action === "continue" ? "恢复游戏" : "开始游戏"}
+        </button>
+        <button type="button" disabled={leaving} onClick={error ? onBack : leaveRoom}>离开</button>
+      </div>
+    </section>
+  );
+}
+
 function parseFormalMode(value: unknown): FormalGameModeV4 {
   return value === "doubles" || value === "coop" ? value : "singles";
+}
+
+type FormalRoomGateStartResult = {
+  roomId: string;
+  roomToken: string;
+  formalRun: FormalGameRunV4;
+};
+
+const formalRoomGateStartPromises = new Map<string, Promise<FormalRoomGateStartResult>>();
+
+function formalRoomGateStartKey(profile: UserProfileV2, playerVault: PlayerVaultV4, mode: FormalGameModeV4): string {
+  return [
+    profile.id,
+    profile.updatedAt,
+    playerVault.items.length,
+    playerVault.pokemon.length,
+    playerVault.itemStoragePageCount,
+    playerVault.pokemonStoragePageCount,
+    mode,
+  ].join(":");
+}
+
+function getOrStartFormalRoomForGate(key: string, start: () => Promise<FormalRoomGateStartResult>): Promise<FormalRoomGateStartResult> {
+  const existing = formalRoomGateStartPromises.get(key);
+  if (existing) return existing;
+  const promise = start().finally(() => {
+    window.setTimeout(() => formalRoomGateStartPromises.delete(key), 30000);
+  });
+  formalRoomGateStartPromises.set(key, promise);
+  return promise;
+}
+
+function parseFormalRoomGatePath(pathname: string): {action: "start" | "continue"; mode: FormalGameModeV4} | null {
+  if (pathname === "/formal/room/continue") return {action: "continue", mode: "singles"};
+  const match = /^\/formal\/room\/start\/([^/]+)$/.exec(pathname);
+  if (!match) return null;
+  return {action: "start", mode: parseFormalMode(match[1])};
 }
 
 function bgmSceneForRoute(pathname: string, formalRun: FormalGameRunV4 | null): BgmSceneV2 {
@@ -1747,7 +1981,8 @@ function continueGameLabelFor(formalRun: FormalGameRunV4 | null, trainingRun: Tr
 }
 
 function isFormalRoomConnectionRoute(pathname: string): boolean {
-  return pathname === "/formal/resume-transition"
+  return pathname.startsWith("/formal/room/")
+    || pathname === "/formal/resume-transition"
     || pathname === "/formal/starter-select"
     || pathname === "/formal/round-transition"
     || pathname === "/formal/rest"
@@ -1755,6 +1990,10 @@ function isFormalRoomConnectionRoute(pathname: string): boolean {
     || pathname === "/formal/battle"
     || pathname === "/formal/battle-result-transition"
     || pathname === "/formal/settlement-transition";
+}
+
+function isFormalRoomSessionRoute(pathname: string): boolean {
+  return isFormalRoomConnectionRoute(pathname);
 }
 
 function isClosedFormalRoom(room: FormalRoomV1): boolean {

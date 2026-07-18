@@ -21,6 +21,7 @@
 - 服务器 Docker / Battle API：[`server-docker-battle-api-plan.md`](server-docker-battle-api-plan.md)
 - Redis 临时房间连续性：[`server-redis-battle-room-continuity-plan.md`](server-redis-battle-room-continuity-plan.md)
 - Formal Run Server Room 制作清单：[`formal-run-server-room-implementation-checklist.md`](formal-run-server-room-implementation-checklist.md)
+- Room Lobby / Match / FormalRun 三层重构：[`formal-room-lobby-match-refactor-plan.md`](formal-room-lobby-match-refactor-plan.md)
 - Battle server 选择 / Desk 离线 / 资源缓存：[`battle-server-selection-and-offline-assets-plan.md`](battle-server-selection-and-offline-assets-plan.md)
 - Battle diagnostics / AI 出招复现：[`../debug/README.md`](../debug/README.md)
 
@@ -28,7 +29,7 @@
 
 - 正式游戏主流程已经进入可持续测试阶段：开局候选、星图扩展、选人、7 场计划、休整页、战斗页、单局战后结算、最终结算和 BP 发放都已接入。
 - 正式休整商店和训练场已经完成第一版闭环：购买/售出、加权补货、课程学习、自主训练、费用、金币流水和课后流程均已接入。
-- 正式流程重计算正在从客户端/desktop worker 迁到服务器 room。当前本地 Docker 已跑通 `Battle API + Redis`，Web 可完成开始正式 singles、选 starter、生成赛程、休整、WebSocket room 长连接、休整 RunGame 同步、进入 room-aware BattleV4、提交一次指令、战斗结束、服务端最终结算和 `final-result` 短期恢复；desktop worker 保留为开发/回退能力。
+- 正式流程重计算正在从客户端/desktop worker 迁到服务器 room。当前本地 Docker 已跑通 `Battle API + Redis`，Web 可完成开始正式 singles、选 starter、生成赛程、休整、WebSocket room 长连接、休整 RunGame 同步、进入 room-aware BattleV4、提交一次指令、战斗结束、服务端最终结算和 `final-result` 短期恢复；desktop worker 保留为开发/回退能力。下一步服务器房间模型将从旧 `room === formalRun` 迁到 `Room / Match / FormalRun` 三层结构，详见 Room Lobby 重构计划。
 - Battle V4 已完成 Showdown-style playback 重构、HP 缓动修正、投降框组件化、天气持久层资源重载、Substitute 持续标记、选人页两步选择交互，以及特殊系统目标选择修复；小图闪光因本地 picon 无 shiny sheet，采用普通 picon + 星标提示。
 - 正式模式稳定性继续收口：敌方 NPC 等级按玩家最高等级动态计算，究极异兽归入神兽候选，自习收益改为等级/数值约 3:7，战斗入场同步本地 PP。
 - 休整页弹窗栈已补齐：背包打开时，技能学习替换和 Mega/Z/太晶系统道具重铸面板会显示在背包之上。
