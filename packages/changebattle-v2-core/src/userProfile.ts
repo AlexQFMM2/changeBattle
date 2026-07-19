@@ -42,6 +42,9 @@ export type UserProfileTrainerDefaultsV2 = {
 };
 
 export const USER_PROFILE_VERSION_V2 = 1 as const;
+const ASSET_URL_PROTOCOL_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
+const USER_PROFILE_ASSET_FIELDS_V4 = ["avatarAsset", "frontAsset", "frontGifAsset", "backAsset"] as const;
+type UserProfileAssetFieldV4 = typeof USER_PROFILE_ASSET_FIELDS_V4[number];
 
 export function normalizeTrainerVaultV2(value?: unknown): TrainerVaultV2 {
   const raw = isPlainRecord(value) ? value : {};
@@ -76,6 +79,40 @@ export function normalizeUserProfileV2(profile: Partial<UserProfileV2> | undefin
     starChart: normalizeStarChartV4(raw.starChart as StarChartStateV4 | null | undefined),
     trainerVault: normalizeTrainerVaultV2(raw.trainerVault),
   };
+}
+
+export function isCanonicalAssetPathV4(value: unknown): value is string {
+  const text = normalizeText(value).replaceAll("\\", "/");
+  if (!text) return false;
+  if (ASSET_URL_PROTOCOL_PATTERN.test(text) || text.startsWith("//")) return false;
+  if (text.startsWith("./") || text.startsWith("../")) return false;
+  if (text.includes("?") || text.includes("#")) return false;
+  const withoutAssetsPrefix = text.replace(/^\/+/, "").replace(/^assets\//, "");
+  if (withoutAssetsPrefix !== text.replace(/^\/+/, "")) return false;
+  const parts = withoutAssetsPrefix.split("/");
+  return parts.length > 1 && parts.every(part => Boolean(part) && part !== "." && part !== "..");
+}
+
+export function invalidUserProfileAssetFieldsV4(profile: Partial<UserProfileV2> | undefined | null): UserProfileAssetFieldV4[] {
+  const raw = isPlainRecord(profile) ? profile : {};
+  return USER_PROFILE_ASSET_FIELDS_V4.filter(field => {
+    const value = raw[field];
+    if (value === undefined || value === null || value === "") {
+      return field === "avatarAsset" || field === "frontAsset";
+    }
+    return !isCanonicalAssetPathV4(value);
+  });
+}
+
+export function isUserProfileAssetFieldsValidV4(profile: Partial<UserProfileV2> | undefined | null): boolean {
+  return invalidUserProfileAssetFieldsV4(profile).length === 0;
+}
+
+export function assertUserProfileAssetFieldsV4(profile: Partial<UserProfileV2> | undefined | null): void {
+  const invalidFields = invalidUserProfileAssetFieldsV4(profile);
+  if (invalidFields.length) {
+    throw new Error(`头像资源设置无效，请重新设置头像。(${invalidFields.join(", ")})`);
+  }
 }
 
 export function normalizeProfileNameV2(name: unknown): string {

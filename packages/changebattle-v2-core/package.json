@@ -19,7 +19,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "tsc -p tsconfig.test.json && node dist-test/formalCopyCatalog.test.js && node dist-test/desktopUpdateCatalog.test.js && node dist-test/starChartCatalog.test.js",
+    "test": "tsc -p tsconfig.test.json && node dist-test/formalCopyCatalog.test.js && node dist-test/desktopUpdateCatalog.test.js && node dist-test/starChartCatalog.test.js && node dist-test/userProfile.test.js",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

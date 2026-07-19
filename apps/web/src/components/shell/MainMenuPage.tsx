@@ -10,7 +10,7 @@ import "./MainMenuPage.css";
 
 export type MainMenuManualSaveState = "idle" | "saving" | "saved" | "error";
 
-export function MainMenuPage({api, profile, catalog, trainingRun, manualSaveState = "idle", debugFeatureEnabled = false, preferStaticBackground = false, onOpenDex, onOpenDexCard, onTraining, onCreateRoom, onStarChart, onTrainerVault, onManualSave, onEnableTestMode, onUserInfo, onNetworkSettings, onTitle}: {
+export function MainMenuPage({api, profile, catalog, trainingRun, manualSaveState = "idle", debugFeatureEnabled = false, preferStaticBackground = false, profileWarning = "", onOpenDex, onOpenDexCard, onTraining, onCreateRoom, onStarChart, onTrainerVault, onManualSave, onEnableTestMode, onUserInfo, onNetworkSettings, onTitle}: {
   api: ChangeBattleV2Api;
   profile: UserProfileV2;
   catalog: TrainerCatalogEntryV2[];
@@ -18,6 +18,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, manualSaveStat
   manualSaveState?: MainMenuManualSaveState;
   debugFeatureEnabled?: boolean;
   preferStaticBackground?: boolean;
+  profileWarning?: string;
   onOpenDex: () => void;
   onOpenDexCard: (seed: MainMenuQuickDexSeed) => void;
   onTraining: () => void;
@@ -109,7 +110,7 @@ export function MainMenuPage({api, profile, catalog, trainingRun, manualSaveStat
       <TrainerSummaryPanel profile={profile} catalog={catalog} leaving={leaving} />
       <MainMenuHome api={api} profile={profile} run={trainingRun} leaving={leaving} onOpenDexCard={onOpenDexCard} />
       <MainMenuCommandBar key={gameMenuOpen ? "new-game-menu" : "main-menu"} items={items} leaving={leaving} onChoose={choose} />
-      {notice ? <div className="main-menu-notice" role="status">{notice}</div> : null}
+      {notice || profileWarning ? <div className="main-menu-notice" role="status">{notice || profileWarning}</div> : null}
     </AnimatedPage>
   );
 }

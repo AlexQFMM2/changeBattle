@@ -10,6 +10,7 @@ import {
   createDesktopPlayerVaultAdapter,
   createDesktopTrainingRunAdapter,
   createDesktopUserProfileAdapter,
+  isUserProfileAssetFieldsValidV4,
   starChartHasSpecialTrainingLockV4,
   starChartHasOpponentRumorV4,
   starChartHasSoulmateRewardV4,
@@ -173,6 +174,9 @@ function RoutedApp({runtime}: AppProps) {
   const [lobbyBusyMessage, setLobbyBusyMessage] = useState<string | null>(null);
   const [lobbyError, setLobbyError] = useState<string | null>(null);
   const [formalRunLoaded, setFormalRunLoaded] = useState(false);
+  const profileAssetWarning = profile && !isUserProfileAssetFieldsValidV4(profile)
+    ? "头像资源设置无效，请重新设置头像。"
+    : "";
   const formalRoomSyncClientRef = useRef<FormalRoomSyncClientV4 | null>(null);
   const apiRef = useRef(api);
   const confirmedFormalRunRef = useRef<FormalGameRunV4 | null>(null);
@@ -397,7 +401,7 @@ function RoutedApp({runtime}: AppProps) {
       .then(next => {
         if (cancelled) return;
         setProfile(next);
-        setMessage(next ? "已找到本地资料。" : "还没有资料，先创建一个训练师。");
+        setMessage(next ? (isUserProfileAssetFieldsValidV4(next) ? "已找到本地资料。" : "头像资源设置无效，请重新设置头像。") : "还没有资料，先创建一个训练师。");
       })
       .catch(error => {
         if (cancelled) return;
@@ -611,11 +615,20 @@ function RoutedApp({runtime}: AppProps) {
     navigate("/user");
   }
 
+  function ensureProfileAssetFieldsReady(): boolean {
+    if (!profile || isUserProfileAssetFieldsValidV4(profile)) return true;
+    setMessage("头像资源设置无效，请重新设置头像。");
+    setEditingProfile(profile);
+    navigate("/user", {replace: true});
+    return false;
+  }
+
   async function createTrainingRunAndOpenConfig() {
     if (!profile) {
       navigate("/", {replace: true});
       return;
     }
+    if (!ensureProfileAssetFieldsReady()) return;
     await api.deleteTrainingRun();
     const next = await api.saveTrainingRun(api.createTrainingRunGame(profile));
     setTrainingRun(next);
@@ -627,6 +640,7 @@ function RoutedApp({runtime}: AppProps) {
       navigate("/", {replace: true});
       return;
     }
+    if (!ensureProfileAssetFieldsReady()) return;
     deactivateFormalRoomConnection();
     clearFormalRoomCredential();
     setFormalRun(null);
@@ -779,6 +793,7 @@ function RoutedApp({runtime}: AppProps) {
 
   async function enableTestMode() {
     if (!profile) return;
+    if (!ensureProfileAssetFieldsReady()) return;
     try {
       const next = await api.enableTestMode(profile);
       setProfile(next);
@@ -790,6 +805,7 @@ function RoutedApp({runtime}: AppProps) {
 
   async function saveAllCurrentState() {
     if (!profile || manualSaveState === "saving") return;
+    if (!ensureProfileAssetFieldsReady()) return;
     setManualSaveState("saving");
     setMessage("存档中...");
     try {
@@ -1299,6 +1315,7 @@ function RoutedApp({runtime}: AppProps) {
         onStarChart={() => navigate("/star-chart")}
         onTrainerVault={() => navigate("/trainer-vault")}
         onManualSave={() => void saveAllCurrentState()}
+        profileWarning={profileAssetWarning}
         manualSaveState={manualSaveState}
         debugFeatureEnabled={DEBUG_FEATURE_ENABLED}
         onEnableTestMode={() => void enableTestMode()}

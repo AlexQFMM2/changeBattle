@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import net from "node:net";
 import {pathToFileURL} from "node:url";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import {claimFormalSettlementBp, createChangeBattleV2Api, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
+import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAssetFieldsV4, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmUseFailureReasonV4} from "./itemEffects.js";
 import {createMemoryRedisLikeProvider, createRedisSocketProvider, type RedisLikeCommandProvider} from "./roomStore.js";
 import {buildBattleSessionFormalRunV5, buildFormalRunCompatViewV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, ingestFormalRunCompatStateV5, ingestPreparedRoundPlanV5, markBattleRunningV5, reorderPlayerTeamV5, selectStarterPokemonV5, type RunGameV5} from "./runGameV5.js";
@@ -887,6 +887,7 @@ async function createFormalRoom(body: any): Promise<Record<string, unknown>> {
   const memberId = randomToken(14);
   const roomCustomId = createRoomCustomId();
   const profileSnapshot = body?.profileSnapshot && typeof body.profileSnapshot === "object" ? body.profileSnapshot as Partial<UserProfileV2> : null;
+  if (profileSnapshot) assertProfileSnapshotAssetFields(profileSnapshot);
   const memberName = typeof body?.memberName === "string" && body.memberName.trim()
     ? body.memberName.trim().slice(0, 16)
     : typeof profileSnapshot?.name === "string" && profileSnapshot.name.trim()
@@ -941,6 +942,7 @@ async function createFormalLobbyMatch(roomId: string, request: http.IncomingMess
   }
   const now = new Date();
   const member = getSelfMember(current);
+  assertProfileSnapshotAssetFields(body?.profileSnapshot as Partial<UserProfileV2> | null | undefined);
   const mode = normalizeFormalRoomMode(body?.mode);
   const battlePreferenceSnapshot = normalizeBattlePreferenceV4(
     body?.battlePreferenceSnapshot && typeof body.battlePreferenceSnapshot === "object"
@@ -1355,6 +1357,14 @@ function getSelfMember(room: FormalRoomRecordV1): FormalLobbyMemberV1 {
 
 function createRoomCustomId(): string {
   return `G${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function assertProfileSnapshotAssetFields(profileSnapshot: Partial<UserProfileV2> | null | undefined): void {
+  if (!profileSnapshot) return;
+  const invalidFields = invalidUserProfileAssetFieldsV4(profileSnapshot);
+  if (invalidFields.length) {
+    throw new HttpError(400, "invalid_profile_avatar_asset", "头像资源设置无效，请重新设置头像。");
+  }
 }
 
 function formalModeMatchTitle(mode: FormalGameModeV4): string {

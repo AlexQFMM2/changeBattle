@@ -12,6 +12,7 @@ import {
   normalizeSaveTableV4,
   normalizeTrainerVaultV2,
   normalizeUserProfileV2,
+  assertUserProfileAssetFieldsV4,
   playerPokemonHonorBadgeStateV4,
   playerVaultStorageCapacityV4,
   playerVaultUnlockedStoragePageCountV4,
@@ -96,6 +97,7 @@ export {
 } from "./serverConfig.js";
 export {battleKeyFromRosterIdentityV4, canonicalBattleKeyV4, isProtocolBattleKeyV4} from "@changebattle-v2/showdown-battle-core/battleIdentity";
 export {dexLabelToId, toDexId, translateDexDescription, translateDexLabel} from "@changebattle-v2/showdown-dex-core";
+export {assertUserProfileAssetFieldsV4, invalidUserProfileAssetFieldsV4, isCanonicalAssetPathV4, isUserProfileAssetFieldsValidV4} from "@changebattle-v2/core";
 export type {PlayerItemRecordV4, PlayerPokemonMoveRecordV4, PlayerPokemonRecordV4, PlayerVaultMergeResultV4, PlayerVaultPokemonReleaseResultV4, PlayerVaultV4, RestCenterActionEntryV4, SoulmateCandidateV4, TrainerVaultV2, UserProfileDraftV2, UserProfileV2};
 export type {FormalSoulmateBattleFriendshipSettlementResultV4, FormalSoulmateEggClaimResultV4, FormalSoulmateEggHatchResultV4, FormalSoulmateEggPokemonDisplayV4, FormalSoulmateFriendshipSettlementRecordV4, FormalSoulmateHonorSettlementRecordV4, FormalSoulmateHonorSettlementResultV4};
 export type {DebugPlayerVaultItemAddResultV4, DebugPlayerVaultPokemonAddResultV4} from "./debugVault.js";
@@ -551,7 +553,6 @@ const TRAINER_CATALOG: TrainerCatalogV2 = {
 TRAINER_CATALOG.avatars = TRAINER_CATALOG.trainers;
 
 export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) {
-  const publicAssetPrefix = publicAssetPrefixFromShowdownPrefix(options.resourcePrefix);
   const dex = createShowdownDexService({
     dex: options.dex,
     resourcePrefix: options.resourcePrefix,
@@ -611,17 +612,19 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
     setPlayerVaultPokemonBattleMarked: (input: {vault: PlayerVaultV4; pokemonId: string; marked: boolean}) => setPlayerVaultPokemonBattleMarkedV4(input.vault, input.pokemonId, input.marked),
     addDebugPlayerVaultItem: (vault: PlayerVaultV4, itemId: string, quantity = 1) => addDebugPlayerVaultItemV4(dex, vault, itemId, quantity),
     addDebugPlayerVaultPokemon: (vault: PlayerVaultV4, speciesId: string) => addDebugPlayerVaultPokemonV4(dex, vault, speciesId),
-    getTrainerCatalog: () => normalizeTrainerCatalogAssets(TRAINER_CATALOG, publicAssetPrefix),
+    getTrainerCatalog: () => clone(TRAINER_CATALOG),
     loadUserProfile: async () => {
       const profile = await userProfiles.loadUserProfile();
-      return profile ? normalizeProfileAssets(profile, publicAssetPrefix) : null;
+      return profile ? normalizeProfile(profile) : null;
     },
     createUserProfile: async (draft: UserProfileDraftV2 = {}) => {
-      const profile = normalizeProfileAssets(createDefaultUserProfile(draft), publicAssetPrefix);
+      const profile = createDefaultUserProfile(draft);
+      assertUserProfileAssetFieldsV4(profile);
       return userProfiles.saveUserProfile(profile);
     },
     updateUserProfile: async (profile: UserProfileV2, draft: UserProfileDraftV2 = {}) => {
-      const next = normalizeProfileAssets(updateUserProfile(profile, draft), publicAssetPrefix);
+      const next = updateUserProfile(profile, draft);
+      assertUserProfileAssetFieldsV4(next);
       return userProfiles.saveUserProfile(next);
     },
     updateBattlePreference: async (profile: UserProfileV2, battlePreference: Partial<BattlePreferenceV4>) => {
@@ -1053,6 +1056,7 @@ export function createBrowserUserProfileAdapter(storageKey = DEFAULT_BROWSER_PRO
     },
     async saveUserProfile(profile) {
       const next = normalizeProfile(profile);
+      assertUserProfileAssetFieldsV4(next);
       if (hasBrowserStorage()) {
         window.localStorage.setItem(storageKey, JSON.stringify(next, null, 2));
       }
@@ -1092,7 +1096,11 @@ export function createDesktopUserProfileAdapter(bridge: DesktopUserProfileBridge
       return profile ? normalizeProfile(profile) : null;
     },
     async saveUserProfile(profile) {
-      return normalizeProfile(await bridge.saveUserProfile(normalizeProfile(profile)));
+      const next = normalizeProfile(profile);
+      assertUserProfileAssetFieldsV4(next);
+      const saved = normalizeProfile(await bridge.saveUserProfile(next));
+      assertUserProfileAssetFieldsV4(saved);
+      return saved;
     },
     async deleteUserProfile() {
       await bridge.deleteUserProfile();
@@ -1146,48 +1154,6 @@ export function createDesktopFormalGameRunAdapter(bridge: DesktopFormalGameRunBr
 
 function trainerFor(id: string | undefined): TrainerCatalogEntryV2 {
   return TRAINER_CATALOG.trainers.find(trainer => trainer.id === id) || TRAINER_CATALOG.trainers[0]!;
-}
-
-function publicAssetPrefixFromShowdownPrefix(resourcePrefix?: string): string {
-  const prefix = resourcePrefix || "/showdown/";
-  const normalized = prefix.endsWith("/") ? prefix : `${prefix}/`;
-  return normalized.replace(/showdown\/$/, "");
-}
-
-function normalizePublicAssetPath(path: string | undefined, publicAssetPrefix: string): string | undefined {
-  if (!path) return undefined;
-  if (/^(https?:|data:|blob:|file:|capacitor:)/i.test(path)) return path;
-  if (path.startsWith("./") || path.startsWith("../")) return path;
-  const cleanPath = path.replace(/^\/+/, "").replace(/^assets\//, "");
-  return cleanPath ? `${publicAssetPrefix}${cleanPath}` : publicAssetPrefix;
-}
-
-function normalizeTrainerAssets(trainer: TrainerCatalogEntryV2, publicAssetPrefix: string): TrainerCatalogEntryV2 {
-  return {
-    ...trainer,
-    frontAsset: normalizePublicAssetPath(trainer.frontAsset, publicAssetPrefix) || "",
-    frontGifAsset: normalizePublicAssetPath(trainer.frontGifAsset, publicAssetPrefix),
-    backAsset: normalizePublicAssetPath(trainer.backAsset, publicAssetPrefix),
-    avatarAsset: normalizePublicAssetPath(trainer.avatarAsset, publicAssetPrefix) || "",
-  };
-}
-
-function normalizeTrainerCatalogAssets(catalog: TrainerCatalogV2, publicAssetPrefix: string): TrainerCatalogV2 {
-  const trainers = catalog.trainers.map(trainer => normalizeTrainerAssets(trainer, publicAssetPrefix));
-  const byId = new Map(trainers.map(trainer => [trainer.id, trainer]));
-  const avatars = catalog.avatars.map(trainer => byId.get(trainer.id) || normalizeTrainerAssets(trainer, publicAssetPrefix));
-  return {trainers, avatars};
-}
-
-function normalizeProfileAssets(profile: UserProfileV2, publicAssetPrefix: string): UserProfileV2 {
-  const next = normalizeProfile(profile);
-  return {
-    ...next,
-    avatarAsset: normalizePublicAssetPath(next.avatarAsset, publicAssetPrefix) || next.avatarAsset,
-    frontAsset: normalizePublicAssetPath(next.frontAsset, publicAssetPrefix) || next.frontAsset,
-    frontGifAsset: normalizePublicAssetPath(next.frontGifAsset, publicAssetPrefix),
-    backAsset: normalizePublicAssetPath(next.backAsset, publicAssetPrefix),
-  };
 }
 
 function normalizeProfile(profile: UserProfileV2): UserProfileV2 {
