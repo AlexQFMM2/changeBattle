@@ -709,29 +709,6 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       serverApi.postApi<FormalRoomV1>("rooms.selectStarters", {roomId: input.roomId, selectedIndexes: input.selectedIndexes}, {roomToken: input.roomToken}),
     prepareFormalRoomRound: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<FormalRoomV1>> =>
       serverApi.postApi<FormalRoomV1>("rooms.prepareRound", {roomId: input.roomId}, {roomToken: input.roomToken}),
-    syncFormalRoomDraft: (input: {roomId: string; roomToken: string; clientActionId: string; baseRevision?: number; formalRunDraft: FormalGameRunV4; label?: string}): Promise<PostServiceResultV4<FormalRoomDraftSyncResultV1>> =>
-      serverApi.postApi<FormalRoomDraftSyncResultV1>("rooms.syncDraft", {
-        roomId: input.roomId,
-        clientActionId: input.clientActionId,
-        baseRevision: input.baseRevision,
-        formalRunDraft: input.formalRunDraft,
-        label: input.label,
-      }, {roomToken: input.roomToken}),
-    submitFormalRoomRestAction: (input: {roomId: string; roomToken: string; clientActionId: string; baseRevision?: number; formalRunDraft: FormalGameRunV4; action: FormalRoomRestActionV1}): Promise<PostServiceResultV4<FormalRoomRestActionResultV1>> =>
-      serverApi.postApi<FormalRoomRestActionResultV1>("rooms.restAction", {
-        roomId: input.roomId,
-        clientActionId: input.clientActionId,
-        baseRevision: input.baseRevision,
-        formalRunDraft: input.formalRunDraft,
-        action: input.action,
-      }, {roomToken: input.roomToken}),
-    prepareFormalRoomBattle: (input: {roomId: string; roomToken: string; clientRequestId: string; baseRevision?: number; formalRunDraft: FormalGameRunV4}): Promise<PostServiceResultV4<FormalRoomBattlePrepareResultV1>> =>
-      serverApi.postApi<FormalRoomBattlePrepareResultV1>("rooms.prepareBattle", {
-        roomId: input.roomId,
-        clientRequestId: input.clientRequestId,
-        baseRevision: input.baseRevision,
-        formalRunDraft: input.formalRunDraft,
-      }, {roomToken: input.roomToken}),
     getFormalRoomBattleSnapshot: (input: {roomId: string; roomToken: string}): Promise<PostServiceResultV4<BattleSessionSnapshotV4>> =>
       serverApi.postApi<BattleSessionSnapshotV4>("rooms.getBattleSnapshot", {roomId: input.roomId}, {roomToken: input.roomToken}),
     getFormalRoomBattlePlaybackTimeline: (input: {roomId: string; roomToken: string; from?: number}): Promise<PostServiceResultV4<ShowdownPlaybackTimelineV4>> =>
@@ -923,7 +900,7 @@ function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, inp
   const {roomId, roomToken, matchId} = input;
   return {
     async createBattleSession() {
-      throw new Error("正式房间战斗必须通过 prepareFormalRoomBattle 创建。");
+      throw new Error("正式房间战斗必须通过 match-scoped prepare-battle command 创建。");
     },
     async submitChoice(_sessionId, playerId, choice) {
       const clientActionId = createClientActionIdV4("choice");

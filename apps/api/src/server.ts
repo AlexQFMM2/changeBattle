@@ -29,6 +29,7 @@ type ServerConfig = {
   roomDisconnectedAfterMs: number;
   roomClosedAfterMs: number;
   roomSweepIntervalMs: number;
+  enableLegacyFormalRoutes: boolean;
   startedAt: number;
   version: string;
 };
@@ -276,6 +277,11 @@ function createHttpRequestHandler(): http.RequestListener {
     const roomBattleSnapshotMatch = /^\/rooms\/([^/]+)\/battle\/snapshot$/.exec(pathname);
     const roomBattleTimelineMatch = /^\/rooms\/([^/]+)\/battle\/playback-timeline$/.exec(pathname);
     const roomBattleChoiceMatch = /^\/rooms\/([^/]+)\/battle\/choices$/.exec(pathname);
+
+    const legacyFormalRouteMatch = roomSelectStartersMatch || roomPrepareRoundMatch || roomRestActionMatch || roomSyncDraftMatch || roomPrepareBattleMatch || roomFinalizeBattleMatch || roomFinalizeRunMatch;
+    if (legacyFormalRouteMatch && !config.enableLegacyFormalRoutes) {
+      throw new HttpError(410, "legacy_formal_route_disabled", "旧正式流程房间接口已禁用，请使用 match-scoped command。");
+    }
 
     if (request.method === "GET" && roomMatch) {
       const roomId = decodeURIComponent(roomMatch[1]!);
@@ -753,6 +759,7 @@ function loadConfig(): ServerConfig {
     roomDisconnectedAfterMs: numberEnv("CHANGEBATTLE_ROOM_DISCONNECTED_AFTER_MS", 5 * 60 * 1000),
     roomClosedAfterMs: numberEnv("CHANGEBATTLE_ROOM_CLOSED_AFTER_MS", 10 * 60 * 1000),
     roomSweepIntervalMs: numberEnv("CHANGEBATTLE_ROOM_SWEEP_INTERVAL_MS", 60 * 1000),
+    enableLegacyFormalRoutes: booleanEnv("CHANGEBATTLE_ENABLE_LEGACY_FORMAL_ROUTES", false),
     startedAt: Date.now(),
     version: process.env.npm_package_version || process.env.CHANGEBATTLE_VERSION || "0.1.0",
   };
