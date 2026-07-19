@@ -53,7 +53,7 @@ import {
 } from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalGameRunV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
-import {applyBattleFinalizedResultV5, applyTrainingLessonV5, buildFormalRunCompatViewV5, commitFinalSettlementV5, createRunGameV5FromStarterRun, ingestPreparedRoundPlanV5, selectStarterPokemonV5} from "./runGameV5.js";
+import {applyTrainingLessonV5, buildFormalRunCompatViewV5, commitFinalSettlementV5, createRunGameV5FromStarterRun, finalizeBattleResultFromSnapshotV5, ingestPreparedRoundPlanV5, prepareBattleSessionFromRunGameV5, selectStarterPokemonV5} from "./runGameV5.js";
 import {
   CARRY_PREP_ITEMS_NODE_ID,
   COMPULSORY_EDUCATION_NODE_ID,
@@ -2317,7 +2317,55 @@ assert(!v5CommandLogForbidden.test(JSON.stringify(v5Run.commandLog)), "RunGameV5
 assert(!v5MapForbidden.test(JSON.stringify(v5Run.gameMap)), "RunGameV5 gameMap should only contain node slot references");
 assert(!v5MapForbidden.test(JSON.stringify(v5Run.roundPlan)), "RunGameV5 roundPlan should only contain node slot references");
 const v5BattleCompat = buildFormalRunCompatViewV5(v5Run);
-v5Run = applyBattleFinalizedResultV5(v5Run, {compatRun: v5BattleCompat, commandId: "v5-redline-finalize-battle", destination: "settlement", reason: "surrender"});
+const preparedV5BattleSession = prepareBattleSessionFromRunGameV5(v5Run);
+const preparedV5P1 = preparedV5BattleSession.sessionInput.players.find(player => player.playerId === "p1")!;
+const preparedV5P1Pokemon = preparedV5P1.draft.localTeam.pokemon[0]!;
+const preparedV5P1Mapping = preparedV5P1.teamMapping?.[0]!;
+const finalizedV5Battle = finalizeBattleResultFromSnapshotV5(v5Run, {
+  commandId: "v5-redline-finalize-battle",
+  snapshot: {
+    id: "v5-redline-battle-session",
+    runId: v5Run.runId,
+    nodeId: v5Run.currentNodeId || v5BattleCompat.roundPlan[0]!.id,
+    status: "ended",
+    mode: "singles",
+    ruleSet: "standard",
+    turn: 3,
+    winner: "p1",
+    error: null,
+    players: preparedV5BattleSession.sessionInput.players,
+    requests: {},
+    active: [],
+    teamStateByPlayer: {
+      p1: {
+        updatedAt: new Date().toISOString(),
+        pokemonByToken: {
+          [preparedV5P1Mapping.showdownIdentityToken]: {
+            localPokemonId: preparedV5P1Pokemon.localPokemonId,
+            showdownIdentityToken: preparedV5P1Mapping.showdownIdentityToken,
+            showdownId: preparedV5P1Mapping.showdownId,
+            pokeballId: preparedV5P1Mapping.pokeballId,
+            hp: 7,
+            maxHp: preparedV5P1Pokemon.maxHp,
+            status: "par",
+            fainted: false,
+            moves: [{moveId: preparedV5P1Pokemon.moves[0]!.moveId, remainingPp: 1, maxPp: preparedV5P1Pokemon.moves[0]!.maxPp}],
+          },
+        },
+      },
+    },
+    rawLog: ["|win|P1"],
+    debug: {inputLog: [], lastChoices: [], playerStreams: []},
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as never,
+});
+v5Run = finalizedV5Battle.run;
+const finalizedV5Pokemon = v5Run.pokemonById[preparedV5P1Pokemon.localPokemonId]!.localPokemon;
+assert(finalizedV5Battle.result.destination === "rest", "RunGameV5 battle finalize should route won non-final rounds back to rest");
+assert(finalizedV5Pokemon.entryHp === 7 && finalizedV5Pokemon.entryStatus === "par", "RunGameV5 battle finalize should sync HP/status into PokemonInstance");
+assert(finalizedV5Pokemon.moves[0]?.remainingPp === 1, "RunGameV5 battle finalize should sync PP into PokemonInstance");
+assert(v5Run.restState.roundSettlementByNodeId?.[preparedV5BattleSession.sessionInput.nodeId], "RunGameV5 battle finalize should write a light round settlement record");
 const v5SettledCompat = api.prepareFormalSettlement(buildFormalRunCompatViewV5(v5Run), "surrender");
 v5Run = commitFinalSettlementV5(v5Run, {
   commandId: "v5-redline-finalize-run",

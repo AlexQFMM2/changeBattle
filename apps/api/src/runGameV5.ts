@@ -1,8 +1,9 @@
-import type {BattlePreferenceV4, FormalCompetitionModeV4, PlayerItemInstanceV4, ShowdownPlayerIdV4, StatTableV4, TrainingAllianceV4, TrainingCoinLogEntryV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4, TrainingRuleSetV4} from "./training.js";
+import type {BattlePreferenceV4, FormalCompetitionModeV4, PlayerItemInstanceV4, ShowdownPlayerIdV4, StatTableV4, TrainingAllianceV4, TrainingBattleLogEntryV4, TrainingCoinLogEntryV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4, TrainingRuleSetV4, TrainingStatusV4} from "./training.js";
 import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRoundNpcSnapshotV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import type {LocalPokemonV4, LocalTeamV4} from "./training.js";
 import type {PlayerVaultV4, UserProfileV2} from "./index.js";
-import {createBattleGameFromNodeDraft, type BattleGameV4, type BattleSessionCreateInputV4} from "./battle.js";
+import {createBattleGameFromNodeDraft, type BattleGameV4, type BattleSessionCreateInputV4, type BattleSessionSnapshotV4, type BattleTeamPokemonStateV4} from "./battle.js";
+import {starChartHasRuntimeEffectV4} from "./starChart.js";
 
 export type PlayerInstanceIdV5 = string;
 export type PokemonInstanceIdV5 = string;
@@ -1144,6 +1145,294 @@ export function applyBattleFinalizedResultV5(run: RunGameV5, input: {compatRun: 
       nodeId: currentNodeId || null,
     }, iso, run.revision + 1),
   });
+}
+
+export function finalizeBattleResultFromSnapshotV5(run: RunGameV5, input: {snapshot: BattleSessionSnapshotV4; commandId: string; reason?: FormalBattleResultFinalizeReasonV4; settlementNotice?: string}, now = new Date()): {run: RunGameV5; result: {destination: "rest" | "settlement"; reason?: FormalBattleResultFinalizeReasonV4; settlementNotice?: string}} {
+  const repeated = run.commandLog[input.commandId];
+  if (repeated) {
+    const result = repeated.result as {destination?: "rest" | "settlement"; reason?: FormalBattleResultFinalizeReasonV4; settlementNotice?: string} | null | undefined;
+    return {run, result: {destination: result?.destination || "settlement", reason: result?.reason, settlementNotice: result?.settlementNotice}};
+  }
+
+  const snapshot = input.snapshot;
+  const iso = now.toISOString();
+  const currentNode = run.gameMap.nodes.find(node => node.nodeId === snapshot.nodeId)
+    || (run.currentNodeId ? run.gameMap.nodes.find(node => node.nodeId === run.currentNodeId) : null)
+    || run.gameMap.nodes.find(node => node.state === "running" || node.state === "preparing" || node.state === "ready")
+    || run.gameMap.nodes[0];
+  if (!currentNode) throw new Error("当前没有可结算的战斗节点。");
+
+  const synced = syncBattleSnapshotEntitiesV5(run, snapshot, currentNode, iso);
+  const p1Won = snapshot.winner === "p1" || snapshot.winner === "p3";
+  const forcedLoss = input.reason === "surrender";
+  const won = !forcedLoss && snapshot.status === "ended" && p1Won;
+  const finalReason: FormalBattleResultFinalizeReasonV4 | undefined = forcedLoss
+    ? "surrender"
+    : won ? undefined : "loss";
+
+  let playersById = synced.playersById;
+  let pokemonById = synced.pokemonById;
+  let restState: RunGameV5["restState"] = {
+    ...run.restState,
+    battleLog: appendBattleSummaryLogV5(run.restState.battleLog || [], snapshot, currentNode.nodeId, won, input.commandId, iso),
+  };
+
+  let currentNodeId = run.currentNodeId || currentNode.nodeId;
+  const nextNodes = run.gameMap.nodes.map(node => {
+    if (node.nodeId !== currentNode.nodeId) return node;
+    return {
+      ...node,
+      state: snapshot.status === "ended" ? (won ? "won" as const : "lost" as const) : "running" as const,
+      battleGame: {
+        id: node.battleGame?.id || snapshot.id,
+        status: snapshot.status === "ended" ? "ended" as const : snapshot.status === "blocked" ? "blocked" as const : "running" as const,
+      },
+      startedAt: node.startedAt || snapshot.createdAt,
+      endedAt: snapshot.status === "ended" ? iso : node.endedAt,
+    };
+  });
+  const nodeIndex = nextNodes.findIndex(node => node.nodeId === currentNode.nodeId);
+
+  if (won) {
+    const settlement = settleWonBattleRoundEntitiesV5({...run, playersById, pokemonById, gameMap: {nodes: nextNodes}, restState}, currentNode, input.commandId, iso);
+    playersById = settlement.playersById;
+    pokemonById = settlement.pokemonById;
+    restState = settlement.restState;
+    if (nodeIndex >= 0 && nextNodes[nodeIndex + 1]?.state === "locked") {
+      nextNodes[nodeIndex + 1] = {...nextNodes[nodeIndex + 1]!, state: "ready"};
+    }
+    currentNodeId = nextNodes[nodeIndex + 1]?.nodeId || currentNode.nodeId;
+  }
+
+  const completeAfterUnlock = won && nextNodes.length > 0 && nextNodes.every(node => node.state === "won");
+  const destination: "rest" | "settlement" = finalReason || completeAfterUnlock ? "settlement" : "rest";
+  const nextStatus: RunGameStatusV5 = destination === "settlement" ? "settlement_ready" : "resting";
+  const result = {
+    destination,
+    reason: finalReason || (destination === "settlement" ? "complete" as const : undefined),
+    settlementNotice: input.settlementNotice || "",
+    nodeId: currentNode.nodeId,
+  };
+
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      status: nextStatus,
+      phase: destination === "settlement" ? "settlement" : "rest",
+      revision: run.revision + 1,
+      updatedAt: iso,
+      playersById,
+      pokemonById,
+      gameMap: {nodes: nextNodes},
+      currentNodeId,
+      restState,
+      commandLog: appendCommandLog(run, input.commandId, "finalize-battle", result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+function syncBattleSnapshotEntitiesV5(run: RunGameV5, snapshot: BattleSessionSnapshotV4, node: GameMapNodeV5, updatedAt: string): Pick<RunGameV5, "playersById" | "pokemonById"> {
+  const playersById = {...run.playersById};
+  const pokemonById = {...run.pokemonById};
+  for (const snapshotPlayer of snapshot.players) {
+    const playerId = node.slots[snapshotPlayer.playerId];
+    const player = playerId ? playersById[playerId] : null;
+    if (!player) continue;
+    let changed = false;
+    for (const pokemonId of player.localTeamPokemonIds) {
+      const entry = pokemonById[pokemonId];
+      if (!entry || entry.ownerPlayerId !== player.playerId) continue;
+      const teamIndex = snapshotPlayer.teamMapping?.find(mapping => mapping.localPokemonId === pokemonId)?.teamIndex
+        ?? snapshotPlayer.draft.localTeam.pokemon.findIndex(pokemon => pokemon.localPokemonId === pokemonId);
+      const draftPokemon = snapshotPlayer.draft.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === pokemonId) || (teamIndex >= 0 ? snapshotPlayer.draft.localTeam.pokemon[teamIndex] : null);
+      const state = battlePokemonStateForV5(snapshot, snapshotPlayer.playerId, pokemonId, teamIndex, snapshotPlayer.teamMapping || []);
+      const nextPokemon = syncLocalPokemonFromBattleStateV5(entry.localPokemon, draftPokemon || null, state);
+      if (nextPokemon !== entry.localPokemon) {
+        pokemonById[pokemonId] = {...entry, localPokemon: nextPokemon, updatedAt};
+        changed = true;
+      }
+    }
+    if (changed) playersById[player.playerId] = {...player, updatedAt};
+  }
+  return {playersById, pokemonById};
+}
+
+function battlePokemonStateForV5(snapshot: BattleSessionSnapshotV4, playerId: ShowdownPlayerIdV4, pokemonId: string, teamIndex: number, mappings: Array<{localPokemonId?: string; showdownIdentityToken?: string; showdownId?: string; pokeballId?: string; teamIndex?: number}>): BattleTeamPokemonStateV4 | null {
+  const state = snapshot.teamStateByPlayer?.[playerId];
+  if (!state) return null;
+  const mapping = mappings.find(entry => entry.localPokemonId === pokemonId)
+    || mappings.find(entry => typeof entry.teamIndex === "number" && entry.teamIndex === teamIndex);
+  const tokens = [
+    pokemonId,
+    mapping?.showdownIdentityToken,
+    mapping?.showdownId,
+    mapping?.pokeballId,
+  ].map(tokenV5).filter(Boolean);
+  for (const token of tokens) {
+    const entry = state.pokemonByToken[token];
+    if (entry) return entry;
+  }
+  return Object.values(state.pokemonByToken).find(entry => entry.localPokemonId === pokemonId) || null;
+}
+
+function syncLocalPokemonFromBattleStateV5(current: LocalPokemonV4, draftPokemon: LocalPokemonV4 | null, state: BattleTeamPokemonStateV4 | null): LocalPokemonV4 {
+  let next = current;
+  if (draftPokemon) {
+    const draftMoves = localMoveSlotsEqualV5(draftPokemon.moves, current.moves) ? current.moves : draftPokemon.moves || current.moves;
+    next = {
+      ...next,
+      moves: draftMoves,
+      itemId: draftPokemon.itemId,
+      heldItemInstanceId: draftPokemon.heldItemInstanceId,
+      friendship: draftPokemon.friendship ?? next.friendship,
+    };
+  }
+  if (!state) return next === current ? current : next;
+  const maxHp = Math.max(1, Math.floor(Number(next.maxHp || current.maxHp || state.maxHp || 1)));
+  const hp = state.fainted || state.hp <= 0
+    ? 0
+    : state.maxHp && state.maxHp !== maxHp
+      ? Math.max(1, Math.round(state.hp / Math.max(1, state.maxHp) * maxHp))
+      : clampIntV5(state.hp, 0, maxHp, next.entryHp);
+  const moves = syncMovePpFromBattleStateV5(next.moves, state.moves || []);
+  const entryStatus = normalizeBattleStatusV5(state.status);
+  if (next.entryHp === hp && next.entryStatus === entryStatus && moves === next.moves) return next === current ? current : next;
+  return {
+    ...next,
+    maxHp,
+    entryHp: hp,
+    entryStatus,
+    moves,
+  };
+}
+
+function settleWonBattleRoundEntitiesV5(run: RunGameV5, wonNode: GameMapNodeV5, commandId: string, at: string): Pick<RunGameV5, "playersById" | "pokemonById" | "restState"> {
+  if (run.restState.roundSettlementByNodeId?.[wonNode.nodeId]) {
+    return {playersById: run.playersById, pokemonById: run.pokemonById, restState: run.restState};
+  }
+  const self = requirePlayer(run, run.selfPlayerId);
+  const playersById = {...run.playersById};
+  const pokemonById = {...run.pokemonById};
+  const revivedPokemonIds: string[] = [];
+  const emergencyHealedPokemonIds: string[] = [];
+  const outpatientHealedPokemonIds: string[] = [];
+  const leveledPokemonIds: string[] = [];
+  const hasEmergencyCare = starChartHasRuntimeEffectV4(self.starChartSnapshot, "post_battle_revive_half_hp");
+  const hasOutpatientCare = starChartHasRuntimeEffectV4(self.starChartSnapshot, "post_battle_heal_alive_quarter_hp");
+
+  for (const pokemonId of self.localTeamPokemonIds) {
+    const entry = pokemonById[pokemonId];
+    if (!entry) continue;
+    const pokemon = entry.localPokemon;
+    const maxHp = Math.max(1, Math.floor(Number(pokemon.maxHp || 1)));
+    const beforeHp = clampIntV5(pokemon.entryHp, 0, maxHp, maxHp);
+    let nextPokemon = {...pokemon, entryHp: beforeHp, maxHp};
+    if (beforeHp <= 0) {
+      revivedPokemonIds.push(pokemonId);
+      const targetHp = hasEmergencyCare ? Math.ceil(maxHp / 2) : 1;
+      nextPokemon = {...nextPokemon, entryHp: clampIntV5(targetHp, 1, maxHp, 1)};
+      if (hasEmergencyCare) emergencyHealedPokemonIds.push(pokemonId);
+    } else if (hasOutpatientCare && beforeHp < maxHp) {
+      const healedHp = clampIntV5(beforeHp + Math.ceil(maxHp / 4), 0, maxHp, beforeHp);
+      if (healedHp > beforeHp) {
+        nextPokemon = {...nextPokemon, entryHp: healedHp};
+        outpatientHealedPokemonIds.push(pokemonId);
+      }
+    }
+    if (nextPokemon !== pokemon) pokemonById[pokemonId] = {...entry, localPokemon: nextPokemon, updatedAt: at};
+  }
+
+  const reviveCostPerPokemon = Math.max(0, Math.floor(Number(run.restState.medicalInsurance?.reviveCostPerPokemon ?? 50)));
+  const reviveCost = revivedPokemonIds.length * reviveCostPerPokemon;
+  const rewardCoins = 500;
+  const balanceBefore = self.money;
+  const balanceAfter = clampIntV5(balanceBefore + rewardCoins - reviveCost, 0, 999999, balanceBefore);
+  playersById[self.playerId] = {...self, money: balanceAfter, updatedAt: at};
+  const settlement = {
+    nodeId: wonNode.nodeId,
+    rewardCoins,
+    reviveCost,
+    netCoins: rewardCoins - reviveCost,
+    revivedPokemonIds,
+    emergencyHealedPokemonIds,
+    outpatientHealedPokemonIds,
+    leveledPokemonIds,
+    createdAt: at,
+  };
+  let coinLog = appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(`${commandId}:reward`, "round-settlement", `第 ${wonNode.index + 1} 场胜利奖励`, rewardCoins, balanceBefore, clampIntV5(balanceBefore + rewardCoins, 0, 999999, balanceBefore), wonNode.index, at));
+  if (reviveCost > 0) {
+    coinLog = appendCoinLogV5(coinLog, coinLogEntryV5(`${commandId}:medical`, "round-settlement", `第 ${wonNode.index + 1} 场工厂医疗`, -reviveCost, clampIntV5(balanceBefore + rewardCoins, 0, 999999, balanceBefore), balanceAfter, wonNode.index, at));
+  }
+  return {
+    playersById,
+    pokemonById,
+    restState: {
+      ...run.restState,
+      roundSettlementByNodeId: {
+        ...(run.restState.roundSettlementByNodeId || {}),
+        [wonNode.nodeId]: settlement,
+      },
+      coinLog,
+    },
+  };
+}
+
+function appendBattleSummaryLogV5(log: TrainingBattleLogEntryV4[], snapshot: BattleSessionSnapshotV4, nodeId: string, won: boolean, commandId: string, at: string): TrainingBattleLogEntryV4[] {
+  const key = `battle-finalize:${snapshot.id}:${commandId}`;
+  if (log.some(entry => entry.key === key)) return log;
+  const entry: TrainingBattleLogEntryV4 = {
+    id: key,
+    key,
+    at,
+    sessionId: snapshot.id,
+    nodeId,
+    turn: Math.max(0, Math.floor(Number(snapshot.turn || 0))),
+    rawLogIndex: Math.max(0, snapshot.rawLog.length),
+    eventType: "win",
+    sourcePlayerId: snapshot.winner || undefined,
+    rawLine: won ? "|win|p1" : `|win|${snapshot.winner || "opponent"}`,
+  };
+  return [...log, entry].slice(-500);
+}
+
+function syncMovePpFromBattleStateV5(moves: TrainingMoveSlotV4[], stateMoves: Array<{moveId: string; remainingPp: number; maxPp: number}>): TrainingMoveSlotV4[] {
+  if (!stateMoves.length) return moves;
+  let changed = false;
+  const byMoveId = new Map(stateMoves.map(move => [tokenV5(move.moveId), move]));
+  const next = moves.map(move => {
+    const patch = byMoveId.get(tokenV5(move.moveId));
+    if (!patch) return move;
+    const remainingPp = clampIntV5(patch.remainingPp, 0, Math.max(1, patch.maxPp || move.maxPp || move.pp || 1), move.remainingPp);
+    const maxPp = Math.max(1, Math.floor(Number(patch.maxPp || move.maxPp || move.pp || 1)));
+    if (move.remainingPp === remainingPp && move.maxPp === maxPp) return move;
+    changed = true;
+    return {...move, remainingPp, maxPp};
+  });
+  return changed ? next : moves;
+}
+
+function localMoveSlotsEqualV5(left: LocalPokemonV4["moves"] | undefined, right: LocalPokemonV4["moves"] | undefined): boolean {
+  if (left === right) return true;
+  if (!left || !right || left.length !== right.length) return false;
+  return left.every((move, index) => {
+    const other = right[index];
+    return Boolean(other) &&
+      move.moveId === other.moveId &&
+      move.maxPp === other.maxPp &&
+      move.remainingPp === other.remainingPp &&
+      move.pp === other.pp;
+  });
+}
+
+function normalizeBattleStatusV5(status: unknown): TrainingStatusV4 {
+  const text = String(status || "").trim().toLowerCase();
+  if (!text || text === "none") return "";
+  return ["brn", "par", "psn", "tox", "slp", "frz"].includes(text) ? text as TrainingStatusV4 : "";
+}
+
+function tokenV5(value: unknown): string {
+  return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
 export function commitFinalSettlementV5(run: RunGameV5, input: {commandId: string; formalRun: FormalGameRunV4; reason: FormalSettlementReasonV4; summary: Record<string, unknown>}, now = new Date()): RunGameV5 {

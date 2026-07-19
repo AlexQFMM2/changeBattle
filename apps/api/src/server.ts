@@ -6,7 +6,7 @@ import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core
 import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAssetFieldsV4, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmUseFailureReasonV4} from "./itemEffects.js";
 import {createMemoryRedisLikeProvider, createRedisSocketProvider, type RedisLikeCommandProvider} from "./roomStore.js";
-import {applyBattleFinalizedResultV5, applyTrainingLessonV5, buildFormalRunCompatViewV5, buildRunGameViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementV5, commitSelfBagMutationV5, commitSoulmateEggClaimV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, healSelfTeamV5, ingestPreparedRoundPlanV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, type RunGameV5} from "./runGameV5.js";
+import {applyTrainingLessonV5, buildFormalRunCompatViewV5, buildRunGameViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementV5, commitSelfBagMutationV5, commitSoulmateEggClaimV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, healSelfTeamV5, ingestPreparedRoundPlanV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, type RunGameV5} from "./runGameV5.js";
 import {normalizeBattlePreferenceV4} from "./training.js";
 
 type ServerConfig = {
@@ -2188,33 +2188,22 @@ async function finalizeFormalRoomBattleV5(current: FormalRoomRecordV1, match: Fo
     };
   }
   const snapshot = await getRoomBattleSnapshot(current);
-  const timeline = await service.getPlaybackTimeline(activeBattle.sessionId, 0).catch(() => null);
   const reason = normalizeFinalizeReason(payload?.reason);
-  const compatRun = buildFormalRunCompatViewV5(match.runGameV5);
-  const finalized = await runFormalStepAsync(() => formalApi.finalizeFormalBattleResultV4(compatRun, snapshot, reason, {playbackTimeline: timeline}));
-  let formalRun = finalized.run;
   let playerVault: PlayerVaultV4 | undefined;
   let settlementNotice = "";
-  if (payload?.playerVaultSnapshot) {
-    const soulmateSettlement = formalApi.applyFormalSoulmateBattleFriendshipSettlement(formalRun, payload.playerVaultSnapshot);
-    const honorSettlement = formalApi.applyFormalSoulmateHonorSettlement(soulmateSettlement.run, payload.playerVaultSnapshot);
-    formalRun = honorSettlement.run;
-    playerVault = honorSettlement.playerVault;
-    settlementNotice = [formatSoulmateSettlementNotice(soulmateSettlement.summary), formatSoulmateHonorSettlementNotice(honorSettlement.summary)].filter(Boolean).join("；");
-  }
+  const finalized = runFormalStep(() => finalizeBattleResultFromSnapshotV5(match.runGameV5!, {
+    snapshot,
+    commandId,
+    reason,
+    settlementNotice,
+  }));
   const finalResult: FormalRoomBattleFinalizeResultV1 = {
-    destination: finalized.destination,
-    reason: finalized.reason,
+    destination: finalized.result.destination,
+    reason: finalized.result.reason,
     playerVault,
     settlementNotice,
   };
-  const runGameV5 = applyBattleFinalizedResultV5(match.runGameV5, {
-    compatRun: formalRun,
-    commandId,
-    destination: finalized.destination,
-    reason: finalized.reason,
-    settlementNotice,
-  });
+  const runGameV5 = finalized.run;
   const now = new Date().toISOString();
   const next: FormalRoomRecordV1 = {
     ...advanceRoomMatchV5(current, match.matchId, runGameV5),
