@@ -3,7 +3,7 @@
 // 后续修改或排查战斗页 bug 时，优先横向对比本实现与 Showdown Client 的差异，再决定如何落到本项目架构。
 // 严禁随意修改；只有确认 Showdown Client 对应实现来源与差异后，才允许调整这里的战斗行为。
 import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
-import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleServiceClientV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, FormalGameRunV4, LocalPokemonV4, PlayerItemInstanceV4, PlayerVaultV4, RequestSidePokemonV4, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleServiceClientV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, FormalGameRunV4, LocalPokemonV4, PlayerItemInstanceV4, PlayerVaultV4, RequestSidePokemonV4, RunGameBattleViewV5, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
 import {battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, formalRoundStageLabelV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, splitBattleTrainerItemChoicesV4, stringifyBattleTrainerItemChoiceV4, translateDexLabel, validShowdownTargetLocV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
@@ -24,11 +24,12 @@ import "./BattleV4Page.css";
 
 export type BattleV4PageProps = {
   api: ChangeBattleV2Api;
-  run: TrainingRunGameV4;
+  run?: TrainingRunGameV4;
+  roomBattleView?: RunGameBattleViewV5;
   sessionId: string;
   debugConfig?: AppDebugConfigV4;
   diagnosticsContext?: BattleV4DiagnosticsContext;
-  onRunChange: (run: TrainingRunGameV4) => void;
+  onRunChange?: (run: TrainingRunGameV4) => void;
   onBackToRest: () => void;
   onBattleComplete?: (result: {sessionId: string; reason?: "surrender"}) => void;
   onAfterSubmitSnapshot?: (snapshot: BattleSessionSnapshotV4) => Promise<BattleSessionSnapshotV4> | BattleSessionSnapshotV4;
@@ -41,6 +42,16 @@ export type BattleV4PageProps = {
 type BattleV4DiagnosticsContext = {
   formalRun?: FormalGameRunV4 | null;
   playerVault?: PlayerVaultV4 | null;
+};
+
+type BattleV4DisplayContext = {
+  mode: TrainingRunGameV4["scenario"]["mode"];
+  selfBag?: TrainingPlayerDraftV4["bag"] | null;
+  battleBagEnabled: boolean;
+  players: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+  selectedNpcIds: Partial<Record<ShowdownPlayerIdV4, string>>;
+  nodeForId: (nodeId?: string) => {index: number; participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>} | null;
+  stageLabelForNode: (nodeId?: string) => string;
 };
 
 type SwitchActionV4 = Extract<BattleCommandActionV4, {kind: "switch"}>;
@@ -225,9 +236,10 @@ type BattleSubmitErrorV4 = {
   error?: string;
 };
 
-export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsContext, onRunChange, onBackToRest, onBattleComplete, onAfterSubmitSnapshot, battleServiceOverride, playerProfile, endFlow = "result-panel", recoveringExistingScene = false}: BattleV4PageProps) {
+export function BattleV4Page({api, run, roomBattleView, sessionId, debugConfig, diagnosticsContext, onRunChange, onBackToRest, onBattleComplete, onAfterSubmitSnapshot, battleServiceOverride, playerProfile, endFlow = "result-panel", recoveringExistingScene = false}: BattleV4PageProps) {
+  const battleDisplay = useMemo(() => roomBattleView ? battleDisplayFromRoomBattleViewV5(roomBattleView) : run ? battleDisplayFromTrainingRunV4(api, run) : emptyBattleDisplayV5(), [api, roomBattleView, run]);
   const battleService = battleServiceOverride || api.battleService;
-  const runRef = useRef(run);
+  const runRef = useRef(run || null);
   const onRunChangeRef = useRef(onRunChange);
   const [snapshot, setSnapshot] = useState<BattleSessionSnapshotV4 | null>(null);
   const [message, setMessage] = useState("正在连接 Battle Service...");
@@ -331,11 +343,11 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
   const visualNearTeam = pokemonBattleOBJ.nearSlots;
   const visualFarTeam = pokemonBattleOBJ.farSlots;
   const battleError = useMemo(() => battleV4BlockingError(snapshot, lastSubmitError), [snapshot, lastSubmitError]);
-  const activeBattleBag = api.normalizeBagState(run.players.p1?.bag);
-  const battleBagEnabled = Boolean(run.battlePreference?.battleBagEnabled && activeBattleBag.battleBagEnabled);
+  const activeBattleBag = api.normalizeBagState(battleDisplay.selfBag);
+  const battleBagEnabled = Boolean(battleDisplay.battleBagEnabled && activeBattleBag.battleBagEnabled);
 
   useEffect(() => {
-    runRef.current = run;
+    runRef.current = run || null;
   }, [run]);
 
   useEffect(() => {
@@ -353,18 +365,18 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
     if (snapshot && !playbackTimelinePending && playback.playbackComplete) setRestoreNoticeSessionId("");
   }, [playback.playbackComplete, playbackTimelinePending, restoreNoticeSessionId, sessionId, snapshot]);
   const canSurrender = Boolean(onBattleComplete || endFlow === "auto-exit");
-  const battleStageLabel = useMemo(() => battleV4StageLabelForNode(run, snapshot?.nodeId), [run, snapshot?.nodeId]);
-  const narrativeTrainers = useMemo(() => buildBattleV4NarrativeTrainers(api, run, playerProfile, snapshot?.nodeId), [api, playerProfile, run, snapshot?.nodeId]);
+  const battleStageLabel = useMemo(() => battleDisplay.stageLabelForNode(snapshot?.nodeId), [battleDisplay, snapshot?.nodeId]);
+  const narrativeTrainers = useMemo(() => buildBattleV4NarrativeTrainersFromDisplay(api, battleDisplay, playerProfile, snapshot?.nodeId), [api, battleDisplay, playerProfile, snapshot?.nodeId]);
   const introDialogue = useMemo(() => buildBattleV4IntroDialogue(narrativeTrainers, battleStageLabel), [battleStageLabel, narrativeTrainers]);
   const outroDialogue = useMemo(() => buildBattleV4OutroDialogue(narrativeTrainers, snapshot, battleStageLabel), [battleStageLabel, narrativeTrainers, snapshot?.winner]);
   const surrenderParticipants = useMemo<BattleV4SurrenderParticipant[]>(() => {
-    const player = run.players.p1;
-    const ally = run.scenario.mode === "coop" ? run.players.p3 : null;
+    const player = battleDisplay.players.p1;
+    const ally = battleDisplay.mode === "coop" ? battleDisplay.players.p3 : null;
     return [
       {id: "p1", name: player?.name || "玩家", avatar: player?.avatar || ""},
       ...(ally ? [{id: "p3", name: ally.name || "AI 队友", avatar: ally.avatar || ""}] : []),
     ];
-  }, [run.players.p1, run.players.p3, run.scenario.mode]);
+  }, [battleDisplay.mode, battleDisplay.players.p1, battleDisplay.players.p3]);
 
   useEffect(() => {
     setNarrativeState(null);
@@ -524,16 +536,16 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
   }, [surrenderOpen, surrenderSubmitting]);
 
   useEffect(() => {
-    if (!surrenderOpen || run.scenario.mode !== "coop") return;
+    if (!surrenderOpen || battleDisplay.mode !== "coop") return;
     const timer = window.setTimeout(() => setSurrenderAllyApproved(true), 800);
     return () => window.clearTimeout(timer);
-  }, [run.scenario.mode, surrenderOpen]);
+  }, [battleDisplay.mode, surrenderOpen]);
 
   useEffect(() => {
     if (!surrenderOpen || surrenderSubmitting || !surrenderApproved) return;
-    if (run.scenario.mode === "coop" && !surrenderAllyApproved) return;
+    if (battleDisplay.mode === "coop" && !surrenderAllyApproved) return;
     setSurrenderSubmitting(true);
-  }, [run.scenario.mode, surrenderAllyApproved, surrenderApproved, surrenderOpen, surrenderSubmitting]);
+  }, [battleDisplay.mode, surrenderAllyApproved, surrenderApproved, surrenderOpen, surrenderSubmitting]);
 
   useEffect(() => {
     if (!surrenderOpen || !surrenderSubmitting) return;
@@ -579,6 +591,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
         const blocking = battleV4BlockingError(next, lastSubmitError);
         setMessage(blocking ? `战斗异常：${blocking.message}` : "");
         const currentRun = runRef.current;
+        if (!currentRun || !onRunChangeRef.current) return;
         const patchedRun = next.status === "ended" || next.status === "blocked" ? currentRun : patchBattleRunLocalTeamsFromSnapshot(currentRun, next);
         if (!cancelled && patchedRun !== currentRun) onRunChangeRef.current(patchedRun);
         if (next.status === "ended" || next.status === "blocked") {
@@ -782,7 +795,7 @@ export function BattleV4Page({api, run, sessionId, debugConfig, diagnosticsConte
   function openSurrenderDialog() {
     if ((!onBattleComplete && endFlow !== "auto-exit") || snapshot?.status === "ended" || narrativeActive) return;
     setSurrenderApproved(false);
-    setSurrenderAllyApproved(run.scenario.mode !== "coop");
+    setSurrenderAllyApproved(battleDisplay.mode !== "coop");
     setSurrenderRemainingMs(SURRENDER_TIMEOUT_MS);
     setSurrenderSubmitRemainingMs(SURRENDER_SUBMIT_DELAY_MS);
     setSurrenderSubmitting(false);
@@ -1008,17 +1021,75 @@ function BattleV4RestoreOverlay({snapshotReady}: {snapshotReady: boolean}) {
   );
 }
 
-function buildBattleV4NarrativeTrainers(
+function battleDisplayFromTrainingRunV4(api: ChangeBattleV2Api, run: TrainingRunGameV4): BattleV4DisplayContext {
+  return {
+    mode: run.scenario.mode,
+    selfBag: run.players.p1?.bag || null,
+    battleBagEnabled: Boolean(run.battlePreference?.battleBagEnabled),
+    players: run.players,
+    selectedNpcIds: run.scenario.selectedNpcIds || {},
+    nodeForId: nodeId => (nodeId ? run.gameMap.find(entry => entry.id === nodeId) : null) || api.getCurrentTrainingNode(run),
+    stageLabelForNode: nodeId => battleV4StageLabelForNode(run, nodeId),
+  };
+}
+
+function battleDisplayFromRoomBattleViewV5(view: RunGameBattleViewV5): BattleV4DisplayContext {
+  const players = Object.fromEntries(Object.entries(view.participants).map(([slot, player]) => {
+    if (!player) return [slot, null];
+    const draft: TrainingPlayerDraftV4 = {
+      playerId: player.slot,
+      name: player.name,
+      avatar: player.avatar,
+      backImage: player.backImage,
+      controller: player.controller,
+      alliance: player.alliance,
+      localTeam: {
+        id: `team:${player.playerId}`,
+        name: `${player.name || player.slot}的队伍`,
+        pokemon: player.team.map(entry => entry.localPokemon),
+      },
+      bag: player.slot === "p1" && view.selfBag ? {
+        maxSize: view.selfBag.maxSize,
+        battleBagEnabled: view.selfBag.battleBagEnabled,
+        items: view.selfBag.items.map(item => item.item),
+      } : {maxSize: 50, items: []},
+    };
+    return [slot, draft];
+  }).filter((entry): entry is [string, TrainingPlayerDraftV4] => Boolean(entry[1]))) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
+  return {
+    mode: view.mode,
+    selfBag: players.p1?.bag || null,
+    battleBagEnabled: Boolean(view.battlePreference.battleBagEnabled),
+    players,
+    selectedNpcIds: {},
+    nodeForId: () => ({index: 0, participants: players}),
+    stageLabelForNode: () => view.stageLabel,
+  };
+}
+
+function emptyBattleDisplayV5(): BattleV4DisplayContext {
+  return {
+    mode: "singles",
+    selfBag: null,
+    battleBagEnabled: false,
+    players: {},
+    selectedNpcIds: {},
+    nodeForId: () => null,
+    stageLabelForNode: () => "正式战斗",
+  };
+}
+
+function buildBattleV4NarrativeTrainersFromDisplay(
   api: ChangeBattleV2Api,
-  run: TrainingRunGameV4,
+  display: BattleV4DisplayContext,
   playerProfile?: Pick<UserProfileV2, "name" | "frontAsset" | "frontGifAsset" | "backAsset" | "avatarAsset">,
   battleNodeId?: string,
 ): BattleV4ResolvedNarrativeTrainer[] {
-  const node = (battleNodeId ? run.gameMap.find(entry => entry.id === battleNodeId) : null) || api.getCurrentTrainingNode(run);
-  const playerIds: ShowdownPlayerIdV4[] = run.scenario.mode === "coop" ? ["p1", "p3", "p2", "p4"] : ["p1", "p2"];
+  const node = display.nodeForId(battleNodeId);
+  const playerIds: ShowdownPlayerIdV4[] = display.mode === "coop" ? ["p1", "p3", "p2", "p4"] : ["p1", "p2"];
   return playerIds.map(playerId => {
-    const draft = node?.participants[playerId] || run.players[playerId] || run.scenario.players.find(player => player.playerId === playerId) || null;
-    const detail = playerId === "p1" ? null : resolveBattleV4TrainerDetail(api, run, node?.index ?? 0, playerId, draft);
+    const draft = node?.participants[playerId] || display.players[playerId] || null;
+    const detail = playerId === "p1" ? null : resolveBattleV4TrainerDetail(api, display, node?.index ?? 0, playerId, draft);
     const side = playerId === "p1" || playerId === "p3" ? "near" : "far";
     const isPlayer = playerId === "p1";
     const name = isPlayer
@@ -1039,12 +1110,12 @@ function buildBattleV4NarrativeTrainers(
 
 function resolveBattleV4TrainerDetail(
   api: ChangeBattleV2Api,
-  run: TrainingRunGameV4,
+  display: BattleV4DisplayContext,
   nodeIndex: number,
   playerId: ShowdownPlayerIdV4,
   draft: TrainingPlayerDraftV4 | null,
 ): DexTrainerDetail | null {
-  const selected = safeTrainerDetail(api, run.scenario.selectedNpcIds?.[playerId]);
+  const selected = safeTrainerDetail(api, display.selectedNpcIds[playerId]);
   if (selected && (nodeIndex === 0 || !draft || trainerDetailMatchesDraft(selected, draft))) return selected;
   if (draft?.name) return findAuthoredTrainerDetailByName(api, draft.name);
   return selected && battleV4TrainerUsesAuthoredDialogue(selected) ? selected : null;

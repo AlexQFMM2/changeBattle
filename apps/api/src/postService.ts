@@ -14,19 +14,27 @@ export type PostServiceActionNameV4 =
   | "rooms.matches.commands.selectStarters"
   | "rooms.matches.commands.prepareRound"
   | "rooms.matches.commands.teamReorder"
-  | "rooms.matches.commands.restAction"
+  | "rooms.matches.commands.teamHeal"
+  | "rooms.matches.commands.pokemonExchange"
+  | "rooms.matches.commands.shopBuy"
+  | "rooms.matches.commands.shopSell"
+  | "rooms.matches.commands.trainingApply"
+  | "rooms.matches.commands.pokemonRerollStats"
+  | "rooms.matches.commands.bagUse"
+  | "rooms.matches.commands.bagEquip"
+  | "rooms.matches.commands.bagUnequip"
+  | "rooms.matches.commands.bagDiscard"
+  | "rooms.matches.commands.opponentPreviewUnlock"
+  | "rooms.matches.commands.insuranceBuy"
+  | "rooms.matches.commands.soulmateEggClaim"
   | "rooms.matches.commands.prepareBattle"
   | "rooms.matches.commands.battleChoice"
   | "rooms.matches.commands.finalizeBattle"
   | "rooms.matches.commands.finalizeRun"
   | "rooms.matches.commands.ackFinalResult"
-  | "rooms.selectStarters"
-  | "rooms.prepareRound"
   | "rooms.getBattleSnapshot"
   | "rooms.getBattlePlaybackTimeline"
   | "rooms.submitBattleChoice"
-  | "rooms.finalizeBattle"
-  | "rooms.finalizeRun"
   | "rooms.getFinalResult"
   | "battle.createSession";
 
@@ -124,7 +132,10 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
   },
   "rooms.matches.view": {
     method: "GET",
-    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/matches/${encodeURIComponent(requiredString(input?.matchId, "matchId"))}/view`,
+    path: input => {
+      const scope = typeof input?.scope === "string" && input.scope ? `?scope=${encodeURIComponent(input.scope)}` : "";
+      return `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/matches/${encodeURIComponent(requiredString(input?.matchId, "matchId"))}/view${scope}`;
+    },
     latencySample: true,
   },
   "rooms.matches.commands.selectStarters": {
@@ -142,9 +153,69 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
     path: input => matchCommandPath(input, "team.reorder"),
     body: commandBody,
   },
-  "rooms.matches.commands.restAction": {
+  "rooms.matches.commands.teamHeal": {
     method: "POST",
-    path: input => matchCommandPath(input, "rest-action"),
+    path: input => matchCommandPath(input, "team.heal"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.pokemonExchange": {
+    method: "POST",
+    path: input => matchCommandPath(input, "pokemon.exchange"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.shopBuy": {
+    method: "POST",
+    path: input => matchCommandPath(input, "shop.buy"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.shopSell": {
+    method: "POST",
+    path: input => matchCommandPath(input, "shop.sell"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.trainingApply": {
+    method: "POST",
+    path: input => matchCommandPath(input, "training.apply"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.pokemonRerollStats": {
+    method: "POST",
+    path: input => matchCommandPath(input, "pokemon.reroll-stats"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.bagUse": {
+    method: "POST",
+    path: input => matchCommandPath(input, "bag.use"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.bagEquip": {
+    method: "POST",
+    path: input => matchCommandPath(input, "bag.equip"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.bagUnequip": {
+    method: "POST",
+    path: input => matchCommandPath(input, "bag.unequip"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.bagDiscard": {
+    method: "POST",
+    path: input => matchCommandPath(input, "bag.discard"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.opponentPreviewUnlock": {
+    method: "POST",
+    path: input => matchCommandPath(input, "opponent-preview.unlock"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.insuranceBuy": {
+    method: "POST",
+    path: input => matchCommandPath(input, "insurance.buy"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.soulmateEggClaim": {
+    method: "POST",
+    path: input => matchCommandPath(input, "soulmate-egg.claim"),
     body: commandBody,
   },
   "rooms.matches.commands.prepareBattle": {
@@ -172,16 +243,6 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
     path: input => matchCommandPath(input, "ack-final-result"),
     body: commandBody,
   },
-  "rooms.selectStarters": {
-    method: "POST",
-    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/select-starters`,
-    body: input => ({selectedIndexes: input?.selectedIndexes || []}),
-  },
-  "rooms.prepareRound": {
-    method: "POST",
-    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/prepare-round`,
-    body: () => ({}),
-  },
   "rooms.getBattleSnapshot": {
     method: "GET",
     path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/battle/snapshot`,
@@ -200,25 +261,6 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
       trainerItems: input?.trainerItems,
       expectedTurn: input?.expectedTurn,
       expectedRqid: input?.expectedRqid,
-    }),
-  },
-  "rooms.finalizeBattle": {
-    method: "POST",
-    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/finalize-battle`,
-    body: input => ({
-      clientRequestId: input?.clientRequestId,
-      reason: input?.reason,
-      playerVaultSnapshot: input?.playerVaultSnapshot,
-    }),
-  },
-  "rooms.finalizeRun": {
-    method: "POST",
-    path: input => `/rooms/${encodeURIComponent(requiredString(input?.roomId, "roomId"))}/formal/finalize-run`,
-    body: input => ({
-      clientRequestId: input?.clientRequestId,
-      reason: input?.reason,
-      profileSnapshot: input?.profileSnapshot,
-      playerVaultSnapshot: input?.playerVaultSnapshot,
     }),
   },
   "rooms.getFinalResult": {

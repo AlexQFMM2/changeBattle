@@ -1,9 +1,16 @@
+import {
+  FORMAL_MEDICAL_INSURANCE_TIERS,
+  formalTrainingGroundLessonFeeV4,
+  formalTrainingGroundLessonForRollV4,
+  formalTrainingGroundLessonKindFromIdV4,
+  formalTrainingGroundLessonTableV4,
+} from "@changebattle-v2/core";
 import type {BattlePreferenceV4, FormalCompetitionModeV4, PlayerItemInstanceV4, ShowdownPlayerIdV4, StatTableV4, TrainingAllianceV4, TrainingBattleLogEntryV4, TrainingCoinLogEntryV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4, TrainingRuleSetV4, TrainingStatusV4} from "./training.js";
-import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRoundNpcSnapshotV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
+import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceOfferV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import type {LocalPokemonV4, LocalTeamV4} from "./training.js";
 import type {PlayerVaultV4, UserProfileV2} from "./index.js";
 import {createBattleGameFromNodeDraft, type BattleGameV4, type BattleSessionCreateInputV4, type BattleSessionSnapshotV4, type BattleTeamPokemonStateV4} from "./battle.js";
-import {starChartHasRuntimeEffectV4} from "./starChart.js";
+import {formalTrainingGroundDiscountForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasRuntimeEffectV4} from "./starChart.js";
 
 export type PlayerInstanceIdV5 = string;
 export type PokemonInstanceIdV5 = string;
@@ -187,12 +194,54 @@ export type RunGameV5 = {
 export type RunGamePlayerViewV5 = Omit<PlayerInstanceV5, "profileSnapshot" | "starChartSnapshot"> & {
   profileId?: string;
   teamSize: number;
+  team: RunGamePokemonViewV5[];
 };
 
 export type RunGamePokemonViewV5 = PokemonInstanceV5;
 export type RunGameItemViewV5 = ItemInstanceV5;
 
-export type RunGameViewV5 = {
+export type RunGameRestPokemonViewV5 = {
+  pokemonId: PokemonInstanceIdV5;
+  ownerPlayerId: PlayerInstanceIdV5;
+  localPokemon: Pick<LocalPokemonV4,
+    | "localPokemonId"
+    | "speciesId"
+    | "name"
+    | "nameZh"
+    | "nickname"
+    | "iconUrl"
+    | "iconStyle"
+    | "spriteUrl"
+    | "shiny"
+    | "level"
+    | "entryHp"
+    | "maxHp"
+    | "entryStatus"
+  >;
+};
+
+export type RunGameRestPlayerViewV5 = Omit<RunGamePlayerViewV5, "team"> & {
+  team: RunGameRestPokemonViewV5[];
+};
+
+export type RunGameBagViewV5 = {
+  bagId: BagInstanceIdV5;
+  ownerPlayerId: PlayerInstanceIdV5;
+  maxSize: number;
+  battleBagEnabled?: boolean;
+  itemInstanceIds: ItemInstanceIdV5[];
+  items: RunGameItemViewV5[];
+} | null;
+
+export type RunGameTrainingGroundViewV5 = {
+  nodeId: GameNodeIdV5;
+  lessons: FormalTrainingGroundLessonViewV4[];
+  lesson: FormalTrainingGroundLessonViewV4 | null;
+} | null;
+
+export type ViewScopeNameV5 = "summary" | "starter" | "rest" | "battle" | "settlement";
+
+export type RunGameSummaryViewV5 = {
   version: 5;
   runId: string;
   roomId: string;
@@ -201,31 +250,251 @@ export type RunGameViewV5 = {
   phase: RunGamePhaseV5;
   revision: number;
   updatedAt: string;
+  currentNodeId: GameNodeIdV5 | null;
+};
+
+export type RunGameStarterViewV5 = RunGameSummaryViewV5 & {
+  config: Pick<RunGameConfigV5, "mode" | "competitionMode" | "ruleSet" | "seed">;
+  selectedIndexes: number[];
+  candidates: Array<StarterCandidateRefV5 & {pokemon: RunGamePokemonViewV5 | null}>;
+};
+
+export type RunGameRestNodeViewV5 = {
+  nodeId: GameNodeIdV5;
+  index: number;
+  state: TrainingRunGameNodeV4["state"];
+  mode: FormalGameModeV4;
+  ruleSet: TrainingRuleSetV4;
+  seed: string;
+  slots: Partial<Record<ShowdownPlayerIdV4, PlayerInstanceIdV5>>;
+  battleGame: TrainingRunGameNodeV4["battleGame"];
+  createdAt?: string;
+  startedAt?: string;
+  endedAt?: string;
+};
+
+export type RunGameRestViewV5 = RunGameSummaryViewV5 & {
   config: RunGameConfigV5;
   selfPlayerId: PlayerInstanceIdV5;
-  selfPlayer: RunGamePlayerViewV5 | null;
-  players: RunGamePlayerViewV5[];
-  team: RunGamePokemonViewV5[];
-  bag: {
-    bagId: BagInstanceIdV5;
-    ownerPlayerId: PlayerInstanceIdV5;
-    maxSize: number;
-    battleBagEnabled?: boolean;
-    itemInstanceIds: ItemInstanceIdV5[];
-    items: RunGameItemViewV5[];
-  } | null;
-  starter: {
-    selectedIndexes: number[];
-    candidates: Array<StarterCandidateRefV5 & {pokemon: RunGamePokemonViewV5 | null}>;
-  };
-  map: {
-    currentNodeId: GameNodeIdV5 | null;
-    nodes: GameMapNodeV5[];
-    roundPlan: RoundPlanV5[];
-  };
+  selfPlayer: RunGameRestPlayerViewV5 | null;
+  players: RunGameRestPlayerViewV5[];
+  team: RunGameRestPokemonViewV5[];
+  bag: RunGameBagViewV5;
+  currentNode: RunGameRestNodeViewV5 | null;
+  nextNode: RunGameRestNodeViewV5 | null;
   rest: RunGameV5["restState"];
-  settlement: RunGameV5["finalResult"] | null;
+  trainingGround: RunGameTrainingGroundViewV5;
+  exchange: FormalPokemonExchangeViewV4 | null;
 };
+
+export type RunGameBattleParticipantViewV5 = {
+  playerId: PlayerInstanceIdV5;
+  slot: ShowdownPlayerIdV4;
+  name: string;
+  avatar: string;
+  backImage?: string;
+  controller: PlayerInstanceV5["controller"];
+  alliance: TrainingAllianceV4;
+  team: RunGamePokemonViewV5[];
+};
+
+export type RunGameBattleViewV5 = RunGameSummaryViewV5 & {
+  config: RunGameConfigV5;
+  activeBattle: {
+    sessionId: string;
+    nodeId: GameNodeIdV5;
+    battleGameId?: string;
+    status: "creating" | "running" | "finalized" | "blocked" | "lost_session";
+    expectedTurn?: number;
+    expectedRqid?: string;
+  } | null;
+  mode: FormalGameModeV4;
+  ruleSet: TrainingRuleSetV4;
+  stageLabel: string;
+  participants: Partial<Record<ShowdownPlayerIdV4, RunGameBattleParticipantViewV5>>;
+  selfBag: RunGameBagViewV5;
+  battlePreference: BattlePreferenceV4;
+};
+
+export type RunGameSettlementViewV5 = RunGameSummaryViewV5 & {
+  finalResult: RunGameV5["finalResult"] | null;
+  settlement: NonNullable<RunGameV5["finalResult"]>["settlement"] | null;
+};
+
+export type RunGameScopedViewV5 =
+  | RunGameSummaryViewV5
+  | RunGameStarterViewV5
+  | RunGameRestViewV5
+  | RunGameBattleViewV5
+  | RunGameSettlementViewV5;
+
+export function viewScopeForRunGameV5(run: RunGameV5): ViewScopeNameV5 {
+  if (run.finalResult || run.status === "settlement_ready" || run.status === "ended" || run.phase === "settlement") return "settlement";
+  if (run.status === "battle_preparing" || run.status === "battling" || run.status === "battle_settling" || run.phase === "battle") return "battle";
+  if (run.status === "round_preparing" || run.status === "resting" || run.phase === "rest") return "rest";
+  if (run.status === "starter_selecting" || run.phase === "starter") return "starter";
+  return "summary";
+}
+
+export function buildScopedFormalRoomViewV5(run: RunGameV5, scope: ViewScopeNameV5 = viewScopeForRunGameV5(run), activeBattle?: {sessionId?: string; nodeId?: string; battleGameId?: string; status?: string} | null): RunGameScopedViewV5 {
+  if (scope === "starter") return buildStarterViewV5(run);
+  if (scope === "rest") return buildRestViewV5(run);
+  if (scope === "battle") return buildBattleViewV5(run, activeBattle);
+  if (scope === "settlement") return buildSettlementViewV5(run);
+  return buildSummaryViewV5(run);
+}
+
+export function buildSummaryViewV5(run: RunGameV5): RunGameSummaryViewV5 {
+  return {
+    version: 5,
+    runId: run.runId,
+    roomId: run.roomId,
+    matchId: run.matchId,
+    status: run.status,
+    phase: run.phase,
+    revision: run.revision,
+    updatedAt: run.updatedAt,
+    currentNodeId: run.currentNodeId,
+  };
+}
+
+export function buildStarterViewV5(run: RunGameV5): RunGameStarterViewV5 {
+  return {
+    ...buildSummaryViewV5(run),
+    config: {
+      mode: run.config.mode,
+      competitionMode: run.config.competitionMode,
+      ruleSet: run.config.ruleSet,
+      seed: run.config.seed,
+    },
+    selectedIndexes: [...run.selectedStarterIndexes],
+    candidates: run.starterCandidates.map(candidate => ({
+      ...candidate,
+      pokemon: run.pokemonById[candidate.pokemonId] || null,
+    })),
+  };
+}
+
+export function buildRestViewV5(run: RunGameV5): RunGameRestViewV5 {
+  const self = run.playersById[run.selfPlayerId] || null;
+  const bag = self ? run.bagsById[self.bagId] || null : null;
+  const currentNode = currentRestNodeV5(run);
+  const nextNode = run.gameMap.nodes.find(node => node.state === "ready") || currentNode || null;
+  return {
+    ...buildSummaryViewV5(run),
+    config: run.config,
+    selfPlayerId: run.selfPlayerId,
+    selfPlayer: self ? restPlayerViewV5(run, self) : null,
+    players: Object.values(run.playersById).map(player => restPlayerViewV5(run, player)),
+    team: self ? self.localTeamPokemonIds.map(pokemonId => run.pokemonById[pokemonId]).filter((entry): entry is PokemonInstanceV5 => Boolean(entry)).map(restPokemonViewV5) : [],
+    bag: bag ? {
+      bagId: bag.bagId,
+      ownerPlayerId: bag.ownerPlayerId,
+      maxSize: bag.maxSize,
+      battleBagEnabled: bag.battleBagEnabled,
+      itemInstanceIds: [...bag.itemInstanceIds],
+      items: bag.itemInstanceIds.map(itemInstanceId => run.itemInstancesById[itemInstanceId]).filter((entry): entry is ItemInstanceV5 => Boolean(entry)),
+    } : null,
+    currentNode: currentNode ? restNodeViewV5(currentNode) : null,
+    nextNode: nextNode ? restNodeViewV5(nextNode) : null,
+    rest: {
+      ...run.restState,
+      coinLog: run.restState.coinLog ? [...run.restState.coinLog] : undefined,
+      battleLog: run.restState.battleLog ? [...run.restState.battleLog] : undefined,
+    },
+    trainingGround: currentNode ? {
+      nodeId: currentNode.nodeId,
+      lessons: getTrainingGroundLessonsV5(run),
+      lesson: getTrainingGroundLessonForInputV5(run, {}),
+    } : null,
+    exchange: safePokemonExchangeViewV5(run)?.available ? safePokemonExchangeViewV5(run) : null,
+  };
+}
+
+export function buildBattleViewV5(run: RunGameV5, activeBattle?: {sessionId?: string; nodeId?: string; battleGameId?: string; status?: string} | null): RunGameBattleViewV5 {
+  const node = currentRestNodeV5(run) || run.gameMap.nodes.find(entry => entry.nodeId === run.currentNodeId) || null;
+  const self = run.playersById[run.selfPlayerId] || null;
+  const bag = self ? run.bagsById[self.bagId] || null : null;
+  const participants: Partial<Record<ShowdownPlayerIdV4, RunGameBattleParticipantViewV5>> = {};
+  for (const [slot, playerId] of Object.entries(node?.slots || {}) as Array<[ShowdownPlayerIdV4, PlayerInstanceIdV5 | undefined]>) {
+    const player = playerId ? run.playersById[playerId] : null;
+    if (!player) continue;
+    participants[slot] = {
+      playerId: player.playerId,
+      slot: player.slot,
+      name: player.name,
+      avatar: player.avatar,
+      backImage: player.backImage,
+      controller: player.controller,
+      alliance: player.alliance,
+      team: player.localTeamPokemonIds.map(pokemonId => run.pokemonById[pokemonId]).filter((entry): entry is PokemonInstanceV5 => Boolean(entry)),
+    };
+  }
+  return {
+    ...buildSummaryViewV5(run),
+    config: run.config,
+    activeBattle: activeBattle?.sessionId ? {
+      sessionId: activeBattle.sessionId,
+      nodeId: activeBattle.nodeId || node?.nodeId || run.currentNodeId || "",
+      battleGameId: activeBattle.battleGameId,
+      status: battleViewStatusV5(activeBattle.status),
+    } : null,
+    mode: node?.mode || run.config.mode,
+    ruleSet: node?.ruleSet || run.config.ruleSet,
+    stageLabel: formalRoundStageLabelV5(node?.index ?? 0),
+    participants,
+    selfBag: bag ? {
+      bagId: bag.bagId,
+      ownerPlayerId: bag.ownerPlayerId,
+      maxSize: bag.maxSize,
+      battleBagEnabled: bag.battleBagEnabled,
+      itemInstanceIds: [...bag.itemInstanceIds],
+      items: bag.itemInstanceIds.map(itemInstanceId => run.itemInstancesById[itemInstanceId]).filter((entry): entry is ItemInstanceV5 => Boolean(entry)),
+    } : null,
+    battlePreference: run.config.battlePreference,
+  };
+}
+
+export function buildSettlementViewV5(run: RunGameV5): RunGameSettlementViewV5 {
+  return {
+    ...buildSummaryViewV5(run),
+    finalResult: run.finalResult || null,
+    settlement: run.finalResult?.settlement || null,
+  };
+}
+
+function restNodeViewV5(node: GameMapNodeV5): RunGameRestNodeViewV5 {
+  return {
+    nodeId: node.nodeId,
+    index: node.index,
+    state: node.state,
+    mode: node.mode,
+    ruleSet: node.ruleSet,
+    seed: node.seed,
+    slots: {...node.slots},
+    battleGame: node.battleGame,
+    createdAt: node.createdAt,
+    startedAt: node.startedAt,
+    endedAt: node.endedAt,
+  };
+}
+
+function battleViewStatusV5(status: string | undefined): NonNullable<RunGameBattleViewV5["activeBattle"]>["status"] {
+  if (status === "creating" || status === "running" || status === "finalized" || status === "blocked" || status === "lost_session") return status;
+  return "running";
+}
+
+function formalRoundStageLabelV5(index: number): string {
+  return [
+    "小组赛揭幕战",
+    "小组赛出线战",
+    "十六强赛",
+    "八强争夺战",
+    "四强争夺战",
+    "半决赛",
+    "决赛",
+  ][Math.max(0, Math.min(6, index))] || `第 ${index + 1} 场`;
+}
 
 export function createRunGameV5FromStarterRun(input: {
   roomId: string;
@@ -315,50 +584,12 @@ export function createRunGameV5FromStarterRun(input: {
   });
 }
 
-export function buildRunGameViewV5(run: RunGameV5): RunGameViewV5 {
-  const self = run.playersById[run.selfPlayerId] || null;
-  const bag = self ? run.bagsById[self.bagId] || null : null;
-  return {
-    version: 5,
-    runId: run.runId,
-    roomId: run.roomId,
-    matchId: run.matchId,
-    status: run.status,
-    phase: run.phase,
-    revision: run.revision,
-    updatedAt: run.updatedAt,
-    config: run.config,
-    selfPlayerId: run.selfPlayerId,
-    selfPlayer: self ? playerViewV5(run, self) : null,
-    players: Object.values(run.playersById).map(player => playerViewV5(run, player)),
-    team: self ? self.localTeamPokemonIds.map(pokemonId => run.pokemonById[pokemonId]).filter((entry): entry is PokemonInstanceV5 => Boolean(entry)) : [],
-    bag: bag ? {
-      bagId: bag.bagId,
-      ownerPlayerId: bag.ownerPlayerId,
-      maxSize: bag.maxSize,
-      battleBagEnabled: bag.battleBagEnabled,
-      itemInstanceIds: [...bag.itemInstanceIds],
-      items: bag.itemInstanceIds.map(itemInstanceId => run.itemInstancesById[itemInstanceId]).filter((entry): entry is ItemInstanceV5 => Boolean(entry)),
-    } : null,
-    starter: {
-      selectedIndexes: [...run.selectedStarterIndexes],
-      candidates: run.starterCandidates.map(candidate => ({
-        ...candidate,
-        pokemon: run.pokemonById[candidate.pokemonId] || null,
-      })),
-    },
-    map: {
-      currentNodeId: run.currentNodeId,
-      nodes: run.gameMap.nodes.map(node => ({...node, slots: {...node.slots}})),
-      roundPlan: run.roundPlan.map(round => ({...round, slots: {...round.slots}, npcRefs: [...round.npcRefs], diagnostics: [...round.diagnostics]})),
-    },
-    rest: {
-      ...run.restState,
-      coinLog: run.restState.coinLog ? [...run.restState.coinLog] : undefined,
-      battleLog: run.restState.battleLog ? [...run.restState.battleLog] : undefined,
-    },
-    settlement: run.finalResult || null,
-  };
+function safePokemonExchangeViewV5(run: RunGameV5): FormalPokemonExchangeViewV4 | null {
+  try {
+    return getPokemonExchangeViewV5(run);
+  } catch {
+    return null;
+  }
 }
 
 function playerViewV5(run: RunGameV5, player: PlayerInstanceV5): RunGamePlayerViewV5 {
@@ -368,6 +599,38 @@ function playerViewV5(run: RunGameV5, player: PlayerInstanceV5): RunGamePlayerVi
     profileId: player.profileSnapshot?.id || (player.playerId === run.selfPlayerId ? run.profileId : undefined),
     localTeamPokemonIds: [...player.localTeamPokemonIds],
     teamSize: player.localTeamPokemonIds.length,
+    team: player.localTeamPokemonIds.map(pokemonId => run.pokemonById[pokemonId]).filter((entry): entry is PokemonInstanceV5 => Boolean(entry)),
+  };
+}
+
+function restPlayerViewV5(run: RunGameV5, player: PlayerInstanceV5): RunGameRestPlayerViewV5 {
+  const {team: _team, ...publicPlayer} = playerViewV5(run, player);
+  return {
+    ...publicPlayer,
+    team: player.localTeamPokemonIds.map(pokemonId => run.pokemonById[pokemonId]).filter((entry): entry is PokemonInstanceV5 => Boolean(entry)).map(restPokemonViewV5),
+  };
+}
+
+function restPokemonViewV5(pokemon: PokemonInstanceV5): RunGameRestPokemonViewV5 {
+  const localPokemon = pokemon.localPokemon;
+  return {
+    pokemonId: pokemon.pokemonId,
+    ownerPlayerId: pokemon.ownerPlayerId,
+    localPokemon: {
+      localPokemonId: localPokemon.localPokemonId,
+      speciesId: localPokemon.speciesId,
+      name: localPokemon.name,
+      nameZh: localPokemon.nameZh,
+      nickname: localPokemon.nickname,
+      iconUrl: localPokemon.iconUrl,
+      iconStyle: localPokemon.iconStyle,
+      spriteUrl: localPokemon.spriteUrl,
+      shiny: localPokemon.shiny,
+      level: localPokemon.level,
+      entryHp: localPokemon.entryHp,
+      maxHp: localPokemon.maxHp,
+      entryStatus: localPokemon.entryStatus,
+    },
   };
 }
 
@@ -560,6 +823,86 @@ export function ingestPreparedRoundPlanV5(run: RunGameV5, preparedRun: FormalGam
       battleLog: preparedRun.restRunSnapshot?.battleLog,
     },
     commandLog: appendCommandLog(run, commandId, "prepare-round", {nodeCount: nodes.length}, iso, run.revision + 1),
+  });
+}
+
+export function prepareRoundPlanFromDraftsV5(run: RunGameV5, input: {
+  rounds: Array<{participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>; mode?: FormalGameModeV4; ruleSet?: TrainingRuleSetV4; seed?: string}>;
+  commandId: string;
+}, now = new Date()): RunGameV5 {
+  const repeated = run.commandLog[input.commandId];
+  if (repeated) return run;
+  const iso = now.toISOString();
+  const self = requirePlayer(run, run.selfPlayerId);
+  const playersById = {...run.playersById};
+  const pokemonById = {...run.pokemonById};
+  const bagsById = {...run.bagsById};
+  const itemInstancesById = {...run.itemInstancesById};
+  const rounds = input.rounds.length ? input.rounds : [{participants: {}}];
+  const roundPlan: RoundPlanV5[] = [];
+  const nodes: GameMapNodeV5[] = [];
+  rounds.forEach((round, index) => {
+    const nodeId = `round:${run.matchId}:${index + 1}`;
+    const mode = round.mode || run.config.mode;
+    const ruleSet = round.ruleSet || run.config.ruleSet;
+    const seed = round.seed || `${run.config.seed}:round:${index + 1}`;
+    const slots: Partial<Record<ShowdownPlayerIdV4, PlayerInstanceIdV5>> = {p1: self.playerId};
+    const npcRefs: string[] = [];
+    (["p2", "p3", "p4"] as ShowdownPlayerIdV4[]).forEach(slot => {
+      const draft = round.participants[slot];
+      if (!draft) return;
+      const playerId = `player:${run.matchId}:${nodeId}:${slot}`;
+      slots[slot] = playerId;
+      npcRefs.push(playerId);
+      upsertPlayerDraftEntities({playersById, pokemonById, bagsById, itemInstancesById}, playerId, draft, iso, run.matchId, nodeId);
+    });
+    roundPlan.push({
+      nodeId,
+      index,
+      mode,
+      ruleSet,
+      difficulty: index >= rounds.length - 1 ? "champion" : index >= 4 ? "elite4" : index >= 2 ? "gym" : "normal",
+      seed,
+      npcRefs,
+      slots,
+      diagnostics: ["v5-direct-round-plan"],
+    });
+    nodes.push({
+      nodeId,
+      index,
+      state: index === 0 ? "ready" : "locked",
+      mode,
+      ruleSet,
+      seed,
+      slots,
+      battleGame: null,
+      createdAt: iso,
+    });
+  });
+  const shopByNodeId = Object.fromEntries(nodes.map(node => [node.nodeId, createBasicRestShopV5(node.nodeId, node.seed, iso)]));
+  const trainingGroundByNodeId = Object.fromEntries(nodes.map(node => [node.nodeId, {nodeId: node.nodeId, lessonRoll: 0, selfStudyRoll: 0, updatedAt: iso}]));
+  return assertRunGameV5RedLines({
+    ...run,
+    status: "resting",
+    phase: "rest",
+    revision: run.revision + 1,
+    updatedAt: iso,
+    playersById,
+    pokemonById,
+    bagsById,
+    itemInstancesById,
+    roundPlan,
+    gameMap: {nodes},
+    currentNodeId: nodes[0]?.nodeId || null,
+    restState: {
+      ...run.restState,
+      shopByNodeId,
+      trainingGroundByNodeId,
+      restPreviewUnlocks: run.restState.restPreviewUnlocks || {},
+      coinLog: run.restState.coinLog || [],
+      battleLog: run.restState.battleLog || [],
+    },
+    commandLog: appendCommandLog(run, input.commandId, "prepare-round", {nodeCount: nodes.length}, iso, run.revision + 1),
   });
 }
 
@@ -891,6 +1234,36 @@ export function unlockOpponentPreviewV5(run: RunGameV5, unlockKey: string, comma
   };
 }
 
+export function getMedicalInsuranceOfferV5(run: RunGameV5): FormalMedicalInsuranceOfferV4 {
+  const self = requirePlayer(run, run.selfPlayerId);
+  const available = starChartHasMedicalInsuranceV4(self.starChartSnapshot);
+  const purchased = run.restState.medicalInsurance || null;
+  const seen = Boolean(run.restState.medicalInsuranceOfferSeen || purchased);
+  return {
+    available,
+    seen,
+    purchased,
+    tiers: FORMAL_MEDICAL_INSURANCE_TIERS.map(tier => ({...tier})),
+    message: purchased
+      ? `已购买${medicalInsuranceTierLabelV5(purchased.tier)}。`
+      : available
+        ? "可以在第一场战斗前购买一次医疗保险。"
+        : "需要点亮星图「医疗保险」后才能购买。",
+  };
+}
+
+export function getMedicalInsuranceTierForChoiceV5(run: RunGameV5, choice: unknown): FormalMedicalInsuranceTierViewV4 | null {
+  const offer = getMedicalInsuranceOfferV5(run);
+  if (!offer.available) throw new Error(offer.message);
+  if (offer.purchased) throw new Error("本局已经购买过医疗保险。");
+  if (offer.seen) throw new Error("本局医疗保险机会已经处理过。");
+  const normalized = String(choice || "basic");
+  if (normalized === "decline") return null;
+  const tier = offer.tiers.find(entry => entry.tier === normalized);
+  if (!tier) throw new Error("未知的医疗保险档位。");
+  return tier;
+}
+
 export function chooseMedicalInsuranceV5(run: RunGameV5, tier: FormalMedicalInsuranceTierViewV4 | null, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
   const repeated = run.commandLog[commandId];
   if (repeated) return {run, result: repeated.result || {reused: true}};
@@ -929,6 +1302,24 @@ export function chooseMedicalInsuranceV5(run: RunGameV5, tier: FormalMedicalInsu
     }),
     result,
   };
+}
+
+export function getTrainingGroundLessonsV5(run: RunGameV5): FormalTrainingGroundLessonViewV4[] {
+  const node = currentRestNodeV5(run);
+  if (!node) return [];
+  return formalTrainingGroundLessonTableV4().map(lesson => trainingGroundLessonViewV5(run, node.nodeId, lesson, `${node.nodeId}:lesson:${lesson.kind}`));
+}
+
+export function getTrainingGroundLessonForInputV5(run: RunGameV5, input: Partial<FormalTrainingGroundApplyInputV4>): FormalTrainingGroundLessonViewV4 | null {
+  const node = currentRestNodeV5(run);
+  if (!node) return null;
+  const lessons = getTrainingGroundLessonsV5(run);
+  const requestedKind = input.lessonKind || formalTrainingGroundLessonKindFromIdV4(input.lessonId || "");
+  if (requestedKind) return lessons.find(lesson => lesson.kind === requestedKind) || null;
+  const state = run.restState.trainingGroundByNodeId?.[node.nodeId] || {nodeId: node.nodeId, lessonRoll: 0, selfStudyRoll: 0, updatedAt: run.updatedAt};
+  const lessonRoll = Math.max(0, Math.floor(Number(state.lessonRoll || 0)));
+  const lesson = formalTrainingGroundLessonForRollV4(run.config.seed, node.nodeId, lessonRoll);
+  return trainingGroundLessonViewV5(run, node.nodeId, lesson, `${node.nodeId}:lesson:${lessonRoll}:${lesson.kind}`);
 }
 
 export function exchangeSelfPokemonV5(run: RunGameV5, input: {sourcePokemonId: string; targetPokemon: LocalPokemonV4; view: FormalPokemonExchangeViewV4}, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
@@ -981,6 +1372,58 @@ export function exchangeSelfPokemonV5(run: RunGameV5, input: {sourcePokemonId: s
       commandLog: appendCommandLog(run, commandId, "pokemon.exchange", result, iso, run.revision + 1),
     }),
     result,
+  };
+}
+
+export function getPokemonExchangeViewV5(run: RunGameV5, input: {playerId?: ShowdownPlayerIdV4} = {}): FormalPokemonExchangeViewV4 {
+  const playerSlot = input.playerId === "p3" ? "p3" : "p1";
+  const opponentSlot = playerSlot === "p3" ? "p4" : "p2";
+  const wonNode = latestWonExchangeNodeV5(run);
+  const flags = pokemonExchangeFlagsV5(run);
+  const empty = (message: string): FormalPokemonExchangeViewV4 => ({
+    available: false,
+    message,
+    nodeId: wonNode?.nodeId || null,
+    playerId: playerSlot,
+    opponentPlayerId: opponentSlot,
+    player: playerDraftForSlotV5(run, playerSlot),
+    opponent: wonNode ? playerDraftForSlotV5(run, opponentSlot, wonNode) : null,
+    exchangeCount: 0,
+    maxExchangeCount: flags.secondExchange ? 2 : 1,
+    nextCost: 0,
+    secondExchangeCost: 200,
+    flags,
+  });
+  if (!run.gameMap.nodes.length) return empty("当前没有可交换的休整队伍。");
+  if (!wonNode) return empty("还没有可交换的上一场对手。");
+  const player = playerDraftForSlotV5(run, playerSlot);
+  const opponent = playerDraftForSlotV5(run, opponentSlot, wonNode);
+  if (!player) return empty("缺少我方队伍。");
+  if (!opponent) return empty("缺少上一场对位对手队伍。");
+  const visiblePlayer = {
+    ...player,
+    localTeam: {
+      ...player.localTeam,
+      pokemon: player.localTeam.pokemon.filter(pokemon => !isProtectedSoulmatePokemonV5(pokemon)),
+    },
+  };
+  const exchangeCount = run.restState.exchangeByNodeId?.[wonNode.nodeId]?.records.length || 0;
+  const maxExchangeCount = flags.secondExchange ? 2 : 1;
+  const nextCost = exchangeCount === 0 ? 0 : exchangeCount === 1 && flags.secondExchange ? 200 : 0;
+  const available = exchangeCount < maxExchangeCount;
+  return {
+    available,
+    message: available ? "选择双方宝可梦后即可交换。" : "本场胜利后的交换次数已经用完。",
+    nodeId: wonNode.nodeId,
+    playerId: playerSlot,
+    opponentPlayerId: opponentSlot,
+    player: visiblePlayer,
+    opponent,
+    exchangeCount,
+    maxExchangeCount,
+    nextCost,
+    secondExchangeCost: 200,
+    flags,
   };
 }
 
@@ -1435,56 +1878,6 @@ function tokenV5(value: unknown): string {
   return String(value || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
 }
 
-export function commitFinalSettlementV5(run: RunGameV5, input: {commandId: string; formalRun: FormalGameRunV4; reason: FormalSettlementReasonV4; summary: Record<string, unknown>}, now = new Date()): RunGameV5 {
-  const repeated = run.commandLog[input.commandId];
-  if (repeated) return run;
-  if (!input.formalRun.settlement?.id) throw new Error("RunGameV5 final settlement missing settlement.");
-  const iso = now.toISOString();
-  const self = requirePlayer(run, run.selfPlayerId);
-  const compatRest = input.formalRun.restRunSnapshot;
-  const gameMap = {
-    nodes: run.gameMap.nodes.map(node => {
-      const compatNode = compatRest?.gameMap.find(entry => entry.id === node.nodeId);
-      if (!compatNode) return node;
-      return {
-        ...node,
-        state: compatNode.state,
-        battleGame: compatNode.battleGame,
-        startedAt: compatNode.startedAt || node.startedAt,
-        endedAt: compatNode.endedAt || node.endedAt || (compatNode.state === "won" || compatNode.state === "lost" ? iso : undefined),
-      };
-    }),
-  };
-  return assertRunGameV5RedLines({
-    ...run,
-    status: "ended",
-    phase: "settlement",
-    revision: run.revision + 1,
-    updatedAt: iso,
-    playersById: {
-      ...run.playersById,
-      [self.playerId]: {...self, money: clampIntV5(input.formalRun.money, 0, 999999, self.money), updatedAt: iso},
-    },
-    gameMap,
-    restState: {
-      ...run.restState,
-      coinLog: compatRest?.coinLog || run.restState.coinLog,
-      battleLog: compatRest?.battleLog || run.restState.battleLog,
-    },
-    finalResult: {
-      settlementId: input.formalRun.settlement.id,
-      settlement: input.formalRun.settlement,
-      settledAt: input.formalRun.settledAt,
-      summary: input.summary,
-    },
-    commandLog: appendCommandLog(run, input.commandId, "finalize-run", {
-      settlementId: input.formalRun.settlement.id,
-      reason: input.reason,
-      summary: input.summary,
-    }, iso, run.revision + 1),
-  });
-}
-
 export function prepareFinalSettlementFromRunGameV5(run: RunGameV5, reason: FormalSettlementReasonV4, now = new Date()): NonNullable<FormalGameRunV4["settlement"]> {
   const iso = now.toISOString();
   const self = requirePlayer(run, run.selfPlayerId);
@@ -1548,112 +1941,6 @@ export function commitFinalSettlementFromRunGameV5(run: RunGameV5, input: {comma
       summary: input.summary,
     }, iso, run.revision + 1),
   });
-}
-
-export function buildFormalRunCompatViewV5(run: RunGameV5): FormalGameRunV4 {
-  const self = requirePlayer(run, run.selfPlayerId);
-  const playerTeam = teamForPlayer(run, self, `formal-player-team-${run.runId}`, "正式游戏初始队伍");
-  const roundPlan = run.roundPlan.map(round => {
-    const participants = participantsForSlots(run, round.slots);
-    return {
-      id: round.nodeId,
-      index: round.index,
-      mode: round.mode,
-      ruleSet: round.ruleSet,
-      difficulty: round.difficulty,
-      seed: round.seed,
-      npcs: round.npcRefs.map(playerId => npcSnapshotForPlayer(run.playersById[playerId], round.nodeId)).filter((npc): npc is FormalRoundNpcSnapshotV4 => Boolean(npc)),
-      participants,
-      diagnostics: [...round.diagnostics, "compat-view:read-only"],
-    };
-  });
-  const gameMap = run.gameMap.nodes.map(node => ({
-    id: node.nodeId,
-    index: node.index,
-    state: node.state,
-    p1: node.slots.p1 ? "p1" : null,
-    p2: node.slots.p2 ? "p2" : null,
-    p3: node.slots.p3 ? "p3" : null,
-    p4: node.slots.p4 ? "p4" : null,
-    mode: node.mode,
-    ruleSet: node.ruleSet,
-    seed: node.seed,
-    participants: participantsForSlots(run, node.slots),
-    battleGame: node.battleGame,
-    createdAt: node.createdAt,
-    startedAt: node.startedAt,
-    endedAt: node.endedAt,
-  } satisfies TrainingRunGameNodeV4));
-  const currentNodeSlots = run.gameMap.nodes.find(node => node.nodeId === run.currentNodeId)?.slots || {p1: run.selfPlayerId};
-  const scenarioPlayers = Object.values(participantsForSlots(run, currentNodeSlots)).filter(Boolean) as TrainingPlayerDraftV4[];
-  const restRunSnapshot: TrainingRunGameV4 | null = gameMap.length ? {
-    version: 1,
-    id: `compat-rest-${run.runId}`,
-    source: "training",
-    status: run.status === "ended" ? "ended" : run.status === "settlement_ready" ? "battleEndedPendingSettlement" : run.status === "battling" ? "battling" : run.status === "battle_preparing" ? "battlePreparing" : "resting",
-    profileId: run.profileId,
-    createdAt: run.createdAt,
-    updatedAt: run.updatedAt,
-    scenario: {
-      id: `compat-scenario-${run.runId}`,
-      name: "正式房间对局",
-      mode: run.config.mode,
-      ruleSet: run.config.ruleSet,
-      battleCount: gameMap.length,
-      players: scenarioPlayers,
-      selectedNpcIds: {},
-    },
-    players: participantsForSlots(run, currentNodeSlots),
-    currentNodeId: run.currentNodeId,
-    gameMap,
-    result: run.status === "ended" && run.finalResult?.settlement ? {
-      outcome: run.finalResult.settlement.outcome,
-      reason: run.finalResult.settlement.reason,
-    } : null,
-    battlePreference: run.config.battlePreference,
-    competitionMode: run.config.competitionMode,
-    restPreviewUnlocks: run.restState.restPreviewUnlocks,
-    coinLog: run.restState.coinLog,
-    battleLog: run.restState.battleLog,
-  } : null;
-  return {
-    version: 1,
-    id: run.runId,
-    source: "formal",
-    mode: run.config.mode,
-    competitionMode: run.config.competitionMode,
-    status: run.status === "starter_selecting" ? "starterSelecting" : run.status === "round_preparing" ? "roundPlanPending" : run.status === "ended" ? "ended" : "resting",
-    profileId: run.profileId,
-    createdAt: run.createdAt,
-    updatedAt: run.updatedAt,
-    seed: run.config.seed,
-    streak: run.streak,
-    battlePreference: run.config.battlePreference,
-    starChartSnapshot: self.starChartSnapshot || ({} as FormalGameRunV4["starChartSnapshot"]),
-    coopPartnerPreference: run.coopPartnerPreference,
-    starterCandidates: run.starterCandidates.map(candidate => ({...candidate, pokemon: requirePokemon(run, candidate.pokemonId).localPokemon})),
-    selectedStarterIndexes: [...run.selectedStarterIndexes],
-    playerTeam: self.localTeamPokemonIds.length ? playerTeam : null,
-    roundPlan,
-    restRunSnapshot,
-    currentRoundIndex: gameMap.find(node => node.id === run.currentNodeId)?.index || 0,
-    money: self.money,
-    shopByNodeId: run.restState.shopByNodeId,
-    trainingGroundByNodeId: run.restState.trainingGroundByNodeId,
-    roundSettlementByNodeId: run.restState.roundSettlementByNodeId,
-    exchangeByNodeId: run.restState.exchangeByNodeId,
-    soulmateEggClaimedAt: run.soulmateState?.eggClaimedAt,
-    soulmateEggCandidateId: run.soulmateState?.eggCandidateId,
-    soulmatePlayerPokemonId: run.soulmateState?.playerPokemonId,
-    soulmateFriendshipSettlementByNodeId: run.soulmateState?.friendshipSettlementByNodeId,
-    soulmateHonorSettlementByNodeId: run.soulmateState?.honorSettlementByNodeId,
-    soulmateBattleEvolutionByNodeId: run.soulmateState?.battleEvolutionByNodeId,
-    medicalInsuranceOfferSeen: Boolean(run.restState.medicalInsuranceOfferSeen || run.restState.medicalInsurance),
-    medicalInsurance: run.restState.medicalInsurance || null,
-    settlement: run.finalResult?.settlement || null,
-    settled: run.status === "ended" || Boolean(run.finalResult?.settlement),
-    settledAt: run.finalResult?.settledAt,
-  };
 }
 
 export function assertRunGameV5RedLines(run: RunGameV5): RunGameV5 {
@@ -1969,6 +2256,94 @@ function decrementShopStockV5(run: RunGameV5, slotId: string, updatedAt: string)
   };
 }
 
+function createBasicRestShopV5(nodeId: string, seed: string, at: string): NonNullable<RunGameV5["restState"]["shopByNodeId"]>[string] {
+  const catalog = {
+    recovery: ["potion", "superpotion", "hyperpotion"],
+    berry: ["oranberry", "sitrusberry", "lumberry"],
+    battle: ["leftovers", "lifeorb", "choicescarf"],
+    training: ["rarecandy", "protein", "bottlecap"],
+    parenting: ["heartscale", "standardtextbook", "redthread"],
+    evolution: ["universal-evolution-stone", "linking-cord", "waterstone"],
+    tm: ["tm:protect", "tm:thunderbolt", "tm:icebeam"],
+  };
+  return {
+    nodeId,
+    seed,
+    updatedAt: at,
+    categories: Object.fromEntries(Object.entries(catalog).map(([category, itemIds]) => [
+      category,
+      itemIds.map((itemID, index) => ({
+        slotId: `${nodeId}:${category}:${index}`,
+        category,
+        itemID,
+        stock: 1,
+        generatedAt: at,
+      })),
+    ])) as NonNullable<RunGameV5["restState"]["shopByNodeId"]>[string]["categories"],
+  };
+}
+
+function medicalInsuranceTierLabelV5(tier: string): string {
+  if (tier === "premium") return "高级医疗保险";
+  if (tier === "basic") return "基础医疗保险";
+  return "医疗保险";
+}
+
+function currentRestNodeV5(run: RunGameV5): GameMapNodeV5 | null {
+  return (run.currentNodeId ? run.gameMap.nodes.find(node => node.nodeId === run.currentNodeId) : null)
+    || run.gameMap.nodes.find(node => node.state === "ready" || node.state === "running")
+    || run.gameMap.nodes[0]
+    || null;
+}
+
+function trainingGroundLessonViewV5(
+  run: RunGameV5,
+  nodeId: string,
+  lesson: Omit<FormalTrainingGroundLessonViewV4, "lessonId">,
+  lessonId: string,
+): FormalTrainingGroundLessonViewV4 {
+  const node = run.gameMap.nodes.find(entry => entry.nodeId === nodeId);
+  const self = requirePlayer(run, run.selfPlayerId);
+  return {
+    ...lesson,
+    lessonId,
+    fee: formalTrainingGroundLessonFeeV4(lesson.fee, {
+      roundIndex: node?.index ?? currentRoundIndexV5(run),
+      groupStageDiscount: formalTrainingGroundDiscountForStarChartV4(self.starChartSnapshot),
+    }),
+  };
+}
+
+function latestWonExchangeNodeV5(run: RunGameV5): GameMapNodeV5 | null {
+  const current = currentRestNodeV5(run);
+  const currentIndex = current?.index ?? run.gameMap.nodes.length;
+  return run.gameMap.nodes
+    .filter(node => node.state === "won" && node.index < currentIndex)
+    .sort((left, right) => right.index - left.index)[0]
+    || null;
+}
+
+function playerDraftForSlotV5(run: RunGameV5, slot: ShowdownPlayerIdV4, node?: GameMapNodeV5 | null): TrainingPlayerDraftV4 | null {
+  const playerId = (node?.slots || currentRestNodeV5(run)?.slots || {})[slot]
+    || Object.values(run.playersById).find(player => player.slot === slot)?.playerId
+    || "";
+  return playerId ? draftForPlayer(run, playerId) : null;
+}
+
+function pokemonExchangeFlagsV5(run: RunGameV5): FormalPokemonExchangeViewV4["flags"] {
+  const self = requirePlayer(run, run.selfPlayerId);
+  return {
+    lossless: starChartHasRuntimeEffectV4(self.starChartSnapshot, "exchange_full_hp"),
+    eliteEducation: starChartHasRuntimeEffectV4(self.starChartSnapshot, "exchange_power_boost"),
+    itemSteal: starChartHasRuntimeEffectV4(self.starChartSnapshot, "exchange_keep_item"),
+    secondExchange: starChartHasRuntimeEffectV4(self.starChartSnapshot, "second_exchange"),
+  };
+}
+
+function isProtectedSoulmatePokemonV5(pokemon: Pick<LocalPokemonV4, "formalSourceKind" | "originKind"> | null | undefined): boolean {
+  return pokemon?.formalSourceKind === "soulmate-vault" || pokemon?.originKind === "soulmate";
+}
+
 function currentRoundIndexV5(run: RunGameV5): number {
   return Math.max(0, Math.floor(Number(run.gameMap.nodes.find(node => node.nodeId === run.currentNodeId)?.index || 0)));
 }
@@ -2035,23 +2410,6 @@ function participantsForSlots(run: RunGameV5, slots: Partial<Record<ShowdownPlay
     return draft ? [[slot, draft] as const] : [];
   });
   return Object.fromEntries(entries) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
-}
-
-function npcSnapshotForPlayer(player: PlayerInstanceV5 | undefined, nodeId: string): FormalRoundNpcSnapshotV4 | null {
-  if (!player || player.kind !== "npc") return null;
-  return {
-    id: player.npcProfile?.trainerId || player.playerId,
-    trainerId: player.npcProfile?.trainerId || player.playerId,
-    trainerType: player.npcProfile?.rank === "boss" ? "villain" : player.npcProfile?.rank === "champion" ? "champion" : player.npcProfile?.rank === "elite" ? "elite" : "normal",
-    name: player.name,
-    avatar: player.avatar,
-    playerId: player.slot,
-    battlePreference: "balanced",
-    teamPreference: "balanced",
-    powerProfile: player.npcProfile?.rank === "boss" ? "boss" : player.npcProfile?.rank === "champion" ? "champion" : player.npcProfile?.rank === "elite" ? "elite" : "normal",
-    isBoss: player.npcProfile?.rank === "boss",
-    diagnostics: [`v5-player:${player.playerId}`, `node:${nodeId}`],
-  };
 }
 
 function npcProfileFromDraft(draft: TrainingPlayerDraftV4, nodeId: string): PlayerInstanceV5["npcProfile"] {

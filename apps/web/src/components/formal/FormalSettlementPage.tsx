@@ -5,13 +5,14 @@ import {pokemonSpriteUrl} from "../../lib/showdownPokemonSpriteAdapter";
 import "./PokemonSprite.css";
 import "./FormalSettlementPage.css";
 
-export function FormalSettlementPage({run, profile, onBackToMain, backLabel = "返回主页"}: {
-  run: FormalGameRunV4;
+export function FormalSettlementPage({run, settlement: settlementInput, profile, onBackToMain, backLabel = "返回主页"}: {
+  run?: FormalGameRunV4 | null;
+  settlement?: NonNullable<FormalGameRunV4["settlement"]> | null;
   profile: UserProfileV2;
   onBackToMain: () => void;
   backLabel?: string;
 }) {
-  const settlement = run.settlement;
+  const settlement = settlementInput || run?.settlement || null;
   const stats = useMemo(() => (settlement?.pokemonStats || []).filter(hasBattleActivity), [settlement?.pokemonStats]);
   const defaultKey = settlement?.mvpPokemonKey && stats.some(entry => entry.pokemonKey === settlement.mvpPokemonKey)
     ? settlement.mvpPokemonKey
@@ -39,7 +40,7 @@ export function FormalSettlementPage({run, profile, onBackToMain, backLabel = "�
         </div>
         <dl>
           <div><dt>获得 BP</dt><dd>{settlement.bpGained}</dd></div>
-          <div><dt>胜场</dt><dd>{settlement.wonRounds}/{Math.max(1, settlement.totalRounds || run.restRunSnapshot?.gameMap.length || 7)}</dd></div>
+          <div><dt>胜场</dt><dd>{settlement.wonRounds}/{Math.max(1, settlement.totalRounds || run?.restRunSnapshot?.gameMap.length || 7)}</dd></div>
           <div>
             <dt>{settlement.playerVaultItemsRejectedCount ? "箱子已满" : "道具入库"}</dt>
             <dd>{settlement.playerVaultItemsRejectedCount ? `${settlement.playerVaultItemsRejectedCount} 未入` : `+${settlement.playerVaultItemsClaimedCount || 0}`}</dd>
@@ -47,7 +48,7 @@ export function FormalSettlementPage({run, profile, onBackToMain, backLabel = "�
           <div><dt>余额</dt><dd>{settlement.coinSummary.balance}</dd></div>
         </dl>
         <div className="formal-settlement-actions">
-          <button type="button" onClick={() => exportFormalSettlementDiagnostics(run, profile)}>导出</button>
+          <button type="button" onClick={() => exportFormalSettlementDiagnostics({run, settlement}, profile)}>导出</button>
           <button type="button" onClick={onBackToMain}>{backLabel}</button>
         </div>
       </section>
@@ -128,14 +129,15 @@ function settlementPokemonSprite(entry: FormalSettlementPokemonStatsV4): string 
   return entry.speciesId ? pokemonSpriteUrl({speciesId: entry.speciesId, facing: "front", shiny: Boolean(entry.shiny)}) : "";
 }
 
-function exportFormalSettlementDiagnostics(run: FormalGameRunV4, profile: UserProfileV2): void {
+function exportFormalSettlementDiagnostics(input: {run?: FormalGameRunV4 | null; settlement: NonNullable<FormalGameRunV4["settlement"]>}, profile: UserProfileV2): void {
+  const {run, settlement} = input;
   const diagnostics = {
     exportedAt: new Date().toISOString(),
     reason: "formal-settlement-diagnostics",
-    runId: run.id,
-    mode: run.mode,
-    status: run.status,
-    currentRoundIndex: run.currentRoundIndex,
+    runId: run?.id || settlement.id,
+    mode: run?.mode,
+    status: run?.status,
+    currentRoundIndex: run?.currentRoundIndex,
     profile: {
       id: profile.id,
       name: profile.name,
@@ -143,27 +145,24 @@ function exportFormalSettlementDiagnostics(run: FormalGameRunV4, profile: UserPr
       starChart: profile.starChart,
     },
     run: {
-      id: run.id,
-      seed: run.seed,
-      mode: run.mode,
-      status: run.status,
-      currentRoundIndex: run.currentRoundIndex,
-      selectedStarterIndexes: run.selectedStarterIndexes,
-      roundPlan: run.roundPlan,
-      roundSettlementByNodeId: run.roundSettlementByNodeId,
-      restRunSnapshot: run.restRunSnapshot,
-      restCoinLog: run.restRunSnapshot?.coinLog || [],
-      restBattleLog: run.restRunSnapshot?.battleLog || [],
-      settlement: run.settlement,
-      createdAt: run.createdAt,
-      updatedAt: run.updatedAt,
+      id: run?.id || settlement.id,
+      seed: run?.seed,
+      mode: run?.mode,
+      status: run?.status,
+      currentRoundIndex: run?.currentRoundIndex,
+      selectedStarterIndexes: run?.selectedStarterIndexes,
+      roundPlan: run?.roundPlan,
+      roundSettlementByNodeId: run?.roundSettlementByNodeId,
+      settlement,
+      createdAt: run?.createdAt,
+      updatedAt: run?.updatedAt || settlement.createdAt,
     },
   };
   const blob = new Blob([JSON.stringify(diagnostics, null, 2)], {type: "application/json"});
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `formal-settlement-diagnostics-${run.id}-${Date.now()}.json`;
+  link.download = `formal-settlement-diagnostics-${run?.id || settlement.id}-${Date.now()}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();

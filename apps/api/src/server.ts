@@ -6,8 +6,9 @@ import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core
 import {addPlayerVaultItemV4} from "@changebattle-v2/core";
 import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAssetFieldsV4, normalizePlayerVault, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmUseFailureReasonV4} from "./itemEffects.js";
+import {matchLegacyFormalRoomRoute} from "./legacyFormalRoomRoutes.js";
 import {createMemoryRedisLikeProvider, createRedisSocketProvider, type RedisLikeCommandProvider} from "./roomStore.js";
-import {applyTrainingLessonV5, buildFormalRunCompatViewV5, buildRunGameViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementFromRunGameV5, commitFinalSettlementV5, commitSelfBagMutationV5, commitSoulmateEggClaimV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, healSelfTeamV5, ingestPreparedRoundPlanV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, type RunGameV5} from "./runGameV5.js";
+import {applyTrainingLessonV5, buildScopedFormalRoomViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementFromRunGameV5, commitSelfBagMutationV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, getMedicalInsuranceTierForChoiceV5, getPokemonExchangeViewV5, getTrainingGroundLessonForInputV5, healSelfTeamV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, prepareRoundPlanFromDraftsV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, viewScopeForRunGameV5, type RunGameV5, type ViewScopeNameV5} from "./runGameV5.js";
 import {normalizeBattlePreferenceV4} from "./training.js";
 
 type ServerConfig = {
@@ -62,20 +63,6 @@ type FormalRoomBattleFinalizeResultV1 = {
   settlementNotice?: string;
 };
 
-type FormalRoomRestActionStoredResultV1 = {
-  actionType: string;
-  message: string;
-  revision: number;
-  moneyDelta: number;
-  createdAt: string;
-};
-
-type FormalRoomDraftSyncStoredResultV1 = {
-  label: string;
-  revision: number;
-  createdAt: string;
-};
-
 type FormalRoomFinalResultV1 = {
   clientRequestId: string;
   settlementId: string;
@@ -94,7 +81,7 @@ type FormalRoomFinalResultV1 = {
 
 type FormalRoomFinalResultResponseV1 = {
   room: ReturnType<typeof publicRoom>;
-  formalRun: FormalGameRunV4 | null;
+  formalRun?: FormalGameRunV4 | null;
   profile: UserProfileV2;
   playerVault: PlayerVaultV4;
   settlementId: string;
@@ -150,8 +137,6 @@ type FormalRoomRecordV1 = {
   activeMatchId?: string | null;
   formalRun?: FormalGameRunV4 | null;
   activeBattle?: FormalRoomActiveBattleV1 | null;
-  restActionResults?: Record<string, FormalRoomRestActionStoredResultV1>;
-  draftSyncResults?: Record<string, FormalRoomDraftSyncStoredResultV1>;
   finalResult?: FormalRoomFinalResultV1 | null;
   revision: number;
   status: RoomStatus;
@@ -266,21 +251,17 @@ function createHttpRequestHandler(): http.RequestListener {
     const roomMatchStartMatch = /^\/rooms\/([^/]+)\/matches\/([^/]+)\/start$/.exec(pathname);
     const roomMatchViewMatch = /^\/rooms\/([^/]+)\/matches\/([^/]+)\/view$/.exec(pathname);
     const roomMatchCommandMatch = /^\/rooms\/([^/]+)\/matches\/([^/]+)\/commands\/([^/]+)$/.exec(pathname);
-    const roomSelectStartersMatch = /^\/rooms\/([^/]+)\/formal\/select-starters$/.exec(pathname);
-    const roomPrepareRoundMatch = /^\/rooms\/([^/]+)\/formal\/prepare-round$/.exec(pathname);
-    const roomRestActionMatch = /^\/rooms\/([^/]+)\/formal\/rest-action$/.exec(pathname);
-    const roomSyncDraftMatch = /^\/rooms\/([^/]+)\/formal\/sync-rest-draft$/.exec(pathname);
-    const roomPrepareBattleMatch = /^\/rooms\/([^/]+)\/formal\/prepare-battle$/.exec(pathname);
-    const roomFinalizeBattleMatch = /^\/rooms\/([^/]+)\/formal\/finalize-battle$/.exec(pathname);
-    const roomFinalizeRunMatch = /^\/rooms\/([^/]+)\/formal\/finalize-run$/.exec(pathname);
+    const legacyFormalRouteMatch = matchLegacyFormalRoomRoute(request.method || "", pathname);
     const roomFinalResultMatch = /^\/rooms\/([^/]+)\/final-result$/.exec(pathname);
     const roomBattleSnapshotMatch = /^\/rooms\/([^/]+)\/battle\/snapshot$/.exec(pathname);
     const roomBattleTimelineMatch = /^\/rooms\/([^/]+)\/battle\/playback-timeline$/.exec(pathname);
     const roomBattleChoiceMatch = /^\/rooms\/([^/]+)\/battle\/choices$/.exec(pathname);
 
-    const legacyFormalRouteMatch = roomSelectStartersMatch || roomPrepareRoundMatch || roomRestActionMatch || roomSyncDraftMatch || roomPrepareBattleMatch || roomFinalizeBattleMatch || roomFinalizeRunMatch;
-    if (legacyFormalRouteMatch && !config.enableLegacyFormalRoutes) {
-      throw new HttpError(410, "legacy_formal_route_disabled", "旧正式流程房间接口已禁用，请使用 match-scoped command。");
+    if (legacyFormalRouteMatch) {
+      if (config.enableLegacyFormalRoutes) {
+        throw new HttpError(410, "legacy_formal_adapter_unmounted", "旧正式流程房间接口已拆离主服务；如需诊断旧存档，请单独挂载 dev-only legacy adapter。");
+      }
+      throw new HttpError(410, "legacy_formal_route_disabled", "旧正式流程房间接口已隔离，请使用 match-scoped scoped view 和具体 command。");
     }
 
     if (request.method === "GET" && roomMatch) {
@@ -337,8 +318,9 @@ function createHttpRequestHandler(): http.RequestListener {
     if (request.method === "GET" && roomMatchViewMatch) {
       const roomId = decodeURIComponent(roomMatchViewMatch[1]!);
       const matchId = decodeURIComponent(roomMatchViewMatch[2]!);
+      const scope = parseViewScopeV5(url.searchParams.get("scope"));
       const room = await loadAuthorizedRoom(roomId, request);
-      sendJson(response, 200, buildFormalMatchView(room, matchId));
+      sendJson(response, 200, buildFormalScopedMatchView(room, matchId, scope));
       return;
     }
     if (request.method === "POST" && roomMatchCommandMatch) {
@@ -349,66 +331,6 @@ function createHttpRequestHandler(): http.RequestListener {
       const result = await withRoomLock(roomId, async () => handleFormalMatchCommand(roomId, request, matchId, commandName, body));
       sendJson(response, 200, result);
       log("info", "room-match-command", {requestId, roomId, matchId, commandName, revision: result.revision, elapsedMs: Date.now() - startedAt});
-      return;
-    }
-    if (request.method === "POST" && roomSelectStartersMatch) {
-      const roomId = decodeURIComponent(roomSelectStartersMatch[1]!);
-      const body = await readJson(request);
-      const room = await withRoomLock(roomId, async () => {
-        const current = await loadAuthorizedRoom(roomId, request);
-        const formalRun = runFormalStep(() => formalApi.selectFormalStarterPokemon(requireActiveFormalRun(current), body?.selectedIndexes || []));
-        const next = advanceRoom(current, formalRun);
-        await saveRoom(next);
-        broadcastRoomUpdated(next);
-        return next;
-      });
-      sendJson(response, 200, publicRoom(room));
-      log("info", "room-formal-starters-selected", {requestId, roomId, revision: room.revision, elapsedMs: Date.now() - startedAt});
-      return;
-    }
-    if (request.method === "POST" && roomPrepareRoundMatch) {
-      const roomId = decodeURIComponent(roomPrepareRoundMatch[1]!);
-      const room = await withRoomLock(roomId, async () => {
-        const current = await loadAuthorizedRoom(roomId, request);
-        const formalRun = await runFormalStepAsync(() => formalApi.prepareFormalRoundPlan(requireActiveFormalRun(current)));
-        const next = advanceRoom(current, formalRun);
-        await saveRoom(next);
-        broadcastRoomUpdated(next);
-        return next;
-      });
-      sendJson(response, 200, publicRoom(room));
-      log("info", "room-formal-round-prepared", {requestId, roomId, revision: room.revision, elapsedMs: Date.now() - startedAt});
-      return;
-    }
-    if (request.method === "POST" && roomSyncDraftMatch) {
-      const roomId = decodeURIComponent(roomSyncDraftMatch[1]!);
-      const body = await readJson(request);
-      const result = await withRoomLock(roomId, async () => syncFormalRoomDraft(roomId, roomTokenFromRequest(request), body));
-      sendJson(response, 200, result);
-      log("info", "room-formal-draft-synced", {requestId, roomId, revision: result.room.revision, label: result.label, elapsedMs: Date.now() - startedAt});
-      return;
-    }
-    if (request.method === "POST" && roomRestActionMatch) {
-      const roomId = decodeURIComponent(roomRestActionMatch[1]!);
-      const body = await readJson(request);
-      const result = await withRoomLock(roomId, async () => applyFormalRoomRestAction(roomId, roomTokenFromRequest(request), body));
-      sendJson(response, 200, result);
-      log("info", "room-formal-rest-action", {
-        requestId,
-        roomId,
-        actionType: result.actionType,
-        revision: result.room.revision,
-        moneyDelta: result.moneyDelta,
-        elapsedMs: Date.now() - startedAt,
-      });
-      return;
-    }
-    if (request.method === "POST" && roomPrepareBattleMatch) {
-      const roomId = decodeURIComponent(roomPrepareBattleMatch[1]!);
-      const body = await readJson(request);
-      const result = await withRoomLock(roomId, async () => prepareFormalRoomBattle(roomId, request, body));
-      sendJson(response, 200, result);
-      log("info", "room-formal-battle-prepared", {requestId, roomId, sessionId: result.sessionId, elapsedMs: Date.now() - startedAt});
       return;
     }
     if (request.method === "GET" && roomBattleSnapshotMatch) {
@@ -432,29 +354,6 @@ function createHttpRequestHandler(): http.RequestListener {
       const result = await withRoomLock(roomId, async () => submitFormalRoomBattleChoice(roomId, request, body));
       sendJson(response, 200, sanitizeSnapshot(result));
       log("info", "room-battle-choice-submitted", {requestId, roomId, sessionId: result.id, playerId: body?.playerId, elapsedMs: Date.now() - startedAt});
-      return;
-    }
-    if (request.method === "POST" && roomFinalizeBattleMatch) {
-      const roomId = decodeURIComponent(roomFinalizeBattleMatch[1]!);
-      const body = await readJson(request);
-      const result = await withRoomLock(roomId, async () => finalizeFormalRoomBattle(roomId, request, body));
-      sendJson(response, 200, result);
-      log("info", "room-formal-battle-finalized", {requestId, roomId, destination: result.destination, elapsedMs: Date.now() - startedAt});
-      return;
-    }
-    if (request.method === "POST" && roomFinalizeRunMatch) {
-      const roomId = decodeURIComponent(roomFinalizeRunMatch[1]!);
-      const body = await readJson(request);
-      const result = await withRoomLock(roomId, async () => finalizeFormalRoomRun(roomId, request, body));
-      sendJson(response, 200, result);
-      log("info", "room-formal-run-finalized", {
-        requestId,
-        roomId,
-        settlementId: result.settlementId,
-        bpGained: result.summary.bpGained,
-        reused: result.reused,
-        elapsedMs: Date.now() - startedAt,
-      });
       return;
     }
     if (request.method === "GET" && roomFinalResultMatch) {
@@ -942,7 +841,7 @@ async function createFormalRoom(body: any): Promise<Record<string, unknown>> {
   }
 }
 
-async function createFormalLobbyMatch(roomId: string, request: http.IncomingMessage, body: any): Promise<{room: Record<string, unknown>; match: FormalLobbyMatchV1; formalRun: FormalGameRunV4}> {
+async function createFormalLobbyMatch(roomId: string, request: http.IncomingMessage, body: any): Promise<{room: Record<string, unknown>; match: FormalLobbyMatchV1}> {
   const current = await loadAuthorizedRoom(roomId, request);
   assertRoomOpen(current);
   if ((current.matches || []).some(match => match.status !== "ended")) {
@@ -974,7 +873,6 @@ async function createFormalLobbyMatch(roomId: string, request: http.IncomingMess
     starterRun,
     now,
   });
-  const formalRun = buildFormalRunCompatViewV5(runGameV5);
   const match: FormalLobbyMatchV1 = {
     matchId,
     title: typeof body?.title === "string" && body.title.trim() ? body.title.trim().slice(0, 24) : formalModeMatchTitle(mode),
@@ -1004,7 +902,7 @@ async function createFormalLobbyMatch(roomId: string, request: http.IncomingMess
   };
   await saveRoom(next);
   broadcastRoomUpdated(next);
-  return {room: publicRoom(next), match: publicMatch(match), formalRun};
+  return {room: publicRoom(next), match: publicMatch(match)};
 }
 
 async function setFormalLobbyMatchReady(roomId: string, request: http.IncomingMessage, matchId: string, ready: boolean): Promise<{room: Record<string, unknown>; match: FormalLobbyMatchV1}> {
@@ -1025,13 +923,12 @@ async function setFormalLobbyMatchReady(roomId: string, request: http.IncomingMe
   return {room: publicRoom(next), match: publicMatch(findRoomMatch(next, matchId))};
 }
 
-async function startFormalLobbyMatch(roomId: string, request: http.IncomingMessage, matchId: string): Promise<{room: Record<string, unknown>; match: FormalLobbyMatchV1; formalRun: FormalGameRunV4}> {
+async function startFormalLobbyMatch(roomId: string, request: http.IncomingMessage, matchId: string): Promise<{room: Record<string, unknown>; match: FormalLobbyMatchV1}> {
   const current = await loadAuthorizedRoom(roomId, request);
   assertRoomOpen(current);
   const match = findRoomMatch(current, matchId);
-  if (!match.runGameV5 && !match.formalRun) throw new HttpError(409, "match_run_cleaned", "对局流程已经清理，请重新创建对局。");
-  const formalRun = formalRunFromMatch(match);
-  if (match.status !== "not_started") return {room: publicRoom(current), match: publicMatch(match), formalRun};
+  if (!match.runGameV5) throw new HttpError(409, "v5_run_missing", "当前对局不是 V5 权威模型，请重新创建对局。");
+  if (match.status !== "not_started") return {room: publicRoom(current), match: publicMatch(match)};
   const members = current.members || [];
   const participants = members.filter(member => match.participantMemberIds.includes(member.memberId));
   if (!participants.length || participants.some(member => !member.ready)) {
@@ -1051,11 +948,11 @@ async function startFormalLobbyMatch(roomId: string, request: http.IncomingMessa
     activeMatchId: matchId,
     formalRun: null,
     revision: current.revision + 1,
-    status: roomStatusFromFormalRun(formalRun),
+    status: "open",
   };
   await saveRoom(next);
   broadcastRoomUpdated(next);
-  return {room: publicRoom(next), match: publicMatch(startedMatch), formalRun};
+  return {room: publicRoom(next), match: publicMatch(startedMatch)};
 }
 
 function createInitialFormalRun(body: any, roomId: string): FormalGameRunV4 {
@@ -1127,25 +1024,9 @@ function assertRoomOpen(room: FormalRoomRecordV1): void {
   }
 }
 
-function requireActiveFormalRun(room: FormalRoomRecordV1): FormalGameRunV4 {
-  const activeMatch = findActiveRoomMatch(room);
-  const run = room.formalRun || (activeMatch ? formalRunFromMatch(activeMatch) : null);
-  if (!run) throw new HttpError(409, "match_not_started", "当前房间还没有开始对局。");
-  return run;
-}
-
-function formalRunFromMatch(match: FormalLobbyMatchV1): FormalGameRunV4 {
-  if (match.runGameV5) return buildFormalRunCompatViewV5(match.runGameV5);
-  if (match.formalRun) return match.formalRun;
-  throw new HttpError(409, "match_run_cleaned", "对局流程已经清理，请重新创建对局。");
-}
-
 function publicMatch(match: FormalLobbyMatchV1): FormalLobbyMatchV1 {
-  return {
-    ...match,
-    formalRun: null,
-    runGameV5: undefined,
-  };
+  const {formalRun: _formalRun, runGameV5: _runGameV5, ...safeMatch} = match;
+  return safeMatch as FormalLobbyMatchV1;
 }
 
 function findActiveRoomMatch(room: FormalRoomRecordV1): FormalLobbyMatchV1 | null {
@@ -1167,41 +1048,76 @@ function requireCommandMatch(room: FormalRoomRecordV1, matchId: string): FormalL
   return match;
 }
 
-function buildFormalMatchView(room: FormalRoomRecordV1, matchId: string, extras: Record<string, unknown> = {}): Record<string, unknown> & {revision: number} {
+function buildFormalScopedMatchView(room: FormalRoomRecordV1, matchId: string, scopeInput: ViewScopeNameV5 | null = null, extras: Record<string, unknown> = {}): Record<string, unknown> & {revision: number} {
   const publicState = publicRoom(room) as any;
   const match = findRoomMatch(room, matchId);
-  const formalRun = room.formalRun || formalRunFromMatch(match);
-  const viewV5 = match.runGameV5 ? buildRunGameViewV5(match.runGameV5) : null;
+  if (!match.runGameV5) throw new HttpError(409, "v5_run_missing", "当前对局不是 V5 权威模型，请重新创建对局。");
+  const scope = scopeInput || viewScopeForRunGameV5(match.runGameV5);
+  const scopedView = buildScopedFormalRoomViewV5(match.runGameV5, scope, publicState.activeBattle || null);
   return {
     room: publicState,
     match: publicMatch(match),
     revision: room.revision,
-    phase: formalRoomPhaseFromState(room, match, formalRun),
-    view: {
-      viewV5,
-      formalRun,
-      activeBattle: publicState.activeBattle || null,
-      finalResult: publicState.finalResult || null,
-    },
+    phase: formalRoomPhaseFromState(room, match),
+    scope,
+    view: scopedView,
+    activeBattle: publicState.activeBattle || null,
+    finalResult: publicState.finalResult || null,
     ...extras,
   };
 }
 
-function formalRoomPhaseFromState(room: FormalRoomRecordV1, match: FormalLobbyMatchV1, run: FormalGameRunV4 | null): string {
-  if (room.finalResult || run?.settlement || run?.settled) return "settlement";
+function formalRoomPhaseFromState(room: FormalRoomRecordV1, match: FormalLobbyMatchV1): string {
+  const runGameV5 = match.runGameV5;
+  if (!runGameV5) return "lobby";
+  if (room.finalResult || runGameV5.finalResult || runGameV5.status === "ended") return "settlement";
   if (match.status === "not_started") return "lobby";
-  if (!run) return "lobby";
   if (room.activeBattle?.status === "preparing") return "battlePreparing";
   if (room.activeBattle?.status === "running") return "battle";
-  const restStatus = run.restRunSnapshot?.status || "";
-  if (restStatus === "battlePreparing") return "battlePreparing";
-  if (restStatus === "battling") return "battle";
-  if (restStatus === "battleEndedPendingSettlement") return "settling";
-  if (restStatus === "ended" || run.status === "ended") return "settlement";
-  if (run.restRunSnapshot) return "rest";
-  if (run.playerTeam) return "roundPreparing";
-  if (run.starterCandidates?.length) return "starter";
-  return "lobby";
+  if (runGameV5.status === "starter_selecting" || runGameV5.phase === "starter") return "starter";
+  if (runGameV5.status === "round_preparing") return "roundPreparing";
+  if (runGameV5.status === "battle_preparing") return "battlePreparing";
+  if (runGameV5.status === "battling" || runGameV5.phase === "battle") return "battle";
+  if (runGameV5.status === "battle_settling") return "settling";
+  if (runGameV5.status === "settlement_ready" || runGameV5.phase === "settlement") return "settlement";
+  return "rest";
+}
+
+function parseViewScopeV5(value: string | null): ViewScopeNameV5 | null {
+  return value === "summary" || value === "starter" || value === "rest" || value === "battle" || value === "settlement" ? value : null;
+}
+
+function viewScopeForCommandV5(commandName: string): ViewScopeNameV5 {
+  if (commandName === "select-starters") return "starter";
+  if (commandName === "prepare-battle" || commandName === "battle-choice") return "battle";
+  if (commandName === "finalize-run") return "settlement";
+  if (commandName === "ack-final-result") return "summary";
+  return "rest";
+}
+
+const FORMAL_REST_COMMAND_NAMES_V5 = new Set([
+  "team.heal",
+  "pokemon.exchange",
+  "shop.buy",
+  "shop.sell",
+  "training.apply",
+  "pokemon.reroll-stats",
+  "bag.use",
+  "bag.equip",
+  "bag.unequip",
+  "bag.discard",
+  "opponent-preview.unlock",
+  "insurance.buy",
+  "soulmate-egg.claim",
+]);
+
+function isFormalRestCommandNameV5(commandName: string): boolean {
+  return FORMAL_REST_COMMAND_NAMES_V5.has(commandName);
+}
+
+function formalRestActionFromCommandNameV5(commandName: string, payload: Record<string, unknown>): Record<string, unknown> {
+  if (!isFormalRestCommandNameV5(commandName)) throw new HttpError(400, "unsupported_rest_command", "暂不支持这个休整命令。");
+  return {type: commandName, ...payload};
 }
 
 async function handleFormalMatchCommand(roomId: string, request: http.IncomingMessage, matchId: string, commandName: string, body: any): Promise<Record<string, unknown> & {revision: number}> {
@@ -1223,7 +1139,8 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       match: publicMatch(match),
       revision: current.revision,
       phase: "settlement",
-      view: {viewV5: null, formalRun: null, room: publicRoom(current), match: publicMatch(match)},
+      scope: "summary",
+      view: null,
       reused: true,
     };
   }
@@ -1231,13 +1148,13 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
   const repeated = match.runGameV5.commandLog[commandId];
   if (repeated) {
     if (commandName === "prepare-battle" && current.activeBattle?.sessionId) {
-      return buildFormalMatchView(current, matchId, {reused: true, sessionId: current.activeBattle.sessionId, result: repeated.result});
+      return buildFormalScopedMatchView(current, matchId, "battle", {reused: true, sessionId: current.activeBattle.sessionId, result: repeated.result});
     }
     if (commandName === "finalize-battle" && current.activeBattle?.finalizeResult) {
-      return buildFormalMatchView(current, matchId, {reused: true, destination: current.activeBattle.finalizeResult.destination, result: current.activeBattle.finalizeResult});
+      return buildFormalScopedMatchView(current, matchId, current.activeBattle.finalizeResult.destination === "settlement" ? "settlement" : "rest", {reused: true, destination: current.activeBattle.finalizeResult.destination, result: current.activeBattle.finalizeResult});
     }
     if (commandName === "finalize-run" && current.finalResult) {
-      return buildFormalMatchView(current, matchId, {
+      return buildFormalScopedMatchView(current, matchId, "settlement", {
         reused: true,
         profile: current.finalResult.profile,
         playerVault: current.finalResult.playerVault,
@@ -1245,7 +1162,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
         summary: current.finalResult.summary,
       });
     }
-    return buildFormalMatchView(current, matchId, {reused: true, result: repeated.result});
+    return buildFormalScopedMatchView(current, matchId, viewScopeForCommandV5(commandName), {reused: true, result: repeated.result});
   }
   if (commandName === "select-starters") {
     const requiredCount = formalApi.selectedCountForFormalMode(match.runGameV5.config.mode);
@@ -1253,15 +1170,17 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
     const next = advanceRoomMatchV5(current, matchId, runGameV5);
     await saveRoom(next);
     broadcastRoomUpdated(next);
-    return buildFormalMatchView(next, matchId, {reused: false});
+    return buildFormalScopedMatchView(next, matchId, "starter", {reused: false});
   }
   if (commandName === "prepare-round") {
-    const preparedCompatRun = await runFormalStepAsync(() => formalApi.prepareFormalRoundPlan(formalRunFromMatch(match)));
-    const runGameV5 = ingestPreparedRoundPlanV5(match.runGameV5, preparedCompatRun, commandId);
+    const runGameV5 = runFormalStep(() => prepareRoundPlanFromDraftsV5(match.runGameV5!, {
+      commandId,
+      rounds: createDirectRoundDraftsV5(match.runGameV5!),
+    }));
     const next = advanceRoomMatchV5(current, matchId, runGameV5);
     await saveRoom(next);
     broadcastRoomUpdated(next);
-    return buildFormalMatchView(next, matchId, {reused: false});
+    return buildFormalScopedMatchView(next, matchId, "rest", {reused: false});
   }
   if (commandName === "team.reorder") {
     const pokemonIds = Array.isArray((payload as any).pokemonIds) ? (payload as any).pokemonIds : [];
@@ -1269,29 +1188,32 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
     const next = advanceRoomMatchV5(current, matchId, runGameV5);
     await saveRoom(next);
     broadcastRoomUpdated(next);
-    return buildFormalMatchView(next, matchId, {reused: false, message: "队伍顺序已保存。"});
+    return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: "队伍顺序已保存。"});
   }
   if (commandName === "rest-action") {
-    const action = (payload as any).action && typeof (payload as any).action === "object" ? (payload as any).action : payload;
+    throw new HttpError(410, "unsupported_legacy_command", "聚合休整命令已隔离，请使用具体 match-scoped command。");
+  }
+  if (isFormalRestCommandNameV5(commandName)) {
+    const action = formalRestActionFromCommandNameV5(commandName, payload);
     const actionType = requiredString((action as any)?.type, "action.type");
-    const compatView = buildFormalRunCompatViewV5(match.runGameV5);
-    validateFormalRestActionDraft(compatView);
     if (actionType === "team.heal") {
       const applied = runFormalStep(() => healSelfTeamV5(match.runGameV5!, commandId));
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
-      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
     }
     if (actionType === "shop.buy") {
       const slotId = requiredString((action as any)?.slotId, "slotId");
-      const product = formalApi.getFormalRestShopProducts(compatView).find(entry => entry.slotId === slotId);
+      const currentNodeId = match.runGameV5!.currentNodeId;
+      const shop = currentNodeId ? match.runGameV5!.restState.shopByNodeId?.[currentNodeId] || null : null;
+      const product = formalApi.createFormalShopProductViews(shop).find(entry => entry.slotId === slotId);
       if (!product) throw new HttpError(400, "formal_rest_action_failed", "商品不存在。");
       const applied = runFormalStep(() => buyShopProductV5(match.runGameV5!, product, commandId));
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
-      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
     }
     if (actionType === "shop.sell") {
       const itemInstanceIds = Array.isArray((action as any)?.itemInstanceIds) ? (action as any).itemInstanceIds.map((value: unknown) => String(value || "")).filter(Boolean) : [];
@@ -1299,14 +1221,14 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
-      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
     }
     if (actionType === "bag.use" || actionType === "bag.equip" || actionType === "bag.unequip" || actionType === "bag.discard") {
       const applied = runFormalStep(() => applyFormalBagActionV5(match.runGameV5!, actionType, action, commandId));
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
-      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
     }
     if (actionType === "pokemon.reroll-stats") {
       const input = (action as any)?.input && typeof (action as any).input === "object" ? (action as any).input : action;
@@ -1318,7 +1240,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
-      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
     }
     if (actionType === "opponent-preview.unlock") {
       const input = (action as any)?.input && typeof (action as any).input === "object" ? (action as any).input : action;
@@ -1326,35 +1248,32 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
-      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
     }
     if (actionType === "insurance.buy") {
       const choice = String((action as any)?.choice || (action as any)?.tier || "basic");
-      const offer = formalApi.getFormalMedicalInsuranceOffer(compatView);
-      const tier = choice === "decline" ? null : offer.tiers.find(entry => entry.tier === choice) || offer.tiers[0] || null;
+      const tier = runFormalStep(() => getMedicalInsuranceTierForChoiceV5(match.runGameV5!, choice));
       const applied = runFormalStep(() => chooseMedicalInsuranceV5(match.runGameV5!, tier, commandId));
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
-      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
     }
     if (actionType === "pokemon.exchange") {
       const sourcePokemonId = requiredString((action as any)?.sourcePokemonId, "sourcePokemonId");
       const targetPokemonId = requiredString((action as any)?.targetPokemonId, "targetPokemonId");
-      const view = formalApi.getFormalRestExchangeView(compatView, {playerId: "p1"});
+      const view = getPokemonExchangeViewV5(match.runGameV5, {playerId: "p1"});
       const targetPokemon = view.opponent?.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === targetPokemonId) || null;
       if (!targetPokemon) throw new HttpError(400, "invalid_pokemon", "请选择上一场对手队伍中的宝可梦。");
       const applied = runFormalStep(() => exchangeSelfPokemonV5(match.runGameV5!, {sourcePokemonId, targetPokemon, view}, commandId));
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
-      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
     }
     if (actionType === "training.apply") {
       const trainingInput = ((action as any)?.input && typeof (action as any).input === "object" ? (action as any).input : {}) as Record<string, unknown>;
-      const lesson = formalApi.getFormalTrainingGroundLessons(compatView)
-        .find(entry => trainingInput.lessonId ? entry.lessonId === trainingInput.lessonId : entry.kind === (trainingInput.lessonKind || "self-study"))
-        || formalApi.getFormalTrainingGroundLesson(compatView);
+      const lesson = getTrainingGroundLessonForInputV5(match.runGameV5, trainingInput as any);
       if (!lesson) throw new HttpError(400, "formal_rest_action_failed", "当前没有可用的训练场课程。");
       const pokemonId = requiredString(trainingInput.pokemonId, "pokemonId");
       const pokemon = match.runGameV5.pokemonById[pokemonId]?.localPokemon;
@@ -1370,43 +1289,20 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
-      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
     }
     if (actionType === "soulmate-egg.claim") {
-      const candidateId = requiredString((action as any)?.candidateId, "candidateId");
-      const playerVaultSnapshot = (action as any)?.playerVaultSnapshot as PlayerVaultV4 | undefined;
-      const claimed = runFormalStep(() => formalApi.claimFormalSoulmateEgg(compatView, playerVaultSnapshot || null, candidateId, typeof (action as any)?.nickname === "string" ? (action as any).nickname : undefined));
-      if (!claimed.ok) throw new HttpError(400, "formal_rest_action_failed", claimed.message);
-      const applied = runFormalStep(() => commitSoulmateEggClaimV5(match.runGameV5!, {
-        commandId,
-        formalRun: claimed.run,
-        candidateId,
-        message: claimed.message,
-      }));
-      const next = advanceRoomMatchV5(current, matchId, applied.run);
-      await saveRoom(next);
-      broadcastRoomUpdated(next);
-      return buildFormalMatchView(next, matchId, {
-        reused: false,
-        message: claimed.message,
-        result: {
-          ...applied.result,
-          playerVault: claimed.playerVault,
-          candidate: claimed.candidate,
-          pokemon: claimed.pokemon,
-          display: claimed.display,
-        },
-      });
+      throw new HttpError(410, "v5_command_not_migrated", "灵魂蛋领取尚未迁移到纯 V5 实体命令。");
     }
     throw new HttpError(400, "unsupported_rest_action", "暂不支持这个休整操作。");
   }
   if (commandName === "prepare-battle") {
     if (current.activeBattle?.status !== "finalized" && current.activeBattle?.sessionId) {
       const snapshot = await getRoomBattleSnapshot(current);
-      return buildFormalMatchView(current, matchId, {
+      return buildFormalScopedMatchView(current, matchId, "battle", {
         reused: current.activeBattle.clientRequestId === commandId,
         sessionId: current.activeBattle.sessionId,
-        result: {sessionId: current.activeBattle.sessionId, snapshot: sanitizeSnapshot(snapshot)},
+        result: {sessionId: current.activeBattle.sessionId, snapshotStatus: snapshot.status, turn: snapshot.turn},
       });
     }
     const battleRunGameV5 = ensureDefaultSystemItemsForSelfV5(match.runGameV5);
@@ -1432,7 +1328,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
     };
     await saveRoom(next);
     broadcastRoomUpdated(next);
-    return buildFormalMatchView(next, matchId, {reused: false, sessionId: snapshot.id, result: {sessionId: snapshot.id, snapshot: sanitizeSnapshot(snapshot)}});
+    return buildFormalScopedMatchView(next, matchId, "battle", {reused: false, sessionId: snapshot.id, result: {sessionId: snapshot.id, snapshotStatus: snapshot.status, turn: snapshot.turn}});
   }
   if (commandName === "battle-choice") {
     const snapshot = await submitFormalRoomBattleChoice(roomId, request, {
@@ -1444,15 +1340,22 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       expectedRqid: (payload as any).expectedRqid,
     });
     const room = await loadAuthorizedRoom(roomId, request);
-    return buildFormalMatchView(room, matchId, {result: sanitizeSnapshot(snapshot)});
+    return buildFormalScopedMatchView(room, matchId, "battle", {
+      result: {
+        sessionId: snapshot.id,
+        status: snapshot.status,
+        turn: snapshot.turn,
+        requestState: snapshot.requests?.p1?.wait ? "wait" : snapshot.requests?.p1 ? "action" : "none",
+      },
+    });
   }
   if (commandName === "finalize-battle") {
     const result = await finalizeFormalRoomBattleV5(current, match, commandId, payload);
-    return buildFormalMatchView(result.roomRecord, matchId, {destination: result.finalResult.destination, result: result.finalResult});
+    return buildFormalScopedMatchView(result.roomRecord, matchId, result.finalResult.destination === "settlement" ? "settlement" : "rest", {destination: result.finalResult.destination, result: result.finalResult});
   }
   if (commandName === "finalize-run") {
     const result = await finalizeFormalRoomRunV5KeepRoomOpen(current, match, commandId, payload);
-    return buildFormalMatchView(result.roomRecord, matchId, {
+    return buildFormalScopedMatchView(result.roomRecord, matchId, "settlement", {
       profile: result.profile,
       playerVault: result.playerVault,
       settlementId: result.settlementId,
@@ -1462,7 +1365,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
   }
   if (commandName === "ack-final-result") {
     if (match.status === "ended" && match.cleanupAt) {
-      return buildFormalMatchView(current, match.matchId, {reused: true});
+      return buildFormalScopedMatchView(current, match.matchId, "summary", {reused: true});
     }
     const nowDate = new Date();
     const now = nowDate.toISOString();
@@ -1483,7 +1386,8 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       match: publicMatch(nextMatch),
       revision: next.revision,
       phase: "settlement",
-      view: {viewV5: null, formalRun: null, room: publicRoom(next), match: publicMatch(nextMatch)},
+      scope: "summary",
+      view: null,
       reused: false,
     };
   }
@@ -1515,44 +1419,62 @@ function formalModeMatchTitle(mode: FormalGameModeV4): string {
   return "单打-AI";
 }
 
-function advanceRoom(room: FormalRoomRecordV1, formalRun: FormalGameRunV4): FormalRoomRecordV1 {
-  assertRoomOpen(room);
-  const now = new Date();
-  const activeMatchId = room.activeMatchId || findActiveRoomMatch(room)?.matchId || null;
-  const matches = activeMatchId ? (room.matches || []).map(match => match.matchId === activeMatchId ? {
-    ...match,
-    formalRun,
-    status: matchStatusFromFormalRun(formalRun),
-    phaseLabel: matchPhaseLabelFromFormalRun(formalRun),
-    updatedAt: now.toISOString(),
-    endedAt: formalRun.settled ? (match.endedAt || now.toISOString()) : match.endedAt,
-  } : match) : room.matches;
+function createDirectRoundDraftsV5(run: RunGameV5): Array<{participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>; mode: FormalGameModeV4; ruleSet: RunGameV5["config"]["ruleSet"]; seed: string}> {
+  const roundCount = run.config.competitionMode === "single" ? 1 : 7;
+  const teamSize = Math.max(run.config.mode === "doubles" ? 2 : 1, Math.min(6, run.playersById[run.selfPlayerId]?.localTeamPokemonIds.length || 3));
+  return Array.from({length: roundCount}, (_, index) => {
+    const participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> = {
+      p2: createDirectNpcDraftV5("p2", index, teamSize, "ai", "far"),
+    };
+    if (run.config.mode === "coop") {
+      participants.p3 = createDirectNpcDraftV5("p3", index, teamSize, "script", "near");
+      participants.p4 = createDirectNpcDraftV5("p4", index, teamSize, "ai", "far");
+    }
+    return {
+      participants,
+      mode: run.config.mode,
+      ruleSet: run.config.ruleSet,
+      seed: `${run.config.seed}:round:${index + 1}`,
+    };
+  });
+}
+
+function createDirectNpcDraftV5(slot: ShowdownPlayerIdV4, roundIndex: number, teamSize: number, controller: TrainingPlayerDraftV4["controller"], alliance: TrainingPlayerDraftV4["alliance"]): TrainingPlayerDraftV4 {
+  const names = slot === "p3"
+    ? ["搭档 小葵", "搭档 阿响", "搭档 莉拉"]
+    : slot === "p4"
+      ? ["对手 蓝", "对手 银", "对手 N"]
+      : ["菜鸟训练家 佑树", "普通训练家 小遥", "馆主 亚莎", "精英训练家 嘉德丽雅", "冠军 丹帝", "Boss 赤日", "Boss 坂木"];
+  const avatars = [
+    "npc/avatars/1-asset-18b76b7d.webp",
+    "npc/avatars/2-asset-7b6aa2e7.webp",
+    "npc/avatars/3-asset-28b96eb3.webp",
+    "npc/avatars/4-asset-f4d3fd74.webp",
+    "npc/avatars/5-asset-b3f2df43.webp",
+    "npc/avatars/6-asset-a73f3e71.webp",
+  ];
   return {
-    ...room,
-    formalRun,
-    matches,
-    activeMatchId,
-    revision: room.revision + 1,
-    status: roomStatusFromFormalRun(formalRun),
-    connectionState: room.connectionState === "closed" ? "closed" : "online",
-    updatedAt: now.toISOString(),
-    lastHeartbeatAt: now.toISOString(),
-    expiresAt: new Date(now.getTime() + config.sessionTtlMs).toISOString(),
+    playerId: slot,
+    name: names[Math.min(names.length - 1, roundIndex)] || `${slot.toUpperCase()} NPC`,
+    avatar: avatars[(roundIndex + (slot === "p4" ? 2 : slot === "p3" ? 1 : 0)) % avatars.length]!,
+    controller,
+    alliance,
+    localTeam: formalApi.randomizeTrainingTeam(slot, teamSize),
+    bag: formalApi.normalizeBagState(undefined),
   };
 }
 
 function advanceRoomMatchV5(room: FormalRoomRecordV1, matchId: string, runGameV5: RunGameV5): FormalRoomRecordV1 {
   assertRoomOpen(room);
   const now = new Date();
-  const formalRun = buildFormalRunCompatViewV5(runGameV5);
   const matches = (room.matches || []).map(match => match.matchId === matchId ? {
     ...match,
     runGameV5,
     formalRun: null,
-    status: matchStatusFromFormalRun(formalRun),
-    phaseLabel: matchPhaseLabelFromFormalRun(formalRun),
+    status: matchStatusFromRunGameV5(runGameV5),
+    phaseLabel: matchPhaseLabelFromRunGameV5(runGameV5),
     updatedAt: now.toISOString(),
-    endedAt: formalRun.settled ? (match.endedAt || now.toISOString()) : match.endedAt,
+    endedAt: runGameV5.status === "ended" ? (match.endedAt || now.toISOString()) : match.endedAt,
   } : match);
   return {
     ...room,
@@ -1560,7 +1482,7 @@ function advanceRoomMatchV5(room: FormalRoomRecordV1, matchId: string, runGameV5
     activeMatchId: matchId,
     formalRun: null,
     revision: room.revision + 1,
-    status: roomStatusFromFormalRun(formalRun),
+    status: roomStatusFromRunGameV5(runGameV5),
     connectionState: room.connectionState === "closed" ? "closed" : "online",
     updatedAt: now.toISOString(),
     lastHeartbeatAt: now.toISOString(),
@@ -1568,252 +1490,20 @@ function advanceRoomMatchV5(room: FormalRoomRecordV1, matchId: string, runGameV5
   };
 }
 
-async function syncFormalRoomDraft(roomId: string, roomToken: string, body: any): Promise<{room: Record<string, unknown>; formalRun: FormalGameRunV4; label: string; reused: boolean}> {
-  const clientActionId = requiredString(body?.clientActionId, "clientActionId");
-  const current = await loadAuthorizedRoomByToken(roomId, roomToken);
-  assertRoomOpen(current);
-  const repeated = current.draftSyncResults?.[clientActionId];
-  if (repeated) {
-    const activeFormalRun = requireActiveFormalRun(current);
-    return {
-      room: publicRoom(current),
-      formalRun: activeFormalRun,
-      label: repeated.label,
-      reused: true,
-    };
-  }
-  if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
-    throw new HttpError(409, "room_not_resting", "当前房间正在战斗，不能修改休整状态。");
-  }
-  if (body?.baseRevision !== undefined && Number(body.baseRevision) !== current.revision) {
-    throw new HttpError(409, "formal_revision_conflict", "正式流程状态已更新，请刷新后重试。");
-  }
-  const draft = validateFormalRunDraft(current, body?.formalRunDraft || requireActiveFormalRun(current));
-  validateFormalRestActionDraft(draft);
-  const label = typeof body?.label === "string" && body.label.trim() ? body.label.trim().slice(0, 40) : "休整同步";
-  const nextRoomBase = advanceRoom(current, draft);
-  const now = new Date().toISOString();
-  const draftSyncResults = pruneDraftSyncResults({
-    ...(current.draftSyncResults || {}),
-    [clientActionId]: {
-      label,
-      revision: nextRoomBase.revision,
-      createdAt: now,
-    },
-  });
-  const next = {
-    ...nextRoomBase,
-    draftSyncResults,
-  };
-  await saveRoom(next);
-  broadcastRoomUpdated(next);
-  return {room: publicRoom(next), formalRun: requireActiveFormalRun(next), label, reused: false};
+function roomStatusFromRunGameV5(run: RunGameV5): RoomStatus {
+  if (run.status === "ended") return "ended";
+  if (run.status === "starter_selecting" || run.status === "round_preparing") return "preparing";
+  return run.status === "battling" || run.status === "battle_preparing" || run.status === "battle_settling" ? "battling" : "running";
 }
 
-function roomStatusFromFormalRun(run: FormalGameRunV4): RoomStatus {
-  return run.status || "preparing";
+function matchStatusFromRunGameV5(run: RunGameV5): FormalLobbyMatchStatusV1 {
+  if (run.status === "ended") return "ended";
+  return "started_group_stage";
 }
 
-function matchStatusFromFormalRun(run: FormalGameRunV4): FormalLobbyMatchStatusV1 {
-  if (run.settled || run.status === "ended") return "ended";
-  return isFormalTop8Stage(run) ? "started_top8_stage" : "started_group_stage";
-}
-
-function matchPhaseLabelFromFormalRun(run: FormalGameRunV4): FormalLobbyMatchV1["phaseLabel"] {
-  if (run.settled || run.status === "ended") return "已结束";
-  return isFormalTop8Stage(run) ? "8强阶段" : "小组赛阶段";
-}
-
-function isFormalTop8Stage(run: FormalGameRunV4): boolean {
-  return /top.?8|quarter|semi|final|boss/i.test(String((run.restRunSnapshot as any)?.phase || (run.restRunSnapshot as any)?.stage || (run as any).phase || ""));
-}
-
-async function prepareFormalRoomBattle(roomId: string, request: http.IncomingMessage, body: any): Promise<Record<string, unknown>> {
-  const clientRequestId = requiredString(body?.clientRequestId, "clientRequestId");
-  const current = await loadAuthorizedRoom(roomId, request);
-  assertRoomOpen(current);
-  if (current.activeBattle?.status !== "finalized" && current.activeBattle?.sessionId) {
-    if (current.activeBattle.clientRequestId !== clientRequestId && current.activeBattle.status === "preparing") {
-      throw new HttpError(409, "active_battle_exists", "当前房间已有战斗正在创建。");
-    }
-    const snapshot = await getRoomBattleSnapshot(current);
-    return {
-      room: publicRoom(current),
-      formalRun: requireActiveFormalRun(current),
-      sessionId: current.activeBattle.sessionId,
-      snapshot: sanitizeSnapshot(snapshot),
-      reused: true,
-    };
-  }
-  const draft = validateFormalRunDraft(current, body?.formalRunDraft || requireActiveFormalRun(current));
-  const prepared = await runFormalStepAsync(() => formalApi.prepareFormalBattleSession(draft));
-  const snapshot = await service.createBattleSession(prepared.sessionInput);
-  touchSession(snapshot.id);
-  logAiDecisions(snapshot);
-  const now = new Date().toISOString();
-  const formalRun = {
-    ...draft,
-    restRunSnapshot: markFormalRestBattleState(prepared.restRunSnapshot, prepared.sessionInput.nodeId, "running", prepared.battleGame.id),
-    updatedAt: now,
-  };
-  const activeBattle: FormalRoomActiveBattleV1 = {
-    sessionId: snapshot.id,
-    nodeId: prepared.sessionInput.nodeId,
-    battleGameId: prepared.battleGame.id,
-    clientRequestId,
-    status: "running",
-    createdAt: now,
-    updatedAt: now,
-    choiceActionIds: [],
-  };
-  const next = {
-    ...advanceRoom(current, formalRun),
-    activeBattle,
-  };
-  await saveRoom(next);
-  broadcastRoomUpdated(next);
-  return {
-    room: publicRoom(next),
-    formalRun: requireActiveFormalRun(next),
-    sessionId: snapshot.id,
-    snapshot: sanitizeSnapshot(snapshot),
-    reused: false,
-  };
-}
-
-function validateFormalRunDraft(room: FormalRoomRecordV1, value: unknown): FormalGameRunV4 {
-  if (!value || typeof value !== "object") throw new HttpError(400, "formal_flow_error", "缺少正式流程草稿。");
-  const draft = value as FormalGameRunV4;
-  const activeFormalRun = requireActiveFormalRun(room);
-  if (draft.id !== activeFormalRun.id) throw new HttpError(409, "formal_run_mismatch", "正式流程房间不匹配。");
-  if (draft.mode !== activeFormalRun.mode) throw new HttpError(409, "formal_run_mismatch", "正式流程模式不匹配。");
-  if (Math.floor(Number(draft.currentRoundIndex || 0)) !== Math.floor(Number(activeFormalRun.currentRoundIndex || 0))) {
-    throw new HttpError(409, "formal_revision_conflict", "正式流程轮次已经变化，请刷新后重试。");
-  }
-  if (!draft.restRunSnapshot) throw new HttpError(400, "formal_flow_error", "缺少休整快照。");
-  if (!draft.playerTeam?.pokemon?.length) throw new HttpError(400, "formal_flow_error", "缺少玩家队伍。");
-  return draft;
-}
-
-async function applyFormalRoomRestAction(roomId: string, roomToken: string, body: any): Promise<{room: Record<string, unknown>; formalRun: FormalGameRunV4; actionType: string; message: string; moneyDelta: number; result: unknown; reused: boolean}> {
-  const clientActionId = requiredString(body?.clientActionId, "clientActionId");
-  const current = await loadAuthorizedRoomByToken(roomId, roomToken);
-  assertRoomOpen(current);
-  const repeated = current.restActionResults?.[clientActionId];
-  if (repeated) {
-    const activeFormalRun = requireActiveFormalRun(current);
-    return {
-      room: publicRoom(current),
-      formalRun: activeFormalRun,
-      actionType: repeated.actionType,
-      message: repeated.message,
-      moneyDelta: repeated.moneyDelta,
-      result: {ok: true, message: repeated.message},
-      reused: true,
-    };
-  }
-  if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
-    throw new HttpError(409, "room_not_resting", "当前房间正在战斗，不能修改休整状态。");
-  }
-  if (body?.baseRevision !== undefined && Number(body.baseRevision) !== current.revision) {
-    throw new HttpError(409, "formal_revision_conflict", "正式流程状态已更新，请刷新后重试。");
-  }
-  const draft = validateFormalRunDraft(current, body?.formalRunDraft || requireActiveFormalRun(current));
-  validateFormalRestActionDraft(draft);
-  const action = body?.action && typeof body.action === "object" ? body.action : null;
-  const actionType = requiredString(action?.type, "action.type");
-  const result = runFormalStep(() => applyFormalRestActionToRun(draft, actionType, action));
-  if (!result.ok) throw new HttpError(400, "formal_rest_action_failed", result.message || "休整操作失败。");
-  const nextRoomBase = advanceRoom(current, result.run);
-  const moneyDelta = Math.floor(Number(requireActiveFormalRun(nextRoomBase).money || 0)) - Math.floor(Number(draft.money || 0));
-  const now = new Date().toISOString();
-  const restActionResults = pruneRestActionResults({
-    ...(current.restActionResults || {}),
-    [clientActionId]: {
-      actionType,
-      message: result.message,
-      revision: nextRoomBase.revision,
-      moneyDelta,
-      createdAt: now,
-    },
-  });
-  const next = {
-    ...nextRoomBase,
-    restActionResults,
-  };
-  await saveRoom(next);
-  broadcastRoomUpdated(next);
-  return {
-    room: publicRoom(next),
-    formalRun: requireActiveFormalRun(next),
-    actionType,
-    message: result.message,
-    moneyDelta,
-    result,
-    reused: false,
-  };
-}
-
-function validateFormalRestActionDraft(run: FormalGameRunV4): void {
-  const restStatus = run.restRunSnapshot?.status || "";
-  if (run.status === "ended" || restStatus === "battlePreparing" || restStatus === "battling" || restStatus === "ended" || restStatus === "battleEndedPendingSettlement") {
-    throw new HttpError(409, "room_not_resting", "当前不是可操作的休整阶段。");
-  }
-}
-
-function applyFormalRestActionToRun(run: FormalGameRunV4, actionType: string, action: any): {ok: boolean; run: FormalGameRunV4; message: string; [key: string]: unknown} {
-  if (actionType === "team.heal") {
-    return formalApi.healFormalRestTeam(run);
-  }
-  if (actionType === "pokemon.exchange") {
-    return formalApi.exchangeFormalRestPokemon(run, {
-      sourcePokemonId: requiredString(action?.sourcePokemonId, "sourcePokemonId"),
-      targetPokemonId: requiredString(action?.targetPokemonId, "targetPokemonId"),
-    });
-  }
-  if (actionType === "shop.buy") {
-    return formalApi.buyFormalRestShopItem(run, requiredString(action?.slotId, "slotId"));
-  }
-  if (actionType === "shop.sell") {
-    return formalApi.sellFormalRestBagItems(run, Array.isArray(action?.itemInstanceIds) ? action.itemInstanceIds.map((value: unknown) => String(value || "")).filter(Boolean) : []);
-  }
-  if (actionType === "training.apply") {
-    return formalApi.applyFormalTrainingGroundLesson(run, action?.input || {});
-  }
-  if (actionType === "pokemon.reroll-stats") {
-    const input = action?.input && typeof action.input === "object" ? action.input : action;
-    return formalApi.rerollFormalRestPokemonStats(run, input || {});
-  }
-  if (actionType === "opponent-preview.unlock") {
-    const input = action?.input && typeof action.input === "object" ? action.input : {unlockKey: action?.unlockKey};
-    return formalApi.unlockFormalRestOpponentPreview(run, input || {});
-  }
-  if (actionType === "insurance.buy") {
-    return formalApi.chooseFormalMedicalInsurance(run, action?.choice || action?.tier || "basic");
-  }
-  if (actionType === "soulmate-egg.claim") {
-    return formalApi.claimFormalSoulmateEgg(run, action?.playerVaultSnapshot || null, requiredString(action?.candidateId, "candidateId"), typeof action?.nickname === "string" ? action.nickname : undefined);
-  }
-  if (actionType === "bag.use") {
-    return applyFormalBagUseAction(run, {
-      itemInstanceId: requiredString(action?.itemInstanceId, "itemInstanceId"),
-      pokemonId: requiredString(action?.pokemonId, "pokemonId"),
-      moveSlot: action?.moveSlot,
-    });
-  }
-  if (actionType === "bag.equip") {
-    return applyFormalBagEquipAction(run, {
-      itemInstanceId: requiredString(action?.itemInstanceId, "itemInstanceId"),
-      pokemonId: requiredString(action?.pokemonId, "pokemonId"),
-    });
-  }
-  if (actionType === "bag.unequip") {
-    return applyFormalBagUnequipAction(run, {pokemonId: requiredString(action?.pokemonId, "pokemonId")});
-  }
-  if (actionType === "bag.discard") {
-    return applyFormalBagDiscardAction(run, {itemInstanceId: requiredString(action?.itemInstanceId, "itemInstanceId")});
-  }
-  throw new HttpError(400, "unsupported_rest_action", "暂不支持这个休整操作。");
+function matchPhaseLabelFromRunGameV5(run: RunGameV5): FormalLobbyMatchV1["phaseLabel"] {
+  if (run.status === "ended") return "已结束";
+  return "小组赛阶段";
 }
 
 function findTrainingLessonMoveSummary(speciesId: string, lessonKind: string, moveId: string): Partial<any> | null {
@@ -2099,38 +1789,6 @@ function isFormalSystemItem(item: PlayerItemInstanceV4, detail: ReturnType<typeo
   return item.type === "system" || item.type === "system-battle" || item.itemID.startsWith("system-") || detail?.source === "system";
 }
 
-function pruneRestActionResults(results: Record<string, FormalRoomRestActionStoredResultV1>): Record<string, FormalRoomRestActionStoredResultV1> {
-  const entries = Object.entries(results)
-    .sort((a, b) => Date.parse(b[1].createdAt) - Date.parse(a[1].createdAt))
-    .slice(0, 120)
-    .map(([clientActionId, result]) => [
-      clientActionId,
-      {
-        actionType: result.actionType,
-        message: result.message,
-        revision: Math.floor(Number(result.revision || 0)),
-        moneyDelta: Math.floor(Number(result.moneyDelta || 0)),
-        createdAt: result.createdAt,
-      },
-    ] satisfies [string, FormalRoomRestActionStoredResultV1]);
-  return Object.fromEntries(entries);
-}
-
-function pruneDraftSyncResults(results: Record<string, FormalRoomDraftSyncStoredResultV1>): Record<string, FormalRoomDraftSyncStoredResultV1> {
-  const entries = Object.entries(results)
-    .sort((a, b) => Date.parse(b[1].createdAt) - Date.parse(a[1].createdAt))
-    .slice(0, 120)
-    .map(([clientActionId, result]) => [
-      clientActionId,
-      {
-        label: result.label,
-        revision: Math.floor(Number(result.revision || 0)),
-        createdAt: result.createdAt,
-      },
-    ] satisfies [string, FormalRoomDraftSyncStoredResultV1]);
-  return Object.fromEntries(entries);
-}
-
 async function getRoomBattleSnapshot(room: FormalRoomRecordV1): Promise<any> {
   assertRoomOpen(room);
   const activeBattle = room.activeBattle;
@@ -2185,14 +1843,14 @@ async function submitFormalRoomBattleChoice(roomId: string, request: http.Incomi
   return snapshot;
 }
 
-async function finalizeFormalRoomBattleV5(current: FormalRoomRecordV1, match: FormalLobbyMatchV1, commandId: string, payload: any): Promise<{roomRecord: FormalRoomRecordV1; finalResult: FormalRoomBattleFinalizeResultV1 & {formalRun: FormalGameRunV4; room: Record<string, unknown>}}> {
+async function finalizeFormalRoomBattleV5(current: FormalRoomRecordV1, match: FormalLobbyMatchV1, commandId: string, payload: any): Promise<{roomRecord: FormalRoomRecordV1; finalResult: FormalRoomBattleFinalizeResultV1 & {room: Record<string, unknown>}}> {
   if (!match.runGameV5) throw new HttpError(409, "v5_run_missing", "当前对局不是 V5 权威模型，请重新创建对局。");
   const activeBattle = current.activeBattle;
   if (!activeBattle?.sessionId) throw new HttpError(409, "active_battle_missing", "当前房间没有可结算的战斗。");
   if (activeBattle.finalizeRequestId === commandId && activeBattle.finalizeResult) {
     return {
       roomRecord: current,
-      finalResult: {...activeBattle.finalizeResult, formalRun: buildFormalRunCompatViewV5(match.runGameV5), room: publicRoom(current)},
+      finalResult: {...activeBattle.finalizeResult, room: publicRoom(current)},
     };
   }
   const snapshot = await getRoomBattleSnapshot(current);
@@ -2228,143 +1886,8 @@ async function finalizeFormalRoomBattleV5(current: FormalRoomRecordV1, match: Fo
   await closeSession(activeBattle.sessionId).catch(() => undefined);
   return {
     roomRecord: next,
-    finalResult: {...finalResult, formalRun: buildFormalRunCompatViewV5(runGameV5), room: publicRoom(next)},
+    finalResult: {...finalResult, room: publicRoom(next)},
   };
-}
-
-async function finalizeFormalRoomBattle(roomId: string, request: http.IncomingMessage, body: any): Promise<Record<string, unknown>> {
-  const clientRequestId = requiredString(body?.clientRequestId, "clientRequestId");
-  const current = await loadAuthorizedRoom(roomId, request);
-  assertRoomOpen(current);
-  const activeBattle = current.activeBattle;
-  if (!activeBattle?.sessionId) throw new HttpError(409, "active_battle_missing", "当前房间没有可结算的战斗。");
-  if (activeBattle.finalizeRequestId === clientRequestId && activeBattle.finalizeResult) {
-    return {...activeBattle.finalizeResult, formalRun: requireActiveFormalRun(current), room: publicRoom(current)};
-  }
-  const snapshot = await getRoomBattleSnapshot(current);
-  const timeline = await service.getPlaybackTimeline(activeBattle.sessionId, 0).catch(() => null);
-  const reason = normalizeFinalizeReason(body?.reason);
-  const finalized = await runFormalStepAsync(() => formalApi.finalizeFormalBattleResultV4(requireActiveFormalRun(current), snapshot, reason, {playbackTimeline: timeline}));
-  let formalRun = finalized.run;
-  let playerVault: PlayerVaultV4 | undefined;
-  let settlementNotice = "";
-  if (body?.playerVaultSnapshot) {
-    const soulmateSettlement = formalApi.applyFormalSoulmateBattleFriendshipSettlement(formalRun, body.playerVaultSnapshot);
-    const honorSettlement = formalApi.applyFormalSoulmateHonorSettlement(soulmateSettlement.run, body.playerVaultSnapshot);
-    formalRun = honorSettlement.run;
-    playerVault = honorSettlement.playerVault;
-    settlementNotice = [formatSoulmateSettlementNotice(soulmateSettlement.summary), formatSoulmateHonorSettlementNotice(honorSettlement.summary)].filter(Boolean).join("；");
-  }
-  const finalResult: FormalRoomBattleFinalizeResultV1 = {
-    destination: finalized.destination,
-    reason: finalized.reason,
-    playerVault,
-    settlementNotice,
-  };
-  const now = new Date().toISOString();
-  const next = {
-    ...advanceRoom(current, formalRun),
-    activeBattle: {
-      ...activeBattle,
-      status: "finalized" as const,
-      updatedAt: now,
-      finalizeRequestId: clientRequestId,
-      finalizeResult: finalResult,
-    },
-  };
-  await saveRoom(next);
-  broadcastRoomUpdated(next);
-  await closeSession(activeBattle.sessionId).catch(() => undefined);
-  return {...finalResult, formalRun, room: publicRoom(next)};
-}
-
-async function finalizeFormalRoomRun(roomId: string, request: http.IncomingMessage, body: any): Promise<FormalRoomFinalResultResponseV1> {
-  const clientRequestId = requiredString(body?.clientRequestId, "clientRequestId");
-  const current = await loadAuthorizedRoom(roomId, request);
-  if (current.finalResult) {
-    return finalResultResponse(current, current.finalResult, current.finalResult.clientRequestId === clientRequestId);
-  }
-  if (current.connectionState === "closed" || current.closeReason) {
-    throw new HttpError(409, "room_closed", "房间已经关闭。");
-  }
-  if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
-    throw new HttpError(409, "room_not_settleable", "当前房间仍在战斗，不能最终结算。");
-  }
-  const activeFormalRun = requireActiveFormalRun(current);
-  if (!activeFormalRun.restRunSnapshot) {
-    throw new HttpError(409, "room_not_settleable", "当前房间还没有可结算的正式流程。");
-  }
-  const profileSnapshot = body?.profileSnapshot as UserProfileV2 | undefined;
-  if (!profileSnapshot || typeof profileSnapshot !== "object") {
-    throw new HttpError(400, "bad_request", "缺少玩家画像快照。");
-  }
-  const playerVaultSnapshot = body?.playerVaultSnapshot as PlayerVaultV4 | undefined;
-  const reason = normalizeSettlementReason(body?.reason);
-  const now = new Date();
-  const prepared = runFormalStep(() => formalApi.prepareFormalSettlement(activeFormalRun, reason));
-  let formalRun = prepared;
-  let profile = profileSnapshot;
-  if (prepared.settlement && !prepared.settlement.claimedAt) {
-    profile = claimFormalSettlementBp(profileSnapshot, prepared.settlement, now);
-    formalRun = {
-      ...prepared,
-      settlement: {...prepared.settlement, claimedAt: now.toISOString()},
-      updatedAt: now.toISOString(),
-    };
-  }
-  let playerVault = formalApi.syncFormalSoulmateLocalTeamToVault(formalRun, playerVaultSnapshot || null);
-  let depositedItemCount = 0;
-  let rejectedItemCount = 0;
-  if (formalRun.settlement && !formalRun.settlement.playerVaultItemsClaimedAt) {
-    const claimedAt = now.toISOString();
-    if (formalRun.pendingSettlementExportItemInstanceIds?.length) {
-      const mergeResult = formalApi.mergeFormalRunBagIntoPlayerVault(playerVault, formalRun);
-      playerVault = mergeResult.vault;
-      depositedItemCount = mergeResult.depositedItemCount;
-      rejectedItemCount = mergeResult.rejectedItemCount;
-    }
-    formalRun = {
-      ...formalRun,
-      settlement: {
-        ...formalRun.settlement,
-        playerVaultItemsClaimedAt: claimedAt,
-        playerVaultItemsClaimedCount: depositedItemCount,
-        playerVaultItemsRejectedCount: rejectedItemCount,
-      },
-      updatedAt: claimedAt,
-    };
-  }
-  if (!formalRun.settlement?.id) {
-    throw new HttpError(400, "formal_flow_error", "最终结算生成失败。");
-  }
-  const expiresAt = new Date(now.getTime() + config.roomFinalResultTtlMs).toISOString();
-  const finalResult: FormalRoomFinalResultV1 = {
-    clientRequestId,
-    settlementId: formalRun.settlement.id,
-    formalRun: null,
-    profile,
-    playerVault,
-    summary: {
-      reason,
-      bpGained: Math.max(0, Math.round(Number(formalRun.settlement.bpGained || 0))),
-      depositedItemCount,
-      rejectedItemCount,
-    },
-    createdAt: now.toISOString(),
-    expiresAt,
-  };
-  const next: FormalRoomRecordV1 = {
-    ...advanceRoom(current, formalRun),
-    status: "ended",
-    connectionState: "closed",
-    closeReason: "finalized",
-    finalResult,
-    expiresAt,
-  };
-  await saveRoom(next, config.roomFinalResultTtlMs);
-  broadcastRoomUpdated(next);
-  broadcastRoomClosed(next.roomId, "finalized");
-  return finalResultResponse(next, finalResult, false, formalRun);
 }
 
 async function finalizeFormalRoomRunV5KeepRoomOpen(current: FormalRoomRecordV1, match: FormalLobbyMatchV1, commandId: string, payload: any): Promise<FormalRoomFinalResultResponseV1 & {roomRecord: FormalRoomRecordV1}> {
@@ -2455,94 +1978,6 @@ function mergeRunGameV5BagIntoPlayerVault(vaultSnapshot: PlayerVaultV4 | null, r
   return {vault, depositedItemCount, rejectedItemCount};
 }
 
-async function finalizeFormalRoomRunKeepRoomOpen(roomId: string, request: http.IncomingMessage, matchId: string, body: any): Promise<FormalRoomFinalResultResponseV1> {
-  const clientRequestId = requiredString(body?.clientRequestId, "clientRequestId");
-  const current = await loadAuthorizedRoom(roomId, request);
-  assertRoomOpen(current);
-  requireCommandMatch(current, matchId);
-  if (current.finalResult) {
-    return finalResultResponse(current, current.finalResult, current.finalResult.clientRequestId === clientRequestId);
-  }
-  if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
-    throw new HttpError(409, "room_not_settleable", "当前房间仍在战斗，不能最终结算。");
-  }
-  const activeFormalRun = requireActiveFormalRun(current);
-  if (!activeFormalRun.restRunSnapshot) {
-    throw new HttpError(409, "room_not_settleable", "当前房间还没有可结算的正式流程。");
-  }
-  const profileSnapshot = body?.profileSnapshot as UserProfileV2 | undefined;
-  if (!profileSnapshot || typeof profileSnapshot !== "object") {
-    throw new HttpError(400, "bad_request", "缺少玩家画像快照。");
-  }
-  const playerVaultSnapshot = body?.playerVaultSnapshot as PlayerVaultV4 | undefined;
-  const reason = normalizeSettlementReason(body?.reason);
-  const now = new Date();
-  const prepared = runFormalStep(() => formalApi.prepareFormalSettlement(activeFormalRun, reason));
-  let formalRun = prepared;
-  let profile = profileSnapshot;
-  if (prepared.settlement && !prepared.settlement.claimedAt) {
-    profile = claimFormalSettlementBp(profileSnapshot, prepared.settlement, now);
-    formalRun = {
-      ...prepared,
-      settlement: {...prepared.settlement, claimedAt: now.toISOString()},
-      updatedAt: now.toISOString(),
-    };
-  }
-  let playerVault = formalApi.syncFormalSoulmateLocalTeamToVault(formalRun, playerVaultSnapshot || null);
-  let depositedItemCount = 0;
-  let rejectedItemCount = 0;
-  if (formalRun.settlement && !formalRun.settlement.playerVaultItemsClaimedAt) {
-    const claimedAt = now.toISOString();
-    if (formalRun.pendingSettlementExportItemInstanceIds?.length) {
-      const mergeResult = formalApi.mergeFormalRunBagIntoPlayerVault(playerVault, formalRun);
-      playerVault = mergeResult.vault;
-      depositedItemCount = mergeResult.depositedItemCount;
-      rejectedItemCount = mergeResult.rejectedItemCount;
-    }
-    formalRun = {
-      ...formalRun,
-      settlement: {
-        ...formalRun.settlement,
-        playerVaultItemsClaimedAt: claimedAt,
-        playerVaultItemsClaimedCount: depositedItemCount,
-        playerVaultItemsRejectedCount: rejectedItemCount,
-      },
-      updatedAt: claimedAt,
-    };
-  }
-  if (!formalRun.settlement?.id) {
-    throw new HttpError(400, "formal_flow_error", "最终结算生成失败。");
-  }
-  const expiresAt = new Date(now.getTime() + config.roomFinalResultTtlMs).toISOString();
-  const finalResult: FormalRoomFinalResultV1 = {
-    clientRequestId,
-    settlementId: formalRun.settlement.id,
-    formalRun: null,
-    profile,
-    playerVault,
-    summary: {
-      reason,
-      bpGained: Math.max(0, Math.round(Number(formalRun.settlement.bpGained || 0))),
-      depositedItemCount,
-      rejectedItemCount,
-    },
-    createdAt: now.toISOString(),
-    expiresAt,
-  };
-  const nextBase = advanceRoom(current, formalRun);
-  const next: FormalRoomRecordV1 = {
-    ...nextBase,
-    status: "open",
-    connectionState: "online",
-    closeReason: null,
-    finalResult,
-    expiresAt: new Date(now.getTime() + config.sessionTtlMs).toISOString(),
-  };
-  await saveRoom(next);
-  broadcastRoomUpdated(next);
-  return finalResultResponse(next, finalResult, false, formalRun);
-}
-
 function getRoomFinalResult(room: FormalRoomRecordV1): FormalRoomFinalResultResponseV1 {
   const finalResult = room.finalResult;
   if (!finalResult) throw new HttpError(404, "final_result_not_found", "最终结算结果不存在或已过期。");
@@ -2554,9 +1989,10 @@ function getRoomFinalResult(room: FormalRoomRecordV1): FormalRoomFinalResultResp
 
 function finalResultResponse(room: FormalRoomRecordV1, finalResult: FormalRoomFinalResultV1, reused: boolean, formalRunOverride: FormalGameRunV4 | null = null): FormalRoomFinalResultResponseV1 {
   const activeMatch = findActiveRoomMatch(room);
+  const isV5Room = Boolean(activeMatch?.runGameV5);
   return {
     room: publicRoom(room),
-    formalRun: finalResult.formalRun || formalRunOverride || (activeMatch?.runGameV5 || activeMatch?.formalRun ? formalRunFromMatch(activeMatch) : null),
+    ...(!isV5Room ? {formalRun: finalResult.formalRun || formalRunOverride || activeMatch?.formalRun || null} : {}),
     profile: finalResult.profile,
     playerVault: finalResult.playerVault,
     settlementId: finalResult.settlementId,
@@ -2571,42 +2007,6 @@ function normalizeFinalizeReason(value: unknown): FormalBattleResultFinalizeReas
 
 function normalizeSettlementReason(value: unknown): FormalSettlementReasonV4 {
   return value === "complete" || value === "loss" || value === "surrender" || value === "abandon" ? value : "loss";
-}
-
-function markFormalRestBattleState(run: TrainingRunGameV4, nodeId: string, state: "running" | "blocked", battleGameId: string): TrainingRunGameV4 {
-  const now = new Date().toISOString();
-  return {
-    ...run,
-    status: state === "running" ? "battling" : "blocked",
-    gameMap: run.gameMap.map(node => node.id === nodeId
-      ? {
-        ...node,
-        state,
-        startedAt: state === "running" ? now : node.startedAt,
-        battleGame: {
-          id: node.battleGame?.id || battleGameId,
-          status: state === "blocked" ? "blocked" : "running",
-        },
-      }
-      : node),
-    updatedAt: now,
-  };
-}
-
-function formatSoulmateSettlementNotice(summary: any): string {
-  const deltas = Array.isArray(summary?.deltas) ? summary.deltas.filter((delta: any) => Number(delta?.delta || 0) !== 0) : [];
-  return deltas.map((delta: any) => `${delta.displayName || "伙伴"}亲密度 ${delta.delta > 0 ? "+" : ""}${delta.delta}`).join("、");
-}
-
-function formatSoulmateHonorSettlementNotice(summary: any): string {
-  const awards = Array.isArray(summary?.awards) ? summary.awards : [];
-  if (!awards.length) return "";
-  const medalAwards = awards.filter((award: any) => award?.medalEarned);
-  return (medalAwards.length ? medalAwards : awards)
-    .map((award: any) => medalAwards.length
-      ? `${award.displayName || "伙伴"}点亮了${award.badgeName || "荣誉"}`
-      : `${award.displayName || "伙伴"}荣誉进度：击败${award.trainerName || "对手"}`)
-    .join("、");
 }
 
 function requiredString(value: unknown, label: string): string {
@@ -2664,12 +2064,7 @@ async function saveRoom(room: FormalRoomRecordV1, ttlMs = config.sessionTtlMs): 
 }
 
 function compactRoomForSave(room: FormalRoomRecordV1): FormalRoomRecordV1 {
-  if (!room.restActionResults && !room.draftSyncResults) return room;
-  return {
-    ...room,
-    restActionResults: room.restActionResults ? pruneRestActionResults(room.restActionResults) : undefined,
-    draftSyncResults: room.draftSyncResults ? pruneDraftSyncResults(room.draftSyncResults) : undefined,
-  };
+  return room;
 }
 
 async function deleteRoom(roomId: string): Promise<void> {
@@ -2690,13 +2085,12 @@ function touchRoom(room: FormalRoomRecordV1): FormalRoomRecordV1 {
 }
 
 function publicRoom(room: FormalRoomRecordV1): Record<string, unknown> {
-  const {roomTokenHash: _roomTokenHash, activeBattle, restActionResults: _restActionResults, draftSyncResults: _draftSyncResults, finalResult: _finalResult, ...safeRoom} = room;
+  const {roomTokenHash: _roomTokenHash, activeBattle, finalResult: _finalResult, formalRun: _formalRun, ...safeRoom} = room;
   const activeMatch = findActiveRoomMatch(room);
-  const matches = (room.matches || []).map(match => match.runGameV5 || match.formalRun ? publicMatch(match) : {...match, runGameV5: undefined, formalRun: null});
+  const matches = (room.matches || []).map(match => publicMatch(match));
   return {
     ...safeRoom,
     matches,
-    formalRun: null,
     finalResult: room.finalResult ? {
       settlementId: room.finalResult.settlementId,
       createdAt: room.finalResult.createdAt,
@@ -2867,12 +2261,12 @@ async function handleRoomWsMessage(client: RoomWsClient, raw: string): Promise<v
       registerWsClient(client);
       const next = touchRoom(room);
       await saveRoom(next);
-          sendWsJson(client, {type: "room.ready", room: publicRoom(next), formalRun: null, revision: next.revision});
+          sendWsJson(client, {type: "room.ready", room: publicRoom(next), revision: next.revision});
       broadcastRoomUpdated(next, client);
       log("info", "room-ws-authed", {roomId: client.roomId, clientId: client.id});
       return;
     }
-    if (message?.type === "room.heartbeat" || message?.type === "room.get" || message?.type === "rest.syncDraft" || message?.type === "rest.action") {
+    if (message?.type === "room.heartbeat" || message?.type === "room.get") {
       sendWsJson(client, {
         type: "server.error",
         error: "client_ws_action_disabled",
@@ -2938,7 +2332,7 @@ function logWsClose(client: RoomWsClient): void {
 
 function broadcastRoomUpdated(room: FormalRoomRecordV1 | undefined, except?: RoomWsClient): void {
   if (!room) return;
-  broadcastRoomMessage(room.roomId, {type: "room.updated", room: publicRoom(room), formalRun: null, revision: room.revision}, except);
+  broadcastRoomMessage(room.roomId, {type: "room.updated", room: publicRoom(room), revision: room.revision}, except);
 }
 
 function broadcastRoomClosed(roomId: string, reason: string): void {

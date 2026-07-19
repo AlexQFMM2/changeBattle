@@ -1,5 +1,4 @@
 import type {
-  FormalGameRunV4,
   FormalRoomV1,
   PostServiceConnectionStateV4,
   PostServiceResultV4,
@@ -16,7 +15,7 @@ export type FormalRoomSyncClientConfigV4 = {
   roomId: string;
   roomToken: string;
   onConnectionState: (state: PostServiceConnectionStateV4) => void;
-  onRoomUpdated: (payload: {room: FormalRoomV1; formalRun: FormalGameRunV4; revision: number}) => void;
+  onRoomUpdated: (payload: {room: FormalRoomV1; revision: number}) => void;
   onRoomClosed: (message: string) => void;
   fallbackHeartbeat: () => Promise<PostServiceResultV4<FormalRoomV1>>;
 };
@@ -136,8 +135,8 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
     }
     if (message?.type === "room.ready" || message?.type === "room.updated") {
       revision = Number(message.revision ?? message.room?.revision ?? revision);
-      if (message.formalRun && message.room) {
-        config.onRoomUpdated({room: message.room, formalRun: message.formalRun, revision: revision || 0});
+      if (message.room) {
+        config.onRoomUpdated({room: message.room, revision: revision || 0});
       }
       setState({
         state: "online",
@@ -192,9 +191,7 @@ export function createFormalRoomSyncClient(config: FormalRoomSyncClientConfigV4)
         return;
       }
       revision = Number(response.data.revision ?? revision);
-      if (response.data.formalRun) {
-        config.onRoomUpdated({room: response.data, formalRun: response.data.formalRun, revision: revision || 0});
-      }
+      config.onRoomUpdated({room: response.data, revision: revision || 0});
       setState({state: "online", lastSuccessAt: new Date().toISOString(), failureCount: 0});
     } finally {
       httpCommandActive = Math.max(0, httpCommandActive - 1);

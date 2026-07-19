@@ -53,7 +53,8 @@ import {
 } from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalGameRunV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
-import {applyTrainingLessonV5, buildFormalRunCompatViewV5, commitFinalSettlementFromRunGameV5, createRunGameV5FromStarterRun, finalizeBattleResultFromSnapshotV5, ingestPreparedRoundPlanV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, selectStarterPokemonV5} from "./runGameV5.js";
+import {applyTrainingLessonV5, commitFinalSettlementFromRunGameV5, createRunGameV5FromStarterRun, finalizeBattleResultFromSnapshotV5, ingestPreparedRoundPlanV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, selectStarterPokemonV5} from "./runGameV5.js";
+import {buildFormalRunCompatViewV5} from "./runGameV5CompatLegacy.js";
 import {
   CARRY_PREP_ITEMS_NODE_ID,
   COMPULSORY_EDUCATION_NODE_ID,

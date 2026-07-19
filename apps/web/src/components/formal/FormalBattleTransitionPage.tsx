@@ -1,14 +1,16 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalGameRunV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalGameRunV4, FormalRoomCommandResultV1, RunGameRestViewV5, TrainingRunGameV4, ViewScopeNameV5} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import {loadFormalRoomCredential} from "../../lib/formalRoomCredential";
 
-export function FormalBattleTransitionPage({api, formalGameBridge, battleBackendLabel, run, onRunChange, onReady, onBackToRest}: {
+export function FormalBattleTransitionPage({api, formalGameBridge, battleBackendLabel, run, roomRestView, onRunChange, onRoomScopedViewChange, onReady, onBackToRest}: {
   api: ChangeBattleV2Api;
   formalGameBridge?: DesktopFormalGameBridge;
   battleBackendLabel?: string;
-  run: FormalGameRunV4;
+  run?: FormalGameRunV4 | null;
+  roomRestView?: RunGameRestViewV5 | null;
   onRunChange: (run: FormalGameRunV4) => void;
+  onRoomScopedViewChange?: (scope: ViewScopeNameV5, view: FormalRoomCommandResultV1["view"], meta: {revision: number; phase: string}) => void;
   onReady: (sessionId: string) => void;
   onBackToRest: () => void;
 }) {
@@ -20,7 +22,7 @@ export function FormalBattleTransitionPage({api, formalGameBridge, battleBackend
     void (async () => {
       const credential = loadFormalRoomCredential();
       if (credential) {
-        const clientRequestId = formalBattleClientRequestId(credential.roomId, run);
+        const clientRequestId = formalBattleClientRequestId(credential.roomId, credential.matchId || roomRestView?.matchId || "match", roomRestView?.revision || 0);
         if (credential.matchId) {
           const prepared = await api.submitFormalRoomMatchCommand({
             roomId: credential.roomId,
@@ -31,14 +33,13 @@ export function FormalBattleTransitionPage({api, formalGameBridge, battleBackend
             payload: {},
           });
           if (!prepared.ok) throw new Error(prepared.message);
-          const nextRun = prepared.data.view.formalRun;
-          if (!nextRun) throw new Error("房间内对局尚未开始。");
-          onRunChange(nextRun);
+          onRoomScopedViewChange?.(prepared.data.scope, prepared.data.view, {revision: prepared.data.revision, phase: prepared.data.phase});
           onReady(String(prepared.data.sessionId || (prepared.data.result as any)?.sessionId || ""));
           return;
         }
         throw new Error("当前房间缺少对局 ID，不能创建正式战斗。");
       }
+      if (!run) throw new Error("正式存档不存在。");
       const prepared = formalGameBridge
         ? await formalGameBridge.prepareFormalBattleSession(run)
         : await api.prepareFormalBattleSession(run);
@@ -62,6 +63,7 @@ export function FormalBattleTransitionPage({api, formalGameBridge, battleBackend
       console.error(error);
       setError(error instanceof Error ? error.message : "正式战斗创建失败。");
       if (loadFormalRoomCredential()) return;
+      if (!run) return;
       const restRunSnapshot = run.restRunSnapshot;
       if (restRunSnapshot?.currentNodeId) {
         const blockedRestRun = markFormalRestBattleState(restRunSnapshot, restRunSnapshot.currentNodeId, "blocked", "battle-game-blocked");
@@ -73,7 +75,7 @@ export function FormalBattleTransitionPage({api, formalGameBridge, battleBackend
         onRunChange(blockedRun);
       }
     });
-  }, [api, formalGameBridge, onBackToRest, onReady, onRunChange, run]);
+  }, [api, formalGameBridge, onBackToRest, onReady, onRoomScopedViewChange, onRunChange, roomRestView?.matchId, roomRestView?.revision, run]);
 
   if (error) {
     return (
@@ -112,8 +114,8 @@ export function FormalBattleTransitionPage({api, formalGameBridge, battleBackend
   );
 }
 
-function formalBattleClientRequestId(roomId: string, run: FormalGameRunV4): string {
-  const key = `changebattle-v2:formal-room:${roomId}:prepare-battle:${run.id}:${run.currentRoundIndex}`;
+function formalBattleClientRequestId(roomId: string, matchId: string, revision: number): string {
+  const key = `changebattle-v2:formal-room:${roomId}:prepare-battle:${matchId}:${revision}`;
   try {
     const existing = window.sessionStorage?.getItem(key);
     if (existing) return existing;

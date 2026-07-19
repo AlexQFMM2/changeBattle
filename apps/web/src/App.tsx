@@ -34,8 +34,15 @@ import {
   type FormalRoomV1,
   type FormalRoomRestActionV1,
   type FormalRoundSettlementV4,
-  type RunGameViewV5,
+  type RunGameBattleViewV5,
+  type RunGameRestViewV5,
+  type RunGameScopedViewV5,
+  type RunGameSettlementViewV5,
+  type RunGameStarterViewV5,
+  type RunGameSummaryViewV5,
+  type ViewScopeNameV5,
   type FormalSettlementReasonV4,
+  type PostServiceActionNameV4,
   type PostServiceConnectionStateV4,
   type TrainingRunGameV4,
   type UserProfileDraftV2,
@@ -70,7 +77,10 @@ import {TitlePage} from "./components/shell/TitlePage";
 import {TrainerVaultPage} from "./components/trainer-vault/TrainerVaultPage";
 import {TrainingConfigPage} from "./components/training/TrainingConfigPage";
 import {TrainingBattleResultTransitionPage} from "./components/training/TrainingBattleResultTransitionPage";
+import {RoomTrainingRestPage} from "./components/training/RoomTrainingRestPage";
 import {TrainingRestNewPage} from "./components/training/TrainingRestNewPage";
+import {trainingRestDisplayFromTrainingRunV4} from "./components/training/TrainingRestLegacyDisplayModel";
+import {trainingRestDisplayFromRestViewV5} from "./components/training/TrainingRestRoomDisplayModel";
 import {TrainingRestPage} from "./components/training/TrainingRestPage";
 import {TrainingRunTransitionPage} from "./components/training/TrainingRunTransitionPage";
 import {setAssetCacheRuntimeConfig, showdownAssetPrefix} from "./lib/assetUrl";
@@ -82,6 +92,30 @@ import {createFormalRoomSyncClient, type FormalRoomSyncClientV4} from "./lib/for
 
 type AppProps = {
   runtime: "web" | "desktop" | "mobile";
+};
+
+type FormalRoomClientCacheV5 = {
+  revision: number;
+  phase: string | null;
+  views: {
+    summary?: RunGameSummaryViewV5;
+    starter?: RunGameStarterViewV5;
+    rest?: RunGameRestViewV5;
+    battle?: RunGameBattleViewV5;
+    settlement?: RunGameSettlementViewV5;
+  };
+  stale: Partial<Record<ViewScopeNameV5, number>>;
+  pendingCommand: {commandId: string; commandName: string; scope: ViewScopeNameV5; startedAt: string} | null;
+  localDraft: Record<string, unknown>;
+};
+
+const EMPTY_FORMAL_ROOM_CLIENT_CACHE_V5: FormalRoomClientCacheV5 = {
+  revision: 0,
+  phase: null,
+  views: {},
+  stale: {},
+  pendingCommand: null,
+  localDraft: {},
 };
 
 const IS_DEV_BUILD = import.meta.env.DEV;
@@ -170,7 +204,7 @@ function RoutedApp({runtime}: AppProps) {
   const [playerVaultDirty, setPlayerVaultDirty] = useState(false);
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
   const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
-  const [formalRoomViewV5, setFormalRoomViewV5] = useState<RunGameViewV5 | null>(null);
+  const [formalRoomClientCache, setFormalRoomClientCache] = useState<FormalRoomClientCacheV5>(EMPTY_FORMAL_ROOM_CLIENT_CACHE_V5);
   const [lobbyRoom, setLobbyRoom] = useState<FormalRoomV1 | null>(null);
   const [lobbyRoomToken, setLobbyRoomToken] = useState("");
   const [lobbyBusyMessage, setLobbyBusyMessage] = useState<string | null>(null);
@@ -188,6 +222,14 @@ function RoutedApp({runtime}: AppProps) {
     if (desktopStartupRouteResetting || !formalRoomRouteActive) return null;
     return loadFormalRoomCredential();
   }, [desktopStartupRouteResetting, formalRoomCredentialVersion, formalRoomRouteActive, location.pathname]);
+  const formalRoomSummaryView = formalRoomClientCache.views.summary || null;
+  const formalRoomStarterView = formalRoomClientCache.views.starter || null;
+  const formalRoomRestView = formalRoomClientCache.views.rest || null;
+  const formalRoomBattleView = formalRoomClientCache.views.battle || null;
+  const formalRoomSettlementView = formalRoomClientCache.views.settlement || null;
+  const formalRoomRevision = formalRoomClientCache.revision;
+  const formalRoomCurrentScope = formalRoomScopeForRoute(location.pathname);
+  const formalRoomCurrentScopedView = formalRoomCurrentScope ? formalRoomClientCache.views[formalRoomCurrentScope] || null : null;
   const formalRoomBattleService = useMemo(() => formalRoomCredential
     ? api.createFormalRoomBattleServiceClient({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken, matchId: formalRoomCredential.matchId})
     : undefined, [api, formalRoomCredential?.matchId, formalRoomCredential?.roomId, formalRoomCredential?.roomToken]);
@@ -293,13 +335,13 @@ function RoutedApp({runtime}: AppProps) {
   }, [formalBattleSessionStorageKey, formalRoomRouteActive, formalRun?.settled]);
 
   useEffect(() => {
-    if (location.pathname !== "/formal/battle" || !formalRoomCredential || !formalRun?.restRunSnapshot) return;
+    if (location.pathname !== "/formal/battle" || !formalRoomCredential) return;
     const cachedSessionId = battleSessionId || safeSessionStorageGet(formalBattleSessionStorageKey);
     if (cachedSessionId) return;
     let cancelled = false;
     setFormalBattleSessionRestoring(true);
     const loadBattleView = formalRoomCredential.matchId
-      ? api.getFormalRoomMatchView({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken, matchId: formalRoomCredential.matchId})
+      ? api.getFormalRoomMatchView({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken, matchId: formalRoomCredential.matchId, scope: "battle"})
       : api.getFormalRoom({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken});
     loadBattleView
       .then(result => {
@@ -309,16 +351,14 @@ function RoutedApp({runtime}: AppProps) {
           return;
         }
         const room = "view" in result.data ? result.data.room : result.data;
-        const nextRun = "view" in result.data ? result.data.view.formalRun : result.data.formalRun;
-        const activeBattle = "view" in result.data ? result.data.view.activeBattle : result.data.activeBattle;
-        if ("view" in result.data) applyFormalRoomViewV5(result.data.view.viewV5);
-        if (nextRun) setFormalRun(nextRun);
+        const activeBattle = "view" in result.data ? result.data.activeBattle : result.data.activeBattle;
+        if ("view" in result.data) applyFormalRoomCommandView(result.data);
         const sessionId = activeBattle?.sessionId || "";
         if (sessionId) {
           setBattleSessionId(sessionId);
           setFormalBattleRecoveredSceneSessionId(sessionId);
           safeSessionStorageSet(formalBattleSessionStorageKey, sessionId);
-        } else if (room.status === "ended" || nextRun?.settled) {
+        } else if (room.status === "ended") {
           clearFormalRoomCredential();
         } else {
           setFormalRestInitialNotice("当前房间没有可恢复的战斗会话，请返回休整页重新进入。");
@@ -334,27 +374,33 @@ function RoutedApp({runtime}: AppProps) {
     return () => {
       cancelled = true;
     };
-  }, [api, battleSessionId, formalBattleSessionStorageKey, formalRoomCredential?.matchId, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRun?.id, formalRun?.restRunSnapshot, location.pathname]);
+  }, [api, battleSessionId, formalBattleSessionStorageKey, formalRoomCredential?.matchId, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, location.pathname]);
 
   useEffect(() => {
-    if (!formalRoomCredential?.matchId || !formalRoomRouteActive || formalRun || !formalRunLoaded) return;
-    if (location.pathname === "/formal/settlement") return;
+    if (!formalRoomCredential?.matchId || !formalRoomRouteActive || !formalRoomCurrentScope || formalRoomCurrentScopedView || !formalRunLoaded) return;
     let cancelled = false;
-    api.getFormalRoomMatchView({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken, matchId: formalRoomCredential.matchId})
+    setFormalRestBusyMessage("正在同步房间视图");
+    api.getFormalRoomMatchView({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken, matchId: formalRoomCredential.matchId, scope: formalRoomCurrentScope})
       .then(result => {
-        if (cancelled || !result.ok) return;
-        setLobbyRoom(result.data.room);
-        applyFormalRoomViewV5(result.data.view.viewV5);
-        const nextRun = result.data.view.formalRun;
-        if (nextRun) {
-          applyFormalRunView(nextRun);
+        if (cancelled) return;
+        if (!result.ok) {
+          setFormalRestInitialNotice(`房间视图同步失败：${result.message}`);
+          return;
         }
+        setLobbyRoom(result.data.room);
+        applyFormalRoomCommandView(result.data);
       })
-      .catch(() => undefined);
+      .catch(error => {
+        if (cancelled) return;
+        setFormalRestInitialNotice(error instanceof Error ? `房间视图同步失败：${error.message}` : "房间视图同步失败。");
+      })
+      .finally(() => {
+        if (!cancelled) setFormalRestBusyMessage(null);
+      });
     return () => {
       cancelled = true;
     };
-  }, [api, formalRoomCredential?.matchId, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRoomRouteActive, formalRun, formalRunLoaded, location.pathname]);
+  }, [api, formalRoomCredential?.matchId, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRoomCurrentScope, formalRoomCurrentScopedView, formalRoomRouteActive, formalRunLoaded]);
 
   useEffect(() => {
     if (location.pathname !== "/formal/room/create" || lobbyRoom || lobbyRoomToken || !formalRoomCredential?.roomId) return;
@@ -382,13 +428,12 @@ function RoutedApp({runtime}: AppProps) {
   }, [api, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, lobbyRoom, lobbyRoomToken, location.pathname]);
 
   useEffect(() => {
-    if (!formalRoomCredential?.roomId || formalRun?.settlement || !formalRunLoaded) return;
+    if (!formalRoomCredential?.roomId || formalRoomSettlementView?.settlement || !formalRunLoaded) return;
     if (location.pathname !== "/formal/settlement" && location.pathname !== "/formal/settlement-transition") return;
     let cancelled = false;
     api.getFormalRoomFinalResult({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken})
       .then(result => {
         if (cancelled || !result.ok) return;
-        if (result.data.formalRun) applyFormalRunView(result.data.formalRun);
         setProfile(result.data.profile);
         setPlayerVault(result.data.playerVault);
         setPlayerVaultDirty(false);
@@ -397,7 +442,7 @@ function RoutedApp({runtime}: AppProps) {
     return () => {
       cancelled = true;
     };
-  }, [api, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRun?.settlement, formalRunLoaded, location.pathname]);
+  }, [api, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRoomSettlementView?.settlement, formalRunLoaded, location.pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -507,7 +552,7 @@ function RoutedApp({runtime}: AppProps) {
       setPlayerVaultDirty(false);
       setTrainingRun(null);
       setFormalRun(null);
-      setFormalRoomViewV5(null);
+      setFormalRoomClientCache(EMPTY_FORMAL_ROOM_CLIENT_CACHE_V5);
       return;
     }
     let cancelled = false;
@@ -552,7 +597,7 @@ function RoutedApp({runtime}: AppProps) {
   useEffect(() => {
     if (!profile) {
       setFormalRun(null);
-      setFormalRoomViewV5(null);
+      setFormalRoomClientCache(EMPTY_FORMAL_ROOM_CLIENT_CACHE_V5);
       setFormalRunLoaded(true);
       return;
     }
@@ -688,9 +733,6 @@ function RoutedApp({runtime}: AppProps) {
       });
       if (!result.ok) throw new Error(result.message);
       setLobbyRoom(result.data.room);
-      if (result.data.formalRun) {
-        applyFormalRunView(result.data.formalRun);
-      }
     } catch (error) {
       setLobbyError(error instanceof Error ? error.message : "创建对局失败。");
       throw error;
@@ -729,11 +771,12 @@ function RoutedApp({runtime}: AppProps) {
         clientRequestId: `start-${matchId}`,
       });
       if (!result.ok) throw new Error(result.message);
-      const nextRun = result.data.formalRun || result.data.match.formalRun;
-      if (!nextRun) throw new Error("对局启动失败：缺少正式流程。");
       setLobbyRoom(result.data.room);
-      applyFormalRunView(nextRun);
       saveFormalRoomCredential(lobbyRoom.roomId, lobbyRoomToken, matchId);
+      const viewResult = await api.getFormalRoomMatchView({roomId: lobbyRoom.roomId, roomToken: lobbyRoomToken, matchId, scope: "starter"});
+      if (!viewResult.ok) throw new Error(viewResult.message);
+      if (!viewResult.data.view) throw new Error("对局启动失败：服务器未返回 V5 房间视图。");
+      applyFormalRoomCommandView(viewResult.data);
       setFormalRoomConnectionEnabled(true);
       setFormalRoomCredentialVersion(version => version + 1);
       activateFormalRoomConnection();
@@ -1014,10 +1057,12 @@ function RoutedApp({runtime}: AppProps) {
     formalRoomSyncClientRef.current = null;
     setFormalRoomConnectionEnabled(false);
     setServerConnectionState(null);
+    setFormalRoomClientCache(EMPTY_FORMAL_ROOM_CLIENT_CACHE_V5);
   }
 
   async function chooseMedicalInsurance(choice: FormalMedicalInsuranceChoiceV4) {
-    if (!formalRun || medicalInsuranceBusy) return;
+    if (medicalInsuranceBusy) return;
+    if (!formalRun && !formalRoomCredential) return;
     setMedicalInsuranceBusy(true);
     setMedicalInsuranceError(null);
     setFormalRestBusyMessage(formalServerBusyMessageForLabel(choice === "decline" ? "医疗保险" : "购买保险"));
@@ -1030,6 +1075,7 @@ function RoutedApp({runtime}: AppProps) {
         }
         return;
       }
+      if (!formalRun) return;
       const result = formalGameBridge
         ? await formalGameBridge.chooseFormalMedicalInsurance(formalRun, choice)
         : api.chooseFormalMedicalInsurance(formalRun, choice);
@@ -1062,10 +1108,21 @@ function RoutedApp({runtime}: AppProps) {
     return nextRun;
   }
 
-  function applyFormalRoomViewV5(nextView: RunGameViewV5 | null | undefined): RunGameViewV5 | null {
+  function applyFormalRoomScopedView(scope: ViewScopeNameV5, nextView: RunGameScopedViewV5 | null | undefined, meta?: {revision?: number; phase?: string | null}): RunGameScopedViewV5 | null {
     const normalized = nextView || null;
-    setFormalRoomViewV5(normalized);
+    setFormalRoomClientCache(current => ({
+      ...current,
+      revision: Number(meta?.revision ?? normalized?.revision ?? current.revision ?? 0),
+      phase: meta?.phase ?? normalized?.phase ?? current.phase ?? null,
+      views: normalized ? {...current.views, [scope]: normalized as any} : current.views,
+      stale: {...current.stale, [scope]: undefined},
+      pendingCommand: null,
+    }));
     return normalized;
+  }
+
+  function applyFormalRoomCommandView(response: {scope: ViewScopeNameV5; view: RunGameScopedViewV5 | null; revision: number; phase: string}): RunGameScopedViewV5 | null {
+    return applyFormalRoomScopedView(response.scope, response.view, {revision: response.revision, phase: response.phase});
   }
 
   async function persistFormalRunLocal(nextRun: FormalGameRunV4): Promise<FormalGameRunV4> {
@@ -1112,8 +1169,8 @@ function RoutedApp({runtime}: AppProps) {
   }
 
   async function submitFormalTeamReorder(pokemonIds: string[]): Promise<void> {
-    if (!formalRun) throw new Error("正式存档不存在。");
     if (!formalRoomCredential?.matchId) {
+      if (!formalRun) throw new Error("正式存档不存在。");
       if (!formalRun.restRunSnapshot) throw new Error("当前不是休整阶段。");
       const currentTeam = formalRun.restRunSnapshot?.players.p1?.localTeam || formalRun.playerTeam;
       if (!currentTeam) throw new Error("当前队伍不存在。");
@@ -1133,7 +1190,8 @@ function RoutedApp({runtime}: AppProps) {
       }, "调整顺序");
       return;
     }
-    const actionKey = formalTeamReorderStorageKey(formalRoomCredential.roomId, formalRun, pokemonIds);
+    if (!formalRoomRestView) throw new Error("房间视图尚未同步。");
+    const actionKey = formalTeamReorderStorageKey(formalRoomCredential.roomId, formalRoomCredential.matchId, formalRoomRestView.revision, pokemonIds);
     const commandId = loadOrCreateFormalRestActionClientId(actionKey, "team.reorder");
     const response = await api.submitFormalRoomMatchCommand({
       roomId: formalRoomCredential.roomId,
@@ -1144,17 +1202,14 @@ function RoutedApp({runtime}: AppProps) {
       payload: {pokemonIds},
     });
     if (!response.ok) throw new Error(response.message);
-    applyFormalRoomViewV5(response.data.view.viewV5);
-    const nextRun = response.data.view.formalRun;
-    if (!nextRun) throw new Error("服务器未返回对局视图。");
-    await persistServerConfirmedFormalRun(nextRun);
+    applyFormalRoomCommandView(response.data);
     clearFormalRestActionClientId(actionKey);
   }
 
   async function submitFormalRestAction(action: FormalRoomRestActionV1) {
-    if (!formalRun) throw new Error("正式存档不存在。");
     if (!formalRoomCredential) throw new Error("正式房间凭证不存在。");
-    const actionKey = formalRestActionStorageKey(formalRoomCredential.roomId, formalRun, action);
+    if (!formalRoomRestView) throw new Error("房间视图尚未同步。");
+    const actionKey = formalRestActionStorageKey(formalRoomCredential.roomId, formalRoomCredential.matchId || formalRoomRestView.matchId, formalRoomRestView.revision, action);
     const clientActionId = loadOrCreateFormalRestActionClientId(actionKey, action.type);
     const label = formalRestActionLabel(action);
     const result = await withFormalRestServerBusy(formalServerBusyMessageForLabel(label), async () => {
@@ -1163,9 +1218,9 @@ function RoutedApp({runtime}: AppProps) {
           roomId: formalRoomCredential.roomId,
           roomToken: formalRoomCredential.roomToken,
           matchId: formalRoomCredential.matchId,
-          actionName: "rooms.matches.commands.restAction",
+          actionName: formalRestCommandActionName(action),
           commandId: clientActionId,
-          payload: {action},
+          payload: formalRestCommandPayload(action),
         });
         if (!response.ok) {
           return {
@@ -1179,12 +1234,11 @@ function RoutedApp({runtime}: AppProps) {
           };
         }
         const payload = response.data.result as any;
-        applyFormalRoomViewV5(response.data.view.viewV5);
+        applyFormalRoomCommandView(response.data);
         return {
           ok: true as const,
           data: {
             room: response.data.room,
-            formalRun: response.data.view.formalRun || formalRun,
             actionType: action.type,
             message: response.data.message || payload?.message || "操作完成。",
             moneyDelta: 0,
@@ -1202,8 +1256,7 @@ function RoutedApp({runtime}: AppProps) {
       throw new Error(result.message);
     }
     clearFormalRestActionClientId(actionKey);
-    const saved = await persistServerConfirmedFormalRun(result.data.formalRun);
-    return {...result.data, formalRun: saved};
+    return result.data;
   }
 
   function openDex(initialPokemonId: string | null = null) {
@@ -1528,36 +1581,7 @@ function RoutedApp({runtime}: AppProps) {
   ) : missingProfileFormalPage;
   const formalRoomPage = profile ? (
     formalRoomGate ? (
-      formalRoomGate.action === "start" ? (
-        <Navigate to="/formal/room/create" replace />
-      ) : (
-        <FormalRoomGatePage
-        api={api}
-        profile={formalTransitionProfile || profile}
-        playerVault={playerVault}
-        currentRun={formalRun}
-        action={formalRoomGate.action}
-        mode={formalRoomGate.mode}
-        onActivateRoom={activateFormalRoomConnection}
-        onRunReady={run => {
-          applyFormalRunView(run);
-          navigate("/formal/starter-select", {replace: true});
-        }}
-        onResumeReady={routeResumedFormalRun}
-        onBack={() => {
-          deactivateFormalRoomConnection();
-          navigate("/main", {replace: true});
-        }}
-        onLeave={async credential => {
-          await api.deleteFormalRoom(credential).catch(() => undefined);
-          deactivateFormalRoomConnection();
-          clearFormalRoomCredential();
-          setFormalRun(null);
-          await api.deleteFormalGameRun().catch(() => undefined);
-          navigate("/main", {replace: true});
-        }}
-      />
-      )
+      <Navigate to="/formal/room/create" replace />
     ) : (
       <Navigate to="/main" replace />
     )
@@ -1584,11 +1608,13 @@ function RoutedApp({runtime}: AppProps) {
   ) : missingProfileFormalPage;
 
   const formalStarterSelectPage = profile ? (
-    formalRun && formalRun.starterCandidates.length ? (
+    (formalRoomCredential?.matchId && formalRoomStarterView?.phase === "starter") || (formalRun && formalRun.starterCandidates.length) ? (
       <FormalStarterSelectPage
         api={api}
         run={formalRun}
+        roomStarterView={formalRoomCredential ? formalRoomStarterView : null}
         onRunChange={setFormalRun}
+        onRoomScopedViewChange={applyFormalRoomScopedView}
         onDone={() => navigate("/formal/round-transition", {replace: true})}
         backLabel={formalRoomCredential?.matchId ? "返回房间" : "返回主页"}
         onBack={() => navigate(formalRoomCredential?.matchId ? "/formal/room/create" : "/main", {replace: true})}
@@ -1611,13 +1637,18 @@ function RoutedApp({runtime}: AppProps) {
   ) : missingProfileFormalPage;
 
   const formalRoundTransitionPage = profile ? (
-    formalRun?.playerTeam ? (
+    (formalRoomCredential?.matchId && formalRoomStarterView?.phase === "starter") || formalRun?.playerTeam ? (
       <FormalRoundTransitionPage
         api={api}
         formalGameBridge={formalGameBridge}
         run={formalRun}
+        roomStarterView={formalRoomCredential ? formalRoomStarterView : null}
         playerVault={playerVault}
         onSavePlayerVault={api.savePlayerVault}
+        onRoomScopedViewReady={applyFormalRoomScopedView}
+        onRoomReady={() => {
+          navigate("/formal/rest", {replace: true});
+        }}
         onRunReady={(run, nextPlayerVault) => {
           applyFormalRunView(run);
           setPlayerVault(nextPlayerVault);
@@ -1634,31 +1665,73 @@ function RoutedApp({runtime}: AppProps) {
 
   const medicalInsuranceOffer = formalRun?.restRunSnapshot ? api.getFormalMedicalInsuranceOffer(formalRun) : null;
   const shouldShowMedicalInsurance = Boolean(
-    formalRun?.restRunSnapshot
-    && formalRun.currentRoundIndex === 0
-    && medicalInsuranceOffer?.available
-    && !medicalInsuranceOffer.seen
-    && !medicalInsuranceOffer.purchased
+    !formalRoomCredential
+      && formalRun?.restRunSnapshot
+      && formalRun.currentRoundIndex === 0
+      && medicalInsuranceOffer?.available
+      && !medicalInsuranceOffer.seen
+      && !medicalInsuranceOffer.purchased
   );
+  const roomRestDisplayModel = formalRoomCredential && formalRoomRestView
+    ? trainingRestDisplayFromRestViewV5({view: formalRoomRestView, seenRoundSettlementNodeIds})
+    : null;
+  const legacyFormalRestDisplayModel = !formalRoomCredential && formalRun?.restRunSnapshot ? trainingRestDisplayFromTrainingRunV4({
+      api,
+      run: formalRun.restRunSnapshot,
+      formalRun,
+      roundSettlement: latestUnreadRoundSettlement(formalRun, seenRoundSettlementNodeIds),
+      money: formalRun.money,
+    }) : null;
   const formalRestPage = profile ? (
-    formalRun?.restRunSnapshot ? (
+    formalRoomCredential ? (
+      roomRestDisplayModel ? (
+        <div className="formal-rest-page-shell">
+          <RoomTrainingRestPage
+            display={roomRestDisplayModel}
+            busyMessage={formalRestBusyMessage}
+            initialNotice={formalRestInitialNotice}
+            onInitialNoticeConsumed={() => setFormalRestInitialNotice(null)}
+            onBackToRoom={() => navigate("/formal/room/create", {replace: true})}
+            onAbandonRun={async () => {
+              enterFormalSettlement("abandon");
+            }}
+            onProceedToSettlement={async () => {
+              enterFormalSettlement("complete");
+            }}
+            onStartBattle={async () => {
+              startFormalBattleFromRest();
+            }}
+            onOpenDex={() => openDex()}
+            onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
+            onRoundSettlementSeen={nodeId => setSeenRoundSettlementNodeIds(current => ({...current, [`${formalRoomRestView?.runId || "formal-room"}:${nodeId}`]: true}))}
+            onTeamReorderSave={submitFormalTeamReorder}
+            onRestAction={async action => {
+              const submitted = await submitFormalRestAction(action);
+              return {message: submitted.message, result: submitted.result};
+            }}
+          />
+        </div>
+      ) : !formalRunLoaded ? (
+        <FormalRouteLoadingPage />
+      ) : (
+        <FormalRouteLoadingPage />
+      )
+    ) : legacyFormalRestDisplayModel && formalRun ? (
       <div className="formal-rest-page-shell">
         <TrainingRestNewPage
           api={api}
-          run={formalRun.restRunSnapshot}
+          run={legacyFormalRestDisplayModel.legacyRun}
+          displayModel={legacyFormalRestDisplayModel}
           onRunChange={restRunSnapshot => {
             setFormalRun(current => current ? {...current, restRunSnapshot, updatedAt: new Date().toISOString()} : current);
           }}
           onSaveRunSnapshot={async restRunSnapshot => {
             if (!formalRun) return restRunSnapshot;
-            if (formalRoomCredential) return restRunSnapshot;
             const saved = await api.saveFormalGameRun({...formalRun, restRunSnapshot, updatedAt: new Date().toISOString()});
             setFormalRun(saved);
             return saved.restRunSnapshot || restRunSnapshot;
           }}
-          onTeamReorderSave={formalRoomCredential ? submitFormalTeamReorder : undefined}
-          hideSaveAction={Boolean(formalRoomCredential)}
-          serverBusyMessage={formalRestBusyMessage}
+          hideSaveAction={false}
           onBackToConfig={() => navigate("/main", {replace: true})}
           onAbandonRun={async () => {
             enterFormalSettlement("abandon");
@@ -1671,19 +1744,13 @@ function RoutedApp({runtime}: AppProps) {
           }}
           onOpenDex={() => openDex()}
           onOpenPokemonDex={(speciesId: string) => openDex(speciesId)}
-          moneyAmount={formalRun.money}
-          roundSettlement={latestUnreadRoundSettlement(formalRun, seenRoundSettlementNodeIds)}
-          onRoundSettlementSeen={nodeId => setSeenRoundSettlementNodeIds(current => ({...current, [`${formalRun.id}:${nodeId}`]: true}))}
+          moneyAmount={legacyFormalRestDisplayModel.money}
+          roundSettlement={legacyFormalRestDisplayModel.roundSettlement}
+          onRoundSettlementSeen={nodeId => setSeenRoundSettlementNodeIds(current => ({...current, [`${formalRun?.id || "formal"}:${nodeId}`]: true}))}
           healController={{
-            money: formalRun.money,
-            cost: Math.max(1, Math.floor(250 * (api.formalMedicalInsuranceEffectsForRun(formalRun).recoveryShopPriceMultiplier || 1))),
-            serverCommitted: Boolean(formalRoomCredential),
+            money: legacyFormalRestDisplayModel.money,
+            cost: Math.max(1, Math.floor(250 * api.formalMedicalInsuranceEffectsForRun(formalRun).recoveryShopPriceMultiplier)),
             onHeal: async () => {
-              if (!formalRun) throw new Error("正式存档不存在。");
-              if (formalRoomCredential) {
-                const submitted = await submitFormalRestAction({type: "team.heal"});
-                return {...(submitted.result as any), ok: true, run: submitted.formalRun, message: submitted.message};
-              }
               const result = formalGameBridge
                 ? await formalGameBridge.healFormalRestTeam(formalRun)
                 : api.healFormalRestTeam(formalRun);
@@ -1692,21 +1759,9 @@ function RoutedApp({runtime}: AppProps) {
             },
           }}
           teamRerollController={{
-            money: formalRun.money,
+            money: legacyFormalRestDisplayModel.money,
             locksEnabled: starChartHasSpecialTrainingLockV4(formalRun.starChartSnapshot),
-            serverCommitted: Boolean(formalRoomCredential),
             onRerollStats: async input => {
-              if (!formalRun) throw new Error("正式存档不存在。");
-              if (formalRoomCredential) {
-                const submitted = await submitFormalRestAction({type: "pokemon.reroll-stats", input: input as Record<string, unknown>});
-                const payload = submitted.result as any;
-                return {
-                  ...payload,
-                  ok: true,
-                  run: submitted.formalRun,
-                  message: submitted.message,
-                };
-              }
               const result = api.rerollFormalRestPokemonStats(formalRun, input);
               if (result.ok) setFormalRun(result.run);
               return result;
@@ -1715,19 +1770,7 @@ function RoutedApp({runtime}: AppProps) {
           opponentPreviewController={{
             enabled: starChartHasOpponentRumorV4(formalRun.starChartSnapshot),
             cost: 10,
-            serverCommitted: Boolean(formalRoomCredential),
             onUnlock: async input => {
-              if (!formalRun) throw new Error("正式存档不存在。");
-              if (formalRoomCredential) {
-                const submitted = await submitFormalRestAction({type: "opponent-preview.unlock", input: input as Record<string, unknown>});
-                const payload = submitted.result as any;
-                return {
-                  ...payload,
-                  ok: true,
-                  run: submitted.formalRun,
-                  message: submitted.message,
-                };
-              }
               const result = api.unlockFormalRestOpponentPreview(formalRun, input);
               if (result.ok) setFormalRun(result.run);
               return result;
@@ -1735,59 +1778,19 @@ function RoutedApp({runtime}: AppProps) {
           }}
           exchangeController={{
             getView: () => api.getFormalRestExchangeView(formalRun),
-            serverCommitted: Boolean(formalRoomCredential),
             onExchange: async input => {
-              if (!formalRun) throw new Error("正式存档不存在。");
-              if (formalRoomCredential) {
-                const submitted = await submitFormalRestAction({
-                  type: "pokemon.exchange",
-                  sourcePokemonId: input.sourcePokemonId,
-                  targetPokemonId: input.targetPokemonId,
-                });
-                const payload = submitted.result as any;
-                return {
-                  ...payload,
-                  ok: true,
-                  run: submitted.formalRun,
-                  message: submitted.message,
-                  cost: Number(payload?.cost || 0),
-                  view: payload?.view || api.getFormalRestExchangeView(submitted.formalRun),
-                };
-              }
               const result = api.exchangeFormalRestPokemon(formalRun, input);
               if (result.ok) setFormalRun(result.run);
               return result;
             },
           }}
-          bagActionController={formalRoomCredential ? {
-            serverCommitted: true,
-            onAction: async action => {
-              if (!formalRun) throw new Error("正式存档不存在。");
-              const submitted = await submitFormalRestAction(action);
-              return {ok: true, run: submitted.formalRun.restRunSnapshot || formalRun.restRunSnapshot!, message: submitted.message};
-            },
-          } : undefined}
           initialNotice={formalRestInitialNotice}
           onInitialNoticeConsumed={() => setFormalRestInitialNotice(null)}
           soulmateRewardEnabled={starChartHasSoulmateRewardV4(formalRun.starChartSnapshot)}
           onSoulmateEggPrepare={input => {
-            if (!formalRun) throw new Error("正式存档不存在。");
             return api.prepareFormalSoulmateEggHatch(formalRun, input.candidateId);
           }}
           onSoulmateEggClaim={async input => {
-            if (!formalRun) throw new Error("正式存档不存在。");
-            if (formalRoomCredential) {
-              const submitted = await submitFormalRestAction({type: "soulmate-egg.claim", candidateId: input.candidateId, nickname: input.nickname, playerVaultSnapshot: playerVault});
-              const payload = submitted.result as any;
-              const nextVault = payload?.playerVault || playerVault;
-              if (nextVault !== playerVault) {
-                const savedVault = await api.savePlayerVault(nextVault);
-                setPlayerVault(savedVault);
-                setPlayerVaultDirty(false);
-                return {...payload, ok: true, run: submitted.formalRun, playerVault: savedVault, message: submitted.message};
-              }
-              return {...payload, ok: true, run: submitted.formalRun, playerVault: nextVault, message: submitted.message};
-            }
             const result = api.claimFormalSoulmateEgg(formalRun, playerVault, input.candidateId, input.nickname);
             if (!result.ok) return result;
             const syncedRun = await api.saveFormalGameRun(result.run);
@@ -1798,26 +1801,16 @@ function RoutedApp({runtime}: AppProps) {
             return {...result, run: syncedRun, playerVault: savedVault};
           }}
           shopController={{
-            getShop: () => api.getFormalRestShop(formalRun),
-            player: formalRun.restRunSnapshot.players.p1 || null,
-            money: formalRun.money,
+            getShop: () => legacyFormalRestDisplayModel.shop,
+            player: legacyFormalRestDisplayModel.player,
+            money: legacyFormalRestDisplayModel.money,
             onBuy: async slotId => {
-              if (!formalRun) return "正式存档不存在。";
-              if (formalRoomCredential) {
-                const submitted = await submitFormalRestAction({type: "shop.buy", slotId});
-                return submitted.message;
-              }
               const result = api.buyFormalRestShopItem(formalRun, slotId);
               if (!result.ok) throw new Error(result.message);
               setFormalRun(result.run);
               return result.message;
             },
             onSell: async itemInstanceIds => {
-              if (!formalRun) return "正式存档不存在。";
-              if (formalRoomCredential) {
-                const submitted = await submitFormalRestAction({type: "shop.sell", itemInstanceIds});
-                return submitted.message;
-              }
               const result = api.sellFormalRestBagItems(formalRun, itemInstanceIds);
               if (!result.ok) throw new Error(result.message);
               setFormalRun(result.run);
@@ -1825,34 +1818,17 @@ function RoutedApp({runtime}: AppProps) {
             },
           }}
           trainingGroundController={{
-            getLesson: () => api.getFormalTrainingGroundLesson(formalRun),
-            getLessons: () => api.getFormalTrainingGroundLessons(formalRun),
-            player: formalRun.restRunSnapshot.players.p1 || null,
-            money: formalRun.money,
+            getLesson: () => legacyFormalRestDisplayModel.trainingGround.lesson,
+            getLessons: () => legacyFormalRestDisplayModel.trainingGround.lessons,
+            player: legacyFormalRestDisplayModel.player,
+            money: legacyFormalRestDisplayModel.money,
             onApply: async input => {
-              if (!formalRun) throw new Error("正式存档不存在。");
-              if (formalRoomCredential) {
-                const submitted = await submitFormalRestAction({type: "training.apply", input: input as Record<string, unknown>});
-                const payload = submitted.result as any;
-                return {
-                  ...payload,
-                  ok: true,
-                  run: submitted.formalRun,
-                  message: submitted.message,
-                  lesson: payload?.lesson || api.getFormalTrainingGroundLesson(submitted.formalRun),
-                };
-              }
               const result = api.applyFormalTrainingGroundLesson(formalRun, input);
               if (!result.ok) throw new Error(result.message);
               setFormalRun(result.run);
               return result;
             },
             onAdvance: () => {
-              if (!formalRun) return;
-              if (formalRoomCredential) {
-                setFormalRestInitialNotice("训练换课需要服务端命令，当前版本请完成一次学习后刷新课程。");
-                return;
-              }
               const nextRun = api.advanceFormalTrainingGroundLesson(formalRun);
               setFormalRun(nextRun);
             },
@@ -1861,27 +1837,32 @@ function RoutedApp({runtime}: AppProps) {
         {shouldShowMedicalInsurance && medicalInsuranceOffer ? (
           <FormalMedicalInsuranceDialog
             offer={medicalInsuranceOffer}
-            money={formalRun.money}
+            money={formalRun.money || legacyFormalRestDisplayModel.money}
             busy={medicalInsuranceBusy}
             error={medicalInsuranceError}
             onChoose={chooseMedicalInsurance}
           />
         ) : null}
       </div>
-    ) : !formalRunLoaded ? (
+    ) : formalRoomCredential || !formalRunLoaded ? (
       <FormalRouteLoadingPage />
     ) : (
       <Navigate to="/main" replace />
     )
   ) : missingProfileFormalPage;
 
+  const formalBattleRunSnapshot = formalRoomCredential
+    ? null
+    : formalRun?.restRunSnapshot || null;
   const formalBattleTransitionPage = profile ? (
-    formalRun?.restRunSnapshot ? (
+    (formalRoomCredential ? formalRoomRestView : formalBattleRunSnapshot) ? (
       <FormalBattleTransitionPage
         api={api}
         formalGameBridge={formalGameBridge}
         run={formalRun}
+        roomRestView={formalRoomCredential ? formalRoomRestView : null}
         onRunChange={setFormalRun}
+        onRoomScopedViewChange={applyFormalRoomScopedView}
         onReady={enterFormalBattle}
         onBackToRest={() => navigate("/formal/rest", {replace: true})}
       />
@@ -1894,12 +1875,13 @@ function RoutedApp({runtime}: AppProps) {
 
   const formalBattleSessionId = battleSessionId || safeSessionStorageGet(formalBattleSessionStorageKey);
   const formalBattlePage = profile ? (
-    formalRun?.restRunSnapshot ? formalRoomCredential && !formalBattleSessionId && formalBattleSessionRestoring ? (
+    (formalRoomCredential ? formalRoomBattleView : formalBattleRunSnapshot) ? formalRoomCredential && !formalBattleSessionId && formalBattleSessionRestoring ? (
       <FormalRouteLoadingPage />
     ) : (
       <BattleV4Page
         api={api}
-        run={formalRun.restRunSnapshot}
+        run={formalRoomCredential ? undefined : formalBattleRunSnapshot || undefined}
+        roomBattleView={formalRoomCredential ? formalRoomBattleView || undefined : undefined}
         sessionId={formalBattleSessionId}
         debugConfig={APP_DEBUG_CONFIG_V4}
         diagnosticsContext={{formalRun, playerVault}}
@@ -1948,11 +1930,12 @@ function RoutedApp({runtime}: AppProps) {
   ) : missingProfileFormalPage;
 
   const formalBattleResultTransitionPage = profile ? (
-    formalRun?.restRunSnapshot ? (
+    (formalRoomCredential ? formalRoomBattleView : formalBattleRunSnapshot) ? (
       <FormalBattleResultTransitionPage
         api={api}
         formalGameBridge={formalGameBattleResultBridge}
         run={formalRun}
+        roomBattleView={formalRoomCredential ? formalRoomBattleView : null}
         playerVault={playerVault}
         sessionId={formalBattleSessionId}
         reason={parseFormalBattleResultReason(new URLSearchParams(location.search).get("reason"))}
@@ -1962,6 +1945,13 @@ function RoutedApp({runtime}: AppProps) {
           setPlayerVaultDirty(false);
         }}
         onSoulmateSettlementNotice={setFormalRestInitialNotice}
+        onRoomScopedViewChange={applyFormalRoomScopedView}
+        onRoomRestReady={() => {
+          navigate("/formal/rest", {replace: true});
+        }}
+        onRoomSettlementReady={reason => {
+          enterFormalSettlement(reason);
+        }}
         onRestReady={run => {
           applyFormalRunView(run);
           navigate("/formal/rest", {replace: true});
@@ -1980,7 +1970,7 @@ function RoutedApp({runtime}: AppProps) {
 
   const settlementReason = parseSettlementReason(new URLSearchParams(location.search).get("reason"));
   const formalSettlementTransitionPage = profile ? (
-    formalRun ? (
+    formalRoomCredential || formalRun ? (
       <FormalSettlementTransitionPage
         api={api}
         formalGameBridge={formalGameBridge}
@@ -1991,6 +1981,20 @@ function RoutedApp({runtime}: AppProps) {
         formalRoomCredential={formalRoomCredential}
         onSaveProfile={userProfileAdapter.saveUserProfile}
         onSavePlayerVault={api.savePlayerVault}
+        onRoomScopedViewChange={applyFormalRoomScopedView}
+        onRoomSettled={(nextProfile, nextPlayerVault) => {
+          setBattleSessionId("");
+          setFormalBattleRecoveredSceneSessionId("");
+          try {
+            window.sessionStorage?.removeItem(formalBattleSessionStorageKey);
+          } catch {
+            // Best-effort cleanup only.
+          }
+          setProfile(nextProfile);
+          setPlayerVault(nextPlayerVault);
+          setPlayerVaultDirty(false);
+          navigate("/formal/settlement", {replace: true});
+        }}
         onSettled={(run, nextProfile, nextPlayerVault) => {
           setBattleSessionId("");
           setFormalBattleRecoveredSceneSessionId("");
@@ -2014,9 +2018,10 @@ function RoutedApp({runtime}: AppProps) {
   ) : missingProfileFormalPage;
 
   const formalSettlementPage = profile ? (
-    formalRun?.settlement ? (
+    formalRun?.settlement || formalRoomSettlementView?.settlement ? (
       <FormalSettlementPage
         run={formalRun}
+        settlement={formalRoomSettlementView?.settlement || null}
         profile={profile}
         backLabel={formalRoomCredential?.matchId ? "返回房间" : "返回主页"}
         onBackToMain={() => {
@@ -2199,146 +2204,8 @@ function serverConnectionText(state: PostServiceConnectionStateV4): string {
   return "连接";
 }
 
-function FormalRoomGatePage({api, profile, playerVault, currentRun, action, mode, onActivateRoom, onRunReady, onResumeReady, onBack, onLeave}: {
-  api: ChangeBattleV2Api;
-  profile: UserProfileV2;
-  playerVault: PlayerVaultV4;
-  currentRun: FormalGameRunV4 | null;
-  action: "start" | "continue";
-  mode: FormalGameModeV4;
-  onActivateRoom: () => void;
-  onRunReady: (run: FormalGameRunV4) => void;
-  onResumeReady: (run: FormalGameRunV4) => void;
-  onBack: () => void;
-  onLeave: (credential: {roomId: string; roomToken: string}) => Promise<void>;
-}) {
-  const [roomReady, setRoomReady] = useState(false);
-  const [playerReady, setPlayerReady] = useState(false);
-  const [resolvedRun, setResolvedRun] = useState<FormalGameRunV4 | null>(null);
-  const [roomCredential, setRoomCredential] = useState<{roomId: string; roomToken: string} | null>(null);
-  const [roomId, setRoomId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [leaving, setLeaving] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (action === "continue") {
-        const credential = loadFormalRoomCredential();
-        if (!currentRun) throw new Error("没有可继续的正式游戏存档。");
-        if (!credential) throw new Error("没有可恢复的房间凭证，请重新开始正式游戏。");
-        const room = await api.getFormalRoom(credential);
-        if (!room.ok) throw new Error(room.message);
-        if (cancelled) return;
-        setRoomId(room.data.roomId);
-        setRoomCredential({roomId: credential.roomId, roomToken: credential.roomToken});
-        if (!room.data.formalRun) throw new Error("房间内对局尚未开始。");
-        setResolvedRun(room.data.formalRun);
-        setRoomReady(true);
-        onActivateRoom();
-        return;
-      }
-
-      const room = await getOrStartFormalRoomForGate(formalRoomGateStartKey(profile, playerVault, mode), () => api.startFormalRoom({
-          profileSnapshot: profile,
-          playerVaultSnapshot: playerVault,
-          mode,
-          options: {mode},
-        })
-          .then(result => {
-            if (!result.ok) throw new Error(result.message);
-            if (!result.data.formalRun) throw new Error("房间内对局尚未开始。");
-            return {roomId: result.data.roomId, roomToken: result.data.roomToken, formalRun: result.data.formalRun};
-          }));
-      if (cancelled) return;
-      clearFormalRoomCredential();
-      saveFormalRoomCredential(room.roomId, room.roomToken);
-      setRoomId(room.roomId);
-      setRoomCredential({roomId: room.roomId, roomToken: room.roomToken});
-      setResolvedRun(room.formalRun);
-      setRoomReady(true);
-      onActivateRoom();
-    })().catch(caught => {
-      if (!cancelled) setError(caught instanceof Error ? caught.message : "正式房间准备失败。");
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [action, api, currentRun, mode, onActivateRoom, playerVault, profile]);
-
-  function startGameFromRoom() {
-    if (!resolvedRun) return;
-    if (action === "continue") onResumeReady(resolvedRun);
-    else onRunReady(resolvedRun);
-  }
-
-  async function leaveRoom() {
-    if (!roomCredential || leaving) {
-      onBack();
-      return;
-    }
-    setLeaving(true);
-    try {
-      await onLeave(roomCredential);
-    } catch {
-      onBack();
-    }
-  }
-
-  return (
-    <section className="formal-room-page" style={{padding: 32, minHeight: "100%", color: "#f8f4df", background: "#101716"}}>
-      <h2 style={{margin: "0 0 12px"}}>{action === "continue" ? "正式房间" : `${formalModeLabel(mode)}房间`}</h2>
-      <p style={{margin: "0 0 24px", color: "#c9d8cb"}}>
-        {leaving ? "正在关闭房间..." : error ? `房间连接失败：${error}` : roomReady ? "房间已连接。" : "正在连接服务器..."}
-      </p>
-      {roomId ? (
-        <p style={{margin: "0 0 20px", color: "#9fb8aa", fontFamily: "monospace"}}>Room ID: {roomId}</p>
-      ) : null}
-      <div style={{display: "flex", gap: 12, flexWrap: "wrap"}}>
-        <button type="button" disabled={!roomReady || Boolean(error) || leaving} onClick={() => setPlayerReady(true)}>
-          {playerReady ? "已准备" : "准备"}
-        </button>
-        <button type="button" disabled={!roomReady || !playerReady || Boolean(error) || leaving} onClick={startGameFromRoom}>
-          {action === "continue" ? "恢复游戏" : "开始游戏"}
-        </button>
-        <button type="button" disabled={leaving} onClick={error ? onBack : leaveRoom}>离开</button>
-      </div>
-    </section>
-  );
-}
-
 function parseFormalMode(value: unknown): FormalGameModeV4 {
   return value === "doubles" || value === "coop" ? value : "singles";
-}
-
-type FormalRoomGateStartResult = {
-  roomId: string;
-  roomToken: string;
-  formalRun: FormalGameRunV4;
-};
-
-const formalRoomGateStartPromises = new Map<string, Promise<FormalRoomGateStartResult>>();
-
-function formalRoomGateStartKey(profile: UserProfileV2, playerVault: PlayerVaultV4, mode: FormalGameModeV4): string {
-  return [
-    profile.id,
-    profile.updatedAt,
-    playerVault.items.length,
-    playerVault.pokemon.length,
-    playerVault.itemStoragePageCount,
-    playerVault.pokemonStoragePageCount,
-    mode,
-  ].join(":");
-}
-
-function getOrStartFormalRoomForGate(key: string, start: () => Promise<FormalRoomGateStartResult>): Promise<FormalRoomGateStartResult> {
-  const existing = formalRoomGateStartPromises.get(key);
-  if (existing) return existing;
-  const promise = start().finally(() => {
-    window.setTimeout(() => formalRoomGateStartPromises.delete(key), 30000);
-  });
-  formalRoomGateStartPromises.set(key, promise);
-  return promise;
 }
 
 function parseFormalRoomGatePath(pathname: string): {action: "start" | "continue"; mode: FormalGameModeV4} | null {
@@ -2416,6 +2283,14 @@ function isFormalRoomConnectionRoute(pathname: string): boolean {
 
 function isFormalRoomSessionRoute(pathname: string): boolean {
   return isFormalRoomConnectionRoute(pathname);
+}
+
+function formalRoomScopeForRoute(pathname: string): ViewScopeNameV5 | null {
+  if (pathname === "/formal/starter-select") return "starter";
+  if (pathname === "/formal/round-transition" || pathname === "/formal/rest" || pathname === "/formal/battle-transition") return "rest";
+  if (pathname === "/formal/battle" || pathname === "/formal/battle-result-transition") return "battle";
+  if (pathname === "/formal/settlement-transition" || pathname === "/formal/settlement") return "settlement";
+  return null;
 }
 
 function isClosedFormalRoom(room: FormalRoomV1): boolean {
@@ -2768,14 +2643,14 @@ function latestUnreadRoundSettlement(run: FormalGameRunV4, seen: Record<string, 
   return settlements.find(settlement => !seen[`${run.id}:${settlement.nodeId}`]) || null;
 }
 
-function formalRestActionStorageKey(roomId: string, run: FormalGameRunV4, action: FormalRoomRestActionV1): string {
+function formalRestActionStorageKey(roomId: string, matchId: string, revision: number, action: FormalRoomRestActionV1): string {
   const actionHash = stableHash(JSON.stringify(action));
-  return `changebattle-v2:formal-room:${roomId}:rest-action:${run.id}:${run.currentRoundIndex}:${actionHash}`;
+  return `changebattle-v2:formal-room:${roomId}:match:${matchId}:rest-action:${revision}:${actionHash}`;
 }
 
-function formalTeamReorderStorageKey(roomId: string, run: FormalGameRunV4, pokemonIds: string[]): string {
+function formalTeamReorderStorageKey(roomId: string, matchId: string, revision: number, pokemonIds: string[]): string {
   const actionHash = stableHash(JSON.stringify(pokemonIds));
-  return `changebattle-v2:formal-room:${roomId}:team-reorder:${run.id}:${run.currentRoundIndex}:${actionHash}`;
+  return `changebattle-v2:formal-room:${roomId}:match:${matchId}:team-reorder:${revision}:${actionHash}`;
 }
 
 function formalRestActionLabel(action: FormalRoomRestActionV1): string {
@@ -2789,6 +2664,41 @@ function formalRestActionLabel(action: FormalRoomRestActionV1): string {
   if (action.type === "insurance.buy") return "购买保险";
   if (action.type === "soulmate-egg.claim") return "灵魂蛋领取";
   return "休整操作";
+}
+
+function formalRestCommandActionName(action: FormalRoomRestActionV1): Extract<PostServiceActionNameV4,
+  | "rooms.matches.commands.teamHeal"
+  | "rooms.matches.commands.pokemonExchange"
+  | "rooms.matches.commands.shopBuy"
+  | "rooms.matches.commands.shopSell"
+  | "rooms.matches.commands.trainingApply"
+  | "rooms.matches.commands.pokemonRerollStats"
+  | "rooms.matches.commands.bagUse"
+  | "rooms.matches.commands.bagEquip"
+  | "rooms.matches.commands.bagUnequip"
+  | "rooms.matches.commands.bagDiscard"
+  | "rooms.matches.commands.opponentPreviewUnlock"
+  | "rooms.matches.commands.insuranceBuy"
+  | "rooms.matches.commands.soulmateEggClaim"> {
+  if (action.type === "team.heal") return "rooms.matches.commands.teamHeal";
+  if (action.type === "pokemon.exchange") return "rooms.matches.commands.pokemonExchange";
+  if (action.type === "shop.buy") return "rooms.matches.commands.shopBuy";
+  if (action.type === "shop.sell") return "rooms.matches.commands.shopSell";
+  if (action.type === "training.apply") return "rooms.matches.commands.trainingApply";
+  if (action.type === "pokemon.reroll-stats") return "rooms.matches.commands.pokemonRerollStats";
+  if (action.type === "bag.use") return "rooms.matches.commands.bagUse";
+  if (action.type === "bag.equip") return "rooms.matches.commands.bagEquip";
+  if (action.type === "bag.unequip") return "rooms.matches.commands.bagUnequip";
+  if (action.type === "bag.discard") return "rooms.matches.commands.bagDiscard";
+  if (action.type === "opponent-preview.unlock") return "rooms.matches.commands.opponentPreviewUnlock";
+  if (action.type === "insurance.buy") return "rooms.matches.commands.insuranceBuy";
+  if (action.type === "soulmate-egg.claim") return "rooms.matches.commands.soulmateEggClaim";
+  throw new Error(`Unsupported formal rest command: ${(action as {type?: string}).type || "unknown"}`);
+}
+
+function formalRestCommandPayload(action: FormalRoomRestActionV1): Record<string, unknown> {
+  if (action.type === "team.heal") return {};
+  return {...action};
 }
 
 function formalServerBusyMessageForLabel(label: string): string {

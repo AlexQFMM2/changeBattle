@@ -1,24 +1,34 @@
 import {useMemo, useState} from "react";
-import type {ChangeBattleV2Api, FormalGameRunV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, FormalGameRunV4, FormalRoomCommandResultV1, RunGameStarterViewV5, ViewScopeNameV5} from "@changebattle-v2/api";
 import {formalStarterCandidateToRentalPokemonV4} from "@changebattle-v2/api";
 import {RentalSelectPage} from "./rental-select/RentalSelectPage";
 import {loadFormalRoomCredential} from "../../lib/formalRoomCredential";
 import "./FormalStarterSelectPage.css";
 
-export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack, backLabel = "返回主页"}: {
+type StarterDisplayCandidate = FormalGameRunV4["starterCandidates"][number];
+
+export function FormalStarterSelectPage({api, run, roomStarterView, onRunChange, onRoomScopedViewChange, onDone, onBack, backLabel = "返回主页"}: {
   api: ChangeBattleV2Api;
-  run: FormalGameRunV4;
-  onRunChange: (run: FormalGameRunV4) => void;
+  run?: FormalGameRunV4 | null;
+  roomStarterView?: RunGameStarterViewV5 | null;
+  onRunChange?: (run: FormalGameRunV4) => void;
+  onRoomScopedViewChange?: (scope: ViewScopeNameV5, view: FormalRoomCommandResultV1["view"], meta: {revision: number; phase: string}) => void;
   onDone: () => void;
   onBack: () => void;
   backLabel?: string;
 }) {
-  const [selected, setSelected] = useState<number[]>(run.selectedStarterIndexes || []);
+  const roomCandidates = useMemo(() => roomStarterView ? starterCandidatesFromStarterViewV5(roomStarterView) : null, [roomStarterView]);
+  const displayCandidates = roomCandidates || run?.starterCandidates || [];
+  const selectedIndexes = roomStarterView?.selectedIndexes || run?.selectedStarterIndexes || [];
+  const [selected, setSelected] = useState<number[]>(selectedIndexes);
   const [focusIndex, setFocusIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const requiredCount = api.selectedCountForFormalMode(run.mode);
-  const soulmateSlotCount = api.soulmateVaultStarterSlotCountForStarChartV4(run.starChartSnapshot);
-  const candidates = useMemo(() => run.starterCandidates.map(candidate => {
+  const mode = roomStarterView?.config.mode || run?.mode || "singles";
+  const starChartSnapshot = run?.starChartSnapshot || null;
+  const seed = roomStarterView?.config.seed || run?.seed || roomStarterView?.runId || "";
+  const requiredCount = api.selectedCountForFormalMode(mode);
+  const soulmateSlotCount = api.soulmateVaultStarterSlotCountForStarChartV4(starChartSnapshot);
+  const candidates = useMemo(() => displayCandidates.map(candidate => {
     const pokemon = formalStarterCandidateToRentalPokemonV4(candidate, api.dex);
     try {
       return {
@@ -34,7 +44,7 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack, 
     } catch {
       return pokemon;
     }
-  }), [api, run.starterCandidates]);
+  }), [api, displayCandidates]);
 
   function toggle(index: number) {
     setError(null);
@@ -47,22 +57,22 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack, 
 
   function randomSelect() {
     setError(null);
-    setSelected(pickStarterIndexesWithQualityFloor(run.starterCandidates, requiredCount));
+    setSelected(pickStarterIndexesWithQualityFloor(displayCandidates, requiredCount));
   }
 
   async function start() {
     try {
       const credential = loadFormalRoomCredential();
-      const next = credential
-        ? await selectServerRoomStarters(api, credential.roomId, credential.roomToken, selected)
-        : api.selectFormalStarterPokemon(run, selected);
       if (credential) {
-        onRunChange(next);
+        const response = await selectServerRoomStarters(api, credential.roomId, credential.roomToken, selected);
+        onRoomScopedViewChange?.(response.scope, response.view, {revision: response.revision, phase: response.phase});
         onDone();
         return;
       }
+      if (!run) throw new Error("正式存档不存在。");
+      const next = api.selectFormalStarterPokemon(run, selected);
       const saved = await api.saveFormalGameRun(next);
-      onRunChange(saved);
+      onRunChange?.(saved);
       onDone();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "选择初始队伍失败。");
@@ -81,7 +91,7 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack, 
         onToggle={toggle}
         onStart={start}
         onBack={onBack}
-        runSeed={seedNumber(run.seed)}
+        runSeed={seedNumber(seed)}
         requiredCount={requiredCount}
         soulmateSlotCount={soulmateSlotCount}
         revealTraining
@@ -94,7 +104,7 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack, 
   );
 }
 
-async function selectServerRoomStarters(api: ChangeBattleV2Api, roomId: string, roomToken: string, selectedIndexes: number[]): Promise<FormalGameRunV4> {
+async function selectServerRoomStarters(api: ChangeBattleV2Api, roomId: string, roomToken: string, selectedIndexes: number[]): Promise<FormalRoomCommandResultV1> {
   const credential = loadFormalRoomCredential();
   if (credential?.matchId) {
     const result = await api.submitFormalRoomMatchCommand({
@@ -106,14 +116,10 @@ async function selectServerRoomStarters(api: ChangeBattleV2Api, roomId: string, 
       payload: {selectedIndexes},
     });
     if (!result.ok) throw new Error(result.message);
-    const run = result.data.view.formalRun;
-    if (!run) throw new Error("房间内对局尚未开始。");
-    return run;
+    if (!result.data.view) throw new Error("服务器未返回房间视图。");
+    return result.data;
   }
-  const result = await api.selectFormalRoomStarters({roomId, roomToken, selectedIndexes});
-  if (!result.ok) throw new Error(result.message);
-  if (!result.data.formalRun) throw new Error("房间内对局尚未开始。");
-  return result.data.formalRun;
+  throw new Error("当前房间缺少对局 ID，不能选择初始队伍。");
 }
 
 function seedNumber(seed: string): number {
@@ -124,7 +130,7 @@ function seedNumber(seed: string): number {
   return Math.abs(hash);
 }
 
-function pickStarterIndexesWithQualityFloor(candidates: FormalGameRunV4["starterCandidates"], requiredCount: number): number[] {
+function pickStarterIndexesWithQualityFloor(candidates: StarterDisplayCandidate[], requiredCount: number): number[] {
   if (requiredCount <= 0) return [];
   const scored = candidates.map((candidate, index) => ({
     index,
@@ -172,7 +178,7 @@ function weightedPick<T>(items: T[], scoreOf: (item: T) => number): T | null {
   return items[items.length - 1]!;
 }
 
-function starterCandidateDraftScore(candidate: FormalGameRunV4["starterCandidates"][number]): number {
+function starterCandidateDraftScore(candidate: StarterDisplayCandidate): number {
   const stats = candidate.display?.stats || {};
   const attack = Number(stats.atk || 0);
   const specialAttack = Number(stats.spa || 0);
@@ -194,7 +200,7 @@ function starterRankScore(rank: string): number {
   return 10;
 }
 
-function starterMoveSetScore(candidate: FormalGameRunV4["starterCandidates"][number], attack: number, specialAttack: number): number {
+function starterMoveSetScore(candidate: StarterDisplayCandidate, attack: number, specialAttack: number): number {
   const types = new Set((candidate.display?.types || []).map(type => type.toLowerCase()));
   const damagingMoves = (candidate.pokemon.moves || [])
     .filter(move => Number(move.power || 0) > 0 && Number(move.remainingPp ?? move.pp ?? 0) > 0)
@@ -210,4 +216,14 @@ function starterMoveSetScore(candidate: FormalGameRunV4["starterCandidates"][num
   const topTwo = damagingMoves.slice(0, 2).reduce((sum, value) => sum + value, 0);
   const reliableMoveBonus = damagingMoves[0]! >= 95 ? 7 : damagingMoves[0]! >= 75 ? 3 : -6;
   return Math.min(28, topTwo / 12) + reliableMoveBonus;
+}
+
+function starterCandidatesFromStarterViewV5(view: RunGameStarterViewV5): StarterDisplayCandidate[] {
+  return view.candidates
+    .map((candidate, index) => candidate.pokemon ? {
+      ...candidate,
+      id: `${view.matchId}:starter:${index + 1}`,
+      pokemon: candidate.pokemon.localPokemon,
+    } as StarterDisplayCandidate : null)
+    .filter((candidate): candidate is StarterDisplayCandidate => Boolean(candidate));
 }

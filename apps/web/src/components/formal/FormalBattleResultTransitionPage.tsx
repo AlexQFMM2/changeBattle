@@ -1,19 +1,23 @@
 import {useEffect, useRef, useState} from "react";
-import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameRunV4, FormalSoulmateFriendshipSettlementRecordV4, FormalSoulmateHonorSettlementRecordV4, PlayerVaultV4, ShowdownPlaybackTimelineV4} from "@changebattle-v2/api";
+import type {ChangeBattleV2Api, DesktopFormalGameBridge, FormalBattleResultFinalizeReasonV4, FormalGameRunV4, FormalRoomCommandResultV1, FormalSoulmateFriendshipSettlementRecordV4, FormalSoulmateHonorSettlementRecordV4, PlayerVaultV4, RunGameBattleViewV5, ShowdownPlaybackTimelineV4, ViewScopeNameV5} from "@changebattle-v2/api";
 import {TrainingRunTransitionPage} from "../training/TrainingRunTransitionPage";
 import {loadFormalRoomCredential} from "../../lib/formalRoomCredential";
 import "./FormalGameTransitionPage.css";
 
-export function FormalBattleResultTransitionPage({api, formalGameBridge, run, playerVault, sessionId, reason, onSavePlayerVault, onPlayerVaultChange, onSoulmateSettlementNotice, onRestReady, onSettlementReady}: {
+export function FormalBattleResultTransitionPage({api, formalGameBridge, run, roomBattleView, playerVault, sessionId, reason, onSavePlayerVault, onPlayerVaultChange, onSoulmateSettlementNotice, onRoomScopedViewChange, onRoomRestReady, onRoomSettlementReady, onRestReady, onSettlementReady}: {
   api: ChangeBattleV2Api;
   formalGameBridge?: DesktopFormalGameBridge;
-  run: FormalGameRunV4;
+  run?: FormalGameRunV4 | null;
+  roomBattleView?: RunGameBattleViewV5 | null;
   playerVault: PlayerVaultV4;
   sessionId: string;
   reason?: FormalBattleResultFinalizeReasonV4;
   onSavePlayerVault?: (vault: PlayerVaultV4) => Promise<PlayerVaultV4>;
   onPlayerVaultChange?: (vault: PlayerVaultV4) => void;
   onSoulmateSettlementNotice?: (message: string) => void;
+  onRoomScopedViewChange?: (scope: ViewScopeNameV5, view: FormalRoomCommandResultV1["view"], meta: {revision: number; phase: string}) => void;
+  onRoomRestReady?: () => void;
+  onRoomSettlementReady?: (reason: FormalBattleResultFinalizeReasonV4) => void;
   onRestReady: (run: FormalGameRunV4) => void;
   onSettlementReady: (run: FormalGameRunV4, reason: FormalBattleResultFinalizeReasonV4) => void;
 }) {
@@ -35,7 +39,7 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
     void (async () => {
       const credential = loadFormalRoomCredential();
       if (credential) {
-        const clientRequestId = formalBattleFinalizeClientRequestId(credential.roomId, run);
+        const clientRequestId = formalBattleFinalizeClientRequestId(credential.roomId, credential.matchId || roomBattleView?.matchId || "match", roomBattleView?.revision || 0);
         if (credential.matchId) {
           const finalized = await api.submitFormalRoomMatchCommand({
             roomId: credential.roomId,
@@ -46,8 +50,7 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
             payload: {reason, playerVaultSnapshot: playerVault},
           });
           if (!finalized.ok) throw new Error(finalized.message);
-          const nextRun = finalized.data.view.formalRun;
-          if (!nextRun) throw new Error("房间内对局尚未开始。");
+          onRoomScopedViewChange?.(finalized.data.scope, finalized.data.view, {revision: finalized.data.revision, phase: finalized.data.phase});
           const resultPayload = finalized.data.result as any;
           const nextVault = finalized.data.playerVault || resultPayload?.playerVault;
           if (nextVault) {
@@ -59,35 +62,15 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
           if (notice) onSoulmateSettlementNotice?.(notice);
           if (!mountedRef.current) return;
           if (finalized.data.destination === "settlement") {
-            onSettlementReady(nextRun, (resultPayload?.reason || reason || "loss") as FormalBattleResultFinalizeReasonV4);
+            onRoomSettlementReady?.((resultPayload?.reason || reason || "loss") as FormalBattleResultFinalizeReasonV4);
             return;
           }
-          onRestReady(nextRun);
+          onRoomRestReady?.();
           return;
         }
-        const finalized = await api.finalizeFormalRoomBattle({
-          roomId: credential.roomId,
-          roomToken: credential.roomToken,
-          clientRequestId,
-          reason,
-          playerVaultSnapshot: playerVault,
-        });
-        if (!finalized.ok) throw new Error(finalized.message);
-        const nextVault = finalized.data.playerVault;
-        if (nextVault) {
-          void (onSavePlayerVault ? onSavePlayerVault(nextVault) : api.savePlayerVault(nextVault))
-            .then(savedVault => onPlayerVaultChange?.(savedVault))
-            .catch(() => undefined);
-        }
-        if (finalized.data.settlementNotice) onSoulmateSettlementNotice?.(finalized.data.settlementNotice);
-        if (!mountedRef.current) return;
-        if (finalized.data.destination === "settlement") {
-          onSettlementReady(finalized.data.formalRun, finalized.data.reason || reason || "loss");
-          return;
-        }
-        onRestReady(finalized.data.formalRun);
-        return;
+        throw new Error("当前房间缺少对局 ID，不能结算正式战斗。");
       }
+      if (!run) throw new Error("正式存档不存在。");
       if (!sessionId) {
         if (reason === "surrender" || reason === "loss") {
           const saved = await api.saveFormalGameRun(run);
@@ -142,8 +125,8 @@ export function FormalBattleResultTransitionPage({api, formalGameBridge, run, pl
   );
 }
 
-function formalBattleFinalizeClientRequestId(roomId: string, run: FormalGameRunV4): string {
-  const key = `changebattle-v2:formal-room:${roomId}:finalize-battle:${run.id}:${run.currentRoundIndex}`;
+function formalBattleFinalizeClientRequestId(roomId: string, matchId: string, revision: number): string {
+  const key = `changebattle-v2:formal-room:${roomId}:finalize-battle:${matchId}:${revision}`;
   try {
     const existing = window.sessionStorage?.getItem(key);
     if (existing) return existing;

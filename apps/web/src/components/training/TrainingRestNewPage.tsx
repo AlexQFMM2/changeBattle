@@ -35,6 +35,7 @@ import {TrainingRestTrainingGroundScene} from "./TrainingRestTrainingGroundScene
 import {TrainingRestNewTeamPanel} from "./TrainingRestNewTeamPanel";
 import {TrainingRestSideBoard} from "./TrainingRestSideBoard";
 import {TrainingRestToast, type TrainingRestToastTone} from "./TrainingRestToast";
+import type {TrainingRestDisplayModel} from "./TrainingRestLegacyDisplayModel";
 import {assetUrl} from "../../lib/assetUrl";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import "./TrainingRestNewPage.css";
@@ -90,12 +91,12 @@ export type TrainingRestExchangeController = {
 
 export type TrainingRestBagActionController = {
   serverCommitted?: boolean;
-  onAction: (action: Extract<FormalRoomRestActionV1, {type: "bag.use" | "bag.equip" | "bag.unequip" | "bag.discard"}>) => Promise<{ok: boolean; run: TrainingRunGameV4; message: string}> | {ok: boolean; run: TrainingRunGameV4; message: string};
+  onAction: (action: Extract<FormalRoomRestActionV1, {type: "bag.use" | "bag.equip" | "bag.unequip" | "bag.discard"}>) => Promise<{ok: boolean; run?: TrainingRunGameV4 | null; message: string}> | {ok: boolean; run?: TrainingRunGameV4 | null; message: string};
 };
 
 export type TrainingRestNewPageProps = {
   api: ChangeBattleV2Api;
-  run: TrainingRunGameV4;
+  run?: TrainingRunGameV4 | null;
   onRunChange: (run: TrainingRunGameV4) => Promise<void> | void;
   onBackToConfig: () => void;
   onStartBattle: () => Promise<void> | void;
@@ -107,6 +108,7 @@ export type TrainingRestNewPageProps = {
   onAbandonRun?: () => Promise<void> | void;
   onProceedToSettlement?: () => Promise<void> | void;
   moneyAmount?: number;
+  displayModel?: TrainingRestDisplayModel | null;
   roundSettlement?: FormalRoundSettlementV4 | null;
   onRoundSettlementSeen?: (nodeId: string) => void;
   shopController?: TrainingRestShopController;
@@ -136,7 +138,7 @@ type SoulmateHatchState =
   | {phase: "done"; result: FormalSoulmateEggClaimResultV4}
   | {phase: "error"; message: string};
 
-export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onTeamReorderSave, hideSaveAction = false, onAbandonRun, onProceedToSettlement, moneyAmount, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, bagActionController, initialNotice, serverBusyMessage, onInitialNoticeConsumed, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
+export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onTeamReorderSave, hideSaveAction = false, onAbandonRun, onProceedToSettlement, moneyAmount, displayModel, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, bagActionController, initialNotice, serverBusyMessage, onInitialNoticeConsumed, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
   const [activeAction, setActiveAction] = useState("我的队伍");
   const [restScene, setRestScene] = useState<"center" | "shop" | "training-ground">("center");
   const [teamPanelOpen, setTeamPanelOpen] = useState(false);
@@ -158,9 +160,16 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const [message, setMessage] = useState("休息室已就绪。");
   const [toast, setToast] = useState<{id: number; message: string; tone?: TrainingRestToastTone} | null>(null);
   const activeBusyMessage = serverBusyMessage || restBusyMessage;
-  const p1Team = run.players.p1?.localTeam || null;
-  const pendingSettlement = run.status === "battleEndedPendingSettlement";
-  const soulmateCandidates = useMemo(() => createRestSoulmateCandidates(run), [run]);
+  const legacyRun = displayModel?.legacyRun || run || null;
+  const displayPlayer = displayModel?.player || legacyRun?.players.p1 || null;
+  const p1Team = displayModel?.team || displayPlayer?.localTeam || null;
+  const pendingSettlement = displayModel?.pendingSettlement ?? legacyRun?.status === "battleEndedPendingSettlement";
+  const displayMoney = typeof moneyAmount === "number" ? moneyAmount : displayModel?.money;
+  const activeRoundSettlement = displayModel?.roundSettlement ?? roundSettlement ?? null;
+  const soulmateCandidates = useMemo(() => createRestSoulmateCandidates({
+    team: p1Team,
+    battleLog: displayModel?.battleLog || legacyRun?.battleLog,
+  }), [displayModel?.battleLog, legacyRun?.battleLog, p1Team]);
   const selectedSoulmateCandidate = soulmateCandidates.find(candidate => candidate.candidateId === selectedSoulmateCandidateId) || null;
   const leftSideActions = REST_CENTER_LEFT_SIDE_ACTIONS_V4
     .filter(action => !(hideSaveAction && action.label === "保存"))
@@ -174,12 +183,12 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     setSoulmateDialogOpen(false);
     setSelectedSoulmateCandidateId("");
     setSoulmateHatch({phase: "idle"});
-  }, [run.id, run.status]);
+  }, [displayModel?.id, displayModel?.status, legacyRun?.id, legacyRun?.status]);
 
   useEffect(() => {
-    if (!pendingSettlement || !soulmateRewardEnabled || soulmateDialogDismissed || roundSettlement || soulmateHatch.phase !== "idle" || !soulmateCandidates.length) return;
+    if (!pendingSettlement || !soulmateRewardEnabled || soulmateDialogDismissed || activeRoundSettlement || soulmateHatch.phase !== "idle" || !soulmateCandidates.length) return;
     setSoulmateDialogOpen(true);
-  }, [pendingSettlement, roundSettlement, soulmateCandidates.length, soulmateDialogDismissed, soulmateHatch.phase, soulmateRewardEnabled]);
+  }, [activeRoundSettlement, pendingSettlement, soulmateCandidates.length, soulmateDialogDismissed, soulmateHatch.phase, soulmateRewardEnabled]);
 
   useEffect(() => {
     if (!initialNotice) return;
@@ -188,12 +197,16 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   }, [initialNotice, onInitialNoticeConsumed]);
 
   function updateP1Team(localTeam: TrainingPlayerDraftV4["localTeam"]) {
-    const p1 = run.players.p1;
+    if (!legacyRun) {
+      setMessage("房间模式下队伍修改必须通过保存按钮提交。");
+      return;
+    }
+    const p1 = legacyRun.players.p1;
     if (!p1) return;
     const nextP1 = {...p1, localTeam};
     const nextRun = {
-      ...run,
-      players: {...run.players, p1: nextP1},
+      ...legacyRun,
+      players: {...legacyRun.players, p1: nextP1},
       updatedAt: new Date().toISOString(),
     };
     void withRestBusy(hideSaveAction ? "正在同步中" : "正在整理队伍中", () => onRunChange(nextRun))
@@ -208,14 +221,19 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   }
 
   async function saveRunGameSnapshot() {
-    const draft = {...run, updatedAt: new Date().toISOString()};
+    if (!legacyRun) return;
+    const draft = {...legacyRun, updatedAt: new Date().toISOString()};
     const saved = onSaveRunSnapshot ? await onSaveRunSnapshot(draft) : await api.saveTrainingRun(draft);
     onRunChange(saved);
     setMessage("RunGame 快照已保存。");
   }
 
   function updateRunGameDraft(nextRun: TrainingRunGameV4, nextMessage: string) {
-    if (nextRun !== run) {
+    if (!legacyRun) {
+      setMessage(nextMessage);
+      return;
+    }
+    if (nextRun !== legacyRun) {
       void withRestBusy(hideSaveAction ? "正在同步中" : "正在更新中", () => onRunChange(nextRun))
         .then(() => setMessage(nextMessage))
         .catch(error => {
@@ -293,7 +311,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         showNotice(result.message, "danger");
         return;
       }
-      if (!hideSaveAction) void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+      if (!hideSaveAction && legacyRun) void Promise.resolve(onRunChange(result.run.restRunSnapshot || legacyRun)).catch(error => {
         const nextMessage = error instanceof Error ? error.message : "灵魂伴侣同步失败。";
         setMessage(nextMessage);
         showNotice(nextMessage, "danger");
@@ -316,7 +334,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   }
 
   function validateBattleLead(): string | null {
-    const mode = api.getCurrentTrainingNode(run)?.mode || run.scenario.mode;
+    const mode = displayModel?.mode || (legacyRun ? api.getCurrentTrainingNode(legacyRun)?.mode || legacyRun.scenario.mode : "singles");
     const pokemon = p1Team?.pokemon || [];
     const requiredLeadCount = mode === "doubles" ? 2 : 1;
     const leads = pokemon.slice(0, requiredLeadCount);
@@ -346,7 +364,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   async function unlockPreviewPokemon(target: PreviewPokemonEntry) {
     if (opponentPreviewController) {
       const result = await withRestBusy("正在打听中", () => opponentPreviewController.onUnlock({unlockKey: target.unlockKey}));
-      if (result.ok && !opponentPreviewController.serverCommitted) void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+      if (result.ok && !opponentPreviewController.serverCommitted && legacyRun) void Promise.resolve(onRunChange(result.run.restRunSnapshot || legacyRun)).catch(error => {
         const nextMessage = error instanceof Error ? error.message : "情报同步失败。";
         setMessage(nextMessage);
         showNotice(nextMessage, "danger");
@@ -357,10 +375,15 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
       return;
     }
     const nextRun = {
-      ...run,
-      restPreviewUnlocks: {...(run.restPreviewUnlocks || {}), [target.unlockKey]: true as const},
+      ...legacyRun,
+      restPreviewUnlocks: {...(legacyRun?.restPreviewUnlocks || {}), [target.unlockKey]: true as const},
       updatedAt: new Date().toISOString(),
-    };
+    } as TrainingRunGameV4;
+    if (!legacyRun) {
+      setUnlockTarget(null);
+      setMessage("房间模式下情报解锁必须等待服务器返回。");
+      return;
+    }
     onRunChange(nextRun);
     setUnlockTarget(null);
     setMessage(`${target.pokemon.nameZh || target.pokemon.name} 已解锁，记得手动保存。`);
@@ -383,7 +406,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     try {
       const result = await withRestBusy("正在交换中", () => exchangeController.onExchange(exchangeSelection));
       if (result.ok) {
-        const commit = exchangeController.serverCommitted ? Promise.resolve() : Promise.resolve(onRunChange(result.run.restRunSnapshot || run));
+        const commit = exchangeController.serverCommitted || !legacyRun ? Promise.resolve() : Promise.resolve(onRunChange(result.run?.restRunSnapshot || legacyRun));
         void commit.catch(error => {
           const nextMessage = error instanceof Error ? error.message : "交换同步失败。";
           setMessage(nextMessage);
@@ -415,8 +438,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     try {
       setMessage("正在治疗...");
       const result = await withRestBusy("正在治疗中", () => healController.onHeal());
-      if (result.ok && !healController.serverCommitted) {
-        void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+      if (result.ok && !healController.serverCommitted && legacyRun) {
+        void Promise.resolve(onRunChange(result.run.restRunSnapshot || legacyRun)).catch(error => {
           const nextMessage = error instanceof Error ? error.message : "治疗同步失败。";
           setMessage(nextMessage);
           showNotice(nextMessage, "danger");
@@ -581,7 +604,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             open
             shop={shopController?.getShop?.() || shopController?.shop || null}
             player={shopController?.player}
-            money={shopController?.money ?? moneyAmount ?? 0}
+            money={shopController?.money ?? displayMoney ?? 0}
             onBusyChange={setRestBusyMessage}
             onBuy={shopController?.onBuy}
             onSell={shopController?.onSell}
@@ -599,13 +622,13 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           {pendingSettlement ? (
             <section className="training-rest-new-next-preview-empty" aria-label="下一场预览" />
           ) : (
-            <TrainingRestNextPreviewPanel run={run} onLockedPokemonClick={onLockedPreviewPokemonClick} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
+            <TrainingRestNextPreviewPanel preview={displayModel?.nextPreview || null} run={legacyRun} onLockedPokemonClick={onLockedPreviewPokemonClick} onUnlockedPokemonClick={pokemon => onOpenPokemonDex(pokemon.speciesId)} />
           )}
           <TrainingRestNewActionBoard activeAction={activeAction} onAction={selectAction} entries={pendingSettlement ? PENDING_SETTLEMENT_CAPTURE_ACTIONS : undefined} />
-          {typeof moneyAmount === "number" ? (
+          {typeof displayMoney === "number" ? (
             <div className="training-rest-new-money-pill" aria-label="当前金币">
               <img src={assetUrl("aboutIcon/coin.png")} alt="" />
-              <strong>{Math.max(0, Math.floor(moneyAmount)).toLocaleString()}</strong>
+              <strong>{Math.max(0, Math.floor(displayMoney)).toLocaleString()}</strong>
             </div>
           ) : null}
           <TrainingRestBoardTitle side="left">休息室菜单</TrainingRestBoardTitle>
@@ -631,7 +654,7 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             lesson={selectedTrainingLesson}
             lessonOptions={selectedTrainingLesson ? [] : currentTrainingLessons()}
             player={trainingGroundController?.player}
-            money={trainingGroundController?.money ?? moneyAmount ?? 0}
+            money={trainingGroundController?.money ?? displayMoney ?? 0}
             onApply={trainingGroundController?.onApply ? input => withRestBusy("正在学习中", () => trainingGroundController.onApply({
               ...input,
               lessonId: selectedTrainingLesson?.lessonId,
@@ -690,8 +713,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
               locksEnabled: teamRerollController.locksEnabled,
               onRerollStats: async input => {
                 const result = await withRestBusy("正在重随中", () => teamRerollController.onRerollStats(input));
-                if (result.ok && !teamRerollController.serverCommitted) {
-                  void Promise.resolve(onRunChange(result.run.restRunSnapshot || run)).catch(error => {
+                if (result.ok && !teamRerollController.serverCommitted && legacyRun) {
+                  void Promise.resolve(onRunChange(result.run.restRunSnapshot || legacyRun)).catch(error => {
                     const nextMessage = error instanceof Error ? error.message : "重随同步失败。";
                     setMessage(nextMessage);
                     showNotice(nextMessage, "danger");
@@ -706,7 +729,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           <TrainingRestNewBagPanel
             api={api}
             open={bagPanelOpen}
-            run={run}
+            run={legacyRun}
+            player={displayPlayer}
             onClose={() => setBagPanelOpen(false)}
             onRunDraftChange={updateRunGameDraft}
             bagActionController={bagActionController ? {
@@ -890,15 +914,15 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           }}
         />
       ) : null}
-      {roundSettlement ? (
+      {activeRoundSettlement ? (
         <TrainingRestConfirmDialog
           title="本局结算"
-          message={formatRoundSettlementMessage(roundSettlement)}
+          message={formatRoundSettlementMessage(activeRoundSettlement)}
           confirmLabel="知道了"
           cancelLabel="关闭"
           ariaLabel="本局战后结算"
-          onCancel={() => onRoundSettlementSeen?.(roundSettlement.nodeId)}
-          onConfirm={() => onRoundSettlementSeen?.(roundSettlement.nodeId)}
+          onCancel={() => onRoundSettlementSeen?.(activeRoundSettlement.nodeId)}
+          onConfirm={() => onRoundSettlementSeen?.(activeRoundSettlement.nodeId)}
         />
       ) : null}
     </motion.section>
@@ -1017,11 +1041,14 @@ function SoulmateEggHatchDialog({
   );
 }
 
-function createRestSoulmateCandidates(run: TrainingRunGameV4): SoulmateCandidateV4[] {
-  const team = run.players.p1?.localTeam;
-  if (!team || !run.battleLog?.length) return [];
+function createRestSoulmateCandidates(input: {
+  team?: TrainingPlayerDraftV4["localTeam"] | null;
+  battleLog?: TrainingRunGameV4["battleLog"];
+}): SoulmateCandidateV4[] {
+  const team = input.team;
+  if (!team || !input.battleLog?.length) return [];
   return createSoulmateCandidateListV4({
-    battleLog: run.battleLog,
+    battleLog: input.battleLog,
     team,
     resolvePokemonKey: summary => resolveSoulmateCandidateTeamKey(summary.pokemonKey, team),
   });

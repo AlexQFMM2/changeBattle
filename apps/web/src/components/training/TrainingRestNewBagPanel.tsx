@@ -8,20 +8,21 @@ import {PokemonSystemReforgePanel} from "./PokemonSystemReforgePanel";
 export type TrainingRestNewBagPanelProps = {
   api: ChangeBattleV2Api;
   open: boolean;
-  run: TrainingRunGameV4;
+  run?: TrainingRunGameV4 | null;
+  player?: TrainingPlayerDraftV4 | null;
   onClose: () => void;
   onRunDraftChange: (run: TrainingRunGameV4, message: string) => void;
   bagActionController?: {
     serverCommitted?: boolean;
-    onAction: (action: Extract<FormalRoomRestActionV1, {type: "bag.use" | "bag.equip" | "bag.unequip" | "bag.discard"}>) => Promise<{ok: boolean; run: TrainingRunGameV4; message: string}> | {ok: boolean; run: TrainingRunGameV4; message: string};
+    onAction: (action: Extract<FormalRoomRestActionV1, {type: "bag.use" | "bag.equip" | "bag.unequip" | "bag.discard"}>) => Promise<{ok: boolean; run?: TrainingRunGameV4 | null; message: string}> | {ok: boolean; run?: TrainingRunGameV4 | null; message: string};
   };
   onNotice?: (message: string, tone?: "normal" | "danger") => void;
 };
 
 const EQUIPPABLE_ITEM_KINDS = new Set(["battle", "held", "berry", "special"]);
 
-export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChange, bagActionController, onNotice}: TrainingRestNewBagPanelProps) {
-  const p1 = run.players.p1 || null;
+export function TrainingRestNewBagPanel({api, open, run, player, onClose, onRunDraftChange, bagActionController, onNotice}: TrainingRestNewBagPanelProps) {
+  const p1 = player || run?.players.p1 || null;
   const bag = useMemo(() => api.normalizeBagState(p1?.bag), [api, p1?.bag]);
   const team = p1?.localTeam.pokemon || [];
   const [selection, setSelection] = useState<{item: PlayerItemInstanceV4 | null; target: PlayerBagPokemonTarget | null}>({item: bag.items[0] || null, target: null});
@@ -62,7 +63,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
         onNotice?.(result.message, "danger");
         return true;
       }
-      onRunDraftChange(result.run, result.message);
+      if (result.run) onRunDraftChange(result.run, result.message);
       onNotice?.(result.message);
       return true;
     } catch (error) {
@@ -75,6 +76,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   async function equipSelectedItem() {
     if (!p1 || !selectedItem || !selectedPokemon || !equipEligibility.canEquip || selectedPokemonIsSoulmate || selectedItemIsSoulmateBound) return;
     if (await commitServerBagAction({type: "bag.equip", itemInstanceId: selectedItem.id, pokemonId: selectedPokemon.localPokemonId})) return;
+    if (!run) return;
     const heldItemPatch = heldItemPatchForEquip(selectedItem);
     const nextTeam = {
       ...p1.localTeam,
@@ -104,6 +106,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
 
   function confirmSystemReforge(option: DexSystemBattleReforgeOption) {
     if (!p1 || !systemReforgeItem || !systemReforgePokemon) return;
+    if (!run) return;
     const nextSystemItem = applySystemReforgeOption(systemReforgeItem, option);
     const nextBag = {
       ...bag,
@@ -133,6 +136,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   async function untakeSelectedPokemonItem() {
     if (!p1 || !selectedPokemon || !canUntake) return;
     if (await commitServerBagAction({type: "bag.unequip", pokemonId: selectedPokemon.localPokemonId})) return;
+    if (!run) return;
     const nextTeam = {
       ...p1.localTeam,
       pokemon: p1.localTeam.pokemon.map(pokemon => pokemon.localPokemonId === selectedPokemon.localPokemonId
@@ -147,6 +151,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   async function discardSelectedItem() {
     if (!p1 || !selectedItem || !canDiscard || selectedItemIsSoulmateBound) return;
     if (await commitServerBagAction({type: "bag.discard", itemInstanceId: selectedItem.id})) return;
+    if (!run) return;
     const nextBag = {...bag, items: bag.items.filter(item => item.id !== selectedItem.id)};
     const nextTeam = {
       ...p1.localTeam,
@@ -161,7 +166,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
   function noticeUseFailure(reason: string) {
     const message = reason || "该道具当前不能立即使用。";
     onNotice?.(message, "danger");
-    onRunDraftChange(run, message);
+    if (run) onRunDraftChange(run, message);
   }
 
   async function useSelectedItem() {
@@ -181,6 +186,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
       return;
     }
     if (await commitServerBagAction({type: "bag.use", itemInstanceId: selectedItem.id, pokemonId: selectedPokemon.localPokemonId})) return;
+    if (!run) return;
     const result = canUseRecovery
       ? applyRecoveryItemToPokemonV4({
         item: selectedItem,
@@ -220,6 +226,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
       setTmReplace(null);
       return;
     }
+    if (!run) return;
     const result = applyTmItemToPokemonV4({
       item: tmReplaceItem,
       detail: tmReplaceDetail,
@@ -300,7 +307,7 @@ export function TrainingRestNewBagPanel({api, open, run, onClose, onRunDraftChan
         onDisabledTargetClick={target => {
           const reason = target.disabledReason || "该宝可梦当前不能作为目标。";
           onNotice?.(reason, "danger");
-          onRunDraftChange(run, reason);
+          if (run) onRunDraftChange(run, reason);
         }}
         onSelectionChange={nextSelection => {
           setSelection(current => {

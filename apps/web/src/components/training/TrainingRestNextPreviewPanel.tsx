@@ -1,5 +1,6 @@
 import type {CSSProperties} from "react";
 import type {ShowdownPlayerIdV4, TrainingPlayerDraftV4, TrainingRunGameV4} from "@changebattle-v2/api";
+import type {TrainingRestNextPreviewModel} from "./TrainingRestLegacyDisplayModel";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {styleUrlAssetPath} from "../../lib/assetUrl";
 import "./TrainingRestNextPreviewPanel.css";
@@ -12,49 +13,41 @@ export type PreviewPokemonEntry = {
   unlockKey: string;
 };
 
-type NextOpponentPreviewModel = {
-  mode: TrainingRunGameV4["scenario"]["mode"];
-  trainer: TrainingPlayerDraftV4 | null;
-  allies: TrainingPlayerDraftV4[];
-  rank: string;
-  nodeId: string;
-};
-
 export function TrainingRestNextPreviewPanel({
   run,
+  preview,
   onLockedPokemonClick,
   onUnlockedPokemonClick,
 }: {
-  run: TrainingRunGameV4;
+  run?: TrainingRunGameV4 | null;
+  preview?: TrainingRestNextPreviewModel | null;
   onLockedPokemonClick: (entry: PreviewPokemonEntry) => void;
   onUnlockedPokemonClick: (pokemon: PreviewPokemon) => void;
 }) {
-  const preview = buildNextOpponentPreview(run);
+  const nextPreview = preview || (run ? buildNextOpponentPreview(run) : null);
   return (
-    <section className={`training-rest-next-panel mode-${preview.mode}`} aria-label="下一场对手预览">
-      <NextOpponentPreview
-        preview={preview}
-        run={run}
-        onLockedPokemonClick={onLockedPokemonClick}
-        onUnlockedPokemonClick={onUnlockedPokemonClick}
-      />
+    <section className={`training-rest-next-panel mode-${nextPreview?.mode || "singles"}`} aria-label="下一场对手预览">
+      {nextPreview ? (
+        <NextOpponentPreview
+          preview={nextPreview}
+          onLockedPokemonClick={onLockedPokemonClick}
+          onUnlockedPokemonClick={onUnlockedPokemonClick}
+        />
+      ) : null}
     </section>
   );
 }
 
 function NextOpponentPreview({
   preview,
-  run,
   onLockedPokemonClick,
   onUnlockedPokemonClick,
 }: {
-  preview: NextOpponentPreviewModel;
-  run: TrainingRunGameV4;
+  preview: TrainingRestNextPreviewModel;
   onLockedPokemonClick: (entry: PreviewPokemonEntry) => void;
   onUnlockedPokemonClick: (pokemon: PreviewPokemon) => void;
 }) {
-  const trainer = preview.trainer;
-  const trainers = preview.allies.length ? preview.allies.slice(0, 2) : trainer ? [trainer] : [];
+  const trainers = preview.trainers.length ? preview.trainers.slice(0, 2) : [];
   const pokemon = trainers.flatMap(entry => previewEntriesForPlayer(preview.nodeId, entry)).slice(0, 4);
   const coopTeams = trainers.slice(0, 2).map(entry => previewEntriesForPlayer(preview.nodeId, entry).slice(0, 2));
   return (
@@ -81,7 +74,7 @@ function NextOpponentPreview({
               {team.map(entry => (
                 <PreviewPokemonCard
                   entry={entry}
-                  unlocked={Boolean(run.restPreviewUnlocks?.[entry.unlockKey])}
+                  unlocked={Boolean(preview.unlocks?.[entry.unlockKey])}
                   onLockedClick={onLockedPokemonClick}
                   onUnlockedClick={onUnlockedPokemonClick}
                   key={entry.unlockKey}
@@ -95,7 +88,7 @@ function NextOpponentPreview({
           {pokemon.map(entry => (
             <PreviewPokemonCard
               entry={entry}
-              unlocked={Boolean(run.restPreviewUnlocks?.[entry.unlockKey])}
+              unlocked={Boolean(preview.unlocks?.[entry.unlockKey])}
               onLockedClick={onLockedPokemonClick}
               onUnlockedClick={onUnlockedPokemonClick}
               key={entry.unlockKey}
@@ -130,12 +123,18 @@ function PreviewPokemonCard({
   );
 }
 
-function buildNextOpponentPreview(run: TrainingRunGameV4): NextOpponentPreviewModel {
+function buildNextOpponentPreview(run: TrainingRunGameV4): TrainingRestNextPreviewModel {
   const current = run.gameMap.find(node => node.id === run.currentNodeId) || run.gameMap.find(node => node.state === "ready") || run.gameMap[0] || null;
   const mode = current?.mode || run.scenario.mode;
   const farIds = [current?.p2, current?.p4].filter(Boolean) as ShowdownPlayerIdV4[];
-  const allies = farIds.map(playerId => current?.participants[playerId] || run.players[playerId]).filter(isPlayerDraft);
-  return {mode, trainer: allies[0] || null, allies, rank: formalRoundStageLabel(current?.index || 0), nodeId: current?.id || run.currentNodeId || "preview"};
+  const trainers = farIds.map(playerId => current?.participants[playerId] || run.players[playerId]).filter(isPlayerDraft);
+  return {
+    mode,
+    trainers,
+    rank: formalRoundStageLabel(current?.index || 0),
+    nodeId: current?.id || run.currentNodeId || "preview",
+    unlocks: run.restPreviewUnlocks,
+  };
 }
 
 function previewEntriesForPlayer(nodeId: string, player: TrainingPlayerDraftV4): PreviewPokemonEntry[] {

@@ -796,3 +796,484 @@ rg -n "restActionResults|draftSyncResults|finalResult|activeBattle|formalRun:" a
 - [ ] `prepare-round` 和部分 battle/settlement 计算仍会临时调用 V4 formal helper 作为纯计算器；写回点必须保持 V5 实体函数。
 - [ ] Legacy `/rooms/:roomId/formal/*`、`postService rooms.syncDraft/restAction`、本地训练场 helper 仍保留给 legacy/dev；正式 room 主线不得调用。
 - [ ] `TrainingRestNewPage` 仍消费 compat `formalRun` 渲染；下一阶段应拆成真正的 `RunGameViewV5` 分片展示，进一步减少 command response payload。
+
+## 下一阶段：Scoped View Snapshot 懒加载展示计划
+
+### Summary
+
+正式 room C/S 的最终形态不是“客户端缓存一份总 `RunGameViewV5`”，而是“客户端只缓存当前页面需要看的 V5 view snapshot”。服务端仍保存完整权威 `RunGameV5`；客户端只保存 room credential、matchId、revision、phase、当前看过的页面 view 切片和本地 UI 草稿。
+
+核心规则：
+
+```text
+RunGameV5 = 服务端权威实体，只在服务端存。
+ViewScopeV5 = 服务端按页面现算的展示切片，只给客户端看。
+ClientCache = 客户端缓存看过的切片，不当权威，不上传。
+Command = 客户端确认意图；成功后返回目标 scope view。
+WS = revision 通知；不直接 patch 复杂状态。
+```
+
+这一步要彻底替换当前仍偏“总视图”的 `formalRoomViewV5`，并删除 room 模式里最后的 `roomBattleDisplayRunFromViewV5()` 伪 V4 战斗展示适配。
+
+### 新红线
+
+红线第一遍：
+
+- 正式 room 客户端可以缓存 `ViewScopeV5`，不能缓存 `RunGameV5`。
+- 正式 room 客户端不能缓存或构造 `TrainingRunGameV4` / `FormalGameRunV4` 作为展示主数据。
+- 正式 room 客户端不能上传 `ViewScopeV5`，更不能把 view 当 command 写入源。
+- HTTP command 成功前不能替换服务端确认 view snapshot。
+- HTTP command 失败/超时时必须保留旧 view snapshot，只显示错误或保留本地草稿等待重试。
+- WS 只通知 `revision/phase/scope invalidation`，不能携带完整 view，也不能直接修改页面复杂状态。
+- 刷新恢复必须通过 room credential + `GET view?scope=...`，不能通过 localStorage 大对象恢复。
+
+红线第二遍：
+
+- `GET match view` 默认不能返回 starter/rest/battle/settlement 全部切片。
+- `command` 成功只能返回本命令目标 scope 的完整 view，或小型 result；第一阶段不做复杂 patch merge。
+- `BattleV4Page` room 模式不能接收 `TrainingRunGameV4`。
+- `roomBattleDisplayRunFromViewV5()` 必须删除，不允许用 V5 拼 V4 外壳。
+- `TrainingRestDisplayModel` room 模式不能使用 `TrainingRunGameV4["gameMap"]` 形状作为主模型；可以保留 legacy mapper 给训练场。
+
+红线第三遍：
+
+- 服务端 `RunGameV5` 可以单 key 聚合存 Redis；返回给客户端的 scoped view 必须是页面切片。
+- `BattleViewV5` 可以返回当前战斗展示所需 participants/selfBag/activeBattle，但不能返回 `playersById/pokemonById/bagsById/itemInstancesById/gameMap/roundPlan` 全量。
+- `RestViewV5` 可以返回当前休整页所需 team/bag/shop/training/preview，但不能返回完整 run。
+- `SettlementViewV5` 只能返回 final result/profile delta/vault delta/summary，不能返回完整 run。
+
+### 目标 API
+
+第一版保留当前 path，新增 `scope` 参数：
+
+```text
+GET /rooms/:roomId/matches/:matchId/view?scope=summary
+GET /rooms/:roomId/matches/:matchId/view?scope=starter
+GET /rooms/:roomId/matches/:matchId/view?scope=rest
+GET /rooms/:roomId/matches/:matchId/view?scope=battle
+GET /rooms/:roomId/matches/:matchId/view?scope=settlement
+```
+
+响应统一：
+
+```ts
+type MatchScopedViewResponseV5<T> = {
+  revision: number;
+  phase: RunGamePhaseV5;
+  scope: ViewScopeNameV5;
+  room: RoomSummaryV5;
+  match: MatchSummaryV5;
+  view: T;
+};
+```
+
+命令响应统一：
+
+```ts
+type MatchCommandResponseV5<TView, TResult = Record<string, unknown>> = {
+  revision: number;
+  phase: RunGamePhaseV5;
+  scope: ViewScopeNameV5;
+  view: TView;
+  result: TResult;
+  reused?: boolean;
+};
+```
+
+第一阶段 command 成功返回目标 scope 的完整 view：
+
+```text
+select-starters -> starter 或 round transition summary
+prepare-round -> rest
+team.reorder -> rest
+training.apply -> rest
+shop.buy/sell -> rest
+team.heal -> rest
+bag.* -> rest
+prepare-battle -> battle
+battle-choice -> battle snapshot/choice result，小型 result
+finalize-battle -> rest 或 settlement
+finalize-run -> settlement
+ack-final-result -> summary/room
+```
+
+暂不做细粒度 patch：
+
+```text
+不先返回 {patch, invalidates}
+不在客户端合并复杂 patch
+不做 optimistic authority
+```
+
+### 目标 View 切片
+
+#### SummaryViewV5
+
+```ts
+type SummaryViewV5 = {
+  room: RoomSummaryV5;
+  match: MatchSummaryV5;
+  revision: number;
+  phase: RunGamePhaseV5;
+};
+```
+
+用途：房间页、对局列表、返回房间后的 ended summary。
+
+#### StarterViewV5
+
+```ts
+type StarterViewV5 = {
+  runId: string;
+  matchId: string;
+  revision: number;
+  selectedIndexes: number[];
+  candidates: Array<{
+    candidateId: string;
+    pokemonId: string;
+    pokemon: PokemonDisplayV5;
+  }>;
+  pickLimit: number;
+};
+```
+
+用途：starter select 页面。不得包含 rest/map/bag/battle/settlement。
+
+#### RestViewV5
+
+```ts
+type RestViewV5 = {
+  runId: string;
+  matchId: string;
+  revision: number;
+  selfPlayer: PlayerRestSummaryV5;
+  team: PokemonDisplayV5[];
+  bag: BagDisplayV5 | null;
+  money: number;
+  currentNode: NodeRestSummaryV5 | null;
+  nextOpponentPreview: OpponentPreviewViewV5 | null;
+  shop: ShopViewV5 | null;
+  trainingGround: TrainingGroundViewV5 | null;
+  exchange: ExchangeViewV5 | null;
+  medical: MedicalViewV5 | null;
+  roundSettlement: RoundSettlementViewV5 | null;
+  coinLog: CoinLogEntryViewV5[];
+  battleLog: BattleLogEntryViewV5[];
+};
+```
+
+用途：休整页。不得包含完整 `gameMap/roundPlan/playersById/pokemonById/bagsById/itemInstancesById`。
+
+#### BattleViewV5
+
+```ts
+type BattleViewV5 = {
+  runId: string;
+  matchId: string;
+  revision: number;
+  activeBattle: {
+    sessionId: string;
+    nodeId: string;
+    battleGameId?: string;
+    status: "creating" | "running" | "finalized" | "blocked" | "lost_session";
+    expectedTurn?: number;
+    expectedRqid?: string;
+  } | null;
+  mode: "singles" | "doubles" | "coop";
+  ruleSet: string;
+  stageLabel: string;
+  participants: Partial<Record<"p1" | "p2" | "p3" | "p4", BattleParticipantViewV5>>;
+  selfBag: BattleBagViewV5 | null;
+  battlePreference: {
+    ruleSet: string;
+    battleBagEnabled: boolean;
+    specialSystem?: string;
+  };
+};
+```
+
+用途：战斗页 UI 显示和 battle service 恢复。战斗局面本身继续从 battle service snapshot/timeline 获取，不塞进 RunGame view。
+
+#### SettlementViewV5
+
+```ts
+type SettlementViewV5 = {
+  settlementId: string;
+  reason: FormalSettlementReasonV4;
+  summary: Record<string, unknown>;
+  profileDelta: Record<string, unknown>;
+  vaultDelta: Record<string, unknown>;
+  claimedAt?: string;
+};
+```
+
+用途：结算页展示和返回房间 ack。不得包含完整 `formalRun`。
+
+### 目标客户端状态
+
+```ts
+type FormalRoomClientCacheV5 = {
+  roomCredential: {
+    roomId: string;
+    roomToken: string;
+    selfMemberId?: string;
+  } | null;
+
+  matchId: string | null;
+  revision: number;
+  phase: RunGamePhaseV5 | null;
+
+  views: {
+    summary?: SummaryViewV5;
+    starter?: StarterViewV5;
+    rest?: RestViewV5;
+    battle?: BattleViewV5;
+    settlement?: SettlementViewV5;
+  };
+
+  stale: Partial<Record<ViewScopeNameV5, number>>;
+
+  pendingCommand: {
+    commandId: string;
+    commandName: string;
+    scope: ViewScopeNameV5;
+    startedAt: string;
+  } | null;
+
+  localDraft: {
+    selectedStarterIndexes?: number[];
+    restReorderPokemonIds?: string[];
+    selectedPokemonId?: string;
+    selectedShopCategoryId?: string;
+    battleChoiceDraft?: unknown;
+  };
+};
+```
+
+页面加载策略：
+
+```text
+进入页面
+  -> 如果当前 scope view 不存在：GET view?scope=scope
+  -> 如果 current revision < known revision：GET view?scope=scope
+  -> 否则直接展示缓存
+
+收到 WS match.updated revision
+  -> stale[currentScope] = revision
+  -> 当前页面需要最新数据时 GET view?scope=currentScope
+
+发 command
+  -> pendingCommand = command
+  -> 显示遮罩
+  -> 成功：替换 views[targetScope]，更新 revision/phase，清 pending
+  -> 失败：保留旧 view，清 pending，toast 业务错误
+  -> 超时：保留旧 view，清 pending，toast 网络异常
+```
+
+### 任务清单
+
+#### 阶段 1：服务端 scoped view DTO
+
+- [ ] 定义 `ViewScopeNameV5 = "summary" | "starter" | "rest" | "battle" | "settlement"`。
+- [ ] 定义 `SummaryViewV5 / StarterViewV5 / RestViewV5 / BattleViewV5 / SettlementViewV5` 类型。
+- [ ] 拆 `buildRunGameViewV5()` 为：
+  - [ ] `buildSummaryViewV5(run, room, match)`
+  - [ ] `buildStarterViewV5(run)`
+  - [ ] `buildRestViewV5(run)`
+  - [ ] `buildBattleViewV5(run)`
+  - [ ] `buildSettlementViewV5(run)`
+- [ ] `GET /matches/:matchId/view?scope=...` 按 scope 返回对应切片。
+- [ ] 未传 scope 时只返回 `summary`，或临时返回当前 phase 对应 scope；不得默认返回全部切片。
+- [ ] `buildFormalMatchView()` 不再返回总 `viewV5`，改为返回 `scope/view`。
+- [ ] API smoke 增加响应体扫描：任意 scope 响应不得含 `formalRun/restRunSnapshot/runGameV5/playersById/pokemonById/bagsById/itemInstancesById`。
+
+#### 阶段 2：command 返回目标 scope
+
+- [ ] `select-starters` 返回 starter/summary 小 view，不返回总 view。
+- [ ] `prepare-round` 返回 `RestViewV5`。
+- [ ] `team.reorder` 返回 `RestViewV5`。
+- [ ] `training.apply` 返回 `RestViewV5`。
+- [ ] `shop.buy/sell` 返回 `RestViewV5`。
+- [ ] `team.heal` 返回 `RestViewV5`。
+- [ ] `bag.use/equip/unequip/discard` 返回 `RestViewV5`。
+- [ ] `pokemon.reroll-stats / pokemon.exchange / opponent-preview.unlock / insurance.buy / soulmate-egg.claim` 返回 `RestViewV5`。
+- [ ] `prepare-battle` 返回 `BattleViewV5`，其中 `activeBattle.sessionId` 必须可用于恢复。
+- [ ] `finalize-battle` 按 destination 返回 `RestViewV5` 或 `SettlementViewV5`。
+- [ ] `finalize-run` 返回 `SettlementViewV5`。
+- [ ] `ack-final-result` 返回 `SummaryViewV5` 或 room/match summary。
+- [ ] command response 不再包 `view: {viewV5: full}`。
+
+#### 阶段 3：前端 client cache
+
+- [ ] 新增 `FormalRoomClientCacheV5` 或 `useFormalRoomClientCache()`。
+- [ ] 用 `formalRoomClientCache.views` 替代 `formalRoomViewV5`。
+- [ ] `applyFormalRoomViewV5()` 改成 `applyFormalRoomScopedView(scope, response)`。
+- [ ] App route guard 按 `phase + current scope` 判断，不依赖总 view。
+- [ ] room shell WS 收到 revision 只标记 stale，不直接修改复杂 view。
+- [ ] 刷新 starter/rest/battle/settlement 页面时只 GET 当前 scope。
+- [ ] localStorage 只保存 room credential / 小型 command id / settlement idempotency marker，不保存 scoped view 大对象。
+
+#### 阶段 4：页面逐个切 scope
+
+- [ ] RoomLobbyPage 只吃 summary/room/match summary。
+- [ ] FormalStarterSelectPage 只吃 `StarterViewV5`。
+- [ ] FormalRoundTransitionPage command 成功后写 `RestViewV5`，跳 `/formal/rest`。
+- [ ] TrainingRestNewPage room 模式只吃 `RestViewV5`，不再通过 `TrainingRestDisplayModel` 使用 `TrainingRunGameV4["gameMap"]` 形状。
+- [ ] TrainingRestDisplayModel 保留 legacy V4 mapper，但 room mapper 改为纯 `RestViewV5 -> RestDisplayModel`。
+- [ ] TrainingRestNextPreviewPanel 只吃 `OpponentPreviewViewV5`，legacy 适配留在训练场入口。
+- [ ] TrainingRestNewBagPanel room 模式只吃 `BagDisplayV5 / PokemonDisplayV5[]`。
+- [ ] FormalBattleTransitionPage command 成功后写 `BattleViewV5`，跳 `/formal/battle`。
+- [ ] BattleV4Page 新增纯 V5 props：`battleView: BattleViewV5`。
+- [ ] BattleV4Page room 模式不再接收 `run: TrainingRunGameV4`。
+- [ ] 删除 `roomBattleDisplayRunFromViewV5()`。
+- [ ] 训练场入口新增 `battleViewFromTrainingRunV4(run)`，只在 training/legacy 内部使用。
+- [ ] FormalBattleResultTransitionPage 根据 command destination 写 rest/settlement scope。
+- [ ] FormalSettlementTransitionPage / FormalSettlementPage 只吃 `SettlementViewV5`。
+
+#### 阶段 5：删除或硬隔离总 view 入口
+
+- [ ] 删除正式 room 主线的总 `RunGameViewV5` 返回路径。
+- [ ] `RunGameViewV5` 如果保留，只作为 internal 聚合测试类型，不导出给 Web 正式主线。
+- [ ] `buildFormalRunCompatViewV5()` 只允许 legacy/dev-only 或训练场 adapter 使用。
+- [ ] redline scanner 加入：
+  - [ ] `formalRoomViewV5`
+  - [ ] `roomBattleDisplayRunFromViewV5`
+  - [ ] `view.viewV5`
+  - [ ] `TrainingRunGameV4` in `BattleV4Page` room path
+  - [ ] `buildFormalRunCompatViewV5(match.runGameV5)`
+
+### 当前检查结果（2026-07-19）
+
+本次检查命令：
+
+```bash
+rg -n "RunGameViewV5|viewV5|formalRoomViewV5|roomBattleDisplayRunFromViewV5|TrainingRunGameV4|formalRunDraft|syncDraft|view\\.formalRun|restRunSnapshot|BattleV4Page" \
+  apps/api/src/server.ts apps/api/src/runGameV5.ts apps/web/src/App.tsx apps/web/src/components \
+  -g '*.ts' -g '*.tsx'
+```
+
+当前状态：
+
+- [x] 正式 room C/S 传输主线已不返回 `view.formalRun`。
+- [x] 正式 room 休整展示已基本从 `viewV5` 派生，不再用 `previewRun` 字段。
+- [x] `formalRunDraft/syncDraft` 只剩服务端 legacy/dev-only 路径；默认 `CHANGEBATTLE_ENABLE_LEGACY_FORMAL_ROUTES=false` 会 410。
+- [x] ChromeAutomation 已跑到 battle command panel，localStorage 只剩小 room credential。
+- [ ] 服务端 `RunGameViewV5` 仍是总视图：`starter/map/rest/trainingGround/exchange/settlement` 聚合在一个 DTO。
+- [ ] `buildFormalMatchView()` 仍返回 `{viewV5}` 总字段。
+- [ ] App 仍维护 `formalRoomViewV5` 总 view 状态。
+- [ ] App 仍通过 `applyFormalRoomViewV5(response.data.view.viewV5)` 更新总 view。
+- [ ] App route guard 仍以 `formalRoomViewV5.phase/status` 为核心。
+- [ ] `roomBattleDisplayRunFromViewV5()` 仍存在，会把 V5 view 拼成 `TrainingRunGameV4` 给 BattleV4Page。
+- [ ] `BattleV4Page` props 仍要求 `run: TrainingRunGameV4`。
+- [ ] `TrainingRestDisplayModel` room mapper 仍用 `TrainingRunGameV4["gameMap"]` / `TrainingPlayerDraftV4` 形状做中间展示结构。
+- [ ] `TrainingRestNewPage` legacy callback 仍出现 `result.run.restRunSnapshot`，但 room 模式已有 serverCommitted guard；下一阶段要进一步按 scope 分离。
+- [ ] `FormalBattleTransitionPage / FormalBattleResultTransitionPage` legacy 分支仍使用 `restRunSnapshot`，允许保留给非-room/legacy，但 room 分支不能落入。
+- [ ] `FormalSettlementPage` 仍有 `run?.restRunSnapshot` fallback；room 模式应只使用 `SettlementViewV5`。
+
+### 验收标准
+
+阶段完成前必须满足：
+
+- [ ] `rg "formalRoomViewV5|roomBattleDisplayRunFromViewV5|view\\.viewV5" apps/web/src` 在正式 room 主线无命中。
+- [ ] `BattleV4Page` room path 不再传 `TrainingRunGameV4`。
+- [ ] `GET view?scope=rest` 响应不含 starter/battle/settlement。
+- [ ] `GET view?scope=battle` 响应不含 rest/shop/training/full map。
+- [ ] `command shop.buy/team.reorder/training.apply` 只返回 rest scope。
+- [ ] `command prepare-battle` 只返回 battle scope。
+- [ ] 刷新 `/formal/rest` 只拉 rest scope。
+- [ ] 刷新 `/formal/battle` 只拉 battle scope + battle snapshot/timeline。
+- [ ] localStorage 不保存 scoped view，更不保存 run。
+- [ ] ChromeAutomation 完整跑：room -> starter -> rest -> 多次 rest command -> battle -> settlement -> room。
+- [ ] ChromeAutomation Network/HTTP smoke 扫描所有 view/command 响应，无 `formalRun/restRunSnapshot/runGameV5/playersById/pokemonById/bagsById/itemInstancesById`。
+
+### 执行顺序
+
+1. 服务端先拆 scope DTO 和 `GET view?scope=...`。
+2. command response 改成返回目标 scope。
+3. 前端新增 client cache，保留旧总 view 作为临时 fallback。
+4. starter/rest 页面切到 scoped cache。
+5. battle 页面新增 `BattleViewV5` props，删除 `roomBattleDisplayRunFromViewV5()`。
+6. settlement 页面切到 `SettlementViewV5`。
+7. 删除正式主线总 view fallback。
+8. 跑静态、HTTP smoke、ChromeAutomation 完整验收。
+
+### 复查版落地清单（2026-07-19）
+
+本段用于下一轮真正开工时逐项打勾。原则是先把传输边界变成 scoped view，再把 UI 展示依赖从 V4 形状拆掉，最后删除临时 fallback。不能因为页面能跑就跳过红线扫描。
+
+#### 当前命中点
+
+- [ ] `apps/api/src/runGameV5.ts` 仍导出聚合型 `RunGameViewV5`。
+  - 命中：`export type RunGameViewV5`。
+  - 命中：`export function buildRunGameViewV5(run: RunGameV5): RunGameViewV5`。
+  - 要改：拆成 `SummaryViewV5 / StarterViewV5 / RestViewV5 / BattleViewV5 / SettlementViewV5` 与 scope builder。
+- [ ] `apps/api/src/server.ts` 仍用聚合 view 构造 match view。
+  - 命中：`buildFormalMatchView()` 内部 `buildRunGameViewV5(match.runGameV5)`。
+  - 命中：`formalRoomPhaseFromState(..., viewV5)` 依赖聚合 view 判断 phase。
+  - 要改：`buildFormalMatchView()` 改为 `buildScopedMatchView(scope)`；phase 从 `runGameV5.status/phase` 直接判断。
+- [ ] `apps/web/src/App.tsx` 仍维护聚合 view cache。
+  - 命中：`const [formalRoomViewV5, setFormalRoomViewV5]`。
+  - 命中：`applyFormalRoomViewV5(response.data.view.viewV5)`。
+  - 命中：route guard 和页面 props 多处依赖 `formalRoomViewV5.phase/status/rest/settlement`。
+  - 要改：替换为 `formalRoomClientCache.views.{summary,starter,rest,battle,settlement}`。
+- [ ] `apps/web/src/App.tsx` 仍有 V5 拼 V4 的战斗展示适配。
+  - 命中：`roomBattleDisplayRunFromViewV5(view: RunGameViewV5): TrainingRunGameV4`。
+  - 要改：删除该函数；room battle 页面只传 `BattleViewV5`。
+- [ ] `apps/web/src/components/battle-v4/BattleV4Page.tsx` 仍把 `TrainingRunGameV4` 作为唯一 props。
+  - 命中：`BattleV4PageProps.run: TrainingRunGameV4`。
+  - 命中：`onRunChange: (run: TrainingRunGameV4) => void`。
+  - 要改：拆出 `BattleRoomDisplayModel` 或 `BattleViewV5` props；训练场才继续走 V4 props。
+- [ ] `apps/web/src/components/formal/*TransitionPage.tsx` 仍接收和回传聚合 `RunGameViewV5`。
+  - 命中：`FormalStarterSelectPage`、`FormalRoundTransitionPage`、`FormalBattleTransitionPage`、`FormalBattleResultTransitionPage`、`FormalSettlementTransitionPage` 中 `result.data.view.viewV5`。
+  - 要改：command success 返回 `{scope, view}` 后，页面只写目标 scope。
+- [ ] `apps/web/src/components/training/TrainingRestDisplayModel.ts` 的 room mapper 仍使用 V4 类型当中间结构。
+  - 命中：`TrainingRunGameV4["gameMap"]`。
+  - 命中：`TrainingPlayerDraftV4`。
+  - 要改：定义纯 `RestDisplayModel` 子类型，legacy mapper 内部才接触 V4。
+- [ ] `apps/web/src/components/training/TrainingRestNewPage.tsx` 仍暴露 legacy `run/onRunChange/onSaveRunSnapshot` props。
+  - 命中：`run?: TrainingRunGameV4 | null`。
+  - 命中：`result.run.restRunSnapshot`。
+  - 要改：room 入口传 `displayModel + serverCommitted controllers`，legacy 入口才传 `run`。
+
+#### 实施任务
+
+- [ ] 新增 `ViewScopeNameV5` 和 scoped response 类型。
+- [ ] 服务端 `GET match view` 支持 `scope=summary|starter|rest|battle|settlement`。
+- [ ] 服务端 no-scope 默认只返回当前 phase scope 或 summary，严禁返回全集。
+- [ ] command response 从 `view: {viewV5}` 改为 `{scope, view, result}`。
+- [ ] 前端新增 `FormalRoomClientCacheV5`，集中管理 credential、matchId、revision、phase、scoped views、stale、pendingCommand、localDraft。
+- [ ] starter 页面改吃 `StarterViewV5`。
+- [ ] rest 页面改吃 `RestViewV5`，`TrainingRestDisplayModel` room mapper 不再用 V4 map/player 类型。
+- [ ] battle transition 改吃 `BattleViewV5`，战斗页 room path 不再传 `TrainingRunGameV4`。
+- [ ] settlement 页面改吃 `SettlementViewV5`，不再需要 `run?.restRunSnapshot` fallback。
+- [ ] 删除 `roomBattleDisplayRunFromViewV5()`。
+- [ ] 删除或硬隔离正式 room 主线的 `formalRoomViewV5 / view.viewV5`。
+- [ ] 补 HTTP smoke 响应扫描：`formalRun/restRunSnapshot/runGameV5/playersById/pokemonById/bagsById/itemInstancesById` 均不得出现。
+- [ ] 补 ChromeAutomation network 检查：view/command 响应没有大对象，localStorage 没有 room run/view 大缓存。
+
+#### 红线扫描必须清零
+
+阶段结束时，以下命令在正式 room 主线不能有未解释命中：
+
+```bash
+rg -n "formalRoomViewV5|roomBattleDisplayRunFromViewV5|view\\.viewV5" apps/web/src -g '*.ts' -g '*.tsx'
+rg -n "buildRunGameViewV5\\(|RunGameViewV5|buildFormalRunCompatViewV5\\(match\\.runGameV5\\)" apps/api/src apps/web/src -g '*.ts' -g '*.tsx'
+rg -n "formalRunDraft|syncDraft|rooms\\.restAction|rooms\\.prepareBattle|view\\.formalRun" apps/api/src apps/web/src -g '*.ts' -g '*.tsx'
+```
+
+允许命中必须满足：
+
+- [ ] 训练场或 legacy/dev-only 文件内部。
+- [ ] 有明确注释说明不属于正式 room 主线。
+- [ ] 正式 Web/Desktop/Android room 入口不会 import 或调用。
+- [ ] ChromeAutomation network 和 API smoke 证明响应体没有大对象。
+
+#### 下一轮完成定义
+
+- [ ] C 端只保存 credential、matchId、revision、phase、当前页面 scoped view 和 UI 草稿。
+- [ ] C 端不保存、不构造、不上传 `FormalGameRunV4 / TrainingRunGameV4` 作为 room 主线展示状态。
+- [ ] S 端返回给 room 主线的 view/command 响应都是 scoped DTO。
+- [ ] 战斗页 room path 使用 `BattleViewV5 + battle service snapshot/timeline` 展示。
+- [ ] 休整页 room path 使用 `RestViewV5` 展示。
+- [ ] 结算页 room path 使用 `SettlementViewV5` 展示。
+- [ ] 静态检查、红线扫描、API smoke、ChromeAutomation 完整闭环全部通过。
