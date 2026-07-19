@@ -35,11 +35,14 @@ import {TrainingRestTrainingGroundScene} from "./TrainingRestTrainingGroundScene
 import {TrainingRestNewTeamPanel} from "./TrainingRestNewTeamPanel";
 import {TrainingRestSideBoard} from "./TrainingRestSideBoard";
 import {TrainingRestToast, type TrainingRestToastTone} from "./TrainingRestToast";
-import type {TrainingRestDisplayModel} from "./TrainingRestLegacyDisplayModel";
+import type {TrainingRestDisplayModel as TrainingRestLegacyDisplayModel} from "./TrainingRestLegacyDisplayModel";
+import type {RoomRestDisplayModel} from "./TrainingRestRoomDisplayModel";
 import {assetUrl} from "../../lib/assetUrl";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import "./TrainingRestNewPage.css";
 import type {FormalRestShopV4} from "@changebattle-v2/api";
+
+export type TrainingRestDisplayModel = TrainingRestLegacyDisplayModel | RoomRestDisplayModel;
 
 export type TrainingRestShopController = {
   shop?: FormalRestShopV4 | null;

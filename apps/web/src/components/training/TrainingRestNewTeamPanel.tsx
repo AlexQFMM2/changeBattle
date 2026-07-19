@@ -347,7 +347,8 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
   const calculated = statsResult.stats;
   const maxPotentialStats = maxStatsResult.stats;
   const heldItemName = itemName(api, pokemon.itemId);
-  const previewMove = pokemon.moves.find(move => move.moveId === previewMoveId) || null;
+  const moves = Array.isArray(pokemon.moves) ? pokemon.moves : [];
+  const previewMove = moves.find(move => move.moveId === previewMoveId) || null;
   const previewMoveDetail = useMemo(() => previewMove ? safeMoveDetail(api, previewMove.moveId) : null, [api, previewMove]);
   const ivLockedStats = lockedStatsFromMap(temporaryLocks.ivs);
   const evLockedStats = lockedStatsFromMap(temporaryLocks.evs);
@@ -429,7 +430,7 @@ function TrainingRestNewPokemonDetail({api, pokemon, onClose, statRerollControll
       </div>
       <section className="training-rest-new-pokemon-move-area">
         <div className="training-rest-new-move-row">
-          {pokemon.moves.map((move, index) => (
+          {moves.map((move, index) => (
                 <TrainingRestNewMoveCard
                   api={api}
                   move={move}

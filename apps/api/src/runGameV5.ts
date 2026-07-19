@@ -203,21 +203,7 @@ export type RunGameItemViewV5 = ItemInstanceV5;
 export type RunGameRestPokemonViewV5 = {
   pokemonId: PokemonInstanceIdV5;
   ownerPlayerId: PlayerInstanceIdV5;
-  localPokemon: Pick<LocalPokemonV4,
-    | "localPokemonId"
-    | "speciesId"
-    | "name"
-    | "nameZh"
-    | "nickname"
-    | "iconUrl"
-    | "iconStyle"
-    | "spriteUrl"
-    | "shiny"
-    | "level"
-    | "entryHp"
-    | "maxHp"
-    | "entryStatus"
-  >;
+  localPokemon: LocalPokemonV4;
 };
 
 export type RunGameRestPlayerViewV5 = Omit<RunGamePlayerViewV5, "team"> & {
@@ -380,12 +366,13 @@ export function buildRestViewV5(run: RunGameV5): RunGameRestViewV5 {
   const bag = self ? run.bagsById[self.bagId] || null : null;
   const currentNode = currentRestNodeV5(run);
   const nextNode = run.gameMap.nodes.find(node => node.state === "ready") || currentNode || null;
+  const relevantPlayers = restRelevantPlayersV5(run, [currentNode, nextNode]);
   return {
     ...buildSummaryViewV5(run),
     config: run.config,
     selfPlayerId: run.selfPlayerId,
     selfPlayer: self ? restPlayerViewV5(run, self) : null,
-    players: Object.values(run.playersById).map(player => restPlayerViewV5(run, player)),
+    players: relevantPlayers.map(player => restPlayerViewV5(run, player)),
     team: self ? self.localTeamPokemonIds.map(pokemonId => run.pokemonById[pokemonId]).filter((entry): entry is PokemonInstanceV5 => Boolean(entry)).map(restPokemonViewV5) : [],
     bag: bag ? {
       bagId: bag.bagId,
@@ -397,11 +384,7 @@ export function buildRestViewV5(run: RunGameV5): RunGameRestViewV5 {
     } : null,
     currentNode: currentNode ? restNodeViewV5(currentNode) : null,
     nextNode: nextNode ? restNodeViewV5(nextNode) : null,
-    rest: {
-      ...run.restState,
-      coinLog: run.restState.coinLog ? [...run.restState.coinLog] : undefined,
-      battleLog: run.restState.battleLog ? [...run.restState.battleLog] : undefined,
-    },
+    rest: restStateForScopedRestViewV5(run, [currentNode, nextNode]),
     trainingGround: currentNode ? {
       nodeId: currentNode.nodeId,
       lessons: getTrainingGroundLessonsV5(run),
@@ -409,6 +392,37 @@ export function buildRestViewV5(run: RunGameV5): RunGameRestViewV5 {
     } : null,
     exchange: safePokemonExchangeViewV5(run)?.available ? safePokemonExchangeViewV5(run) : null,
   };
+}
+
+function restRelevantPlayersV5(run: RunGameV5, nodes: Array<GameMapNodeV5 | null>): PlayerInstanceV5[] {
+  const playerIds = new Set<PlayerInstanceIdV5>([run.selfPlayerId]);
+  for (const node of nodes) {
+    for (const playerId of Object.values(node?.slots || {})) {
+      if (playerId) playerIds.add(playerId);
+    }
+  }
+  return [...playerIds].map(playerId => run.playersById[playerId]).filter((entry): entry is PlayerInstanceV5 => Boolean(entry));
+}
+
+function restStateForScopedRestViewV5(run: RunGameV5, nodes: Array<GameMapNodeV5 | null>): RunGameV5["restState"] {
+  const nodeIds = new Set(nodes.map(node => node?.nodeId).filter((entry): entry is string => Boolean(entry)));
+  return {
+    shopByNodeId: filterRecordByKeysV5(run.restState.shopByNodeId, nodeIds),
+    trainingGroundByNodeId: filterRecordByKeysV5(run.restState.trainingGroundByNodeId, nodeIds),
+    roundSettlementByNodeId: filterRecordByKeysV5(run.restState.roundSettlementByNodeId, nodeIds),
+    exchangeByNodeId: filterRecordByKeysV5(run.restState.exchangeByNodeId, nodeIds),
+    medicalInsuranceOfferSeen: run.restState.medicalInsuranceOfferSeen,
+    medicalInsurance: run.restState.medicalInsurance || null,
+    restPreviewUnlocks: run.restState.restPreviewUnlocks ? {...run.restState.restPreviewUnlocks} : undefined,
+    coinLog: run.restState.coinLog ? [...run.restState.coinLog] : undefined,
+    battleLog: run.restState.battleLog ? [...run.restState.battleLog] : undefined,
+  };
+}
+
+function filterRecordByKeysV5<T>(record: Record<string, T> | undefined, keys: Set<string>): Record<string, T> | undefined {
+  if (!record) return undefined;
+  const entries = Object.entries(record).filter(([key]) => keys.has(key));
+  return entries.length ? Object.fromEntries(entries) as Record<string, T> : undefined;
 }
 
 export function buildBattleViewV5(run: RunGameV5, activeBattle?: {sessionId?: string; nodeId?: string; battleGameId?: string; status?: string} | null): RunGameBattleViewV5 {
@@ -612,25 +626,10 @@ function restPlayerViewV5(run: RunGameV5, player: PlayerInstanceV5): RunGameRest
 }
 
 function restPokemonViewV5(pokemon: PokemonInstanceV5): RunGameRestPokemonViewV5 {
-  const localPokemon = pokemon.localPokemon;
   return {
     pokemonId: pokemon.pokemonId,
     ownerPlayerId: pokemon.ownerPlayerId,
-    localPokemon: {
-      localPokemonId: localPokemon.localPokemonId,
-      speciesId: localPokemon.speciesId,
-      name: localPokemon.name,
-      nameZh: localPokemon.nameZh,
-      nickname: localPokemon.nickname,
-      iconUrl: localPokemon.iconUrl,
-      iconStyle: localPokemon.iconStyle,
-      spriteUrl: localPokemon.spriteUrl,
-      shiny: localPokemon.shiny,
-      level: localPokemon.level,
-      entryHp: localPokemon.entryHp,
-      maxHp: localPokemon.maxHp,
-      entryStatus: localPokemon.entryStatus,
-    },
+    localPokemon: {...pokemon.localPokemon},
   };
 }
 
