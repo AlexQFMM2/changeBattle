@@ -53,6 +53,7 @@ import {
 } from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalGameRunV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
+import {applyBattleFinalizedResultV5, applyTrainingLessonV5, buildFormalRunCompatViewV5, commitFinalSettlementV5, createRunGameV5FromStarterRun, ingestPreparedRoundPlanV5, selectStarterPokemonV5} from "./runGameV5.js";
 import {
   CARRY_PREP_ITEMS_NODE_ID,
   COMPULSORY_EDUCATION_NODE_ID,
@@ -2279,6 +2280,54 @@ const coopBattlePrepared = await api.prepareFormalBattleSession(coopPlanned);
 assert(coopBattlePrepared.restRunSnapshot.players.p3?.controller === "script", "coop battle preparation should dispatch script ally p3");
 assert(coopBattlePrepared.restRunSnapshot.gameMap[0]?.participants.p3?.localTeam.pokemon.length === 2, "coop battle ally should bring two pokemon");
 assert(coopBattlePrepared.sessionInput.players.some(player => player.playerId === "p3" && player.controller === "script"), "coop battle session input should include script ally p3");
+
+let v5Run = createRunGameV5FromStarterRun({
+  roomId: "v5-redline-room",
+  matchId: "v5-redline-match",
+  createdByMemberId: "member:v5-redline",
+  roomCustomId: "G100001",
+  profileSnapshot: profile as any,
+  starterRun: prepared,
+});
+v5Run = selectStarterPokemonV5(v5Run, [0, 1, 2], 3, "v5-redline-select");
+v5Run = ingestPreparedRoundPlanV5(v5Run, await api.prepareFormalRoundPlan(buildFormalRunCompatViewV5(v5Run)), "v5-redline-prepare-round");
+v5Run = {
+  ...v5Run,
+  playersById: {
+    ...v5Run.playersById,
+    [v5Run.selfPlayerId]: {...v5Run.playersById[v5Run.selfPlayerId]!, money: 5000},
+  },
+};
+const v5TrainingPokemonId = v5Run.playersById[v5Run.selfPlayerId]!.localTeamPokemonIds[0]!;
+const v5CommandLogForbidden = /"(?:run|formalRun|restRunSnapshot|gameMap|participants|localTeam|bag|pokemon|items)"\s*:/;
+const v5MapForbidden = /"(?:participants|localTeam|bag|money|pokemon|items)"\s*:/;
+let previousV5Bytes = Buffer.byteLength(JSON.stringify(v5Run), "utf8");
+for (let index = 0; index < 3; index += 1) {
+  const v5Compat = buildFormalRunCompatViewV5(v5Run);
+  const lesson = api.getFormalTrainingGroundLessons(v5Compat).find(entry => entry.kind === "self-study") || api.getFormalTrainingGroundLesson(v5Compat);
+  assert(lesson, "RunGameV5 redline smoke should have a training lesson");
+  const applied = applyTrainingLessonV5(v5Run, {pokemonId: v5TrainingPokemonId, lessonKind: "self-study"}, lesson, null, `v5-redline-training-${index + 1}`);
+  v5Run = applied.run;
+  const bytes = Buffer.byteLength(JSON.stringify(v5Run), "utf8");
+  assert(bytes - previousV5Bytes < 2500, "RunGameV5 repeated training should not append a full compat run");
+  previousV5Bytes = bytes;
+}
+assert(Object.keys(v5Run.commandLog).length === 5, "RunGameV5 redline smoke should record select, prepare round and three training commands");
+assert(!v5CommandLogForbidden.test(JSON.stringify(v5Run.commandLog)), "RunGameV5 commandLog should not contain large run/entity payload fields");
+assert(!v5MapForbidden.test(JSON.stringify(v5Run.gameMap)), "RunGameV5 gameMap should only contain node slot references");
+assert(!v5MapForbidden.test(JSON.stringify(v5Run.roundPlan)), "RunGameV5 roundPlan should only contain node slot references");
+const v5BattleCompat = buildFormalRunCompatViewV5(v5Run);
+v5Run = applyBattleFinalizedResultV5(v5Run, {compatRun: v5BattleCompat, commandId: "v5-redline-finalize-battle", destination: "settlement", reason: "surrender"});
+const v5SettledCompat = api.prepareFormalSettlement(buildFormalRunCompatViewV5(v5Run), "surrender");
+v5Run = commitFinalSettlementV5(v5Run, {
+  commandId: "v5-redline-finalize-run",
+  formalRun: v5SettledCompat,
+  reason: "surrender",
+  summary: {reason: "surrender", bpGained: v5SettledCompat.settlement?.bpGained || 0},
+});
+assert(v5Run.finalResult?.settlementId === v5SettledCompat.settlement?.id, "RunGameV5 final result should retain settlement id");
+assert(!/"(?:run|formalRun|restRunSnapshot|gameMap|participants|localTeam|bag)"\s*:/.test(JSON.stringify(v5Run.finalResult)), "RunGameV5 final result should not contain a full compat run");
+assert(!v5CommandLogForbidden.test(JSON.stringify(v5Run.commandLog)), "RunGameV5 finalize commandLog should not contain large run/entity payload fields");
 
 console.log("[formal-game-smoke] ok");
 

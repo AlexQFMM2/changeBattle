@@ -6,7 +6,7 @@ import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core
 import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAssetFieldsV4, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmUseFailureReasonV4} from "./itemEffects.js";
 import {createMemoryRedisLikeProvider, createRedisSocketProvider, type RedisLikeCommandProvider} from "./roomStore.js";
-import {buildBattleSessionFormalRunV5, buildFormalRunCompatViewV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, ingestFormalRunCompatStateV5, ingestPreparedRoundPlanV5, markBattleRunningV5, reorderPlayerTeamV5, selectStarterPokemonV5, type RunGameV5} from "./runGameV5.js";
+import {applyBattleFinalizedResultV5, applyTrainingLessonV5, buildBattleSessionFormalRunV5, buildFormalRunCompatViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementV5, commitSelfBagMutationV5, commitSoulmateEggClaimV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, healSelfTeamV5, ingestPreparedRoundPlanV5, markBattleRunningV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, type RunGameV5} from "./runGameV5.js";
 import {normalizeBattlePreferenceV4} from "./training.js";
 
 type ServerConfig = {
@@ -77,7 +77,7 @@ type FormalRoomDraftSyncStoredResultV1 = {
 type FormalRoomFinalResultV1 = {
   clientRequestId: string;
   settlementId: string;
-  formalRun: FormalGameRunV4;
+  formalRun: FormalGameRunV4 | null;
   profile: UserProfileV2;
   playerVault: PlayerVaultV4;
   summary: {
@@ -306,7 +306,7 @@ function createHttpRequestHandler(): http.RequestListener {
       const matchId = decodeURIComponent(roomMatchDetailMatch[2]!);
       const room = await loadAuthorizedRoom(roomId, request);
       const match = findRoomMatch(room, matchId);
-      sendJson(response, 200, {room: publicRoom(room), match: publicMatch(match), formalRun: formalRunFromMatch(match)});
+      sendJson(response, 200, {room: publicRoom(room), match: publicMatch(match)});
       return;
     }
     if (request.method === "POST" && (roomMatchReadyMatch || roomMatchUnreadyMatch)) {
@@ -1133,10 +1133,9 @@ function formalRunFromMatch(match: FormalLobbyMatchV1): FormalGameRunV4 {
 }
 
 function publicMatch(match: FormalLobbyMatchV1): FormalLobbyMatchV1 {
-  const formalRun = formalRunFromMatch(match);
   return {
     ...match,
-    formalRun,
+    formalRun: null,
     runGameV5: undefined,
   };
 }
@@ -1208,6 +1207,16 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
     throw new HttpError(409, "formal_revision_conflict", "正式流程状态已更新，请刷新后重试。");
   }
   const match = requireCommandMatch(current, matchId);
+  if (commandName === "ack-final-result" && match.status === "ended" && match.cleanupAt) {
+    return {
+      room: publicRoom(current),
+      match: publicMatch(match),
+      revision: current.revision,
+      phase: "settlement",
+      view: {formalRun: null, room: publicRoom(current), match: publicMatch(match)},
+      reused: true,
+    };
+  }
   if (!match.runGameV5) throw new HttpError(409, "v5_run_missing", "当前对局不是 V5 权威模型，请重新创建对局。");
   const repeated = match.runGameV5.commandLog[commandId];
   if (repeated) {
@@ -1255,14 +1264,131 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
   if (commandName === "rest-action") {
     const action = (payload as any).action && typeof (payload as any).action === "object" ? (payload as any).action : payload;
     const actionType = requiredString((action as any)?.type, "action.type");
-    validateFormalRestActionDraft(buildFormalRunCompatViewV5(match.runGameV5));
-    const result = runFormalStep(() => applyFormalRestActionToRun(buildFormalRunCompatViewV5(match.runGameV5!), actionType, action));
-    if (!result.ok) throw new HttpError(400, "formal_rest_action_failed", result.message || "休整操作失败。");
-    const runGameV5 = ingestFormalRunCompatStateV5(match.runGameV5, result.run, `rest-action:${actionType}`, commandId, {actionType, message: result.message, result});
-    const next = advanceRoomMatchV5(current, matchId, runGameV5);
-    await saveRoom(next);
-    broadcastRoomUpdated(next);
-    return buildFormalMatchView(next, matchId, {reused: false, message: result.message, result});
+    const compatView = buildFormalRunCompatViewV5(match.runGameV5);
+    validateFormalRestActionDraft(compatView);
+    if (actionType === "team.heal") {
+      const applied = runFormalStep(() => healSelfTeamV5(match.runGameV5!, commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "shop.buy") {
+      const slotId = requiredString((action as any)?.slotId, "slotId");
+      const product = formalApi.getFormalRestShopProducts(compatView).find(entry => entry.slotId === slotId);
+      if (!product) throw new HttpError(400, "formal_rest_action_failed", "商品不存在。");
+      const applied = runFormalStep(() => buyShopProductV5(match.runGameV5!, product, commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "shop.sell") {
+      const itemInstanceIds = Array.isArray((action as any)?.itemInstanceIds) ? (action as any).itemInstanceIds.map((value: unknown) => String(value || "")).filter(Boolean) : [];
+      const applied = runFormalStep(() => sellBagItemsV5(match.runGameV5!, itemInstanceIds, commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "bag.use" || actionType === "bag.equip" || actionType === "bag.unequip" || actionType === "bag.discard") {
+      const applied = runFormalStep(() => applyFormalBagActionV5(match.runGameV5!, actionType, action, commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "pokemon.reroll-stats") {
+      const input = (action as any)?.input && typeof (action as any).input === "object" ? (action as any).input : action;
+      const applied = runFormalStep(() => rerollSelfPokemonStatsV5(match.runGameV5!, {
+        pokemonId: requiredString(input?.pokemonId, "pokemonId"),
+        part: input?.part,
+        lockedStats: Array.isArray(input?.lockedStats) ? input.lockedStats : [],
+      }, commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "opponent-preview.unlock") {
+      const input = (action as any)?.input && typeof (action as any).input === "object" ? (action as any).input : action;
+      const applied = runFormalStep(() => unlockOpponentPreviewV5(match.runGameV5!, requiredString(input?.unlockKey, "unlockKey"), commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "insurance.buy") {
+      const choice = String((action as any)?.choice || (action as any)?.tier || "basic");
+      const offer = formalApi.getFormalMedicalInsuranceOffer(compatView);
+      const tier = choice === "decline" ? null : offer.tiers.find(entry => entry.tier === choice) || offer.tiers[0] || null;
+      const applied = runFormalStep(() => chooseMedicalInsuranceV5(match.runGameV5!, tier, commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "pokemon.exchange") {
+      const sourcePokemonId = requiredString((action as any)?.sourcePokemonId, "sourcePokemonId");
+      const targetPokemonId = requiredString((action as any)?.targetPokemonId, "targetPokemonId");
+      const view = formalApi.getFormalRestExchangeView(compatView, {playerId: "p1"});
+      const targetPokemon = view.opponent?.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === targetPokemonId) || null;
+      if (!targetPokemon) throw new HttpError(400, "invalid_pokemon", "请选择上一场对手队伍中的宝可梦。");
+      const applied = runFormalStep(() => exchangeSelfPokemonV5(match.runGameV5!, {sourcePokemonId, targetPokemon, view}, commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "training.apply") {
+      const trainingInput = ((action as any)?.input && typeof (action as any).input === "object" ? (action as any).input : {}) as Record<string, unknown>;
+      const lesson = formalApi.getFormalTrainingGroundLessons(compatView)
+        .find(entry => trainingInput.lessonId ? entry.lessonId === trainingInput.lessonId : entry.kind === (trainingInput.lessonKind || "self-study"))
+        || formalApi.getFormalTrainingGroundLesson(compatView);
+      if (!lesson) throw new HttpError(400, "formal_rest_action_failed", "当前没有可用的训练场课程。");
+      const pokemonId = requiredString(trainingInput.pokemonId, "pokemonId");
+      const pokemon = match.runGameV5.pokemonById[pokemonId]?.localPokemon;
+      if (!pokemon) throw new HttpError(400, "invalid_pokemon", "宝可梦不存在。");
+      const moveSummary = findTrainingLessonMoveSummary(pokemon.speciesId, lesson.kind, typeof trainingInput.moveId === "string" ? trainingInput.moveId : "");
+      const applied = runFormalStep(() => applyTrainingLessonV5(match.runGameV5!, {
+        pokemonId,
+        moveId: typeof trainingInput.moveId === "string" ? trainingInput.moveId : undefined,
+        replaceMoveIndex: typeof trainingInput.replaceMoveIndex === "number" ? trainingInput.replaceMoveIndex : undefined,
+        lessonId: typeof trainingInput.lessonId === "string" ? trainingInput.lessonId : undefined,
+        lessonKind: typeof trainingInput.lessonKind === "string" ? trainingInput.lessonKind as any : undefined,
+      }, lesson, moveSummary, commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalMatchView(next, matchId, {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "soulmate-egg.claim") {
+      const candidateId = requiredString((action as any)?.candidateId, "candidateId");
+      const playerVaultSnapshot = (action as any)?.playerVaultSnapshot as PlayerVaultV4 | undefined;
+      const claimed = runFormalStep(() => formalApi.claimFormalSoulmateEgg(compatView, playerVaultSnapshot || null, candidateId, typeof (action as any)?.nickname === "string" ? (action as any).nickname : undefined));
+      if (!claimed.ok) throw new HttpError(400, "formal_rest_action_failed", claimed.message);
+      const applied = runFormalStep(() => commitSoulmateEggClaimV5(match.runGameV5!, {
+        commandId,
+        formalRun: claimed.run,
+        candidateId,
+        message: claimed.message,
+      }));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalMatchView(next, matchId, {
+        reused: false,
+        message: claimed.message,
+        result: {
+          ...applied.result,
+          playerVault: claimed.playerVault,
+          candidate: claimed.candidate,
+          pokemon: claimed.pokemon,
+          display: claimed.display,
+        },
+      });
+    }
+    throw new HttpError(400, "unsupported_rest_action", "暂不支持这个休整操作。");
   }
   if (commandName === "prepare-battle") {
     if (current.activeBattle?.status !== "finalized" && current.activeBattle?.sessionId) {
@@ -1335,7 +1461,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
     const cleanupAt = new Date(nowDate.getTime() + 60 * 1000).toISOString();
     const next: FormalRoomRecordV1 = {
       ...touchRoom(current),
-      matches: (current.matches || []).map(entry => entry.matchId === matchId ? {...entry, status: "ended", phaseLabel: "已结束", endedAt: entry.endedAt || now, cleanupAt, settlementSummary: current.finalResult?.summary || entry.settlementSummary, updatedAt: now} : entry),
+      matches: (current.matches || []).map(entry => entry.matchId === matchId ? {...entry, status: "ended", phaseLabel: "已结束", endedAt: entry.endedAt || now, cleanupAt, settlementSummary: current.finalResult?.summary || entry.settlementSummary, runGameV5: null, formalRun: null, updatedAt: now} : entry),
       activeMatchId: current.activeMatchId === matchId ? null : current.activeMatchId,
       formalRun: current.activeMatchId === matchId ? null : current.formalRun,
       revision: current.revision + 1,
@@ -1343,7 +1469,15 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
     };
     await saveRoom(next);
     broadcastRoomUpdated(next);
-    return buildFormalMatchView(next, match.matchId, {reused: false});
+    const nextMatch = findRoomMatch(next, match.matchId);
+    return {
+      room: publicRoom(next),
+      match: publicMatch(nextMatch),
+      revision: next.revision,
+      phase: "settlement",
+      view: {formalRun: null, room: publicRoom(next), match: publicMatch(nextMatch)},
+      reused: false,
+    };
   }
   throw new HttpError(404, "unknown_command", "未知房间指令。");
 }
@@ -1674,6 +1808,106 @@ function applyFormalRestActionToRun(run: FormalGameRunV4, actionType: string, ac
   throw new HttpError(400, "unsupported_rest_action", "暂不支持这个休整操作。");
 }
 
+function findTrainingLessonMoveSummary(speciesId: string, lessonKind: string, moveId: string): Partial<any> | null {
+  const normalizedMoveId = moveId.trim().toLowerCase();
+  if (!normalizedMoveId) return null;
+  const pool = lessonKind === "tutor"
+    ? formalApi.getPokemonTutorSkills(speciesId)
+    : lessonKind === "egg"
+      ? formalApi.getPokemonEggSkills(speciesId)
+      : lessonKind === "self-learn"
+        ? formalApi.getPokemonSelfLearnSkills(speciesId)
+        : [];
+  return pool.find(move => String(move.id || (move as any).moveId || "").toLowerCase() === normalizedMoveId) || null;
+}
+
+function applyFormalBagActionV5(run: RunGameV5, actionType: string, action: any, commandId: string): {run: RunGameV5; result: Record<string, unknown>} {
+  const context = requireFormalBagActionContextV5(run, action?.itemInstanceId, action?.pokemonId);
+  const {item, pokemon, bag, team} = context;
+  if (actionType === "bag.discard") {
+    if (!item) throw new HttpError(400, "invalid_item", "道具不存在。");
+    const detail = safeItemDetail(item.itemID);
+    if (isFormalSystemItem(item, detail)) throw new Error("系统道具不能丢弃。");
+    const nextBagItems = bag.items.filter(entry => entry.id !== item.id);
+    const nextPokemon = team.map(entry => entry.heldItemInstanceId === item.id ? {...entry, itemId: "", heldItemInstanceId: undefined} : entry);
+    return commitSelfBagMutationV5(run, {commandName: actionType, commandId, message: `${item.name || detail?.nameZh || detail?.name || item.itemID} 已丢弃。`, bagItems: nextBagItems, pokemonUpdates: nextPokemon, result: {itemInstanceId: item.id}});
+  }
+  if (!pokemon) throw new HttpError(400, "invalid_pokemon", "宝可梦不存在。");
+  if (actionType === "bag.unequip") {
+    if (!pokemon.heldItemInstanceId && !pokemon.itemId) throw new Error("选中宝可梦没有携带道具。");
+    const nextPokemon = {...pokemon, itemId: "", heldItemInstanceId: undefined};
+    return commitSelfBagMutationV5(run, {commandName: actionType, commandId, message: `${pokemon.nameZh || pokemon.name} 已卸下携带道具。`, pokemonUpdates: [nextPokemon], result: {pokemonId: pokemon.localPokemonId}});
+  }
+  if (!item) throw new HttpError(400, "invalid_item", "道具不存在。");
+  const detail = safeItemDetail(item.itemID);
+  if (actionType === "bag.equip") {
+    if (!canFormalEquipBagItem(item, detail)) throw new Error("该道具当前不能携带。");
+    const heldPatch = heldItemPatchForFormalEquip(item);
+    const exclusiveKind = formalSystemExclusiveKind(item);
+    const nextPokemon = team.map(entry => {
+      if (entry.localPokemonId === pokemon.localPokemonId) return {...entry, ...heldPatch};
+      if (exclusiveKind && formalPokemonHasSystemExclusiveKind(entry, exclusiveKind)) return {...entry, itemId: "", heldItemInstanceId: undefined};
+      if (entry.heldItemInstanceId === item.id) return {...entry, itemId: "", heldItemInstanceId: undefined};
+      return entry;
+    });
+    return commitSelfBagMutationV5(run, {commandName: actionType, commandId, message: `${pokemon.nameZh || pokemon.name} 已携带 ${item.name || detail?.nameZh || detail?.name || item.itemID}。`, pokemonUpdates: nextPokemon, result: {itemInstanceId: item.id, pokemonId: pokemon.localPokemonId}});
+  }
+  if (actionType === "bag.use") {
+    const result = applyBagUseEffectV5(run, {item, detail, pokemon, bag, team, moveSlot: action?.moveSlot});
+    if (!result.ok) throw new Error(result.reason);
+    return commitSelfBagMutationV5(run, {commandName: actionType, commandId, message: result.message, bagItems: result.bag.items, pokemonUpdates: result.pokemonUpdates, result: {itemInstanceId: item.id, pokemonId: pokemon.localPokemonId, moveSlot: result.moveSlot}});
+  }
+  throw new HttpError(400, "unsupported_rest_action", "暂不支持这个背包操作。");
+}
+
+function applyBagUseEffectV5(run: RunGameV5, context: {item: PlayerItemInstanceV4; detail: ReturnType<typeof safeItemDetail>; pokemon: LocalPokemonV4; bag: TrainingPlayerDraftV4["bag"]; team: LocalPokemonV4[]; moveSlot?: unknown}): {ok: true; message: string; bag: TrainingPlayerDraftV4["bag"]; pokemonUpdates: LocalPokemonV4[]; moveSlot?: number} | {ok: false; reason: string} {
+  const {item, detail, pokemon, bag, team} = context;
+  if (canUseTmItemV4(item, detail)) {
+    if (typeof context.moveSlot !== "number") {
+      return {ok: false, reason: tmUseFailureReasonV4({item, detail, pokemon, machineMoves: formalApi.getPokemonMachineSkills(pokemon.speciesId)}) || "请选择要替换的招式。"};
+    }
+    const result = applyTmItemToPokemonV4({item, detail, pokemon, bag, machineMoves: formalApi.getPokemonMachineSkills(pokemon.speciesId), moveSlot: context.moveSlot});
+    if (!result.ok) return {ok: false, reason: result.reason};
+    const pokemonUpdates = clearConsumedItemFromTeamV4(team, item).map(entry => entry.localPokemonId === pokemon.localPokemonId ? result.pokemon : entry);
+    return {ok: true, message: result.message, bag: result.bag, pokemonUpdates, moveSlot: result.moveSlot};
+  }
+  const result = canUseRecoveryItemV4(item, detail)
+    ? applyRecoveryItemToPokemonV4({item, detail, pokemon, bag, team})
+    : canUseTrainingItemV4(item, detail)
+      ? applyTrainingItemToPokemonV4({
+        item,
+        detail,
+        pokemon,
+        bag,
+        pokemonDetail: safePokemonDetail(pokemon.speciesId),
+        calculateMaxHp: next => calculateFormalPokemonMaxHp(next),
+        rngSeed: `${run.runId}:${run.currentNodeId || "rest"}:${item.id}:${pokemon.localPokemonId}`,
+        translateDexLabel: formalApi.translateDexLabel,
+      })
+      : {ok: false as const, reason: "该道具当前不能立即使用。"};
+  if (!result.ok) return {ok: false, reason: result.reason};
+  const pokemonUpdates = clearConsumedItemFromTeamV4(team, item).map(entry => entry.localPokemonId === pokemon.localPokemonId ? result.pokemon : entry);
+  return {ok: true, message: result.message, bag: result.bag, pokemonUpdates};
+}
+
+function requireFormalBagActionContextV5(run: RunGameV5, itemInstanceId?: string, pokemonId?: string): {bag: TrainingPlayerDraftV4["bag"]; team: LocalPokemonV4[]; item?: PlayerItemInstanceV4; pokemon?: LocalPokemonV4} {
+  const self = run.playersById[run.selfPlayerId];
+  if (!self) throw new HttpError(409, "room_not_resting", "缺少玩家实体。");
+  const bagEntity = run.bagsById[self.bagId];
+  if (!bagEntity) throw new HttpError(409, "room_not_resting", "缺少玩家背包。");
+  const bag = formalApi.normalizeBagState({
+    maxSize: bagEntity.maxSize,
+    battleBagEnabled: bagEntity.battleBagEnabled,
+    items: bagEntity.itemInstanceIds.map(id => run.itemInstancesById[id]?.item).filter((entry): entry is PlayerItemInstanceV4 => Boolean(entry)),
+  });
+  const team = self.localTeamPokemonIds.map(id => run.pokemonById[id]?.localPokemon).filter((entry): entry is LocalPokemonV4 => Boolean(entry));
+  const item = itemInstanceId ? bag.items.find(entry => entry.id === itemInstanceId) : undefined;
+  if (itemInstanceId && !item) throw new HttpError(400, "invalid_item", "道具不存在。");
+  const pokemon = pokemonId ? team.find(entry => entry.localPokemonId === pokemonId) : undefined;
+  if (pokemonId && !pokemon) throw new HttpError(400, "invalid_pokemon", "宝可梦不存在。");
+  return {bag, team, item, pokemon};
+}
+
 function applyFormalBagUseAction(run: FormalGameRunV4, input: {itemInstanceId: string; pokemonId: string; moveSlot?: unknown}): {ok: boolean; run: FormalGameRunV4; message: string; [key: string]: unknown} {
   const context = requireFormalBagActionContext(run, input.itemInstanceId, input.pokemonId);
   const {item, pokemon, p1, bag, team} = context;
@@ -1974,7 +2208,13 @@ async function finalizeFormalRoomBattleV5(current: FormalRoomRecordV1, match: Fo
     playerVault,
     settlementNotice,
   };
-  const runGameV5 = ingestFormalRunCompatStateV5(match.runGameV5, formalRun, "finalize-battle", commandId, finalResult);
+  const runGameV5 = applyBattleFinalizedResultV5(match.runGameV5, {
+    compatRun: formalRun,
+    commandId,
+    destination: finalized.destination,
+    reason: finalized.reason,
+    settlementNotice,
+  });
   const now = new Date().toISOString();
   const next: FormalRoomRecordV1 = {
     ...advanceRoomMatchV5(current, match.matchId, runGameV5),
@@ -2104,7 +2344,7 @@ async function finalizeFormalRoomRun(roomId: string, request: http.IncomingMessa
   const finalResult: FormalRoomFinalResultV1 = {
     clientRequestId,
     settlementId: formalRun.settlement.id,
-    formalRun,
+    formalRun: null,
     profile,
     playerVault,
     summary: {
@@ -2127,7 +2367,7 @@ async function finalizeFormalRoomRun(roomId: string, request: http.IncomingMessa
   await saveRoom(next, config.roomFinalResultTtlMs);
   broadcastRoomUpdated(next);
   broadcastRoomClosed(next.roomId, "finalized");
-  return finalResultResponse(next, finalResult, false);
+  return finalResultResponse(next, finalResult, false, formalRun);
 }
 
 async function finalizeFormalRoomRunV5KeepRoomOpen(current: FormalRoomRecordV1, match: FormalLobbyMatchV1, commandId: string, payload: any): Promise<FormalRoomFinalResultResponseV1 & {roomRecord: FormalRoomRecordV1}> {
@@ -2189,7 +2429,7 @@ async function finalizeFormalRoomRunV5KeepRoomOpen(current: FormalRoomRecordV1, 
   const finalResult: FormalRoomFinalResultV1 = {
     clientRequestId: commandId,
     settlementId: formalRun.settlement.id,
-    formalRun,
+    formalRun: null,
     profile,
     playerVault,
     summary: {
@@ -2201,7 +2441,12 @@ async function finalizeFormalRoomRunV5KeepRoomOpen(current: FormalRoomRecordV1, 
     createdAt: now.toISOString(),
     expiresAt,
   };
-  const runGameV5 = ingestFormalRunCompatStateV5(match.runGameV5, formalRun, "finalize-run", commandId, {settlementId: finalResult.settlementId, summary: finalResult.summary});
+  const runGameV5 = commitFinalSettlementV5(match.runGameV5, {
+    commandId,
+    formalRun,
+    reason,
+    summary: finalResult.summary,
+  });
   const nextBase = advanceRoomMatchV5(current, match.matchId, runGameV5);
   const next: FormalRoomRecordV1 = {
     ...nextBase,
@@ -2213,7 +2458,7 @@ async function finalizeFormalRoomRunV5KeepRoomOpen(current: FormalRoomRecordV1, 
   };
   await saveRoom(next);
   broadcastRoomUpdated(next);
-  return {...finalResultResponse(next, finalResult, false), roomRecord: next};
+  return {...finalResultResponse(next, finalResult, false, formalRun), roomRecord: next};
 }
 
 async function finalizeFormalRoomRunKeepRoomOpen(roomId: string, request: http.IncomingMessage, matchId: string, body: any): Promise<FormalRoomFinalResultResponseV1> {
@@ -2278,7 +2523,7 @@ async function finalizeFormalRoomRunKeepRoomOpen(roomId: string, request: http.I
   const finalResult: FormalRoomFinalResultV1 = {
     clientRequestId,
     settlementId: formalRun.settlement.id,
-    formalRun,
+    formalRun: null,
     profile,
     playerVault,
     summary: {
@@ -2301,7 +2546,7 @@ async function finalizeFormalRoomRunKeepRoomOpen(roomId: string, request: http.I
   };
   await saveRoom(next);
   broadcastRoomUpdated(next);
-  return finalResultResponse(next, finalResult, false);
+  return finalResultResponse(next, finalResult, false, formalRun);
 }
 
 function getRoomFinalResult(room: FormalRoomRecordV1): FormalRoomFinalResultResponseV1 {
@@ -2313,10 +2558,11 @@ function getRoomFinalResult(room: FormalRoomRecordV1): FormalRoomFinalResultResp
   return finalResultResponse(room, finalResult, true);
 }
 
-function finalResultResponse(room: FormalRoomRecordV1, finalResult: FormalRoomFinalResultV1, reused: boolean): FormalRoomFinalResultResponseV1 {
+function finalResultResponse(room: FormalRoomRecordV1, finalResult: FormalRoomFinalResultV1, reused: boolean, formalRunOverride: FormalGameRunV4 | null = null): FormalRoomFinalResultResponseV1 {
+  const activeMatch = findActiveRoomMatch(room);
   return {
     room: publicRoom(room),
-    formalRun: finalResult.formalRun,
+    formalRun: finalResult.formalRun || formalRunOverride || (activeMatch?.runGameV5 || activeMatch?.formalRun ? formalRunFromMatch(activeMatch) : null),
     profile: finalResult.profile,
     playerVault: finalResult.playerVault,
     settlementId: finalResult.settlementId,
@@ -2452,12 +2698,11 @@ function touchRoom(room: FormalRoomRecordV1): FormalRoomRecordV1 {
 function publicRoom(room: FormalRoomRecordV1): Record<string, unknown> {
   const {roomTokenHash: _roomTokenHash, activeBattle, restActionResults: _restActionResults, draftSyncResults: _draftSyncResults, finalResult: _finalResult, ...safeRoom} = room;
   const activeMatch = findActiveRoomMatch(room);
-  const matches = (room.matches || []).map(match => match.runGameV5 || match.formalRun ? publicMatch(match) : {...match, runGameV5: undefined});
-  const formalRun = room.formalRun || (activeMatch ? formalRunFromMatch(activeMatch) : null);
+  const matches = (room.matches || []).map(match => match.runGameV5 || match.formalRun ? publicMatch(match) : {...match, runGameV5: undefined, formalRun: null});
   return {
     ...safeRoom,
     matches,
-    formalRun,
+    formalRun: null,
     finalResult: room.finalResult ? {
       settlementId: room.finalResult.settlementId,
       createdAt: room.finalResult.createdAt,
@@ -2628,7 +2873,7 @@ async function handleRoomWsMessage(client: RoomWsClient, raw: string): Promise<v
       registerWsClient(client);
       const next = touchRoom(room);
       await saveRoom(next);
-      sendWsJson(client, {type: "room.ready", room: publicRoom(next), formalRun: next.formalRun || findActiveRoomMatch(next)?.formalRun || null, revision: next.revision});
+          sendWsJson(client, {type: "room.ready", room: publicRoom(next), formalRun: null, revision: next.revision});
       broadcastRoomUpdated(next, client);
       log("info", "room-ws-authed", {roomId: client.roomId, clientId: client.id});
       return;
@@ -2699,7 +2944,7 @@ function logWsClose(client: RoomWsClient): void {
 
 function broadcastRoomUpdated(room: FormalRoomRecordV1 | undefined, except?: RoomWsClient): void {
   if (!room) return;
-  broadcastRoomMessage(room.roomId, {type: "room.updated", room: publicRoom(room), formalRun: room.formalRun || findActiveRoomMatch(room)?.formalRun || null, revision: room.revision}, except);
+  broadcastRoomMessage(room.roomId, {type: "room.updated", room: publicRoom(room), formalRun: null, revision: room.revision}, except);
 }
 
 function broadcastRoomClosed(roomId: string, reason: string): void {

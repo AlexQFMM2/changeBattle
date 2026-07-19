@@ -579,3 +579,220 @@ buildFormalRunCompatView(runGameV5): FormalGameRunV4
 进入战斗时，Showdown team 来自 Player.localTeamPokemonIds 当前顺序。
 旧页面通过 view/compat 暂时可用，但不能反向污染权威数据。
 ```
+
+## V5 Redline Scanner Checklist
+
+扫描时间：2026-07-19。
+目的：把“流程能跑通”和“V5 权威模型真的完成”拆开验收。下面清单没有全部 `[x]` 前，不能再声称 C/S 正式流程已经完成。
+
+### 红线明确
+
+红线第一遍：
+
+- `buildFormalRunCompatViewV5()` 只能生成展示 view，不能作为 command 写入源。
+- `ingestFormalRunCompatStateV5()` 不能留在新 room 主线 command 中。
+- `RunGameV5.commandLog` 只能保存小型幂等结果，不能保存 `run`、`formalRun`、`restRunSnapshot`、`gameMap`、`participants`。
+- `Room.finalResult` 只能保存轻量 final result、profile/vault delta、settlement summary；不能长期保存完整 `formalRun`。
+- `/rooms/:roomId/formal/*`、`formalRunDraft`、`syncDraft` 只能作为 legacy/dev 路径，不能被 Web/Desktop/Android 正式 room 主线调用。
+
+红线第二遍：
+
+- 不允许 view 反向写回 Redis。
+- 不允许 compat V4 run 反向摄取成 V5 权威。
+- 不允许 commandLog 存大对象。
+- 不允许 room 主线调用旧 V4 rest helper 推进状态。
+- 不允许通过提高 `CHANGEBATTLE_ROOM_MAX_BYTES` 掩盖数据结构错误。
+
+红线第三遍：
+
+- `Player.localTeamPokemonIds` 是队伍顺序唯一权威。
+- `Player.money` 是金币余额唯一权威。
+- `PokemonInstance` 是宝可梦局内状态唯一权威。
+- `Bag / ItemInstance` 是背包与道具唯一权威。
+- `GameMap / RoundPlan / BattleRecord` 只引用实体 ID，不复制实体内容。
+
+### 扫描命令
+
+后续每次 V5 收口都必须跑这些扫描，命中项必须逐条解释：
+
+```bash
+rg -n "buildFormalRunCompatViewV5|ingestFormalRunCompatStateV5|formalRunDraft|sync-draft|syncDraft|result\\.run|commandLog|formalRunFromMatch|publicMatch|advanceRoomMatchV5|buildFormalMatchView" apps/api/src apps/web/src -g '*.ts' -g '*.tsx'
+rg -n "applyFormalTrainingGroundLesson|healFormalRestTeam|buyFormalRestShopItem|sellFormalRestBagItems|exchangeFormalRestPokemon|rerollFormalRestPokemonStats|unlockFormalRestOpponentPreview|chooseFormalMedicalInsurance|claimFormalSoulmateEgg|applyFormalBagUseAction|applyFormalBagEquipAction|applyFormalBagUnequipAction|applyFormalBagDiscardAction" apps/api/src/server.ts apps/api/src/formalGame.ts apps/web/src/App.tsx
+rg -n "saveFormalGameRun|loadFormalGameRun|deleteFormalGameRun|persistServerConfirmedFormalRun|applyFormalRunView|setFormalRun\\(" apps/web/src/App.tsx apps/web/src -g '*.tsx' -g '*.ts'
+rg -n "restActionResults|draftSyncResults|finalResult|activeBattle|formalRun:" apps/api/src/server.ts apps/api/src/runGameV5.ts
+```
+
+### 当前扫描结果
+
+- [x] `RunGameV5` 基础实体容器已存在：`playersById / pokemonById / bagsById / itemInstancesById / gameMap.slots / roundPlan.slots`。
+- [x] `select-starters` 已走实体引用：starter candidate 的完整 Pokemon 转为 `pokemonById`，玩家队伍写 `Player.localTeamPokemonIds`。
+- [x] `team.reorder` 已是实体级写入：只改 `Player.localTeamPokemonIds`，commandLog 只存 `pokemonIds`。
+- [x] `sync-draft` match command 当前直接返回 410，不接受整份正式流程草稿。
+- [x] `saveRoom()` 有 1MB 房间大小保护，能暴露大对象污染问题。
+- [ ] `rest-action` 仍违反红线：`apps/api/src/server.ts` 中 `rest-action` 先 `buildFormalRunCompatViewV5()`，再 `applyFormalRestActionToRun()`，再 `ingestFormalRunCompatStateV5()` 写回。
+- [ ] `training.apply` 仍违反红线：当前调用 `formalApi.applyFormalTrainingGroundLesson(run, input)`，返回 `{ok, run, message, lesson}`，其中 `run` 是完整 V4 `FormalGameRunV4`。
+- [ ] `team.heal` 仍违反红线：当前调用 `formalApi.healFormalRestTeam(run)`，返回完整 V4 run。
+- [ ] `pokemon.exchange` 仍违反红线：当前调用 `formalApi.exchangeFormalRestPokemon(run, ...)`，返回完整 V4 run。
+- [ ] `shop.buy` 仍违反红线：当前调用 `formalApi.buyFormalRestShopItem(run, slotId)`，返回完整 V4 run。
+- [ ] `shop.sell` 仍违反红线：当前调用 `formalApi.sellFormalRestBagItems(run, itemInstanceIds)`，返回完整 V4 run。
+- [ ] `pokemon.reroll-stats` 仍违反红线：当前调用 `formalApi.rerollFormalRestPokemonStats(run, input)`，返回完整 V4 run。
+- [ ] `opponent-preview.unlock` 仍违反红线：当前调用 `formalApi.unlockFormalRestOpponentPreview(run, input)`，返回完整 V4 run。
+- [ ] `insurance.buy` 仍违反红线：当前调用 `formalApi.chooseFormalMedicalInsurance(run, choice)`，返回完整 V4 run。
+- [ ] `soulmate-egg.claim` 仍违反红线：当前调用 `formalApi.claimFormalSoulmateEgg(run, playerVaultSnapshot, ...)`，返回完整 V4 run，并混入外部 vault snapshot。
+- [ ] `bag.use` 仍违反红线：当前 `applyFormalBagUseAction()` 读取 `p1.localTeam / p1.bag` 并用 `patchFormalBagActionP1()` 写回 V4 player/gameMap participants。
+- [ ] `bag.equip` 仍违反红线：当前 `applyFormalBagEquipAction()` 修改 V4 `localTeam` 后 patch 回 rest snapshot。
+- [ ] `bag.unequip` 仍违反红线：当前 `applyFormalBagUnequipAction()` 修改 V4 `localTeam` 后 patch 回 rest snapshot。
+- [ ] `bag.discard` 仍违反红线：当前 `applyFormalBagDiscardAction()` 修改 V4 `bag/localTeam` 后 patch 回 rest snapshot。
+- [ ] `commandLog` 类型仍过宽：`result: unknown` 允许完整 `result.run` 被保存。
+- [ ] `appendCommandLog()` 未做大对象红线检查：没有拒绝 `run/formalRun/restRunSnapshot/gameMap/participants/localTeam/bag/pokemon/items`。
+- [ ] `ingestFormalRunCompatStateV5()` 本身是污染入口：从 compat run 读取 `restRunSnapshot.players`、`gameMap.participants`、`money`、`coinLog`、`battleLog` 后写入 V5。
+- [ ] `prepare-round` 仍通过 `formalApi.prepareFormalRoundPlan(formalRunFromMatch(match))` 生成旧 V4 round，再 `ingestPreparedRoundPlanV5()`；短期可作为 NPC 生成桥，但必须标成迁移债，不能扩张。
+- [ ] `prepare-battle` 仍生成 compat run 后调用 `formalApi.prepareFormalBattleSession(compatRun)`；必须确认 Showdown team 的最终来源只走 `node.slots -> Player.localTeamPokemonIds -> PokemonInstance`，否则返工。
+- [ ] `finalize-battle` 仍违反红线：当前 `buildFormalRunCompatViewV5()` -> `formalApi.finalizeFormalBattleResultV4()` -> `ingestFormalRunCompatStateV5()`，不是实体级写回 HP/status/PP/money/BattleRecord/GameNode。
+- [ ] `finalize-run` 仍违反红线：当前 `buildFormalRunCompatViewV5()` -> `formalApi.prepareFormalSettlement()` -> `ingestFormalRunCompatStateV5()`，并把完整 `formalRun` 放进 `finalResult`。
+- [ ] `finalResultResponse()` 仍返回 `finalResult.formalRun`；结算恢复路径还依赖完整 compat run。
+- [ ] `publicMatch()` 当前对每个 match 都生成 `formalRunFromMatch(match)`；公共 room payload 可能携带完整 compat `formalRun`，需要改为轻量 match summary + 当前 view 按需返回。
+- [ ] `publicRoom()` 当前包含 `formalRun` 和 `matches.publicMatch()`；必须拆成轻量 room index，避免房间列表/WS 广播带完整 run。
+- [ ] `broadcastRoomUpdated()` / WS payload 当前带 `formalRun`；必须改成 revision + room summary，页面需要时自己 GET match view。
+- [ ] legacy `/rooms/:roomId/formal/sync-draft`、`/formal/rest-action`、旧 battle/finalize endpoint 仍在 server 中；必须明确隔离为 legacy，正式 room 主线不可调用。
+- [ ] `postService.ts` 仍注册 `rooms.syncDraft`、`rooms.restAction` 等 legacy action；正式 room 主线不得 import/调用，最终应移出共享正式 API facade。
+- [ ] `apps/api/src/index.ts` 仍暴露 `syncFormalRoomDraft / submitFormalRoomRestAction / prepareFormalRoomBattle` 等 draft 型 API；正式 room C 端不得调用，最终应标 legacy 或删除。
+- [ ] `apps/web/src/App.tsx` 中 room rest command 成功后仍消费 `response.data.view.formalRun`；短期可展示，长期要改为 `RunGameViewV5`。
+- [ ] `apps/web/src/App.tsx` 中非 room legacy 分支还调用旧 `api.*Formal*` helper；训练场/legacy 可保留，但必须和 room 主线有硬边界。
+- [ ] `FormalBattleTransitionPage / FormalBattleResultTransitionPage / FormalSettlementTransitionPage / FormalStarterSelectPage / FormalRoundTransitionPage` 仍有 `saveFormalGameRun()` 路径；必须确认 room 模式不会落入本地大缓存。
+- [ ] `TrainingRestNewPage` 和子组件仍以 `result.run.restRunSnapshot` 驱动局部更新；room 模式必须由服务端 command response 覆盖 view，不能把组件产物当权威。
+- [ ] 缺少“执行两次训练后 Redis room size 稳定”的自动测试。
+- [ ] 缺少“commandLog 不含完整 run/formalRun/restRunSnapshot”的自动测试。
+- [ ] 缺少“publicRoom / WS 不带完整 formalRun”的自动测试。
+- [ ] 缺少“finalize-run 后只保留轻量结果索引，1 分钟后清完整 runGameV5”的自动测试。
+
+### 任务明确
+
+第一批必须改完，不允许跳过：
+
+- [ ] 新增 V5 command result 类型，`commandLog.result` 改成受限小对象。
+- [ ] 给 `appendCommandLog()` 加红线断言：拒绝 `run/formalRun/restRunSnapshot/gameMap/participants/localTeam/bag/pokemon/items`。
+- [ ] 删除新 room 主线对 `ingestFormalRunCompatStateV5()` 的调用；保留时必须只在 legacy/dev 或一次性迁移脚本中。
+- [ ] 拆掉 `rest-action` 大分发，改为每个 action 一个 V5 实体 command。
+- [ ] `training.apply`：只改目标 `PokemonInstance.localPokemon.ivs/evs/nature/maxHp/entryHp`、`Player.money`、小型 coin ledger、training state。
+- [ ] `team.heal`：只改 self team 引用到的 `PokemonInstance` HP/status/PP、`Player.money`、coin ledger。
+- [ ] `shop.buy`：只改 `Player.money`、`Bag.itemInstanceIds`、`ItemInstance`、shop state、coin ledger。
+- [ ] `shop.sell`：只改 `Player.money`、`Bag.itemInstanceIds`、`ItemInstance`、coin ledger。
+- [ ] `pokemon.reroll-stats`：只改目标 `PokemonInstance` stats、`Player.money`、coin ledger。
+- [ ] `pokemon.exchange`：只改 `Player.localTeamPokemonIds` / `PokemonInstance` ownership 或新增替换实体、exchange state、coin ledger。
+- [ ] `bag.use/equip/unequip/discard`：只改 `PokemonInstance`、`Bag`、`ItemInstance`。
+- [ ] `opponent-preview.unlock / insurance.buy / soulmate-egg.claim` 改为 V5 小状态写入，不回传整份 run。
+- [ ] `prepare-battle` 改为实体级构建 Showdown team；旧 V4 battle preparation helper 只能作为纯计算工具，不能成为权威写路径。
+- [ ] `battle-choice` 记录小型 `BattleChoiceRecordV5`，不写完整 snapshot/timeline 到 room。
+- [ ] `finalize-battle` 实体级写回 `PokemonInstance / Player / Economy / BattleRecord / GameNode / RoundRecord`。
+- [ ] `finalize-run` 从 V5 实体生成 settlement summary/profile delta/vault delta，不存完整 formalRun。
+- [ ] `ack-final-result` 标记 match ended，并按清理规则移除完整 runGameV5，只保留轻量 match index/result summary。
+- [ ] `publicRoom / publicMatch / WS` 改为轻量输出；完整展示只能通过 `GET match view`。
+- [ ] C 端 room 页面改为消费 `RunGameViewV5`，compat formalRun 只作为组件适配层内存对象，不能保存、不能回传。
+
+### 计划明确
+
+执行顺序固定：
+
+1. 先锁红线：改 `commandLog` 类型和断言，新增测试，确保再也塞不进完整 run。
+2. 再拆休整：按 `training.apply -> team.heal -> shop.buy/sell -> bag.* -> reroll/exchange -> preview/insurance/soulmate` 顺序逐个实体化。
+3. 再拆战斗：`prepare-battle -> battle-choice -> finalize-battle` 全部从实体读写。
+4. 再拆结算：`finalize-run -> final-result -> ack-final-result` 轻量化。
+5. 再拆输出：`publicRoom / publicMatch / WS / match view` 分清 summary 与 view。
+6. 最后清前端：room 主线不再依赖 `formalRunDraft`、不写本地大 `formalRun`、不把组件 draft 当权威。
+
+每一刀的完成定义：
+
+- [ ] `pnpm --filter @changebattle-v2/api typecheck`
+- [ ] `pnpm --filter @changebattle-v2/web typecheck`
+- [ ] `pnpm --filter @changebattle-v2/desktop typecheck`
+- [ ] `pnpm --filter @changebattle-v2/mobile typecheck`
+- [ ] `git diff --check`
+- [ ] redline scanner 无未解释的新命中。
+- [ ] API smoke 覆盖该 command 的成功、失败、超时/重试幂等。
+- [ ] Redis room JSON size 在重复执行该 command 后稳定，不能线性塞整份 run。
+
+最终完成定义：
+
+- [ ] 执行两次训练、两次购买、两次治疗、两次背包操作后，room size 不接近 `CHANGEBATTLE_ROOM_MAX_BYTES`。
+- [ ] Redis 中 `runGameV5.commandLog` 不含完整 `run/formalRun/restRunSnapshot/gameMap/participants/localTeam/bag`。
+- [ ] Redis 中 `gameMap/roundPlan` 不含完整 Player/Pokemon/Bag/Item。
+- [ ] `publicRoom`、WS `room.updated` 不携带完整 `formalRun`。
+- [ ] 刷新后页面通过 `GET match view` 恢复，不通过本地大 run 恢复。
+- [ ] ChromeAutomation 完整跑通：创建房间 -> 创建对局 -> starter -> rest -> 训练两次 -> 购买/治疗/背包 -> battle -> victory/surrender -> settlement -> 返回房间。
+- [ ] ChromeAutomation 不能只跑一次主链路；每个确认型 command 都要多点几次，覆盖重复提交、业务失败、网络失败/超时重试和数据体积稳定性。
+- [ ] ChromeAutomation 多次点击清单至少包含：训练连续 2-3 次、治疗重复/金币不足或已满路径、商店购买多次、出售多次、背包使用/携带/卸下/丢弃、队伍排序保存两次、重随/交换/打听/保险/灵魂蛋、战斗多回合出招、投降、胜利闭环、结算刷新恢复和返回房间。
+- [ ] ChromeAutomation 每轮关键操作后抽查服务端 room JSON size 与 `runGameV5.commandLog`，确认没有完整 `run/formalRun/restRunSnapshot/gameMap/participants/localTeam/bag` 被写入。
+
+## V5 收口执行记录（2026-07-19）
+
+本轮按“正式 room 主线 V5 权威、compat 只读展示”的红线收口。下面是本轮已完成项；旧 legacy/local 训练场路径仍可存在，但不得作为正式 room 主线调用依据。
+
+### 已完成红线
+
+- [x] `RunGameV5.commandLog.result` 改为受限小对象类型 `RunGameCommandLogResultV5`。
+- [x] `appendCommandLog()` 增加红线断言，拒绝 `run/formalRun/restRunSnapshot/gameMap/participants/localTeam/bag/pokemon/items` 等大对象字段。
+- [x] `appendCommandLog()` 增加 16KB 大小限制，防止幂等结果偷偷塞完整 view/run。
+- [x] `assertRunGameV5RedLines()` 校验 `gameMap/roundPlan` 不得包含 `participants/localTeam/bag/money/pokemon/items`。
+- [x] `rest-action` match-scoped 主线已拆到 V5 实体 command，不再通过 `applyFormalRestActionToRun()` + compat ingest 写回。
+- [x] `training.apply` 只改目标 `PokemonInstance.localPokemon`、`Player.money`、训练状态和小型 coin log。
+- [x] `team.heal` 只改 self team 引用到的 `PokemonInstance` 状态、`Player.money` 和 coin log。
+- [x] `shop.buy/sell` 只改 `Player.money`、`Bag.itemInstanceIds`、`ItemInstance`、shop state 和 coin log。
+- [x] `bag.use/equip/unequip/discard` 通过 V5 实体提交函数写 `PokemonInstance / Bag / ItemInstance`，不写回 `gameMap.participants`。
+- [x] `pokemon.reroll-stats`、`pokemon.exchange`、`opponent-preview.unlock`、`insurance.buy`、`soulmate-egg.claim` 已接入 V5 小状态写入。
+- [x] `prepare-battle` 从 V5 run 构建 battle formal run，并通过 `markBattleRunningV5()` 记录小型 battle id，不把 snapshot/timeline 存入 room。
+- [x] `finalize-battle` 通过 `applyBattleFinalizedResultV5()` 实体级写回，不再调用 compat ingest。
+- [x] `finalize-run` 通过 `commitFinalSettlementV5()` 生成轻量 `finalResult`，`Room.finalResult.formalRun` 不再长期保存完整 run。
+- [x] `ack-final-result` 标记 match ended 后清理 `match.runGameV5` 和 `match.formalRun`，房间只保留 ended match summary。
+- [x] `publicRoom()`、`publicMatch()`、WS `room.ready/room.updated` 不携带完整 `formalRun/runGameV5`。
+- [x] 普通 `GET /rooms/:roomId/matches/:matchId` 改成轻量 detail；完整展示数据走 `GET /matches/:matchId/view` 或当前 command response。
+- [x] Room 模式下 C 端不把 compat `formalRun` 持久化到本地大缓存，只保留内存展示 view。
+
+### 自动测试覆盖
+
+- [x] `pnpm --filter @changebattle-v2/api test:formal-game` 增加 V5 redline smoke：
+  - [x] 创建 V5 run、select starters、prepare round。
+  - [x] 连续训练 3 次，单次 JSON 增长小于 2500 bytes。
+  - [x] `commandLog` 不含完整 `run/formalRun/restRunSnapshot/gameMap/participants/localTeam/bag/pokemon/items`。
+  - [x] `gameMap/roundPlan` 不含完整实体字段。
+  - [x] `finalize-battle/finalize-run` commandLog 不含大对象。
+  - [x] `RunGameV5.finalResult` 不含完整 compat run。
+
+### ChromeAutomation 验收记录
+
+- [x] 启动当前 worktree memory Battle API：`127.0.0.1:5192/changebattle/battle`。
+- [x] 启动 Web dev：`127.0.0.1:5188`，并指向当前 memory API。
+- [x] 首页二级菜单没有“继续游戏/对局偏好”，创建房间后才连接服务器。
+- [x] 创建房间成功，房间页展示 Room ID、游客 ID、成员列表。
+- [x] 创建对局面板有“返回上一步”，偏好项独立展示。
+- [x] ready/start 后进入 starter select，按钮为“返回房间”。
+- [x] select starters -> prepare round -> rest 未卡住。
+- [x] 保险 decline command 成功。
+- [x] 训练 command 连续执行 2 次，金币正常变化，未出现 `room_too_large`。
+- [x] 商店购买成功，出售成功，金币正常变化。
+- [x] 治疗成功，金币正常变化。
+- [x] 队伍排序按“草稿调整 -> 保存顺序”提交；保存后顺序变为咚咚鼠第一。
+- [x] prepare battle 后战斗首发为咚咚鼠，证明 Showdown team 顺序来自 `Player.localTeamPokemonIds`。
+- [x] 投降二次确认成功，battle result transition -> settlement transition -> settlement 跑通。
+- [x] 结算页按钮为“返回房间”。
+- [x] 返回房间后 match 显示“已结束”，房间仍保留。
+- [x] ack 后 `GET /rooms/:roomId` public JSON 约 1892 bytes；room 无 `formalRun`，ended match 无 `formalRun/runGameV5`，仅有 `settlementSummary`。
+- [x] Chrome localStorage 中无大 formal run 缓存，只剩 room credential 和 settlement 幂等标记。
+
+### 必跑检查结果
+
+- [x] `pnpm --filter @changebattle-v2/api typecheck`
+- [x] `pnpm --filter @changebattle-v2/web typecheck`
+- [x] `pnpm --filter @changebattle-v2/desktop typecheck`
+- [x] `pnpm --filter @changebattle-v2/mobile typecheck`
+- [x] `pnpm --filter @changebattle-v2/showdown-battle-core typecheck`
+- [x] `pnpm typecheck`
+- [x] `pnpm --filter @changebattle-v2/api test:formal-game`
+- [x] `git diff --check`
+
+### 剩余边界说明
+
+- [ ] `buildFormalRunCompatViewV5()` 仍作为旧 UI 展示 DTO 生成器存在；红线是只读展示，不能回写 Redis 权威。
+- [ ] `prepare-round` 和部分 battle/settlement 计算仍会临时调用 V4 formal helper 作为纯计算器；写回点必须保持 V5 实体函数。
+- [ ] Legacy `/rooms/:roomId/formal/*`、`postService rooms.syncDraft/restAction`、本地训练场 helper 仍保留给 legacy/dev；正式 room 主线不得调用。
+- [ ] `TrainingRestNewPage` 仍消费 compat `formalRun` 渲染；下一阶段应拆成真正的 `RunGameViewV5` 分片展示，进一步减少 command response payload。

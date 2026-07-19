@@ -1,5 +1,5 @@
-import type {BattlePreferenceV4, FormalCompetitionModeV4, PlayerItemInstanceV4, ShowdownPlayerIdV4, TrainingAllianceV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4, TrainingRuleSetV4} from "./training.js";
-import type {FormalGameModeV4, FormalMedicalInsuranceStateV4, FormalGameRunV4, FormalRoundNpcSnapshotV4, FormalRoundPlanV4, FormalStarterCandidateV4} from "./formalGame.js";
+import type {BattlePreferenceV4, FormalCompetitionModeV4, PlayerItemInstanceV4, ShowdownPlayerIdV4, StatTableV4, TrainingAllianceV4, TrainingCoinLogEntryV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4, TrainingRuleSetV4} from "./training.js";
+import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRoundNpcSnapshotV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import type {LocalPokemonV4, LocalTeamV4} from "./training.js";
 import type {PlayerVaultV4, UserProfileV2} from "./index.js";
 
@@ -31,6 +31,8 @@ export type RunGameConfigV5 = {
   createdByMemberId: string;
   battlePreference: BattlePreferenceV4;
 };
+
+export type RunGameCommandLogResultV5 = Record<string, unknown> | null;
 
 const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET_V5: Record<TrainingRuleSetV4, string[]> = {
   standard: [],
@@ -163,8 +165,21 @@ export type RunGameV5 = {
     coinLog?: TrainingRunGameV4["coinLog"];
     battleLog?: TrainingRunGameV4["battleLog"];
   };
-  commandLog: Record<CommandIdV5, {revision: number; commandName: string; result: unknown; createdAt: string}>;
-  finalResult?: unknown;
+  soulmateState?: {
+    eggClaimedAt?: string;
+    eggCandidateId?: string;
+    playerPokemonId?: string;
+    friendshipSettlementByNodeId?: FormalGameRunV4["soulmateFriendshipSettlementByNodeId"];
+    honorSettlementByNodeId?: FormalGameRunV4["soulmateHonorSettlementByNodeId"];
+    battleEvolutionByNodeId?: FormalGameRunV4["soulmateBattleEvolutionByNodeId"];
+  };
+  commandLog: Record<CommandIdV5, {revision: number; commandName: string; result: RunGameCommandLogResultV5; createdAt: string}>;
+  finalResult?: {
+    settlementId: string;
+    settlement: NonNullable<FormalGameRunV4["settlement"]>;
+    settledAt?: string;
+    summary?: Record<string, unknown>;
+  };
 };
 
 export function createRunGameV5FromStarterRun(input: {
@@ -469,81 +484,433 @@ export function reorderPlayerTeamV5(run: RunGameV5, pokemonIds: string[], comman
   });
 }
 
-export function ingestFormalRunCompatStateV5(run: RunGameV5, compatRun: FormalGameRunV4, commandName: string, commandId: string, result: unknown = {}, now = new Date()): RunGameV5 {
+export function applyTrainingLessonV5(run: RunGameV5, input: FormalTrainingGroundApplyInputV4, lesson: FormalTrainingGroundLessonViewV4, moveSummary: Partial<TrainingMoveSlotV4> | null, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
   const repeated = run.commandLog[commandId];
-  if (repeated) return run;
-  const iso = now.toISOString();
-  const playersById = {...run.playersById};
-  const pokemonById = {...run.pokemonById};
-  const bagsById = {...run.bagsById};
-  const itemInstancesById = {...run.itemInstancesById};
+  if (repeated) return {run, result: repeated.result || {reused: true}};
   const self = requirePlayer(run, run.selfPlayerId);
-  const currentCompatNode = compatRun.restRunSnapshot?.gameMap.find(node => node.id === compatRun.restRunSnapshot?.currentNodeId)
-    || compatRun.restRunSnapshot?.gameMap.find(node => node.state === "ready" || node.state === "running" || node.state === "preparing")
-    || null;
-  const currentV5Node = run.gameMap.nodes.find(node => node.nodeId === (currentCompatNode?.id || run.currentNodeId || ""));
-  const slotEntries: Array<[PlayerInstanceIdV5, TrainingPlayerDraftV4]> = [];
-  const selfDraft = compatRun.restRunSnapshot?.players.p1 || (compatRun.playerTeam ? draftFromTeam("p1", self, compatRun.playerTeam) : null);
-  if (selfDraft) slotEntries.push([self.playerId, selfDraft]);
-  if (currentCompatNode && currentV5Node) {
-    (["p2", "p3", "p4"] as ShowdownPlayerIdV4[]).forEach(slot => {
-      const playerId = currentV5Node.slots[slot];
-      const draft = currentCompatNode.participants[slot] || compatRun.restRunSnapshot?.players[slot];
-      if (playerId && draft) slotEntries.push([playerId, draft]);
-    });
-  }
-  for (const [playerId, draft] of slotEntries) {
-    upsertPlayerDraftEntities({playersById, pokemonById, bagsById, itemInstancesById}, playerId, draft, iso, run.matchId, currentCompatNode?.id || run.currentNodeId || "rest");
-  }
-  const nextSelf = playersById[self.playerId] || self;
-  playersById[self.playerId] = {
-    ...nextSelf,
-    money: Math.max(0, Math.floor(Number(compatRun.money || 0))),
-    starChartSnapshot: compatRun.starChartSnapshot || nextSelf.starChartSnapshot,
-    updatedAt: iso,
+  if (self.money < lesson.fee) throw new Error("金币不足，先去赚一点再来上课吧。");
+  const pokemonId = String(input.pokemonId || "");
+  if (!pokemonId || !self.localTeamPokemonIds.includes(pokemonId)) throw new Error("请选择要进入课堂的宝可梦。");
+  const current = requirePokemon(run, pokemonId);
+  const iso = now.toISOString();
+  const before = current.localPokemon;
+  const updatedPokemon = lesson.kind === "self-study"
+    ? applySelfStudyPokemonPatchV5(before, run, commandId)
+    : applyMoveLessonPokemonPatchV5(before, input, moveSummary);
+  const message = lesson.kind === "self-study"
+    ? `${displayPokemonNameV5(before)}踏踏实实自习了一节课，数值稳步提升。${lesson.completeText}`
+    : `${displayPokemonNameV5(before)}学会了${moveSummary?.nameZh || moveSummary?.name || input.moveId}。${lesson.completeText}`;
+  const balanceAfter = Math.max(0, Math.floor(Number(self.money || 0)) - Math.max(0, Math.floor(Number(lesson.fee || 0))));
+  const currentNodeId = run.currentNodeId || "rest";
+  const trainingState = run.restState.trainingGroundByNodeId?.[currentNodeId] || {nodeId: currentNodeId, lessonRoll: 0, selfStudyRoll: 0, updatedAt: iso};
+  const result = {
+    actionType: "training.apply",
+    message,
+    pokemonId,
+    lessonId: lesson.lessonId,
+    lessonKind: lesson.kind,
+    fee: lesson.fee,
+    balanceAfter,
   };
-  const nodes = run.gameMap.nodes.map(node => {
-    const compatNode = compatRun.restRunSnapshot?.gameMap.find(entry => entry.id === node.nodeId);
-    return compatNode ? {
-      ...node,
-      state: compatNode.state,
-      battleGame: compatNode.battleGame,
-      startedAt: compatNode.startedAt,
-      endedAt: compatNode.endedAt,
-    } : node;
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: iso,
+      playersById: {
+        ...run.playersById,
+        [self.playerId]: {...self, money: balanceAfter, updatedAt: iso},
+      },
+      pokemonById: {
+        ...run.pokemonById,
+        [pokemonId]: {...current, localPokemon: updatedPokemon, updatedAt: iso},
+      },
+      restState: {
+        ...run.restState,
+        trainingGroundByNodeId: {
+          ...(run.restState.trainingGroundByNodeId || {}),
+          [currentNodeId]: {
+            ...trainingState,
+            selfStudyRoll: Math.max(0, Math.floor(Number(trainingState.selfStudyRoll || 0))) + (lesson.kind === "self-study" ? 1 : 0),
+            updatedAt: iso,
+          },
+        },
+        coinLog: appendCoinLogV5(run.restState.coinLog || [], {
+          id: `coin:${commandId}`,
+          key: `training:${commandId}`,
+          at: iso,
+          roundIndex: currentRoundIndexV5(run),
+          kind: "expense",
+          amount: -Math.max(0, Math.floor(Number(lesson.fee || 0))),
+          balanceBefore: self.money,
+          balanceAfter,
+          source: "training-ground",
+          label: `训练场 ${lesson.teacherLabel}`,
+        }),
+      },
+      commandLog: appendCommandLog(run, commandId, "training.apply", result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+export function healSelfTeamV5(run: RunGameV5, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  const repeated = run.commandLog[commandId];
+  if (repeated) return {run, result: repeated.result || {reused: true}};
+  const self = requirePlayer(run, run.selfPlayerId);
+  const cost = Math.max(1, Math.floor(250 * Number(run.restState.medicalInsurance?.recoveryShopPriceMultiplier ?? 1)));
+  if (self.money < cost) throw new Error("金币不足，无法进行全队治疗。");
+  const iso = now.toISOString();
+  const healedPokemonIds: string[] = [];
+  const pokemonById = {...run.pokemonById};
+  for (const pokemonId of self.localTeamPokemonIds) {
+    const entry = pokemonById[pokemonId];
+    if (!entry) continue;
+    const pokemon = entry.localPokemon;
+    const maxHp = Math.max(1, Math.floor(Number(pokemon.maxHp || 1)));
+    const nextMoves = pokemon.moves.map(move => ({...move, remainingPp: Math.max(0, Math.floor(Number(move.maxPp || move.remainingPp || 0)))}));
+    const changed = pokemon.entryHp !== maxHp || Boolean(pokemon.entryStatus) || pokemon.moves.some((move, index) => move.remainingPp !== nextMoves[index]?.remainingPp);
+    if (changed) healedPokemonIds.push(pokemonId);
+    pokemonById[pokemonId] = {...entry, localPokemon: {...pokemon, maxHp, entryHp: maxHp, entryStatus: "", moves: nextMoves}, updatedAt: iso};
+  }
+  const balanceAfter = Math.max(0, Math.floor(Number(self.money || 0)) - cost);
+  const result = {actionType: "team.heal", message: healedPokemonIds.length ? `花费 ${cost} 金币，全队已恢复到满状态。` : `花费 ${cost} 金币，全队状态已确认。`, cost, healedPokemonIds, balanceAfter};
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: iso,
+      playersById: {...run.playersById, [self.playerId]: {...self, money: balanceAfter, updatedAt: iso}},
+      pokemonById,
+      restState: {
+        ...run.restState,
+        coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "rest-heal", "休息室全队治疗", -cost, self.money, balanceAfter, currentRoundIndexV5(run), iso)),
+      },
+      commandLog: appendCommandLog(run, commandId, "team.heal", result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+export function buyShopProductV5(run: RunGameV5, product: FormalShopProductViewV4, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  const repeated = run.commandLog[commandId];
+  if (repeated) return {run, result: repeated.result || {reused: true}};
+  const self = requirePlayer(run, run.selfPlayerId);
+  const bag = run.bagsById[self.bagId];
+  if (!bag) throw new Error("缺少玩家背包。");
+  const price = Math.max(0, Math.floor(Number(product.price || 0)));
+  if (product.stock <= 0) throw new Error("该商品已经售罄。");
+  if (price <= 0) throw new Error("该商品暂不可购买。");
+  if (self.money < price) throw new Error("金币不足。");
+  if (bag.itemInstanceIds.length >= bag.maxSize) throw new Error("背包已满。");
+  const iso = now.toISOString();
+  const itemInstanceId = `item:${run.matchId}:shop:${commandId}`;
+  const item: PlayerItemInstanceV4 = createPlayerItemFromProductV5(product, itemInstanceId, currentRoundIndexV5(run));
+  const balanceAfter = self.money - price;
+  const nextShopByNodeId = decrementShopStockV5(run, product.slotId, iso);
+  const result = {actionType: "shop.buy", message: `已购买 ${product.name}。`, itemInstanceId, itemID: product.itemID, price, balanceAfter};
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: iso,
+      playersById: {...run.playersById, [self.playerId]: {...self, money: balanceAfter, updatedAt: iso}},
+      bagsById: {...run.bagsById, [bag.bagId]: {...bag, itemInstanceIds: [...bag.itemInstanceIds, itemInstanceId], updatedAt: iso}},
+      itemInstancesById: {...run.itemInstancesById, [itemInstanceId]: {itemInstanceId, ownerBagId: bag.bagId, item, createdAt: iso, updatedAt: iso}},
+      restState: {
+        ...run.restState,
+        shopByNodeId: nextShopByNodeId,
+        coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "shop", `购买 ${product.name}`, -price, self.money, balanceAfter, currentRoundIndexV5(run), iso)),
+      },
+      commandLog: appendCommandLog(run, commandId, "shop.buy", result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+export function sellBagItemsV5(run: RunGameV5, itemInstanceIds: string[], commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  const repeated = run.commandLog[commandId];
+  if (repeated) return {run, result: repeated.result || {reused: true}};
+  const self = requirePlayer(run, run.selfPlayerId);
+  const bag = run.bagsById[self.bagId];
+  if (!bag) throw new Error("缺少玩家背包。");
+  const selected = new Set(itemInstanceIds.map(value => String(value || "")).filter(Boolean));
+  if (!selected.size) throw new Error("请选择要卖出的道具。");
+  const heldItemIds = new Set(self.localTeamPokemonIds.map(pokemonId => run.pokemonById[pokemonId]?.localPokemon.heldItemInstanceId).filter(Boolean) as string[]);
+  const soldIds: string[] = [];
+  let total = 0;
+  const retainedIds = bag.itemInstanceIds.filter(itemInstanceId => {
+    if (!selected.has(itemInstanceId) || heldItemIds.has(itemInstanceId)) return true;
+    const item = run.itemInstancesById[itemInstanceId]?.item;
+    const price = item?.canSale ? Math.max(0, Math.floor(Number(item.cost || 0) * 0.5)) : 0;
+    if (!item || price <= 0) return true;
+    soldIds.push(itemInstanceId);
+    total += price;
+    return false;
   });
-  const status = statusFromCompatRun(compatRun, run.status);
-  return assertRunGameV5RedLines({
-    ...run,
-    status,
-    phase: phaseFromStatus(status),
-    revision: run.revision + 1,
-    updatedAt: iso,
-    playersById,
-    pokemonById,
-    bagsById,
-    itemInstancesById,
-    gameMap: {nodes},
-    currentNodeId: compatRun.restRunSnapshot?.currentNodeId || run.currentNodeId,
-    restState: {
-      ...run.restState,
-      shopByNodeId: compatRun.shopByNodeId,
-      trainingGroundByNodeId: compatRun.trainingGroundByNodeId,
-      roundSettlementByNodeId: compatRun.roundSettlementByNodeId,
-      exchangeByNodeId: compatRun.exchangeByNodeId,
-      medicalInsuranceOfferSeen: Boolean(compatRun.medicalInsuranceOfferSeen),
-      medicalInsurance: compatRun.medicalInsurance || null,
-      restPreviewUnlocks: compatRun.restRunSnapshot?.restPreviewUnlocks,
-      coinLog: compatRun.restRunSnapshot?.coinLog,
-      battleLog: compatRun.restRunSnapshot?.battleLog,
-    },
-    finalResult: compatRun.settlement ? {
-      settlementId: compatRun.settlement.id,
-      settlement: compatRun.settlement,
-      settledAt: compatRun.settledAt,
-    } : run.finalResult,
-    commandLog: appendCommandLog(run, commandId, commandName, result, iso, run.revision + 1),
+  if (!soldIds.length || total <= 0) throw new Error("选中的道具不可出售。");
+  const iso = now.toISOString();
+  const itemInstancesById = {...run.itemInstancesById};
+  soldIds.forEach(itemInstanceId => {
+    delete itemInstancesById[itemInstanceId];
   });
+  const balanceAfter = Math.min(999999, Math.floor(Number(self.money || 0)) + total);
+  const result = {actionType: "shop.sell", message: `已卖出 ${soldIds.length} 件道具，获得 ${total} 金币。`, itemInstanceIds: soldIds, total, balanceAfter};
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: iso,
+      playersById: {...run.playersById, [self.playerId]: {...self, money: balanceAfter, updatedAt: iso}},
+      bagsById: {...run.bagsById, [bag.bagId]: {...bag, itemInstanceIds: retainedIds, updatedAt: iso}},
+      itemInstancesById,
+      restState: {
+        ...run.restState,
+        coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "shop", `出售 ${soldIds.length} 件道具`, total, self.money, balanceAfter, currentRoundIndexV5(run), iso)),
+      },
+      commandLog: appendCommandLog(run, commandId, "shop.sell", result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+export function commitSelfBagMutationV5(run: RunGameV5, input: {commandName: string; commandId: string; message: string; bagItems?: PlayerItemInstanceV4[]; pokemonUpdates?: LocalPokemonV4[]; result?: Record<string, unknown>}, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  const repeated = run.commandLog[input.commandId];
+  if (repeated) return {run, result: repeated.result || {reused: true}};
+  const self = requirePlayer(run, run.selfPlayerId);
+  const bag = run.bagsById[self.bagId];
+  if (!bag) throw new Error("缺少玩家背包。");
+  const iso = now.toISOString();
+  const pokemonById = {...run.pokemonById};
+  for (const pokemon of input.pokemonUpdates || []) {
+    const pokemonId = String(pokemon.localPokemonId || "");
+    if (!pokemonId || !self.localTeamPokemonIds.includes(pokemonId) || !pokemonById[pokemonId]) continue;
+    pokemonById[pokemonId] = {...pokemonById[pokemonId]!, localPokemon: pokemon, updatedAt: iso};
+  }
+  let bagsById = run.bagsById;
+  let itemInstancesById = run.itemInstancesById;
+  if (input.bagItems) {
+    const nextItems = input.bagItems.map((item, index) => ({...item, id: item.id || `item:${run.matchId}:${input.commandId}:${index + 1}`}));
+    const nextIds = nextItems.map(item => item.id);
+    itemInstancesById = {...run.itemInstancesById};
+    for (const itemInstanceId of bag.itemInstanceIds) {
+      if (!nextIds.includes(itemInstanceId)) delete itemInstancesById[itemInstanceId];
+    }
+    for (const item of nextItems) {
+      itemInstancesById[item.id] = {
+        itemInstanceId: item.id,
+        ownerBagId: bag.bagId,
+        item,
+        createdAt: itemInstancesById[item.id]?.createdAt || iso,
+        updatedAt: iso,
+      };
+    }
+    bagsById = {...run.bagsById, [bag.bagId]: {...bag, itemInstanceIds: nextIds, updatedAt: iso}};
+  }
+  const result = {
+    actionType: input.commandName,
+    message: input.message,
+    ...(input.result || {}),
+  };
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: iso,
+      pokemonById,
+      bagsById,
+      itemInstancesById,
+      commandLog: appendCommandLog(run, input.commandId, input.commandName, result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+export function rerollSelfPokemonStatsV5(run: RunGameV5, input: {pokemonId: string; part?: unknown; lockedStats?: unknown[]}, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  const repeated = run.commandLog[commandId];
+  if (repeated) return {run, result: repeated.result || {reused: true}};
+  const self = requirePlayer(run, run.selfPlayerId);
+  const pokemonId = String(input.pokemonId || "");
+  if (!pokemonId || !self.localTeamPokemonIds.includes(pokemonId)) throw new Error("请选择要调整的宝可梦。");
+  const current = requirePokemon(run, pokemonId);
+  const part = input.part === "evs" ? "evs" : "ivs";
+  const locked = new Set((input.lockedStats || []).map(value => String(value || "")).filter(Boolean));
+  const cost = 80 + locked.size * 40;
+  if (self.money < cost) throw new Error("金币不足。");
+  const iso = now.toISOString();
+  const stats = part === "ivs" ? normalizeStatsV5(current.localPokemon.ivs, 31) : normalizeStatsV5(current.localPokemon.evs, 0);
+  const total = Object.values(stats).reduce((sum, value) => sum + value, 0);
+  const nextStats = rerollStatsKeepingTotalV5(stats, part === "ivs" ? 31 : 252, total, locked, `${run.config.seed}:${pokemonId}:${part}:${commandId}`);
+  const nextPokemon = {...current.localPokemon, [part]: nextStats};
+  const balanceAfter = self.money - cost;
+  const result = {actionType: "pokemon.reroll-stats", message: `花费 ${cost} 金币，${part === "ivs" ? "个体值" : "努力值"}已重新分配。`, pokemonId, part, cost, balanceAfter};
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: iso,
+      playersById: {...run.playersById, [self.playerId]: {...self, money: balanceAfter, updatedAt: iso}},
+      pokemonById: {...run.pokemonById, [pokemonId]: {...current, localPokemon: nextPokemon, updatedAt: iso}},
+      restState: {
+        ...run.restState,
+        coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "team-reroll", `随机${part === "ivs" ? "个体值" : "努力值"}`, -cost, self.money, balanceAfter, currentRoundIndexV5(run), iso)),
+      },
+      commandLog: appendCommandLog(run, commandId, "pokemon.reroll-stats", result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+export function unlockOpponentPreviewV5(run: RunGameV5, unlockKey: string, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  const repeated = run.commandLog[commandId];
+  if (repeated) return {run, result: repeated.result || {reused: true}};
+  const key = String(unlockKey || "").trim();
+  if (!key) throw new Error("请选择要打听的宝可梦。");
+  const self = requirePlayer(run, run.selfPlayerId);
+  if (run.restState.restPreviewUnlocks?.[key]) return {run, result: {actionType: "opponent-preview.unlock", message: "这只宝可梦的情报已经解锁。", cost: 0, unlockKey: key}};
+  const cost = 10;
+  if (self.money < cost) throw new Error("金币不足。");
+  const iso = now.toISOString();
+  const balanceAfter = self.money - cost;
+  const result = {actionType: "opponent-preview.unlock", message: `花费 ${cost} 金币，已了解这只宝可梦的情报。`, cost, unlockKey: key, balanceAfter};
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: iso,
+      playersById: {...run.playersById, [self.playerId]: {...self, money: balanceAfter, updatedAt: iso}},
+      restState: {
+        ...run.restState,
+        restPreviewUnlocks: {...(run.restState.restPreviewUnlocks || {}), [key]: true},
+        coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "opponent-rumor", "打听对手情报", -cost, self.money, balanceAfter, currentRoundIndexV5(run), iso)),
+      },
+      commandLog: appendCommandLog(run, commandId, "opponent-preview.unlock", result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+export function chooseMedicalInsuranceV5(run: RunGameV5, tier: FormalMedicalInsuranceTierViewV4 | null, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  const repeated = run.commandLog[commandId];
+  if (repeated) return {run, result: repeated.result || {reused: true}};
+  const iso = now.toISOString();
+  if (!tier) {
+    const result = {actionType: "insurance.buy", message: "已跳过本轮医疗保险。", choice: "decline"};
+    return {
+      run: assertRunGameV5RedLines({
+        ...run,
+        revision: run.revision + 1,
+        updatedAt: iso,
+        restState: {...run.restState, medicalInsuranceOfferSeen: true},
+        commandLog: appendCommandLog(run, commandId, "insurance.buy", result, iso, run.revision + 1),
+      }),
+      result,
+    };
+  }
+  const self = requirePlayer(run, run.selfPlayerId);
+  if (self.money < tier.cost) throw new Error("金币不足。");
+  const balanceAfter = self.money - tier.cost;
+  const insurance = {tier: tier.tier, cost: tier.cost, reviveCostPerPokemon: tier.reviveCostPerPokemon, recoveryShopPriceMultiplier: tier.recoveryShopPriceMultiplier, purchasedAt: iso};
+  const result = {actionType: "insurance.buy", message: `已购买${tier.label}。`, tier: tier.tier, cost: tier.cost, balanceAfter};
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: iso,
+      playersById: {...run.playersById, [self.playerId]: {...self, money: balanceAfter, updatedAt: iso}},
+      restState: {
+        ...run.restState,
+        medicalInsuranceOfferSeen: true,
+        medicalInsurance: insurance,
+        coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "medical-insurance", `购买${tier.label}`, -tier.cost, self.money, balanceAfter, currentRoundIndexV5(run), iso)),
+      },
+      commandLog: appendCommandLog(run, commandId, "insurance.buy", result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+export function exchangeSelfPokemonV5(run: RunGameV5, input: {sourcePokemonId: string; targetPokemon: LocalPokemonV4; view: FormalPokemonExchangeViewV4}, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  const repeated = run.commandLog[commandId];
+  if (repeated) return {run, result: repeated.result || {reused: true}};
+  const self = requirePlayer(run, run.selfPlayerId);
+  const sourcePokemonId = String(input.sourcePokemonId || "");
+  if (!sourcePokemonId || !self.localTeamPokemonIds.includes(sourcePokemonId)) throw new Error("请选择我方队伍中的宝可梦。");
+  if (!input.view.available || !input.view.nodeId) throw new Error(input.view.message || "当前不能交换。");
+  const cost = Math.max(0, Math.floor(Number(input.view.nextCost || 0)));
+  if (self.money < cost) throw new Error("金币不足。");
+  const current = requirePokemon(run, sourcePokemonId);
+  const iso = now.toISOString();
+  const received = {
+    ...input.targetPokemon,
+    localPokemonId: sourcePokemonId,
+    heldItemInstanceId: undefined,
+    itemId: "",
+  };
+  const previousState = run.restState.exchangeByNodeId?.[input.view.nodeId] || {nodeId: input.view.nodeId, records: [], updatedAt: iso};
+  const record = {
+    id: `exchange:${commandId}`,
+    nodeId: input.view.nodeId,
+    playerId: "p1" as const,
+    opponentPlayerId: input.view.opponentPlayerId,
+    sourcePokemonId,
+    targetPokemonId: input.targetPokemon.localPokemonId,
+    receivedPokemonId: sourcePokemonId,
+    replacedPokemonId: current.localPokemon.localPokemonId,
+    cost,
+    createdAt: iso,
+  };
+  const balanceAfter = self.money - cost;
+  const result = {actionType: "pokemon.exchange", message: `已交换 ${input.targetPokemon.nameZh || input.targetPokemon.name || input.targetPokemon.speciesId}。`, sourcePokemonId, targetPokemonId: input.targetPokemon.localPokemonId, cost, balanceAfter};
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: iso,
+      playersById: {...run.playersById, [self.playerId]: {...self, money: balanceAfter, updatedAt: iso}},
+      pokemonById: {...run.pokemonById, [sourcePokemonId]: {...current, localPokemon: received, updatedAt: iso}},
+      restState: {
+        ...run.restState,
+        exchangeByNodeId: {
+          ...(run.restState.exchangeByNodeId || {}),
+          [input.view.nodeId]: {...previousState, records: [...previousState.records, record], updatedAt: iso},
+        },
+        coinLog: cost > 0 ? appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "pokemon-exchange", `交换 ${input.targetPokemon.nameZh || input.targetPokemon.name}`, -cost, self.money, balanceAfter, currentRoundIndexV5(run), iso)) : run.restState.coinLog,
+      },
+      commandLog: appendCommandLog(run, commandId, "pokemon.exchange", result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+export function commitSoulmateEggClaimV5(run: RunGameV5, input: {commandId: string; formalRun: FormalGameRunV4; candidateId: string; message: string}, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  const repeated = run.commandLog[input.commandId];
+  if (repeated) return {run, result: repeated.result || {reused: true}};
+  const claimedAt = input.formalRun.soulmateEggClaimedAt || now.toISOString();
+  const result = {
+    actionType: "soulmate-egg.claim",
+    message: input.message,
+    candidateId: input.formalRun.soulmateEggCandidateId || input.candidateId,
+    playerPokemonId: input.formalRun.soulmatePlayerPokemonId || "",
+  };
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: claimedAt,
+      soulmateState: {
+        ...(run.soulmateState || {}),
+        eggClaimedAt: claimedAt,
+        eggCandidateId: input.formalRun.soulmateEggCandidateId || input.candidateId,
+        playerPokemonId: input.formalRun.soulmatePlayerPokemonId || "",
+        friendshipSettlementByNodeId: input.formalRun.soulmateFriendshipSettlementByNodeId || run.soulmateState?.friendshipSettlementByNodeId,
+        honorSettlementByNodeId: input.formalRun.soulmateHonorSettlementByNodeId || run.soulmateState?.honorSettlementByNodeId,
+        battleEvolutionByNodeId: input.formalRun.soulmateBattleEvolutionByNodeId || run.soulmateState?.battleEvolutionByNodeId,
+      },
+      commandLog: appendCommandLog(run, input.commandId, "soulmate-egg.claim", result, claimedAt, run.revision + 1),
+    }),
+    result,
+  };
 }
 
 export function markBattleRunningV5(run: RunGameV5, input: {nodeId: string; battleGameId: string; commandId: string}, now = new Date()): RunGameV5 {
@@ -566,6 +933,135 @@ export function markBattleRunningV5(run: RunGameV5, input: {nodeId: string; batt
     },
     currentNodeId: input.nodeId || run.currentNodeId,
     commandLog: appendCommandLog(run, input.commandId, "prepare-battle", {nodeId: input.nodeId, battleGameId: input.battleGameId}, iso, run.revision + 1),
+  });
+}
+
+export function applyBattleFinalizedResultV5(run: RunGameV5, input: {compatRun: FormalGameRunV4; commandId: string; destination: "rest" | "settlement"; reason?: FormalBattleResultFinalizeReasonV4; settlementNotice?: string}, now = new Date()): RunGameV5 {
+  const repeated = run.commandLog[input.commandId];
+  if (repeated) return run;
+  const iso = now.toISOString();
+  const compatRest = input.compatRun.restRunSnapshot;
+  const currentNodeId = compatRest?.currentNodeId || run.currentNodeId;
+  const self = requirePlayer(run, run.selfPlayerId);
+  const playersById = {...run.playersById};
+  const pokemonById = {...run.pokemonById};
+  const currentCompatNode = currentNodeId ? compatRest?.gameMap.find(node => node.id === currentNodeId) : null;
+  const currentNode = currentNodeId ? run.gameMap.nodes.find(node => node.nodeId === currentNodeId) : null;
+
+  if (compatRest && currentNode) {
+    for (const [slot, playerId] of Object.entries(currentNode.slots) as Array<[ShowdownPlayerIdV4, string | undefined]>) {
+      if (!playerId) continue;
+      const draft = currentCompatNode?.participants?.[slot] || compatRest.players[slot];
+      if (!draft || !playersById[playerId]) continue;
+      playersById[playerId] = {...playersById[playerId]!, updatedAt: iso};
+      for (const compatPokemon of draft.localTeam.pokemon || []) {
+        const pokemonId = String(compatPokemon.localPokemonId || "");
+        if (!pokemonId || !pokemonById[pokemonId] || pokemonById[pokemonId]!.ownerPlayerId !== playerId) continue;
+        pokemonById[pokemonId] = {...pokemonById[pokemonId]!, localPokemon: compatPokemon, updatedAt: iso};
+      }
+    }
+  }
+
+  playersById[self.playerId] = {
+    ...playersById[self.playerId]!,
+    money: clampIntV5(input.compatRun.money, 0, 999999, self.money),
+    updatedAt: iso,
+  };
+
+  const nodeById = new Map((compatRest?.gameMap || []).map(node => [node.id, node]));
+  const gameMap = {
+    nodes: run.gameMap.nodes.map(node => {
+      const compatNode = nodeById.get(node.nodeId);
+      if (!compatNode) return node;
+      return {
+        ...node,
+        state: compatNode.state,
+        battleGame: compatNode.battleGame,
+        startedAt: compatNode.startedAt || node.startedAt,
+        endedAt: compatNode.endedAt || node.endedAt || (compatNode.state === "won" || compatNode.state === "lost" ? iso : undefined),
+      };
+    }),
+  };
+  const status = statusFromCompatRun(input.compatRun, input.destination === "settlement" ? "settlement_ready" : "resting");
+  const nextStatus = input.destination === "settlement" ? "settlement_ready" : status === "battling" || status === "battle_preparing" ? "resting" : status;
+  return assertRunGameV5RedLines({
+    ...run,
+    status: nextStatus,
+    phase: input.destination === "settlement" ? "settlement" : "rest",
+    revision: run.revision + 1,
+    updatedAt: iso,
+    playersById,
+    pokemonById,
+    gameMap,
+    currentNodeId,
+    restState: {
+      ...run.restState,
+      shopByNodeId: input.compatRun.shopByNodeId || run.restState.shopByNodeId,
+      trainingGroundByNodeId: input.compatRun.trainingGroundByNodeId || run.restState.trainingGroundByNodeId,
+      roundSettlementByNodeId: input.compatRun.roundSettlementByNodeId || run.restState.roundSettlementByNodeId,
+      exchangeByNodeId: input.compatRun.exchangeByNodeId || run.restState.exchangeByNodeId,
+      medicalInsuranceOfferSeen: Boolean(input.compatRun.medicalInsuranceOfferSeen || run.restState.medicalInsuranceOfferSeen),
+      medicalInsurance: input.compatRun.medicalInsurance || run.restState.medicalInsurance || null,
+      restPreviewUnlocks: compatRest?.restPreviewUnlocks || run.restState.restPreviewUnlocks,
+      coinLog: compatRest?.coinLog || run.restState.coinLog,
+      battleLog: compatRest?.battleLog || run.restState.battleLog,
+    },
+    commandLog: appendCommandLog(run, input.commandId, "finalize-battle", {
+      destination: input.destination,
+      reason: input.reason || null,
+      settlementNotice: input.settlementNotice || "",
+      nodeId: currentNodeId || null,
+    }, iso, run.revision + 1),
+  });
+}
+
+export function commitFinalSettlementV5(run: RunGameV5, input: {commandId: string; formalRun: FormalGameRunV4; reason: FormalSettlementReasonV4; summary: Record<string, unknown>}, now = new Date()): RunGameV5 {
+  const repeated = run.commandLog[input.commandId];
+  if (repeated) return run;
+  if (!input.formalRun.settlement?.id) throw new Error("RunGameV5 final settlement missing settlement.");
+  const iso = now.toISOString();
+  const self = requirePlayer(run, run.selfPlayerId);
+  const compatRest = input.formalRun.restRunSnapshot;
+  const gameMap = {
+    nodes: run.gameMap.nodes.map(node => {
+      const compatNode = compatRest?.gameMap.find(entry => entry.id === node.nodeId);
+      if (!compatNode) return node;
+      return {
+        ...node,
+        state: compatNode.state,
+        battleGame: compatNode.battleGame,
+        startedAt: compatNode.startedAt || node.startedAt,
+        endedAt: compatNode.endedAt || node.endedAt || (compatNode.state === "won" || compatNode.state === "lost" ? iso : undefined),
+      };
+    }),
+  };
+  return assertRunGameV5RedLines({
+    ...run,
+    status: "ended",
+    phase: "settlement",
+    revision: run.revision + 1,
+    updatedAt: iso,
+    playersById: {
+      ...run.playersById,
+      [self.playerId]: {...self, money: clampIntV5(input.formalRun.money, 0, 999999, self.money), updatedAt: iso},
+    },
+    gameMap,
+    restState: {
+      ...run.restState,
+      coinLog: compatRest?.coinLog || run.restState.coinLog,
+      battleLog: compatRest?.battleLog || run.restState.battleLog,
+    },
+    finalResult: {
+      settlementId: input.formalRun.settlement.id,
+      settlement: input.formalRun.settlement,
+      settledAt: input.formalRun.settledAt,
+      summary: input.summary,
+    },
+    commandLog: appendCommandLog(run, input.commandId, "finalize-run", {
+      settlementId: input.formalRun.settlement.id,
+      reason: input.reason,
+      summary: input.summary,
+    }, iso, run.revision + 1),
   });
 }
 
@@ -613,7 +1109,7 @@ export function buildFormalRunCompatViewV5(run: RunGameV5): FormalGameRunV4 {
     version: 1,
     id: `compat-rest-${run.runId}`,
     source: "training",
-    status: run.status === "battling" ? "battling" : run.status === "battle_preparing" ? "battlePreparing" : "resting",
+    status: run.status === "ended" ? "ended" : run.status === "settlement_ready" ? "battleEndedPendingSettlement" : run.status === "battling" ? "battling" : run.status === "battle_preparing" ? "battlePreparing" : "resting",
     profileId: run.profileId,
     createdAt: run.createdAt,
     updatedAt: run.updatedAt,
@@ -629,7 +1125,10 @@ export function buildFormalRunCompatViewV5(run: RunGameV5): FormalGameRunV4 {
     players: participantsForSlots(run, currentNodeSlots),
     currentNodeId: run.currentNodeId,
     gameMap,
-    result: null,
+    result: run.status === "ended" && run.finalResult?.settlement ? {
+      outcome: run.finalResult.settlement.outcome,
+      reason: run.finalResult.settlement.reason,
+    } : null,
     battlePreference: run.config.battlePreference,
     competitionMode: run.config.competitionMode,
     restPreviewUnlocks: run.restState.restPreviewUnlocks,
@@ -662,10 +1161,17 @@ export function buildFormalRunCompatViewV5(run: RunGameV5): FormalGameRunV4 {
     trainingGroundByNodeId: run.restState.trainingGroundByNodeId,
     roundSettlementByNodeId: run.restState.roundSettlementByNodeId,
     exchangeByNodeId: run.restState.exchangeByNodeId,
+    soulmateEggClaimedAt: run.soulmateState?.eggClaimedAt,
+    soulmateEggCandidateId: run.soulmateState?.eggCandidateId,
+    soulmatePlayerPokemonId: run.soulmateState?.playerPokemonId,
+    soulmateFriendshipSettlementByNodeId: run.soulmateState?.friendshipSettlementByNodeId,
+    soulmateHonorSettlementByNodeId: run.soulmateState?.honorSettlementByNodeId,
+    soulmateBattleEvolutionByNodeId: run.soulmateState?.battleEvolutionByNodeId,
     medicalInsuranceOfferSeen: Boolean(run.restState.medicalInsuranceOfferSeen || run.restState.medicalInsurance),
     medicalInsurance: run.restState.medicalInsurance || null,
-    settlement: null,
-    settled: false,
+    settlement: run.finalResult?.settlement || null,
+    settled: run.status === "ended" || Boolean(run.finalResult?.settlement),
+    settledAt: run.finalResult?.settledAt,
   };
 }
 
@@ -734,19 +1240,6 @@ function upsertPlayerDraftEntities(
   };
 }
 
-function draftFromTeam(slot: ShowdownPlayerIdV4, player: PlayerInstanceV5, localTeam: LocalTeamV4): TrainingPlayerDraftV4 {
-  return {
-    playerId: slot,
-    name: player.name,
-    avatar: player.avatar,
-    backImage: player.backImage,
-    controller: player.controller,
-    alliance: player.alliance,
-    localTeam,
-    bag: {maxSize: 50, items: []},
-  };
-}
-
 function statusFromCompatRun(run: FormalGameRunV4, fallback: RunGameStatusV5): RunGameStatusV5 {
   if (run.settled || run.status === "ended") return "ended";
   const restStatus = run.restRunSnapshot?.status || "";
@@ -766,7 +1259,195 @@ function phaseFromStatus(status: RunGameStatusV5): RunGamePhaseV5 {
 }
 
 function appendCommandLog(run: RunGameV5, commandId: string, commandName: string, result: unknown, createdAt: string, revision: number): RunGameV5["commandLog"] {
-  return {...run.commandLog, [commandId]: {revision, commandName, result, createdAt}};
+  return {...run.commandLog, [commandId]: {revision, commandName, result: sanitizeCommandLogResultV5(result), createdAt}};
+}
+
+function sanitizeCommandLogResultV5(result: unknown): RunGameCommandLogResultV5 {
+  if (result == null) return null;
+  if (typeof result !== "object" || Array.isArray(result)) return {value: result};
+  const json = JSON.stringify(result);
+  const forbidden = /"(?:run|formalRun|restRunSnapshot|gameMap|participants|localTeam|bag|pokemon|items)"\s*:/;
+  if (forbidden.test(json)) {
+    throw new Error("RunGameV5 redline violation: commandLog result contains large authority payload.");
+  }
+  if (Buffer.byteLength(json, "utf8") > 16 * 1024) {
+    throw new Error("RunGameV5 redline violation: commandLog result is too large.");
+  }
+  return result as Record<string, unknown>;
+}
+
+function applySelfStudyPokemonPatchV5(pokemon: LocalPokemonV4, run: RunGameV5, commandId: string): LocalPokemonV4 {
+  const seed = `${run.config.seed}:${run.currentNodeId || "rest"}:${commandId}:${pokemon.localPokemonId}`;
+  const statOrder = shuffleStatsV5(seed);
+  const ivs = spreadStatGainV5(normalizeStatsV5(pokemon.ivs, 31), 31, 3, statOrder);
+  const evs = spreadStatGainV5(normalizeStatsV5(pokemon.evs, 0), 252, 12, statOrder);
+  return {
+    ...pokemon,
+    ivs,
+    evs,
+  };
+}
+
+function applyMoveLessonPokemonPatchV5(pokemon: LocalPokemonV4, input: FormalTrainingGroundApplyInputV4, moveSummary: Partial<TrainingMoveSlotV4> | null): LocalPokemonV4 {
+  const moveId = String(input.moveId || moveSummary?.moveId || "");
+  if (!moveId) throw new Error("请选择要学习的招式。");
+  if (pokemon.moves.some(move => String(move.moveId || "").toLowerCase() === moveId.toLowerCase())) {
+    throw new Error(`${displayPokemonNameV5(pokemon)}已经会这个招式了。`);
+  }
+  const replaceMoveIndex = Math.floor(Number(input.replaceMoveIndex ?? -1));
+  if (replaceMoveIndex < 0 || replaceMoveIndex >= pokemon.moves.length) throw new Error("请选择要替换的招式。");
+  if (pokemon.locks?.moves?.[replaceMoveIndex]) throw new Error("这个招式槽被锁定，不能替换。");
+  const nextMove: TrainingMoveSlotV4 = {
+    moveId,
+    name: moveSummary?.name || moveId,
+    nameZh: moveSummary?.nameZh || moveSummary?.name || moveId,
+    type: moveSummary?.type || "",
+    category: moveSummary?.category || "",
+    power: Math.max(0, Math.floor(Number(moveSummary?.power || 0))),
+    accuracy: moveSummary?.accuracy ?? null,
+    pp: Math.max(1, Math.floor(Number(moveSummary?.pp || 10))),
+    maxPp: Math.max(1, Math.floor(Number(moveSummary?.maxPp || moveSummary?.pp || 10))),
+    remainingPp: Math.max(1, Math.floor(Number(moveSummary?.remainingPp || moveSummary?.pp || 10))),
+  };
+  return {
+    ...pokemon,
+    moves: pokemon.moves.map((move, index) => index === replaceMoveIndex ? nextMove : move),
+  };
+}
+
+function normalizeStatsV5(stats: Partial<StatTableV4> | undefined, fallback: number): StatTableV4 {
+  return {
+    hp: clampIntV5(stats?.hp, 0, fallback, fallback),
+    atk: clampIntV5(stats?.atk, 0, fallback, fallback),
+    def: clampIntV5(stats?.def, 0, fallback, fallback),
+    spa: clampIntV5(stats?.spa, 0, fallback, fallback),
+    spd: clampIntV5(stats?.spd, 0, fallback, fallback),
+    spe: clampIntV5(stats?.spe, 0, fallback, fallback),
+  };
+}
+
+function spreadStatGainV5(stats: StatTableV4, cap: number, gain: number, order: Array<keyof StatTableV4>): StatTableV4 {
+  const next = {...stats};
+  let remaining = Math.max(0, Math.floor(Number(gain || 0)));
+  for (let pass = 0; pass < 6 && remaining > 0; pass += 1) {
+    for (const stat of order) {
+      if (remaining <= 0) break;
+      if (next[stat] >= cap) continue;
+      next[stat] += 1;
+      remaining -= 1;
+    }
+  }
+  return next;
+}
+
+function rerollStatsKeepingTotalV5(stats: StatTableV4, cap: number, total: number, locked: Set<string>, seed: string): StatTableV4 {
+  const order = shuffleStatsV5(seed);
+  const next: StatTableV4 = {...stats};
+  const unlocked = order.filter(stat => !locked.has(stat));
+  if (!unlocked.length) return next;
+  for (const stat of unlocked) next[stat] = 0;
+  let remaining = Math.max(0, Math.floor(Number(total || 0))) - Object.entries(next).reduce((sum, [stat, value]) => locked.has(stat) ? sum + value : sum, 0);
+  let state = hashNumberV5(seed);
+  while (remaining > 0 && unlocked.some(stat => next[stat] < cap)) {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    const stat = unlocked[state % unlocked.length]!;
+    if (next[stat] >= cap) continue;
+    next[stat] += 1;
+    remaining -= 1;
+  }
+  return next;
+}
+
+function shuffleStatsV5(seed: string): Array<keyof StatTableV4> {
+  const stats: Array<keyof StatTableV4> = ["hp", "atk", "def", "spa", "spd", "spe"];
+  let state = hashNumberV5(seed);
+  for (let index = stats.length - 1; index > 0; index -= 1) {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    const swapIndex = state % (index + 1);
+    [stats[index], stats[swapIndex]] = [stats[swapIndex]!, stats[index]!];
+  }
+  return stats;
+}
+
+function hashNumberV5(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function appendCoinLogV5(log: TrainingCoinLogEntryV4[], entry: TrainingCoinLogEntryV4): TrainingCoinLogEntryV4[] {
+  if (log.some(item => item.key === entry.key)) return log;
+  return [...log, entry].slice(-200);
+}
+
+function coinLogEntryV5(commandId: string, source: string, label: string, amount: number, balanceBefore: number, balanceAfter: number, roundIndex: number, at: string): TrainingCoinLogEntryV4 {
+  return {
+    id: `coin:${commandId}`,
+    key: `${source}:${commandId}`,
+    at,
+    roundIndex,
+    kind: amount > 0 ? "income" : amount < 0 ? "expense" : "adjustment",
+    amount,
+    balanceBefore,
+    balanceAfter,
+    source,
+    label,
+  };
+}
+
+function createPlayerItemFromProductV5(product: FormalShopProductViewV4, itemInstanceId: string, roundIndex: number): PlayerItemInstanceV4 {
+  const itemType = product.type === "recovery" ? "medicine" : product.type === "parenting" ? "misc" : product.type;
+  return {
+    id: itemInstanceId,
+    itemID: product.itemID,
+    name: product.name || product.itemID,
+    image: product.iconUrl || "",
+    cost: Math.max(0, Math.floor(Number(product.price || 0))),
+    canSale: true,
+    type: itemType,
+    canBattleUse: product.type === "battle" || product.type === "recovery" || product.type === "berry",
+    canUse: product.type === "recovery" || product.type === "training" || product.type === "tm",
+    canUseToPokemon: product.type === "recovery" || product.type === "training" || product.type === "tm" || product.type === "evolution",
+    canTake: product.type === "berry" || product.type === "battle",
+    effectRound: null,
+    getRound: roundIndex,
+    maxUseCount: null,
+    useCount: 0,
+  };
+}
+
+function decrementShopStockV5(run: RunGameV5, slotId: string, updatedAt: string): RunGameV5["restState"]["shopByNodeId"] {
+  const shopByNodeId = run.restState.shopByNodeId;
+  if (!shopByNodeId || !run.currentNodeId || !shopByNodeId[run.currentNodeId]) return shopByNodeId;
+  const shop = shopByNodeId[run.currentNodeId]!;
+  return {
+    ...shopByNodeId,
+    [run.currentNodeId]: {
+      ...shop,
+      categories: Object.fromEntries(Object.entries(shop.categories).map(([category, items]) => [
+        category,
+        items.map(item => item.slotId === slotId ? {...item, stock: Math.max(0, Math.floor(Number(item.stock || 0)) - 1), updatedAt} : item),
+      ])) as typeof shop.categories,
+      updatedAt,
+    },
+  };
+}
+
+function currentRoundIndexV5(run: RunGameV5): number {
+  return Math.max(0, Math.floor(Number(run.gameMap.nodes.find(node => node.nodeId === run.currentNodeId)?.index || 0)));
+}
+
+function displayPokemonNameV5(pokemon: LocalPokemonV4): string {
+  return pokemon.nickname || pokemon.nameZh || pokemon.name || pokemon.speciesId || "宝可梦";
+}
+
+function clampIntV5(value: unknown, min: number, max: number, fallback: number): number {
+  const next = Math.floor(Number(value));
+  if (!Number.isFinite(next)) return fallback;
+  return Math.max(min, Math.min(max, next));
 }
 
 function requirePlayer(run: RunGameV5, playerId: string): PlayerInstanceV5 {

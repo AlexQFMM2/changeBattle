@@ -2021,6 +2021,7 @@ function RoutedApp({runtime}: AppProps) {
   ) : missingProfileFormalPage;
 
   const bgmScene = bgmSceneForRoute(location.pathname, formalRun);
+  const bgmControlVisible = (location.pathname === "/" || location.pathname === "/main") && !networkSettingsOpen;
   const versionBadgeLabel = desktopVersionBadgeLabel();
 
   if (desktopStartupRouteResetting) {
@@ -2031,7 +2032,6 @@ function RoutedApp({runtime}: AppProps) {
         versionChecking={desktopUpdateChecking}
         onVersionClick={desktopUpdatesEnabled ? checkDesktopUpdatesFromVersionBadge : undefined}
       >
-        <BgmController scene="nonBattle" />
         <FormalRouteLoadingPage />
       </GameViewport>
     );
@@ -2044,7 +2044,7 @@ function RoutedApp({runtime}: AppProps) {
       versionChecking={desktopUpdateChecking}
       onVersionClick={desktopUpdatesEnabled ? checkDesktopUpdatesFromVersionBadge : undefined}
     >
-      <BgmController scene={bgmScene} />
+      {bgmControlVisible ? <BgmController scene={bgmScene} /> : null}
       <Routes>
         <Route path="/" element={titlePage} />
         <Route path="/main" element={mainPage} />
