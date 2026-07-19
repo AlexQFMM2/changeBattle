@@ -31,7 +31,7 @@ const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 type LockKindV4 = "ivs" | "evs" | "moves";
 
 export function TrainingRestNewTeamPanel({api, open, localTeam, onClose, onLocalTeamChange, onTeamReorderSave, statRerollController}: TrainingRestNewTeamPanelProps) {
-  const team = localTeam?.pokemon || [];
+  const team = useMemo(() => (localTeam?.pokemon || []).map(pokemon => normalizePanelPokemon(api, pokemon)), [api, localTeam?.pokemon]);
   const teamIdsKey = useMemo(() => team.map(pokemon => pokemon.localPokemonId).join("|"), [team]);
   const [reorderMode, setReorderMode] = useState(false);
   const [reorderSaving, setReorderSaving] = useState(false);
@@ -570,6 +570,85 @@ function safeMoveDetail(api: ChangeBattleV2Api, moveId: string): ReturnType<Chan
   } catch {
     return null;
   }
+}
+
+function normalizePanelPokemon(api: ChangeBattleV2Api, pokemon: LocalPokemonV4): LocalPokemonV4 {
+  const speciesId = String(pokemon.speciesId || pokemon.localPokemonId || "");
+  const level = clampInt(pokemon.level, 1, 100, 50);
+  const nature = String(pokemon.nature || "hardy");
+  const ivs = normalizePanelStats(pokemon.ivs, 31, 31);
+  const evs = normalizePanelStats(pokemon.evs, 0, 252);
+  const maxHp = panelMaxHp(api, {...pokemon, speciesId, level, nature, ivs, evs});
+  return {
+    ...pokemon,
+    localPokemonId: String(pokemon.localPokemonId || speciesId || "pokemon"),
+    speciesId,
+    name: String(pokemon.name || speciesId || "Pokemon"),
+    nameZh: String(pokemon.nameZh || pokemon.name || speciesId || "宝可梦"),
+    level,
+    gender: pokemon.gender === "M" || pokemon.gender === "F" || pokemon.gender === "N" ? pokemon.gender : "N",
+    shiny: Boolean(pokemon.shiny),
+    itemId: String(pokemon.itemId || ""),
+    abilityId: String(pokemon.abilityId || ""),
+    abilityName: String(pokemon.abilityName || pokemon.abilityId || ""),
+    abilityNameZh: String(pokemon.abilityNameZh || pokemon.abilityName || pokemon.abilityId || "特性未定"),
+    nature,
+    moves: Array.isArray(pokemon.moves) ? pokemon.moves.map(normalizePanelMove).filter((move): move is TrainingMoveSlotV4 => Boolean(move)) : [],
+    evs,
+    ivs,
+    entryHp: clampInt(pokemon.entryHp, 0, maxHp, maxHp),
+    entryStatus: normalizePanelStatus(pokemon.entryStatus),
+    maxHp,
+  };
+}
+
+function normalizePanelStats(stats: LocalPokemonV4["ivs"] | undefined, fallback: number, max: number): LocalPokemonV4["ivs"] {
+  const raw: Partial<Record<DexStatId, unknown>> = stats && typeof stats === "object" ? stats : {};
+  return Object.fromEntries(STAT_IDS.map(stat => [stat, clampInt(raw[stat], 0, max, fallback)])) as LocalPokemonV4["ivs"];
+}
+
+function normalizePanelMove(move: TrainingMoveSlotV4 | null | undefined): TrainingMoveSlotV4 | null {
+  if (!move || typeof move !== "object" || !move.moveId) return null;
+  const pp = clampInt(move.pp, 0, 99, 0);
+  const maxPp = clampInt(move.maxPp, 0, 99, pp);
+  return {
+    moveId: String(move.moveId),
+    name: String(move.name || move.moveId),
+    nameZh: String(move.nameZh || move.name || move.moveId),
+    type: String(move.type || "normal"),
+    category: String(move.category || "status"),
+    power: clampInt(move.power, 0, 999, 0),
+    accuracy: typeof move.accuracy === "number" && Number.isFinite(move.accuracy) ? move.accuracy : null,
+    pp,
+    maxPp,
+    remainingPp: clampInt(move.remainingPp, 0, maxPp, pp),
+  };
+}
+
+function normalizePanelStatus(status: unknown): LocalPokemonV4["entryStatus"] {
+  return status === "brn" || status === "par" || status === "psn" || status === "tox" || status === "slp" || status === "frz" ? status : "";
+}
+
+function panelMaxHp(api: ChangeBattleV2Api, pokemon: Pick<LocalPokemonV4, "speciesId" | "level" | "nature" | "evs" | "ivs" | "maxHp">): number {
+  const existing = clampInt(pokemon.maxHp, 1, 999, 0);
+  if (existing > 0) return existing;
+  try {
+    return Math.max(1, api.dex.calculatePokemonStats({
+      speciesId: pokemon.speciesId,
+      level: pokemon.level,
+      nature: pokemon.nature,
+      evs: pokemon.evs,
+      ivs: pokemon.ivs,
+    }).stats.hp || 1);
+  } catch {
+    return 1;
+  }
+}
+
+function clampInt(value: unknown, min: number, max: number, fallback: number): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return Math.max(min, Math.min(max, fallback));
+  return Math.max(min, Math.min(max, Math.floor(numeric)));
 }
 
 function toId(value: unknown): string {
