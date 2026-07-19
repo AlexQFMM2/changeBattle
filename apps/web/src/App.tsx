@@ -1559,7 +1559,8 @@ function RoutedApp({runtime}: AppProps) {
         run={formalRun}
         onRunChange={setFormalRun}
         onDone={() => navigate("/formal/round-transition", {replace: true})}
-        onBack={() => navigate("/main", {replace: true})}
+        backLabel={formalRoomCredential?.matchId ? "返回房间" : "返回主页"}
+        onBack={() => navigate(formalRoomCredential?.matchId ? "/formal/room/create" : "/main", {replace: true})}
       />
     ) : !formalRunLoaded ? (
       <FormalRouteLoadingPage />
@@ -2104,31 +2105,31 @@ function ServerConnectionBadge({state}: {state: PostServiceConnectionStateV4 | n
         top: 8,
         zIndex: 120,
         display: "inline-grid",
-        gridTemplateColumns: "16px auto",
+        gridTemplateColumns: "12px auto",
         alignItems: "end",
-        gap: 5,
-        height: 18,
-        padding: "3px 6px",
-        border: "1px solid rgba(255, 255, 255, 0.18)",
-        borderRadius: 5,
-        background: "rgba(5, 8, 7, 0.88)",
+        gap: 3,
+        height: 14,
+        padding: "2px 4px",
+        border: "1px solid rgba(255, 255, 255, 0.14)",
+        borderRadius: 4,
+        background: "rgba(5, 8, 7, 0.76)",
         color,
-        fontSize: 9,
+        fontSize: 7,
         fontWeight: 950,
         lineHeight: 1,
-        boxShadow: "0 2px 0 rgba(0, 0, 0, 0.32), inset 0 0 0 1px rgba(255, 255, 255, 0.06)",
+        boxShadow: "0 1px 0 rgba(0, 0, 0, 0.28), inset 0 0 0 1px rgba(255, 255, 255, 0.04)",
         pointerEvents: "none",
       }}
     >
       <span
         aria-hidden="true"
         style={{
-          width: 16,
-          height: 12,
+          width: 12,
+          height: 9,
           display: "grid",
-          gridTemplateColumns: "repeat(3, 4px)",
+          gridTemplateColumns: "repeat(3, 3px)",
           alignItems: "end",
-          gap: 2,
+          gap: 1.5,
         }}
       >
         {[1, 2, 3].map(index => (
@@ -2136,8 +2137,8 @@ function ServerConnectionBadge({state}: {state: PostServiceConnectionStateV4 | n
             key={index}
             style={{
               display: "block",
-              width: 4,
-              height: `${4 + index * 3}px`,
+              width: 3,
+              height: `${3 + index * 2}px`,
               borderRadius: "2px 2px 1px 1px",
               background: index <= barCount ? color : "rgba(255, 255, 255, 0.18)",
             }}

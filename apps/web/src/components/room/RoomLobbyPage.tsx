@@ -24,7 +24,7 @@ type DrawerKind = "mode" | "competition" | "generations" | "rule-set" | "legenda
 const MODE_OPTIONS: Array<{mode: FormalGameModeV4; label: string; description: string}> = [
   {mode: "singles", label: "单打-AI", description: "标准单人流程，先跑通正式闭环。"},
   {mode: "doubles", label: "双打-AI", description: "双打正式流程，沿用当前正式能力。"},
-  {mode: "coop", label: "合作-AI", description: "合作预留模式，第一版仅展示入口。"},
+  {mode: "coop", label: "合作-AI", description: "实验可用：玩家与 AI 队友合作挑战 AI 队伍。"},
 ];
 
 export function RoomLobbyPage({api: _api, profile, room, busyMessage, error, onCreateMatch, onReadyChange, onStartMatch, onLeave}: RoomLobbyPageProps) {
@@ -99,14 +99,11 @@ export function RoomLobbyPage({api: _api, profile, room, busyMessage, error, onC
       <RoomMemberListBoard members={room.members || []} selfMemberId={room.selfMemberId || ""} />
       <section className="room-lobby-main-board" aria-label="对局面板">
         {panel === "list" ? (
-          <div className="room-lobby-empty">
-            <div className="room-lobby-empty-poster">
-              <span>ROOM MATCH</span>
-              <strong>暂无对局</strong>
-              <i>创建对局后即可准备</i>
-            </div>
-            <button type="button" onClick={() => setPanel("create")}>新建对局</button>
-          </div>
+          <MatchListPanel
+            matches={room.matches || []}
+            onCreate={() => setPanel("create")}
+            onOpen={() => setPanel("detail")}
+          />
         ) : null}
         {panel === "create" ? (
           <section className="room-lobby-create-panel">
@@ -115,7 +112,7 @@ export function RoomLobbyPage({api: _api, profile, room, busyMessage, error, onC
                 <span>MATCH SETUP</span>
                 <strong>创建对局</strong>
               </div>
-              <button type="button" onClick={() => setPanel(activeMatch ? "detail" : "list")}>取消</button>
+              <button type="button" onClick={() => setPanel(activeMatch ? "detail" : "list")}>返回上一步</button>
             </header>
             <div className="room-lobby-create-layout">
               <button type="button" className="room-lobby-match-type-card" onClick={() => setDrawer("mode")}>
@@ -151,6 +148,7 @@ export function RoomLobbyPage({api: _api, profile, room, busyMessage, error, onC
             selfReady={selfReady}
             allReady={allReady}
             busy={Boolean(busyMessage)}
+            onBack={() => setPanel("list")}
             onReady={() => void toggleReady()}
             onStart={() => void startMatch()}
           />
@@ -341,7 +339,43 @@ function RoomMemberListBoard({members, selfMemberId}: {members: FormalRoomMember
   );
 }
 
-function MatchDetailPanel({match, members, selfReady, allReady, busy, onReady, onStart}: {match: FormalRoomMatchV1; members: FormalRoomMemberV1[]; selfReady: boolean; allReady: boolean; busy: boolean; onReady: () => void; onStart: () => void}) {
+function MatchListPanel({matches, onCreate, onOpen}: {matches: FormalRoomMatchV1[]; onCreate: () => void; onOpen: () => void}) {
+  const canCreate = !matches.some(match => match.status !== "ended");
+  if (!matches.length) {
+    return (
+      <div className="room-lobby-empty">
+        <div className="room-lobby-empty-poster">
+          <span>ROOM MATCH</span>
+          <strong>暂无对局</strong>
+          <i>创建对局后即可准备</i>
+        </div>
+        <button type="button" onClick={onCreate}>新建对局</button>
+      </div>
+    );
+  }
+  return (
+    <section className="room-match-list-panel">
+      <header>
+        <span>ROOM MATCH</span>
+        <strong>对局列表</strong>
+      </header>
+      <div className="room-match-list">
+        {matches.map(match => (
+          <button type="button" className="room-match-list-card" key={match.matchId} onClick={onOpen}>
+            <span>{modeLabelFor(match.mode)}</span>
+            <strong>{match.phaseLabel}</strong>
+            <i>{preferenceSummary(match.config.battlePreferenceSnapshot as BattlePreferenceV4)}</i>
+          </button>
+        ))}
+      </div>
+      <footer>
+        <button type="button" disabled={!canCreate} onClick={onCreate}>{canCreate ? "新建对局" : "当前已有对局"}</button>
+      </footer>
+    </section>
+  );
+}
+
+function MatchDetailPanel({match, members, selfReady, allReady, busy, onBack, onReady, onStart}: {match: FormalRoomMatchV1; members: FormalRoomMemberV1[]; selfReady: boolean; allReady: boolean; busy: boolean; onBack: () => void; onReady: () => void; onStart: () => void}) {
   const participantMembers = match.participantMemberIds.map(id => members.find(member => member.memberId === id)).filter(Boolean) as FormalRoomMemberV1[];
   const slots = [...participantMembers, ...Array.from({length: Math.max(0, 4 - participantMembers.length)}, (_, index) => null)].slice(0, 4);
   const ended = match.status === "ended";
@@ -352,7 +386,10 @@ function MatchDetailPanel({match, members, selfReady, allReady, busy, onReady, o
           <span>ROOM MATCH</span>
           <strong>{modeLabelFor(match.mode)}</strong>
         </div>
-        <i>{match.phaseLabel}</i>
+        <div className="room-match-detail-head-actions">
+          <i>{match.phaseLabel}</i>
+          <button type="button" onClick={onBack}>返回</button>
+        </div>
       </header>
       <div className="room-match-cards">
         {slots.map((member, index) => (
@@ -362,6 +399,8 @@ function MatchDetailPanel({match, members, selfReady, allReady, busy, onReady, o
       <div className="room-match-actions">
         {ended ? (
           <p className="room-match-ended-note">本场对局已结束，结果快照已保留在房间内。</p>
+        ) : match.status !== "not_started" ? (
+          <button type="button" disabled={busy} onClick={onStart}>继续游戏</button>
         ) : (
           <>
             <button type="button" disabled={busy || match.status !== "not_started"} onClick={onReady}>{selfReady ? "取消准备" : "准备"}</button>
@@ -424,7 +463,7 @@ function modeLabelFor(mode: FormalGameModeV4): string {
 
 function modeCaption(mode: FormalGameModeV4): string {
   if (mode === "doubles") return "双人队列";
-  if (mode === "coop") return "合作预留";
+  if (mode === "coop") return "AI 队友";
   return "单人挑战";
 }
 

@@ -5,12 +5,13 @@ import {RentalSelectPage} from "./rental-select/RentalSelectPage";
 import {loadFormalRoomCredential} from "../../lib/formalRoomCredential";
 import "./FormalStarterSelectPage.css";
 
-export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}: {
+export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack, backLabel = "返回主页"}: {
   api: ChangeBattleV2Api;
   run: FormalGameRunV4;
   onRunChange: (run: FormalGameRunV4) => void;
   onDone: () => void;
   onBack: () => void;
+  backLabel?: string;
 }) {
   const [selected, setSelected] = useState<number[]>(run.selectedStarterIndexes || []);
   const [focusIndex, setFocusIndex] = useState(0);
@@ -70,7 +71,7 @@ export function FormalStarterSelectPage({api, run, onRunChange, onDone, onBack}:
 
   return (
     <section className="formal-starter-select-page">
-      <button className="formal-starter-select-back" type="button" onClick={onBack}>返回主页</button>
+      <button className="formal-starter-select-back" type="button" onClick={onBack}>{backLabel}</button>
       <RentalSelectPage
         api={api}
         candidates={candidates}
