@@ -1485,6 +1485,71 @@ export function commitFinalSettlementV5(run: RunGameV5, input: {commandId: strin
   });
 }
 
+export function prepareFinalSettlementFromRunGameV5(run: RunGameV5, reason: FormalSettlementReasonV4, now = new Date()): NonNullable<FormalGameRunV4["settlement"]> {
+  const iso = now.toISOString();
+  const self = requirePlayer(run, run.selfPlayerId);
+  const wonRounds = run.gameMap.nodes.filter(node => node.state === "won").length;
+  const totalRounds = Math.max(1, run.gameMap.nodes.length || run.roundPlan.length || 1);
+  const completedAll = run.gameMap.nodes.length > 0 && wonRounds >= run.gameMap.nodes.length;
+  const outcome = reason === "abandon" ? "abandoned" : completedAll ? "win" : "loss";
+  const coinSummary = summarizeCoinLogV5(run.restState.coinLog || []);
+  const pokemonStats = buildSettlementPokemonStatsV5(run, self);
+  const mvp = pokemonStats[0] || null;
+  const baseBpGained = run.roundPlan
+    .filter(round => run.gameMap.nodes.find(node => node.nodeId === round.nodeId)?.state === "won")
+    .reduce((sum, round) => sum + Math.round(bpCoefficientForDifficultyV5(round.difficulty) * Math.max(1, run.streak + 1)), 0);
+  const victoryDividendBp = starChartHasRuntimeEffectV4(self.starChartSnapshot, "settlement_bp_dividend")
+    ? Math.floor(clampIntV5(self.money, 0, 999999, 0) * 0.01)
+    : 0;
+  return {
+    id: `formal-settlement:${run.matchId}:${run.revision + 1}`,
+    outcome,
+    reason,
+    bpGained: baseBpGained + victoryDividendBp,
+    wonRounds,
+    totalRounds,
+    coinSummary: {
+      income: coinSummary.income,
+      expense: coinSummary.expense,
+      net: coinSummary.net,
+      balance: self.money,
+    },
+    pokemonStats,
+    mvpPokemonKey: mvp?.pokemonKey || "",
+    diagnostics: [
+      ...(pokemonStats.length ? [] : ["no-player-pokemon-stats"]),
+      ...(victoryDividendBp > 0 ? [`victory-dividend:+${victoryDividendBp}bp`] : []),
+      "v5-settlement",
+    ],
+    createdAt: iso,
+  };
+}
+
+export function commitFinalSettlementFromRunGameV5(run: RunGameV5, input: {commandId: string; settlement: NonNullable<FormalGameRunV4["settlement"]>; reason: FormalSettlementReasonV4; summary: Record<string, unknown>}, now = new Date()): RunGameV5 {
+  const repeated = run.commandLog[input.commandId];
+  if (repeated) return run;
+  if (!input.settlement.id) throw new Error("RunGameV5 final settlement missing settlement.");
+  const iso = now.toISOString();
+  return assertRunGameV5RedLines({
+    ...run,
+    status: "ended",
+    phase: "settlement",
+    revision: run.revision + 1,
+    updatedAt: iso,
+    finalResult: {
+      settlementId: input.settlement.id,
+      settlement: input.settlement,
+      settledAt: input.settlement.claimedAt || iso,
+      summary: input.summary,
+    },
+    commandLog: appendCommandLog(run, input.commandId, "finalize-run", {
+      settlementId: input.settlement.id,
+      reason: input.reason,
+      summary: input.summary,
+    }, iso, run.revision + 1),
+  });
+}
+
 export function buildFormalRunCompatViewV5(run: RunGameV5): FormalGameRunV4 {
   const self = requirePlayer(run, run.selfPlayerId);
   const playerTeam = teamForPlayer(run, self, `formal-player-team-${run.runId}`, "正式游戏初始队伍");
@@ -1792,6 +1857,58 @@ function hashNumberV5(value: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+function summarizeCoinLogV5(log: TrainingCoinLogEntryV4[]): {income: number; expense: number; net: number} {
+  return log.reduce((acc, entry) => {
+    const amount = Math.floor(Number(entry.amount || 0));
+    if (amount > 0) acc.income += amount;
+    if (amount < 0) acc.expense += Math.abs(amount);
+    acc.net += amount;
+    return acc;
+  }, {income: 0, expense: 0, net: 0});
+}
+
+function buildSettlementPokemonStatsV5(run: RunGameV5, self: PlayerInstanceV5): NonNullable<FormalGameRunV4["settlement"]>["pokemonStats"] {
+  const usedRounds = run.gameMap.nodes.filter(node => node.state === "won" || node.state === "lost").map(node => node.index);
+  const values = self.localTeamPokemonIds.flatMap((pokemonId, index) => {
+    const entry = run.pokemonById[pokemonId];
+    if (!entry) return [];
+    const pokemon = entry.localPokemon;
+    const fainted = Math.floor(Number(pokemon.entryHp || 0)) <= 0;
+    const mvpScore = Math.max(0, run.gameMap.nodes.filter(node => node.state === "won").length * 10 - index);
+    return [{
+      pokemonKey: pokemon.localPokemonId || pokemonId,
+      localPokemonId: pokemon.localPokemonId || pokemonId,
+      speciesId: pokemon.speciesId,
+      name: pokemon.name || pokemon.speciesId,
+      nameZh: pokemon.nameZh || pokemon.name || pokemon.speciesId,
+      iconUrl: pokemon.iconUrl,
+      iconStyle: pokemon.iconStyle,
+      spriteUrl: pokemon.spriteUrl,
+      shiny: Boolean(pokemon.shiny),
+      kills: 0,
+      deaths: fainted ? 1 : 0,
+      assists: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      healing: 0,
+      usedRounds,
+      kdaScore: fainted ? 0 : 1,
+      mvpScore,
+      isMvp: false,
+    }];
+  });
+  values.sort((left, right) => right.mvpScore - left.mvpScore || left.nameZh.localeCompare(right.nameZh, "zh-Hans-CN"));
+  if (values[0]) values[0].isMvp = true;
+  return values;
+}
+
+function bpCoefficientForDifficultyV5(difficulty: FormalRoundPlanV4["difficulty"]): number {
+  if (difficulty === "gym") return 1;
+  if (difficulty === "elite4") return 1.5;
+  if (difficulty === "champion" || difficulty === "villain") return 1.8;
+  return 0.5;
 }
 
 function appendCoinLogV5(log: TrainingCoinLogEntryV4[], entry: TrainingCoinLogEntryV4): TrainingCoinLogEntryV4[] {

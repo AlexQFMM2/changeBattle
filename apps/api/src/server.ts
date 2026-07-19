@@ -3,10 +3,11 @@ import crypto from "node:crypto";
 import net from "node:net";
 import {pathToFileURL} from "node:url";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAssetFieldsV4, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
+import {addPlayerVaultItemV4} from "@changebattle-v2/core";
+import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAssetFieldsV4, normalizePlayerVault, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmUseFailureReasonV4} from "./itemEffects.js";
 import {createMemoryRedisLikeProvider, createRedisSocketProvider, type RedisLikeCommandProvider} from "./roomStore.js";
-import {applyTrainingLessonV5, buildFormalRunCompatViewV5, buildRunGameViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementV5, commitSelfBagMutationV5, commitSoulmateEggClaimV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, healSelfTeamV5, ingestPreparedRoundPlanV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, type RunGameV5} from "./runGameV5.js";
+import {applyTrainingLessonV5, buildFormalRunCompatViewV5, buildRunGameViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementFromRunGameV5, commitFinalSettlementV5, commitSelfBagMutationV5, commitSoulmateEggClaimV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, healSelfTeamV5, ingestPreparedRoundPlanV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, type RunGameV5} from "./runGameV5.js";
 import {normalizeBattlePreferenceV4} from "./training.js";
 
 type ServerConfig = {
@@ -2367,10 +2368,7 @@ async function finalizeFormalRoomRunV5KeepRoomOpen(current: FormalRoomRecordV1, 
   if (current.activeBattle?.status === "preparing" || current.activeBattle?.status === "running") {
     throw new HttpError(409, "room_not_settleable", "当前房间仍在战斗，不能最终结算。");
   }
-  const activeFormalRun = buildFormalRunCompatViewV5(match.runGameV5);
-  if (!activeFormalRun.restRunSnapshot) {
-    throw new HttpError(409, "room_not_settleable", "当前房间还没有可结算的正式流程。");
-  }
+  if (!match.runGameV5.gameMap.nodes.length) throw new HttpError(409, "room_not_settleable", "当前房间还没有可结算的正式流程。");
   const profileSnapshot = payload?.profileSnapshot as UserProfileV2 | undefined;
   if (!profileSnapshot || typeof profileSnapshot !== "object") {
     throw new HttpError(400, "bad_request", "缺少玩家画像快照。");
@@ -2378,61 +2376,41 @@ async function finalizeFormalRoomRunV5KeepRoomOpen(current: FormalRoomRecordV1, 
   const playerVaultSnapshot = payload?.playerVaultSnapshot as PlayerVaultV4 | undefined;
   const reason = normalizeSettlementReason(payload?.reason);
   const now = new Date();
-  const prepared = runFormalStep(() => formalApi.prepareFormalSettlement(activeFormalRun, reason));
-  let formalRun = prepared;
+  let settlement = runFormalStep(() => prepareFinalSettlementFromRunGameV5(match.runGameV5!, reason, now));
   let profile = profileSnapshot;
-  if (prepared.settlement && !prepared.settlement.claimedAt) {
-    profile = claimFormalSettlementBp(profileSnapshot, prepared.settlement, now);
-    formalRun = {
-      ...prepared,
-      settlement: {...prepared.settlement, claimedAt: now.toISOString()},
-      updatedAt: now.toISOString(),
-    };
+  if (!settlement.claimedAt) {
+    profile = claimFormalSettlementBp(profileSnapshot, settlement, now);
+    settlement = {...settlement, claimedAt: now.toISOString()};
   }
-  let playerVault = formalApi.syncFormalSoulmateLocalTeamToVault(formalRun, playerVaultSnapshot || null);
-  let depositedItemCount = 0;
-  let rejectedItemCount = 0;
-  if (formalRun.settlement && !formalRun.settlement.playerVaultItemsClaimedAt) {
-    const claimedAt = now.toISOString();
-    if (formalRun.pendingSettlementExportItemInstanceIds?.length) {
-      const mergeResult = formalApi.mergeFormalRunBagIntoPlayerVault(playerVault, formalRun);
-      playerVault = mergeResult.vault;
-      depositedItemCount = mergeResult.depositedItemCount;
-      rejectedItemCount = mergeResult.rejectedItemCount;
-    }
-    formalRun = {
-      ...formalRun,
-      settlement: {
-        ...formalRun.settlement,
-        playerVaultItemsClaimedAt: claimedAt,
-        playerVaultItemsClaimedCount: depositedItemCount,
-        playerVaultItemsRejectedCount: rejectedItemCount,
-      },
-      updatedAt: claimedAt,
-    };
-  }
-  if (!formalRun.settlement?.id) {
-    throw new HttpError(400, "formal_flow_error", "最终结算生成失败。");
-  }
+  const mergeResult = mergeRunGameV5BagIntoPlayerVault(playerVaultSnapshot || null, match.runGameV5);
+  const playerVault = mergeResult.vault;
+  const depositedItemCount = mergeResult.depositedItemCount;
+  const rejectedItemCount = mergeResult.rejectedItemCount;
+  settlement = {
+    ...settlement,
+    playerVaultItemsClaimedAt: now.toISOString(),
+    playerVaultItemsClaimedCount: depositedItemCount,
+    playerVaultItemsRejectedCount: rejectedItemCount,
+  };
   const expiresAt = new Date(now.getTime() + config.roomFinalResultTtlMs).toISOString();
   const finalResult: FormalRoomFinalResultV1 = {
     clientRequestId: commandId,
-    settlementId: formalRun.settlement.id,
+    settlementId: settlement.id,
     formalRun: null,
     profile,
     playerVault,
     summary: {
       reason,
-      bpGained: Math.max(0, Math.round(Number(formalRun.settlement.bpGained || 0))),
+      bpGained: Math.max(0, Math.round(Number(settlement.bpGained || 0))),
       depositedItemCount,
       rejectedItemCount,
     },
     createdAt: now.toISOString(),
     expiresAt,
   };
-  const runGameV5 = commitFinalSettlementV5(match.runGameV5, {
+  const runGameV5 = commitFinalSettlementFromRunGameV5(match.runGameV5, {
     commandId,
-    formalRun,
+    settlement,
     reason,
     summary: finalResult.summary,
   });
@@ -2447,7 +2425,27 @@ async function finalizeFormalRoomRunV5KeepRoomOpen(current: FormalRoomRecordV1, 
   };
   await saveRoom(next);
   broadcastRoomUpdated(next);
-  return {...finalResultResponse(next, finalResult, false, formalRun), roomRecord: next};
+  return {...finalResultResponse(next, finalResult, false), roomRecord: next};
+}
+
+function mergeRunGameV5BagIntoPlayerVault(vaultSnapshot: PlayerVaultV4 | null, run: RunGameV5): {vault: PlayerVaultV4; depositedItemCount: number; rejectedItemCount: number} {
+  let vault = normalizePlayerVault(vaultSnapshot || null);
+  let depositedItemCount = 0;
+  let rejectedItemCount = 0;
+  const self = run.playersById[run.selfPlayerId];
+  const bag = self ? run.bagsById[self.bagId] : null;
+  if (!bag) return {vault, depositedItemCount, rejectedItemCount};
+  for (const itemInstanceId of bag.itemInstanceIds) {
+    const item = run.itemInstancesById[itemInstanceId]?.item;
+    if (!item) continue;
+    const itemId = String(item.itemID || "").trim();
+    if (!itemId || item.type === "system" || item.type === "system-battle") continue;
+    const added = addPlayerVaultItemV4(vault, {itemId, quantity: 1, boxKind: "storage"});
+    vault = added.vault;
+    depositedItemCount += added.depositedItemCount;
+    rejectedItemCount += added.rejectedItemCount;
+  }
+  return {vault, depositedItemCount, rejectedItemCount};
 }
 
 async function finalizeFormalRoomRunKeepRoomOpen(roomId: string, request: http.IncomingMessage, matchId: string, body: any): Promise<FormalRoomFinalResultResponseV1> {

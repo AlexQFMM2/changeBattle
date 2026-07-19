@@ -53,7 +53,7 @@ import {
 } from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalGameRunV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
-import {applyTrainingLessonV5, buildFormalRunCompatViewV5, commitFinalSettlementV5, createRunGameV5FromStarterRun, finalizeBattleResultFromSnapshotV5, ingestPreparedRoundPlanV5, prepareBattleSessionFromRunGameV5, selectStarterPokemonV5} from "./runGameV5.js";
+import {applyTrainingLessonV5, buildFormalRunCompatViewV5, commitFinalSettlementFromRunGameV5, createRunGameV5FromStarterRun, finalizeBattleResultFromSnapshotV5, ingestPreparedRoundPlanV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, selectStarterPokemonV5} from "./runGameV5.js";
 import {
   CARRY_PREP_ITEMS_NODE_ID,
   COMPULSORY_EDUCATION_NODE_ID,
@@ -2366,14 +2366,14 @@ assert(finalizedV5Battle.result.destination === "rest", "RunGameV5 battle finali
 assert(finalizedV5Pokemon.entryHp === 7 && finalizedV5Pokemon.entryStatus === "par", "RunGameV5 battle finalize should sync HP/status into PokemonInstance");
 assert(finalizedV5Pokemon.moves[0]?.remainingPp === 1, "RunGameV5 battle finalize should sync PP into PokemonInstance");
 assert(v5Run.restState.roundSettlementByNodeId?.[preparedV5BattleSession.sessionInput.nodeId], "RunGameV5 battle finalize should write a light round settlement record");
-const v5SettledCompat = api.prepareFormalSettlement(buildFormalRunCompatViewV5(v5Run), "surrender");
-v5Run = commitFinalSettlementV5(v5Run, {
+const v5Settlement = prepareFinalSettlementFromRunGameV5(v5Run, "surrender");
+v5Run = commitFinalSettlementFromRunGameV5(v5Run, {
   commandId: "v5-redline-finalize-run",
-  formalRun: v5SettledCompat,
+  settlement: v5Settlement,
   reason: "surrender",
-  summary: {reason: "surrender", bpGained: v5SettledCompat.settlement?.bpGained || 0},
+  summary: {reason: "surrender", bpGained: v5Settlement.bpGained || 0},
 });
-assert(v5Run.finalResult?.settlementId === v5SettledCompat.settlement?.id, "RunGameV5 final result should retain settlement id");
+assert(v5Run.finalResult?.settlementId === v5Settlement.id, "RunGameV5 final result should retain settlement id");
 assert(!/"(?:run|formalRun|restRunSnapshot|gameMap|participants|localTeam|bag)"\s*:/.test(JSON.stringify(v5Run.finalResult)), "RunGameV5 final result should not contain a full compat run");
 assert(!v5CommandLogForbidden.test(JSON.stringify(v5Run.commandLog)), "RunGameV5 finalize commandLog should not contain large run/entity payload fields");
 
