@@ -49,6 +49,8 @@ import {generateBossTrainerPresetTeamsV4, type BossTrainerPresetTeamV4, type Bos
 import {applyPlayerVaultEvolutionItemV4, applyPlayerVaultFriendshipItemV4, applyPlayerVaultHeldItemV4, applyPlayerVaultMoveTeachingItemV4, applyPlayerVaultNumericItemV4, getPlayerVaultMoveTeachingViewV4, previewPlayerVaultEvolutionItemUseV4, previewPlayerVaultNumericItemUseV4, unequipPlayerVaultHeldItemV4, type PlayerVaultEvolutionApplyResultV4, type PlayerVaultEvolutionPreviewResultV4, type PlayerVaultFriendshipItemApplyResultV4, type PlayerVaultHeldItemApplyResultV4, type PlayerVaultHeldItemUnequipResultV4, type PlayerVaultMoveTeachingApplyResultV4 as PlayerVaultMoveTeachingApplyResultFromItemEffectsV4, type PlayerVaultMoveTeachingViewResultV4, type PlayerVaultNumericItemApplyResultV4, type PlayerVaultNumericItemPreviewResultV4} from "./itemEffects.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
 import {createPostServiceClient, type PostServiceActionNameV4, type PostServiceClientV4, type PostServiceConnectionStateV4, type PostServiceResultV4} from "./postService.js";
+import type {RunGameViewV5} from "./runGameV5.js";
+export type {RunGameViewV5} from "./runGameV5.js";
 import type {AssetCacheStatusV4, BattleServerConfigV4, BattleServerHealthResultV4} from "./serverConfig.js";
 import {
   clearStarChartUnlocksForProfileV4,
@@ -478,6 +480,7 @@ export type FormalRoomMatchViewV1 = {
   revision: number;
   phase: FormalRoomPhaseV1;
   view: {
+    viewV5?: RunGameViewV5 | null;
     formalRun: FormalGameRunV4 | null;
     activeBattle?: FormalRoomV1["activeBattle"];
     battleSnapshot?: BattleSessionSnapshotV4 | null;

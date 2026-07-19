@@ -34,6 +34,7 @@ import {
   type FormalRoomV1,
   type FormalRoomRestActionV1,
   type FormalRoundSettlementV4,
+  type RunGameViewV5,
   type FormalSettlementReasonV4,
   type PostServiceConnectionStateV4,
   type TrainingRunGameV4,
@@ -169,6 +170,7 @@ function RoutedApp({runtime}: AppProps) {
   const [playerVaultDirty, setPlayerVaultDirty] = useState(false);
   const [trainingRun, setTrainingRun] = useState<TrainingRunGameV4 | null>(null);
   const [formalRun, setFormalRun] = useState<FormalGameRunV4 | null>(null);
+  const [formalRoomViewV5, setFormalRoomViewV5] = useState<RunGameViewV5 | null>(null);
   const [lobbyRoom, setLobbyRoom] = useState<FormalRoomV1 | null>(null);
   const [lobbyRoomToken, setLobbyRoomToken] = useState("");
   const [lobbyBusyMessage, setLobbyBusyMessage] = useState<string | null>(null);
@@ -309,6 +311,7 @@ function RoutedApp({runtime}: AppProps) {
         const room = "view" in result.data ? result.data.room : result.data;
         const nextRun = "view" in result.data ? result.data.view.formalRun : result.data.formalRun;
         const activeBattle = "view" in result.data ? result.data.view.activeBattle : result.data.activeBattle;
+        if ("view" in result.data) applyFormalRoomViewV5(result.data.view.viewV5);
         if (nextRun) setFormalRun(nextRun);
         const sessionId = activeBattle?.sessionId || "";
         if (sessionId) {
@@ -341,6 +344,7 @@ function RoutedApp({runtime}: AppProps) {
       .then(result => {
         if (cancelled || !result.ok) return;
         setLobbyRoom(result.data.room);
+        applyFormalRoomViewV5(result.data.view.viewV5);
         const nextRun = result.data.view.formalRun;
         if (nextRun) {
           applyFormalRunView(nextRun);
@@ -503,6 +507,7 @@ function RoutedApp({runtime}: AppProps) {
       setPlayerVaultDirty(false);
       setTrainingRun(null);
       setFormalRun(null);
+      setFormalRoomViewV5(null);
       return;
     }
     let cancelled = false;
@@ -547,6 +552,7 @@ function RoutedApp({runtime}: AppProps) {
   useEffect(() => {
     if (!profile) {
       setFormalRun(null);
+      setFormalRoomViewV5(null);
       setFormalRunLoaded(true);
       return;
     }
@@ -1056,6 +1062,12 @@ function RoutedApp({runtime}: AppProps) {
     return nextRun;
   }
 
+  function applyFormalRoomViewV5(nextView: RunGameViewV5 | null | undefined): RunGameViewV5 | null {
+    const normalized = nextView || null;
+    setFormalRoomViewV5(normalized);
+    return normalized;
+  }
+
   async function persistFormalRunLocal(nextRun: FormalGameRunV4): Promise<FormalGameRunV4> {
     if (formalRoomCredential) return applyFormalRunView(nextRun);
     const saved = await api.saveFormalGameRun(nextRun);
@@ -1132,6 +1144,7 @@ function RoutedApp({runtime}: AppProps) {
       payload: {pokemonIds},
     });
     if (!response.ok) throw new Error(response.message);
+    applyFormalRoomViewV5(response.data.view.viewV5);
     const nextRun = response.data.view.formalRun;
     if (!nextRun) throw new Error("服务器未返回对局视图。");
     await persistServerConfirmedFormalRun(nextRun);
@@ -1166,6 +1179,7 @@ function RoutedApp({runtime}: AppProps) {
           };
         }
         const payload = response.data.result as any;
+        applyFormalRoomViewV5(response.data.view.viewV5);
         return {
           ok: true as const,
           data: {

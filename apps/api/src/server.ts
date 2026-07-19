@@ -6,7 +6,7 @@ import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core
 import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAssetFieldsV4, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmUseFailureReasonV4} from "./itemEffects.js";
 import {createMemoryRedisLikeProvider, createRedisSocketProvider, type RedisLikeCommandProvider} from "./roomStore.js";
-import {applyBattleFinalizedResultV5, applyTrainingLessonV5, buildBattleSessionFormalRunV5, buildFormalRunCompatViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementV5, commitSelfBagMutationV5, commitSoulmateEggClaimV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, healSelfTeamV5, ingestPreparedRoundPlanV5, markBattleRunningV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, type RunGameV5} from "./runGameV5.js";
+import {applyBattleFinalizedResultV5, applyTrainingLessonV5, buildFormalRunCompatViewV5, buildRunGameViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementV5, commitSelfBagMutationV5, commitSoulmateEggClaimV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, healSelfTeamV5, ingestPreparedRoundPlanV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, type RunGameV5} from "./runGameV5.js";
 import {normalizeBattlePreferenceV4} from "./training.js";
 
 type ServerConfig = {
@@ -1163,12 +1163,14 @@ function buildFormalMatchView(room: FormalRoomRecordV1, matchId: string, extras:
   const publicState = publicRoom(room) as any;
   const match = findRoomMatch(room, matchId);
   const formalRun = room.formalRun || formalRunFromMatch(match);
+  const viewV5 = match.runGameV5 ? buildRunGameViewV5(match.runGameV5) : null;
   return {
     room: publicState,
     match: publicMatch(match),
     revision: room.revision,
     phase: formalRoomPhaseFromState(room, match, formalRun),
     view: {
+      viewV5,
       formalRun,
       activeBattle: publicState.activeBattle || null,
       finalResult: publicState.finalResult || null,
@@ -1213,7 +1215,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       match: publicMatch(match),
       revision: current.revision,
       phase: "settlement",
-      view: {formalRun: null, room: publicRoom(current), match: publicMatch(match)},
+      view: {viewV5: null, formalRun: null, room: publicRoom(current), match: publicMatch(match)},
       reused: true,
     };
   }
@@ -1400,9 +1402,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       });
     }
     const battleRunGameV5 = ensureDefaultSystemItemsForSelfV5(match.runGameV5);
-    const compatRun = buildBattleSessionFormalRunV5(battleRunGameV5);
-    validateFormalRestActionDraft(compatRun);
-    const prepared = await runFormalStepAsync(() => formalApi.prepareFormalBattleSession(compatRun));
+    const prepared = runFormalStep(() => prepareBattleSessionFromRunGameV5(battleRunGameV5));
     const snapshot = await service.createBattleSession(prepared.sessionInput);
     touchSession(snapshot.id);
     logAiDecisions(snapshot);
@@ -1475,7 +1475,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       match: publicMatch(nextMatch),
       revision: next.revision,
       phase: "settlement",
-      view: {formalRun: null, room: publicRoom(next), match: publicMatch(nextMatch)},
+      view: {viewV5: null, formalRun: null, room: publicRoom(next), match: publicMatch(nextMatch)},
       reused: false,
     };
   }

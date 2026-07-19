@@ -2,6 +2,7 @@ import type {BattlePreferenceV4, FormalCompetitionModeV4, PlayerItemInstanceV4, 
 import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRoundNpcSnapshotV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import type {LocalPokemonV4, LocalTeamV4} from "./training.js";
 import type {PlayerVaultV4, UserProfileV2} from "./index.js";
+import {createBattleGameFromNodeDraft, type BattleGameV4, type BattleSessionCreateInputV4} from "./battle.js";
 
 export type PlayerInstanceIdV5 = string;
 export type PokemonInstanceIdV5 = string;
@@ -182,6 +183,49 @@ export type RunGameV5 = {
   };
 };
 
+export type RunGamePlayerViewV5 = Omit<PlayerInstanceV5, "profileSnapshot" | "starChartSnapshot"> & {
+  profileId?: string;
+  teamSize: number;
+};
+
+export type RunGamePokemonViewV5 = PokemonInstanceV5;
+export type RunGameItemViewV5 = ItemInstanceV5;
+
+export type RunGameViewV5 = {
+  version: 5;
+  runId: string;
+  roomId: string;
+  matchId: string;
+  status: RunGameStatusV5;
+  phase: RunGamePhaseV5;
+  revision: number;
+  updatedAt: string;
+  config: RunGameConfigV5;
+  selfPlayerId: PlayerInstanceIdV5;
+  selfPlayer: RunGamePlayerViewV5 | null;
+  players: RunGamePlayerViewV5[];
+  team: RunGamePokemonViewV5[];
+  bag: {
+    bagId: BagInstanceIdV5;
+    ownerPlayerId: PlayerInstanceIdV5;
+    maxSize: number;
+    battleBagEnabled?: boolean;
+    itemInstanceIds: ItemInstanceIdV5[];
+    items: RunGameItemViewV5[];
+  } | null;
+  starter: {
+    selectedIndexes: number[];
+    candidates: Array<StarterCandidateRefV5 & {pokemon: RunGamePokemonViewV5 | null}>;
+  };
+  map: {
+    currentNodeId: GameNodeIdV5 | null;
+    nodes: GameMapNodeV5[];
+    roundPlan: RoundPlanV5[];
+  };
+  rest: RunGameV5["restState"];
+  settlement: RunGameV5["finalResult"] | null;
+};
+
 export function createRunGameV5FromStarterRun(input: {
   roomId: string;
   matchId: string;
@@ -268,6 +312,62 @@ export function createRunGameV5FromStarterRun(input: {
     restState: {},
     commandLog: {},
   });
+}
+
+export function buildRunGameViewV5(run: RunGameV5): RunGameViewV5 {
+  const self = run.playersById[run.selfPlayerId] || null;
+  const bag = self ? run.bagsById[self.bagId] || null : null;
+  return {
+    version: 5,
+    runId: run.runId,
+    roomId: run.roomId,
+    matchId: run.matchId,
+    status: run.status,
+    phase: run.phase,
+    revision: run.revision,
+    updatedAt: run.updatedAt,
+    config: run.config,
+    selfPlayerId: run.selfPlayerId,
+    selfPlayer: self ? playerViewV5(run, self) : null,
+    players: Object.values(run.playersById).map(player => playerViewV5(run, player)),
+    team: self ? self.localTeamPokemonIds.map(pokemonId => run.pokemonById[pokemonId]).filter((entry): entry is PokemonInstanceV5 => Boolean(entry)) : [],
+    bag: bag ? {
+      bagId: bag.bagId,
+      ownerPlayerId: bag.ownerPlayerId,
+      maxSize: bag.maxSize,
+      battleBagEnabled: bag.battleBagEnabled,
+      itemInstanceIds: [...bag.itemInstanceIds],
+      items: bag.itemInstanceIds.map(itemInstanceId => run.itemInstancesById[itemInstanceId]).filter((entry): entry is ItemInstanceV5 => Boolean(entry)),
+    } : null,
+    starter: {
+      selectedIndexes: [...run.selectedStarterIndexes],
+      candidates: run.starterCandidates.map(candidate => ({
+        ...candidate,
+        pokemon: run.pokemonById[candidate.pokemonId] || null,
+      })),
+    },
+    map: {
+      currentNodeId: run.currentNodeId,
+      nodes: run.gameMap.nodes.map(node => ({...node, slots: {...node.slots}})),
+      roundPlan: run.roundPlan.map(round => ({...round, slots: {...round.slots}, npcRefs: [...round.npcRefs], diagnostics: [...round.diagnostics]})),
+    },
+    rest: {
+      ...run.restState,
+      coinLog: run.restState.coinLog ? [...run.restState.coinLog] : undefined,
+      battleLog: run.restState.battleLog ? [...run.restState.battleLog] : undefined,
+    },
+    settlement: run.finalResult || null,
+  };
+}
+
+function playerViewV5(run: RunGameV5, player: PlayerInstanceV5): RunGamePlayerViewV5 {
+  const {profileSnapshot: _profileSnapshot, starChartSnapshot: _starChartSnapshot, ...publicPlayer} = player;
+  return {
+    ...publicPlayer,
+    profileId: player.profileSnapshot?.id || (player.playerId === run.selfPlayerId ? run.profileId : undefined),
+    localTeamPokemonIds: [...player.localTeamPokemonIds],
+    teamSize: player.localTeamPokemonIds.length,
+  };
 }
 
 export function ensureDefaultSystemItemsForSelfV5(run: RunGameV5, now = new Date()): RunGameV5 {
@@ -936,6 +1036,37 @@ export function markBattleRunningV5(run: RunGameV5, input: {nodeId: string; batt
   });
 }
 
+export function prepareBattleSessionFromRunGameV5(run: RunGameV5): {battleGame: BattleGameV4; sessionInput: BattleSessionCreateInputV4} {
+  const node = run.currentNodeId
+    ? run.gameMap.nodes.find(entry => entry.nodeId === run.currentNodeId)
+    : run.gameMap.nodes.find(entry => entry.state === "ready" || entry.state === "preparing" || entry.state === "running") || run.gameMap.nodes[0];
+  if (!node) throw new Error("当前没有可进入的正式战斗节点。");
+  const participants = participantsForSlots(run, node.slots);
+  if (!participants.p1) throw new Error("缺少玩家战斗实体。");
+  const trainingNode: TrainingRunGameNodeV4 = {
+    id: node.nodeId,
+    index: node.index,
+    state: node.state,
+    p1: participants.p1 ? "p1" : null,
+    p2: participants.p2 ? "p2" : null,
+    p3: participants.p3 ? "p3" : null,
+    p4: participants.p4 ? "p4" : null,
+    mode: node.mode,
+    ruleSet: node.ruleSet,
+    seed: node.seed,
+    participants,
+    battleGame: node.battleGame,
+    createdAt: node.createdAt,
+    startedAt: node.startedAt,
+    endedAt: node.endedAt,
+  };
+  return createBattleGameFromNodeDraft({
+    runId: run.runId,
+    node: trainingNode,
+    playersById: participants,
+  });
+}
+
 export function applyBattleFinalizedResultV5(run: RunGameV5, input: {compatRun: FormalGameRunV4; commandId: string; destination: "rest" | "settlement"; reason?: FormalBattleResultFinalizeReasonV4; settlementNotice?: string}, now = new Date()): RunGameV5 {
   const repeated = run.commandLog[input.commandId];
   if (repeated) return run;
@@ -1063,10 +1194,6 @@ export function commitFinalSettlementV5(run: RunGameV5, input: {commandId: strin
       summary: input.summary,
     }, iso, run.revision + 1),
   });
-}
-
-export function buildBattleSessionFormalRunV5(run: RunGameV5): FormalGameRunV4 {
-  return buildFormalRunCompatViewV5(run);
 }
 
 export function buildFormalRunCompatViewV5(run: RunGameV5): FormalGameRunV4 {
@@ -1270,7 +1397,7 @@ function sanitizeCommandLogResultV5(result: unknown): RunGameCommandLogResultV5 
   if (forbidden.test(json)) {
     throw new Error("RunGameV5 redline violation: commandLog result contains large authority payload.");
   }
-  if (Buffer.byteLength(json, "utf8") > 16 * 1024) {
+  if (json.length > 16 * 1024) {
     throw new Error("RunGameV5 redline violation: commandLog result is too large.");
   }
   return result as Record<string, unknown>;
