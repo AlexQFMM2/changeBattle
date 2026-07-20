@@ -1,25 +1,70 @@
 # ChangeBattle V2
 
-一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化和 Windows Desktop portable release 都已经接入。
+一个从旧项目拆出的干净新基座。当前项目已经进入“正式 room 服务化 + Desktop/App beta 发布 + RunGame V5 数据结构收口”阶段：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、Windows Desktop portable、Android debug App、内容哈希增量更新、腾讯 COS/CDN 公共资源加载都已经接入。
+
+当前最新 beta/debug 口径：
+
+```txt
+current beta:   0.1.24
+v2 worktree:    /home/alexqfmm/workPlace/pokemon/changeBattleV2
+release tree:   /home/alexqfmm/workPlace/pokemon/changeBattleV2-release
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.24
+beta latest:    http://119.45.240.157/changebattle-beta/latest.json
+beta site:      http://119.45.240.157/changebattle-beta/
+official API:   https://api.65h26i.top/changebattle/battle
+assets CDN:     https://assets.65h26i.top/beta/
+```
+
+本目录是 `release` 分支 worktree，主要用于 stable 通道发版和回看稳定版状态；日常开发和 beta/debug 验证在 `changeBattleV2` 的 `v2` 分支进行。不要把本目录当日常开发主工作区。
 
 ## Repository / Branch
 
-V2 不是长期独立仓库；它属于原 ChangeBattle 仓库的 `v2` 分支。
+V2 属于原 ChangeBattle 仓库，不是独立新仓库。
 
 ```txt
-canonical repo: /home/alexqfmm/workPlace/pokemon/changeBattle
 remote: git@github.com:AlexQFMM2/changeBattle.git
-branch: v2
-current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
+daily/beta branch: v2
+stable branch: release
+daily worktree: /home/alexqfmm/workPlace/pokemon/changeBattleV2
+stable worktree: /home/alexqfmm/workPlace/pokemon/changeBattleV2-release
 ```
 
-提交时应提交到原仓库的 `v2` 分支。`changeBattleV2` 目录如果还没有 `.git`，需要先把它整理为原仓库 `v2` 分支的 worktree，或把当前 V2 文件作为 `v2` 分支根目录内容提交；不要把它当成新项目新仓库处理。
+长期分支约定：
+
+```txt
+v2        日常开发 / beta/debug 通道 -> /changebattle-beta/
+release   stable 正式通道           -> /changebattle/
+hotfix/*  从 release 临时切出，修完合回 release 并同步回 v2
+```
+
+`release/` 目录是本地发版产物工作台，不等于 `release` 分支。
 
 - `packages/showdown-dex-core`：Web/Desktop 共用的 Dex 数据、搜索、详情聚合、图片解析、中文翻译、能力计算、学习面反查。
-- `apps/api`：Web/Desktop 共用的应用层 API facade，后续公共函数都放这里。
+- `apps/api`：Battle API / room / RunGameV5 权威服务端，以及 Web/Desktop/Android 共用的应用层 facade。
 - `packages/showdown-battle-core`：Node-side BattleStream service。真实战斗逻辑在这里运行，Web/Desktop 只通过 HTTP adapter 读 snapshot / 提交 choice。
 - `apps/web`：Web 端适配器、V1 风格首屏/首页、QuickDex 图鉴弹窗。
 - `apps/desktop`：Desktop 端适配器，复用 Web UI。
+- `apps/mobile`：Android App，复用 Web UI/API/CDN 资源，当前发布 debug APK。
+
+## Current Architecture
+
+正式 room 主线已经从 V4 大对象同步迁到 RunGame V5 实体化 C/S：
+
+- 服务端 `RunGameV5` 是唯一权威状态。
+- Player、PokemonInstance、Bag、ItemInstance 独立存储。
+- `gameMap`、round、battle 只引用 ID，不复制完整 Player / Pokemon / Bag / Item。
+- 客户端只按页面拉 scoped view，只通过轻量 command 修改服务端实体。
+- 客户端不再上传、保存、展示依赖大 `FormalGameRunV4` / `restRunSnapshot`。
+- 训练场和 legacy 本地流程可以保留 V4 helper，但必须和正式 room 主线硬隔离。
+
+这次 V4 -> V5 不是小修补，而是为 Web/Desktop/Android 统一 C/S 架构做的数据边界重构。App 端正是因为要复用同一套 room、Battle API、资源 CDN 和更新口径，才推动了正式流程服务化。
+
+正式 room 的红线：
+
+- 不新增 `formalRunDraft` / `syncDraft` / 聚合 `rest-action` 作为正式入口。
+- 服务端确认操作必须等待 HTTP 返回，只有成功、失败、超时三种结果；等待时显示遮罩。
+- 改数据来源必须保留成品游戏 UI，不允许把休整页、战斗页退化成“能用就行”的薄页面。
+- 存储型资源字段只保存 canonical asset path，不保存 `changebattle-asset://`、COS URL、`file:`、`data:`。
 
 当前已完成：
 
@@ -57,28 +102,31 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：`docs/windows-desktop-release.md` 的一键 Windows 构建链路已跑通；2026-07-05 已基于 `v2` 分支 `2b600e22` 重新生成 `release/ChangeBattle-V2-Desk-portable-v0.1.0.zip`，大小约 597 MiB。桌面端已支持启动时检查远端 `latest.json` 并用系统弹窗提示下载，不做 Web 端更新 UI，也不自动覆盖安装。
+- Windows Desktop portable release：当前 beta 完整包为 `ChangeBattle-V2-Desk-portable-debug-v0.1.24.zip`，完整包挂 GitHub Release；桌面端支持内容哈希增量更新，线上服务器只托管 `latest.json`、manifest 和 objects。
+- Desktop launcher：`ChangeBattle-V2-Desk.exe` 已接入，`.cmd` 仍可作为 portable fallback。
+- Android App：当前已发布 debug APK `ChangeBattle-V2-Android-debug-v0.1.24.apk`，默认走官方 Battle API。
 
 当前明确不做：
 
-- app 端。
-- 完整 roguelike 奖励扩展、长期循环平衡和安装器/签名/自动更新。
+- iOS App、应用商店正式包和 Android 正式签名包。
+- 完整 roguelike 奖励扩展和长期循环平衡。
+- 安装器、代码签名、商店分发。
 - 旧 `dexSearch` 兼容。
 
 当前 Battle V4 / Rest V4 进度：
 
-- 训练场休整页可以进入真实 Battle V4 中转页。
+- 训练场休整页可以进入真实 Battle V4 中转页；正式 room 流程则通过 RunGame V5 scoped view + HTTP command 推进。
 - Battle service 使用 Showdown `BattleStream` 创建 session，保留 raw protocol/request/debug。
 - 战斗页使用 V2 风格战斗壳展示场景、HP、模型、指令、日志/解说和裁判对话。
 - 单打、双打、合作使用同一 session API 和合法随机 AI 推进；特殊系统 gate 和 AI 选择已有 core smoke 覆盖。
 - 天气/场地持久层会按资源 key 重建 video/image 层，避免沙暴、雨天、晴天、雪天切换时继续播放旧资源。
-- 当前主要工作点已经从“打通流程”转到正式游戏内容打磨、战斗演出稳定性、NPC 队伍质量和 Windows portable 体验。
+- 当前主要工作点已经从“打通流程”转到正式游戏内容打磨、战斗演出稳定性、NPC 队伍质量、三端正式 room 验收和 release 稳定性。
 
 下一步：
 
 - 继续回归 Battle V4：形态变化、濒死/换人、天气场地、HP/PP/状态继承、目标选择和双打 seat 映射。
 - 继续打磨正式 GameRun：NPC 配队、特殊系统、商店/训练经济、赛程叙事和结算体验。
-- Windows release 后续可做 `ChangeBattle-V2-Desk.exe` launcher，替代当前 `.cmd` 启动入口；安装器、签名、自动更新仍不在当前范围。
+- Desktop/App release 后续继续做 beta/stable 通道验收、增量更新回归和下载页信息整理；安装器、代码签名、商店分发仍不在当前范围。
 
 详细路线见 `docs/training-and-battle-roadmap.md`。
 
@@ -92,9 +140,35 @@ current V2 working directory: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 
 ## Asset Rules
 
-运行时图片、音频、图标等共享资源统一放在仓库根目录的 `assets/` 下，例如 `assets/aboutIcon/coin.png`、`assets/shop/rest-store/...`、`assets/training-ground/learn.png`。前端组件通过 `assetUrl("...")` 引用这些资源，路径相对于 `assets/` 根目录，例如 `assetUrl("rest/heal.png")`。
+公共图片、音频、图标、Showdown sprites/fx 等运行时资源已经迁到 COS/CDN：
 
-不要把这类资源临时放到 `apps/web/src/assets/` 或随意放进 `apps/web/public/`。`apps/web/src/assets/` 只适合真正需要被代码模块静态 import、并且已有明确局部打包约定的源码内资源；休整页、商店、训练场、战斗页等运行时 UI 资源默认都属于根目录 `assets/`。新增资源前先检查 `assets/` 里已有分类，优先复用/扩展现有目录，避免只为一个图标新开孤立资源体系。
+```txt
+https://assets.65h26i.top/beta/
+```
+
+业务代码和存档只保存资源相对路径，例如：
+
+```txt
+npc/avatars/6-asset-a73f3e71.webp
+runtime/items/redthread/icon.png
+showdown/sprites/ani/pikachu.gif
+```
+
+展示时通过 `assetUrl("...")` 或对应 assets provider 解析到当前运行时 URL。`assetUrl()` 是纯计算工具，不负责兼容脏数据，也不把 `changebattle-asset://...` 或 COS URL 反向修成相对路径。
+
+禁止在 profile、trainer、room member、runGame 等存储型字段里保存：
+
+```txt
+changebattle-asset://...
+https://assets.65h26i.top/...
+file://...
+data:...
+blob:...
+../x.png
+x.png?v=1
+```
+
+`apps/web/public` 和根 `assets/` 不再作为 release 运行时大资源来源。新增公共资源时先上传 CDN，再补 catalog/registry 或使用 canonical path。
 
 ## Commands
 
@@ -108,49 +182,60 @@ pnpm typecheck
 
 `./start_desk` 会自动清理本项目旧的 battle service、desktop dev、Electron 主进程和 renderer dev server（默认 `127.0.0.1:5181`），再启动本地 battle service（默认 `127.0.0.1:5191`）和桌面端。看到“代码改了但 UI 还是旧的”时，优先从 `pnpm desk:dev` / `./start_desk` 重新启动；不要直接复用旧的 5181 renderer。
 
-`pnpm desktop:dev` 只启动桌面端，不启动 battle service；但它也会在 dev 启动前清理本项目旧的 renderer/Electron 进程，避免接到 stale Vite 页面。Web 端手测真实战斗时需要另开一个终端运行 `pnpm battle:dev`。
+`pnpm desktop:dev` 只启动桌面端，不启动 battle service；但它也会在 dev 启动前清理本项目旧的 renderer/Electron 进程，避免接到 stale Vite 页面。Web 端手测 legacy `/sessions` 战斗时可以另开终端运行 `pnpm battle:dev`。手测正式 room 流程优先用本地 Docker Battle API：
+
+```bash
+docker compose -f docker/battle-api/docker-compose.yml up -d --build
+VITE_CHANGEBATTLE_BATTLE_SERVICE_URL=http://127.0.0.1:5191/changebattle/battle \
+  pnpm --filter @changebattle-v2/web exec vite --host 127.0.0.1 --port 5188
+```
 
 ## Desktop Release
 
-当前发布形态是 Windows Desktop portable zip，而不是安装器。最新已验证产物：
+当前发布形态是 Windows Desktop portable zip + Android debug APK。完整包托管 GitHub Release，线上服务器只托管 Desktop 增量 metadata 和下载页。
 
 ```txt
-release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
-source: v2@2b600e22
-generated: 2026-07-05 00:23 Asia/Shanghai
-size: 597 MiB
+version:        0.1.24
+tag:            desk-debug-v0.1.24
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.24
+Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.24.zip
+Android APK:    ChangeBattle-V2-Android-debug-v0.1.24.apk
+beta latest:    http://119.45.240.157/changebattle-beta/latest.json
+beta page:      http://119.45.240.157/changebattle-beta/
 ```
 
 玩家解压后运行：
 
 ```txt
-ChangeBattle-V2-Desk.cmd
+ChangeBattle-V2-Desk.exe
 ```
 
-`.cmd` 不是业务运行时，只是 portable launcher：用 `%~dp0` 计算解压目录，设置 `CHANGEBATTLE_PROJECT_ROOT`、Showdown runtime vendor、Showdown client vendor 等环境变量，然后调用包内 `runtime/electron/electron.exe` 启动 `apps/desktop`。VSCode 那种可见 `.exe` 也是 Electron，但走了更完整的应用打包/launcher/安装器体系；V2 现在先保留已验证的 portable 目录结构，后续如果要美化启动入口，优先做一个小型 `ChangeBattle-V2-Desk.exe` launcher 来替代 `.cmd`，而不是立刻重做完整安装器。
+`ChangeBattle-V2-Desk.exe` 是轻量 portable launcher；`.cmd` 仍可作为 fallback。当前不是安装器，不做系统安装目录、开始菜单注册、代码签名或自动卸载。
 
 只生成 release 按：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/build_release_on_windows.sh 0.1.0
+./tools/build_release_on_windows.sh X.Y.Z
 ```
 
 生成 release 并同步更新提示清单按：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/build_release_and_publish_update.sh 0.1.0
+./tools/build_release_and_publish_update.sh X.Y.Z
 ```
 
 更新服务器只托管小文件：
 
 ```txt
-https://65h26i.top/changebattle/latest.json
-https://65h26i.top/changebattle/
+http://119.45.240.157/changebattle/latest.json
+http://119.45.240.157/changebattle/
+http://119.45.240.157/changebattle-beta/latest.json
+http://119.45.240.157/changebattle-beta/
 ```
 
-`latest.json`、版本比较和默认 manifest 地址的纯规则在 `packages/changebattle-v2-core/src/desktopUpdateCatalog.ts`；Electron 主进程负责拉取清单、弹原生提示和打开外部下载页。脚本只发布 manifest/download page，不上传约 600 MiB 的 portable zip；下载镜像通过 `CHANGEBATTLE_RELEASE_MIRRORS` 或下载页维护。
+`latest.json`、版本比较和默认 manifest 地址的纯规则在 `packages/changebattle-v2-core/src/desktopUpdateCatalog.ts`；Electron 主进程负责拉取清单、下载增量对象、校验并提示重启。脚本只发布 manifest/download page/hash objects，不上传完整 portable zip；完整包和 APK 挂 GitHub Release。
 
 详细流程、Windows 构建机、检查项和排错见 `docs/windows-desktop-release.md`。
 
