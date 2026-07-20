@@ -93,6 +93,9 @@ x.png?v=1
 - 线上服务器只托管 `latest.json`、下载页、manifest 和增量 objects。
 - 不把完整 zip/apk 上传到线上服务器作为主要下载源，避免流量计费失控。
 - `release/` 目录只是本地发版工作台，不是 `release` 分支。
+- 推送 `release` 分支前必须先检查 `.github/workflows/*` 的 `on:` 触发规则，确认普通 push 是否会触发构建/发版。
+- 推送 `release` 后必须查看 GitHub Actions 最近运行，确认没有意外 release workflow；文档改动也不能默认“不会触发”。
+- 真正生成版本必须是显式发版动作，例如 `gh workflow run ...`、手动 `gh release create/upload` 或发布脚本，不允许把普通 push 当隐式发版开关。
 
 ## 常用红线扫描
 

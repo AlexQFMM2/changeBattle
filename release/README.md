@@ -243,6 +243,22 @@ cat tmp/gha-beta-update-vX.Y.Z-*/object-update-summary.json
 
 ## Release Flow
 
+### Push Safety
+
+推送 `release` 分支前必须先确认 GitHub Actions 触发规则，哪怕只是 README 或小文档更新：
+
+```bash
+rg -n "^on:|push:|branches:" .github/workflows -g '*.yml' -g '*.yaml'
+gh run list --repo AlexQFMM2/changeBattle --limit 5
+```
+
+判断规则：
+
+- 如果 workflow 对 `push` 到 `release` 有自动构建/发版触发，先停下来确认本次是否真的要发版。
+- 如果只是普通提交，不要把 push 当成隐式 release；真正发版必须显式执行 `gh workflow run ...`、`gh release create/upload` 或发布脚本。
+- 推送 `release` 后再看一次 `gh run list`，确认没有意外启动 release workflow。
+- 文档提交也按这个规则执行，不因为“只是 README”就跳过检查。
+
 推荐主流程：
 
 1. 在 `v2` 开发并自测。
