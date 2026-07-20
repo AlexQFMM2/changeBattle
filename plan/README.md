@@ -1,46 +1,42 @@
 # ChangeBattle V2 Plan Index
 
-这个目录按功能域整理。根目录只保留索引，具体计划、清单和参考图放到对应子目录。
+这个目录只保留当前仍有指导意义的计划。已完成、明显过期、被 RunGame V5 服务化取代的 V4/worker/旧 release 计划已经移到 [`archive/pre-v5`](archive/pre-v5/README.md)。
 
-## 状态口径
+## 当前状态
 
-- `已完成`：当前计划主体已经收口；后续优化应开新计划或在对应 README 里追加。
-- `部分完成`：已有代码或数据落地，但 checklist 仍有明确未完成项。
-- `规划中`：主要是后续方案记录，当前不代表已经实现。
-- `参考资料`：用于查阅，不作为施工进度本身。
+- 当前 beta/debug 版本是 `0.1.24`。
+- Desktop portable zip 和 Android debug APK 挂 GitHub Release `desk-debug-v0.1.24`。
+- 线上 beta 服务器只保留 `latest.json`、下载页、manifests 和增量 objects，不托管完整 zip/apk。
+- 正式 room 主线已经收口为 RunGame V5 C/S：服务端权威实体，客户端 scoped view + lightweight command。
+- 训练场和 legacy V4 helper 只允许作为本地/历史/开发路径，不能作为正式 room fallback。
 
-## 功能目录
+## 当前入口
 
-| 目录 | 状态 | 内容 |
-| --- | --- | --- |
-| [formal-game](formal-game/README.md) | 部分完成 | 正式游戏主流程、对局偏好、星图、7 场计划、休整、结算、设施规则 |
-| [battle-v4](battle-v4/README.md) | 部分完成 | Battle V4 架构、投降、AI、队伍生成、Showdown 播放与动画 |
-| [items-and-bag](items-and-bag/README.md) | 已完成/收口 | 系统战斗道具、背包实例、休整页道具、战斗背包 |
-| [dex-resources](dex-resources/README.md) | 已完成 | V1 道具/图标资源迁移、QuickDex 道具扩展 |
-| [references](references/README.md) | 参考资料 | UI 参考图和设计拆解素材 |
+- 当前计划集合：[`current/README.md`](current/README.md)
+- RunGame V5 实体化模型：[`current/runGame-v5-entity-model-plan.md`](current/runGame-v5-entity-model-plan.md)
+- Runtime 数据标准化：[`current/runtime-data-standardization-migration-plan.md`](current/runtime-data-standardization-migration-plan.md)
+- Battle API Docker / 自建服务器：[`current/server-docker-battle-api-plan.md`](current/server-docker-battle-api-plan.md)
+- Redis 临时房间连续性：[`current/server-redis-battle-room-continuity-plan.md`](current/server-redis-battle-room-continuity-plan.md)
+- Battle server 选择 / Desktop 离线 / 资源缓存：[`current/battle-server-selection-and-offline-assets-plan.md`](current/battle-server-selection-and-offline-assets-plan.md)
+- Assets CDN 核心抽象：[`current/assets-cdn-core-plan.md`](current/assets-cdn-core-plan.md)
+- Android App 移植：[`current/android-capacitor-app-migration-plan.md`](current/android-capacitor-app-migration-plan.md)
+- Desktop EXE launcher：[`current/desktop-exe-launcher-plan.md`](current/desktop-exe-launcher-plan.md)
+- Battle V4 AI 策略架构：[`current/battle-v4-ai-tactics-architecture-plan.md`](current/battle-v4-ai-tactics-architecture-plan.md)
+- 正式玩法后续：[`formal-game/README.md`](formal-game/README.md)
+- UI / 参考资料：[`references/README.md`](references/README.md)
 
-## 当前最常用入口
+## 红线
 
-- 正式游戏整体：[`formal-game/formal-game-v4-plan.md`](formal-game/formal-game-v4-plan.md)
-- 正式游戏进度：[`formal-game/formal-game-v4-checklist.md`](formal-game/formal-game-v4-checklist.md)
-- 战斗页投降与演出：[`battle-v4/battle-v4-surrender-and-narrative-flow-plan.md`](battle-v4/battle-v4-surrender-and-narrative-flow-plan.md)
-- Battle V4 架构：[`battle-v4/architecture/battle-v4-architecture-plan.md`](battle-v4/architecture/battle-v4-architecture-plan.md)
-- Battle V4 动画完善：[`battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md)
-- NPC/队伍生成：[`battle-v4/team-generation/battle-v4-team-generator-plan.md`](battle-v4/team-generation/battle-v4-team-generator-plan.md)
-- 战斗 AI：[`battle-v4/ai/battle-v4-ai-decision-plan.md`](battle-v4/ai/battle-v4-ai-decision-plan.md)
+- 不把归档中的旧 V4 总计划、旧 V4 清单、旧 Battle V4 目录当当前施工入口。
+- 正式 room 不新增旧 draft 同步、聚合休整命令或任何大 draft 写回路径。
+- 客户端不保存 room 大 `FormalGameRunV4` / `restRunSnapshot`；刷新和恢复必须拉服务端 scoped view。
+- 改数据源必须保留成品游戏 UI，不允许把休整页、战斗页退化成薄页面。
+- 存储型资源字段只保存 canonical asset path，不保存 resolved URL。
+- 推送 `release` 分支前先检查 `.github/workflows/*` 的 `on:`，推送后用 `gh run list` 确认没有意外发版 workflow。
 
-## 当前进度
+## 归档
 
-- 正式游戏主流程已经进入可持续测试阶段：开局候选、星图扩展、选人、7 场计划、休整页、战斗页、单局战后结算、最终结算和 BP 发放都已接入。
-- 正式休整商店和训练场已经完成第一版闭环：购买/售出、加权补货、课程学习、自主训练、费用、金币流水和课后流程均已接入。
-- 正式流程重计算已经迁出 renderer；desktop 通过 `formalComputeWorker` 执行正式计算，并用静态 boot splash 改善启动白屏体感。
-- Battle V4 已完成 Showdown-style playback 重构、HP 缓动修正、投降框组件化、天气持久层资源重载、Substitute 持续标记，以及选人页两步选择交互；小图闪光因本地 picon 无 shiny sheet，采用普通 picon + 星标提示。
-- 正式模式稳定性继续收口：敌方 NPC 等级按玩家最高等级动态计算，究极异兽归入神兽候选，自习收益改为等级/数值约 3:7，战斗入场同步本地 PP。
-- 休整页弹窗栈已补齐：背包打开时，技能学习替换和 Mega/Z/太晶系统道具重铸面板会显示在背包之上。
-- Plan 文档已按功能目录整理，后续新增计划优先进入对应目录 README，而不是堆在根目录。
+- [`archive/README.md`](archive/README.md)：归档规则。
+- [`archive/pre-v5/README.md`](archive/pre-v5/README.md)：V5 服务化前的 V4/worker/旧 release 计划索引。
 
-## 下一步
-
-- 下一步正式玩法主线是继续跑完整流程、记录阻断问题，并在稳定后再评估交换、招募等功能扩展。
-- Battle V4 演出仍按 [`battle-v4/battle-v4-surrender-and-narrative-flow-plan.md`](battle-v4/battle-v4-surrender-and-narrative-flow-plan.md) 推进。
-- 播放/动画技术路线继续指向 [`battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-plan.md) 和 [`battle-v4/animation/battle-v4-showdown-animation-deep-sync-checklist.md`](battle-v4/animation/battle-v4-showdown-animation-deep-sync-checklist.md)。
+归档文档只作历史参考。归档里的 V4、formal worker、本地 RunGame、大 draft、旧 assets 口径不能覆盖当前 RunGame V5 C/S 红线。

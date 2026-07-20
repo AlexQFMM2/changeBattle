@@ -1,5 +1,7 @@
 # Battle V4 Plans
 
+Archived before RunGame V5 C/S cleanup; for reference only.
+
 Battle V4 相关文档集中在这里。子目录按内核架构、AI、队伍生成和动画播放拆开。
 
 | 文档/目录 | 状态 | 说明 |

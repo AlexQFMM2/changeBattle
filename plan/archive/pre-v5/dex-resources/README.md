@@ -1,5 +1,7 @@
 # Dex Resources
 
+Archived before RunGame V5 C/S cleanup; for reference only.
+
 | 文档 | 状态 | 说明 |
 | --- | --- | --- |
 | [dex-items-v1-resource-migration-plan.md](dex-items-v1-resource-migration-plan.md) | 已完成 | V1 道具资源迁移计划，第一批已完成。 |
