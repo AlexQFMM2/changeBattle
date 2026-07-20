@@ -5,9 +5,9 @@
   "type": "module",
   "main": "out/main/main.js",
   "scripts": {
-    "dev": "pnpm --filter @changebattle-v2/assets-core build && node scripts/electron-vite.mjs dev",
-    "renderer:dev": "pnpm --filter @changebattle-v2/assets-core build && vite --host 127.0.0.1 --port 5181",
-    "build": "pnpm --filter @changebattle-v2/assets-core build && tsc -p tsconfig.json --noEmit && node scripts/electron-vite.mjs build",
+    "dev": "pnpm --filter @changebattle-v2/assets-core build && pnpm --filter @changebattle-v2/showdown-dex-core build && node scripts/electron-vite.mjs dev",
+    "renderer:dev": "pnpm --filter @changebattle-v2/assets-core build && pnpm --filter @changebattle-v2/showdown-dex-core build && vite --host 127.0.0.1 --port 5181",
+    "build": "pnpm --filter @changebattle-v2/assets-core build && pnpm --filter @changebattle-v2/showdown-dex-core build && tsc -p tsconfig.json --noEmit && node scripts/electron-vite.mjs build",
     "test:ipc-bundle": "node scripts/assert-desktop-ipc-bundle.mjs",
     "test:renderer-assets": "node scripts/assert-renderer-relative-assets.mjs",
     "test:asset-resolver": "tsc -p tsconfig.asset-resolver-test.json && node out/asset-resolver-test/rendererAssetResolver.test.js",
