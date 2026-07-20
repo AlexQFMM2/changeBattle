@@ -1,6 +1,6 @@
 # ChangeBattle V2 Release Workspace
 
-`release/` 是桌面端发版工作台。当前主流程由 GitHub Actions 构建 Windows debug/stable portable 包，完整包托管在 GitHub Release，更新入口和增量对象发布到自有服务器。公共图片、音频、Showdown sprites/fx 等 assets 已迁到腾讯 COS/CDN；Desk/Web/Android 的战斗创建与推进统一走公网 Battle API；桌面包和桌面增量对象池不再携带全量 assets，也不再携带本地 Showdown BattleService vendor。
+`release/` 是桌面端发版工作台。当前主流程由 GitHub Actions 构建 Windows debug/stable portable 包，完整包托管在 GitHub Release，更新入口和增量对象发布到自有服务器。公共图片、音频、Showdown sprites/fx 等 assets 已迁到腾讯 COS/CDN；Desk/Web/Android 的正式战斗都通过 Battle API base URL 推进，Desktop 离线模式会在本机启动嵌入式 Battle API。桌面包和桌面增量对象池不携带全量公共 assets，只携带运行所需代码和必要 vendor。
 
 当前推荐链路：
 
@@ -28,14 +28,14 @@ server root:   /home/ubuntu/webApp/
 当前 debug/beta 实测状态：
 
 ```text
-latest debug:       0.1.20
-GitHub Actions run: 29487219912
-build duration:     4m55s
-full zip:           144,822,814 bytes (~138 MiB)
-metadata artifact:  ~17 MiB
-staged objects:     6 objects / 16,887,643 bytes
-beta server total:  ~79 MiB after object GC
-beta objects live:  388 objects / ~66 MiB
+latest debug:       0.1.24
+GitHub Release:     https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.24
+Desktop zip:        ChangeBattle-V2-Desk-portable-debug-v0.1.24.zip
+Android APK:        ChangeBattle-V2-Android-debug-v0.1.24.apk
+Desktop sha256:     95be63bb56f532bbd91d7e3e09d87ab9a7bbf0f5a291046a2dcb565b2486d209
+Android sha256:     36d12114ca42f184c3d7ecf83362f4cedda15533a241a91c19e5dbe6a42afcc0
+full package host:  GitHub Release
+beta server role:   latest.json / index.html / manifests / objects only
 ```
 
 当前已发布版本：
@@ -46,6 +46,7 @@ beta objects live:  388 objects / ~66 MiB
 0.1.3  验证 0.1.2 -> 0.1.3 自动增量更新；压缩更新弹窗 UI 到 640x320 规格。
 0.1.4  修复出招面板禁用技能槽位显示；结算统计优先按后端播放流程归因。
 0.1.20 debug  GitHub Actions 桌面构建 + 内容哈希对象池更新 + Assets CDN 迁移基线。
+0.1.24 debug  RunGame V5 C/S 收口 + 休整页 UI 热修 + Desktop/APK GitHub Release。
 ```
 
 `0.1.3` 线上完整包镜像：
@@ -133,7 +134,8 @@ git worktree add -b hotfix/<name> ../changeBattleV2-hotfix-<name> release
 
 - 常规发布只追加当前 artifact 中的新 hash object。
 - 如果已经确认不需要支持旧 manifest，可按当前 `manifests/current.json` 做对象池 GC，只保留当前 manifest 引用的对象。
-- `0.1.20` CDN 迁移后已清理 beta 旧对象池：从约 `640M` 降到约 `79M`，当前 objects 约 `66M`。
+- `0.1.20` CDN 迁移后已清理 beta 旧对象池：从约 `640M` 降到约 `79M`。
+- `0.1.24` 起 beta 完整 zip/apk 明确挂 GitHub Release；服务器只保留增量更新小文件，避免流量计费被完整包下载消耗。
 - GC 前必须检查 `missingLiveObjects=0`；缺对象时禁止删除旧对象。
 
 下载链接继承规则：
@@ -166,7 +168,7 @@ resources/
 package.json
 ```
 
-说明：`packages/changebattle-v2-core` 里仍保留 `assets/` 路径兼容校验，防止旧安装目录/旧 manifest 读取失败；但当前 GitHub Actions 生成桌面文件清单时不再纳入 `assets/`，也不再纳入 `vendor/`。公共资源由 CDN 直连，战斗服务由公网 Battle API 提供。
+说明：`packages/changebattle-v2-core` 里仍保留 `assets/` 路径兼容校验，防止旧安装目录/旧 manifest 读取失败；但当前 GitHub Actions 生成桌面文件清单时不再纳入 `assets/`。公共资源由 CDN 直连；正式 room 战斗服务由官方/自建/Desktop 离线 Battle API 提供。
 
 禁止增量管理：
 
@@ -183,6 +185,7 @@ Electron runtime、launcher、updater 或目录结构变化，一律发布完整
 迁移注意：
 
 - `0.1.20` 已完成对象池迁移和 CDN 资源迁移验证。
+- `0.1.24` 已完成 beta 完整包切回 GitHub Release 下载链接，服务器不再保留大 zip/apk 作为主要下载源。
 - 同版本内容更新不依赖版本号判断差异，客户端按本地实际 sha 与远端 `manifests/current.json` 对比。
 - 如果修改公共图片/音频，只需要上传 COS/CDN 并保持路径可访问；不需要重新进入 desktop zip 或 update objects。
 - 如果修改 launcher、Electron runtime、updater 或 portable 目录结构，仍要求完整包。
@@ -312,7 +315,7 @@ git push origin v2
 2. 触发 GitHub Actions：
 
 ```bash
-VERSION=0.1.20
+VERSION=0.1.24
 gh workflow run "Release Debug Desktop" \
   --repo AlexQFMM2/changeBattle \
   --ref v2 \
@@ -333,7 +336,7 @@ gh run watch <run_id> --repo AlexQFMM2/changeBattle --exit-status
 4. 下载 update metadata artifact 到本地 `tmp/`：
 
 ```bash
-VERSION=0.1.20
+VERSION=0.1.24
 RUN_ID=<run_id>
 OUT_DIR="/home/alexqfmm/workPlace/pokemon/changeBattleV2/tmp/gha-beta-update-v${VERSION}-${RUN_ID}"
 mkdir -p "$OUT_DIR"
@@ -346,7 +349,7 @@ gh run download "$RUN_ID" \
 5. 发布 artifact 内容到 beta 服务器：
 
 ```bash
-VERSION=0.1.20
+VERSION=0.1.24
 OUT_DIR="/home/alexqfmm/workPlace/pokemon/changeBattleV2/tmp/gha-beta-update-v${VERSION}-<run_id>"
 CHANGEBATTLE_RELEASE_CHANNEL=beta \
 CHANGEBATTLE_UPDATE_LOCAL_DIR="$OUT_DIR" \
@@ -363,6 +366,42 @@ http://119.45.240.157/changebattle-beta/latest.json
 
 ```text
 https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-vX.Y.Z
+```
+
+如果 Actions artifact 已经生成，或本地已经有完整 Desktop/APK 产物，也可以手动创建/补齐同一个 GitHub Release。`0.1.24` 热修就是这个形态：
+
+```bash
+cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
+VERSION=0.1.24
+gh release create "desk-debug-v${VERSION}" \
+  "release/ChangeBattle-V2-Desk-portable-debug-v${VERSION}.zip" \
+  "release/ChangeBattle-V2-Android-debug-v${VERSION}.apk" \
+  --repo AlexQFMM2/changeBattle \
+  --target v2 \
+  --title "ChangeBattle V2 Desk Debug v${VERSION}" \
+  --notes-file docs/release-notes-v${VERSION}.md \
+  --prerelease
+```
+
+如果 tag/release 已存在，用 `gh release upload desk-debug-vX.Y.Z <asset> --clobber` 补资产。Codex shell 有时读不到桌面 keyring 里的 `gh` token；这种情况下不要反复重试，把命令交给用户终端执行，或让用户先在同一个 shell 里确认 `gh auth status`。
+
+发布线上 beta metadata 时，完整包链接必须指向 GitHub Release：
+
+```bash
+VERSION=0.1.24
+export CHANGEBATTLE_FULL_PACKAGE_URL="https://github.com/AlexQFMM2/changeBattle/releases/download/desk-debug-v${VERSION}/ChangeBattle-V2-Desk-portable-debug-v${VERSION}.zip"
+CHANGEBATTLE_RELEASE_MIRRORS="$(printf 'Desktop Portable=https://github.com/AlexQFMM2/changeBattle/releases/download/desk-debug-v%s/ChangeBattle-V2-Desk-portable-debug-v%s.zip\nAndroid Debug APK=https://github.com/AlexQFMM2/changeBattle/releases/download/desk-debug-v%s/ChangeBattle-V2-Android-debug-v%s.apk' "$VERSION" "$VERSION" "$VERSION" "$VERSION")"
+export CHANGEBATTLE_RELEASE_MIRRORS
+CHANGEBATTLE_RELEASE_CHANNEL=beta \
+CHANGEBATTLE_UPDATE_LOCAL_DIR="$OUT_DIR" \
+./tools/publish_desktop_update_manifest.sh "$VERSION"
+```
+
+线上服务器不应该保留完整 zip/apk 作为下载源。发布后可检查：
+
+```bash
+curl -sS http://119.45.240.157/changebattle-beta/latest.json | jq '{version, fullPackage, mirrors}'
+ssh ubuntu@119.45.240.157 'find /home/ubuntu/webApp/changebattle-beta/releases -maxdepth 1 -type f -size +20M -print'
 ```
 
 ### Stable Release

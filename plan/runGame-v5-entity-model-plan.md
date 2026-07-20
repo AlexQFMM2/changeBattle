@@ -4,6 +4,14 @@
 
 RunGame V5 的目标是把正式游戏状态从“一个到处复制完整对象的大 JSON”改成“实体 + 引用”的权威模型。
 
+当前状态：
+
+- 正式 room 主线已经以 `RunGameV5` 为服务端权威状态。
+- 客户端正式 room 路径只消费 scoped view 和轻量 command，不再传输、保存或展示依赖大 `FormalGameRunV4/restRunSnapshot`。
+- 休整页原游戏 UI 已恢复，数据源由 V5 scoped rest view 驱动。
+- legacy V4 helper 只允许训练场、本地 legacy、dev-only adapter 和 smoke test 使用。
+- 下一刀是继续拆 battle/result/settlement 计算中残留的 V4-shaped helper，保持正式 API 响应只返回 scoped view 和小 result。
+
 核心原则：
 
 ```text

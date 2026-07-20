@@ -4,6 +4,13 @@
 
 把“战斗服务器”和“资源来源”从构建时环境变量，升级为玩家可理解、可切换、可检测的运行时设置。玩家侧只面向 Desktop 和 Android App；Web 端不作为上线产品，只保留给本地开发、ChromeAutomation 自动化测试和公网/本地 API smoke。
 
+当前状态：
+
+- 官方服务器、自建服务器、Desktop-only 离线服务的架构方向已落地到正式 room 主线：Renderer 只认 Battle API base URL，不恢复旧本地正式流程。
+- Desktop 离线服务使用本机嵌入式 Battle API + `MemoryRedisLike`，进程退出后未结算 room 不恢复；最终 profile/vault 仍写本地存档。
+- Android 不内嵌离线 Battle API，默认走官方 Battle API，也允许后续使用自建服务器。
+- 公共资源仍默认走 COS/CDN；本地缓存是独立能力，不改变存储字段必须是 canonical asset path 的红线。
+
 目标体验：
 
 ```text

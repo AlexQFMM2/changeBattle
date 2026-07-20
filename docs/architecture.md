@@ -5,8 +5,21 @@
 V2 是从旧项目拆出的干净新基座。当前核心目标有三条：
 
 - 保留 V1 已经打磨好的 UI 体验：`640 x 320` 游戏视口、首屏、首页、弹窗风格、动效节奏。
-- 重建数据和运行时边界：Web/Desktop 共用 `apps/api`、`packages/showdown-dex-core`、`packages/showdown-battle-core`，训练、正式 GameRun 和 Battle V4 都不能回到旧的耦合结构。
-- 保持 Desktop portable 可发布：release 包必须离线运行，不能依赖 dev battle service、外部 node_modules 或写死路径。
+- 重建数据和运行时边界：正式 room 主线使用服务端权威 `RunGameV5`、scoped view 和轻量 command，不能回到旧的 V4 大 draft 同步结构。
+- 保持 Desktop/Android beta 可发布：完整包走 GitHub Release，线上服务器只承载更新 metadata 和小对象。
+
+当前架构状态：
+
+```txt
+Web/Desktop/Android Renderer
+  -> Battle API base URL
+    -> official server / self-hosted server / desktop embedded server
+      -> RunGameV5 authoritative room state
+      -> Redis provider or MemoryRedisLike provider
+      -> Showdown Battle service
+```
+
+正式 room 客户端不保存大 run，不上传 `formalRunDraft`，不从 compat `formalRun` 展示主数据。训练场和 legacy V4 helper 允许保留，但必须物理隔离、入口隔离、语义隔离。
 
 ## Repository Policy
 
@@ -19,7 +32,7 @@ branch: v2
 working directory used during rebuild: /home/alexqfmm/workPlace/pokemon/changeBattleV2
 ```
 
-当前 rebuild 目录可能没有 `.git`。进入提交阶段前，需要把 `changeBattleV2` 整理成原仓库 `v2` 分支的 worktree，或把 V2 文件作为 `v2` 分支根目录内容提交。禁止误建一个无关的新仓库，除非明确决定放弃原仓库。
+当前 `changeBattleV2` 是 `v2` 分支 worktree。不要误建新仓库，也不要在 `changeBattleV2-release` 做日常开发。
 
 ```txt
 Showdown 官方数据 / Dex + zh-CN 数据 + 本地 sprite 资源
@@ -44,8 +57,12 @@ Showdown 官方数据 / Dex + zh-CN 数据 + 本地 sprite 资源
 - `apps/api` 放所有 web/desktop 共用的应用层函数和 facade。
 - `apps/web`、`apps/desktop` 不直接调用 core；先通过 `apps/api`。
 - UI 只消费 core DTO，不直接访问 Showdown 全局变量。
-- 当前不接 app，不接旧 Battle/GameRun，不接旧完整存档。
+- Web/Desktop/Android 正式 room 主线只走 Battle API scoped view 和具体 command。
+- Desktop 离线模式启动本机 Battle API + MemoryRedisLike，不恢复旧本地正式流程。
+- Android 使用公网/自建 Battle API，不内嵌离线 Battle API。
 - 旧项目素材只能按明确清单迁移；不能把旧 runtime 当隐式依赖。
+
+正式 room 禁止事项集中记录在 `docs/engineering-redlines.md`。
 
 ## Package Layout
 
@@ -85,6 +102,11 @@ apps/desktop
 
 ### Formal Game / Rest
 
+- 正式 GameRun 已迁到 `RunGameV5` 权威模型：Player、PokemonInstance、Bag、ItemInstance 独立存储，map/round/battle 只引用 ID。
+- `GET /rooms/:roomId/matches/:matchId/view?scope=...` 返回页面 scoped view：summary、starter、rest、battle、settlement。
+- room command 只返回小型 result 和当前 scope view，不返回 `formalRun/restRunSnapshot/runGameV5`。
+- 正式休整页保留原游戏 UI，展示数据来自 V5 scoped rest view，经 room-only display model 派生。
+- 训练场/legacy 本地流程可以继续使用 V4 run，但不能进入正式 room 主线。
 - 正式 GameRun 已有 7 场赛程、休息室、商店、训练场、治疗、交换、结算和下一场预览。
 - 商店支持购买/售出、加权补货、自动补货和医保折扣；治疗服务通过 NPC 对话框确认并恢复全队 HP/异常/PP。
 - 普通正式商店的训练格只提供 10 个特效药；薄荷、王冠、特性胶囊/膏药、努力药等标准养成材料保留在待结算/局外养育侧，不再污染普通训练商店补货池。
@@ -110,12 +132,18 @@ apps/desktop
 
 ### Desktop Release
 
-- Windows Desktop portable release 链路已跑通，`ChangeBattle-V2-Desk-portable-v0.1.0.zip` 已能从 Windows 构建机生成并拉回 Linux。
-- 当前 launcher 是 `ChangeBattle-V2-Desk.cmd`，负责设置 portable 环境变量并启动包内 Electron runtime；后续可增加 `.exe` launcher，但安装器/签名/自动更新不在当前边界。
+- 当前 beta/debug 版本为 `0.1.24`，GitHub Release tag 是 `desk-debug-v0.1.24`。
+- Desktop portable zip 和 Android debug APK 挂 GitHub Release。
+- 线上 beta 服务器只托管 `latest.json`、下载页、manifest 和增量 objects，不托管完整 zip/apk。
+- 当前 launcher 包含 `ChangeBattle-V2-Desk.cmd` 和轻量 `.exe` 入口；安装器、签名、商店分发不在当前边界。
+- Desktop 离线服务在 Electron 主进程启动嵌入式 Battle API，监听 `127.0.0.1:<port>`，使用 MemoryRedisLike；Renderer 仍只认 Battle API URL。
 
 ### Sprite Resource Policy
 
-- 主资源来自本地 Showdown 镜像：`assets/showdown/sprites`。
+- 运行时公共资源来自 COS/CDN：`https://assets.65h26i.top/beta/`。
+- 存储型资源字段只保存 canonical asset path，例如 `npc/avatars/6-asset-a73f3e71.webp`。
+- `assetUrl()` 只负责把合法相对路径解析成当前 runtime URL，不兼容修复脏数据。
+- 旧本地 Showdown 镜像只作为资源整理/补图来源，不作为 release 运行时依赖。
 - `missing-sprites.json` 保留官方 404 清单，不删除。
 - 只对 V2 缺失路径从旧 runtime 精确补图，补图清单写在 `assets/showdown/sprites/runtime-overrides.json`。
 - 后续要恢复纯 Showdown 镜像时，按 `runtime-overrides.json copied[].targetPath` 删除即可。
@@ -139,6 +167,10 @@ V2 运行时不依赖外部研究目录。进入项目的官方数据和中文�
 - 不让 web/desk 各写一套 Dex 逻辑。
 - 不让 UI 直接读旧项目文件或旧 runtime 数据。
 - 不把中文名、展示文本、图片名用于战斗身份判断。
+- 正式 room 不传、不存、不展示依赖大 `formalRun/restRunSnapshot`。
+- 正式 room 不新增 `syncDraft/formalRunDraft/restAction` 入口。
+- 改数据结构不能牺牲已设计好的游戏 UI。
+- 线上服务器不托管完整 zip/apk，大完整包统一挂 GitHub Release。
 
 ## UI Architecture
 

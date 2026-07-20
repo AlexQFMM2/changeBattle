@@ -1,14 +1,18 @@
-# ChangeBattle V2 Windows Desktop Release
+# ChangeBattle V2 Desktop / Android Beta Release
 
-本文档记录 ChangeBattle V2 Windows Desktop 便携包的发布流程。范围只包含 V2 Desk portable zip，不包含 Web、Android、安装器或签名发布。桌面端支持启动时检查远端 `latest.json`，并在 portable 环境内按文件 sha256 自动增量替换普通运行文件；启动器/runtime 变化仍要求下载完整包。
+本文档记录 ChangeBattle V2 Desktop portable 和 Android debug APK 的发布口径。当前主发布链路是 GitHub Actions 构建 Desktop portable，完整包挂 GitHub Release；Android debug APK 由本地/Windows builder 构建后上传到同一个 GitHub Release。线上服务器只承载 Desktop 增量更新 metadata 和下载页，不承载完整大包。
 
-当前已验证 release：
+当前 beta：
 
 ```text
-ChangeBattle-V2-Desk-portable-v0.1.0.zip
-source: v2@2b600e22
-generated: 2026-07-05 00:23 Asia/Shanghai
-size: 597 MiB
+version:        0.1.24
+branch:         v2
+tag:            desk-debug-v0.1.24
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.24
+Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.24.zip
+Android APK:    ChangeBattle-V2-Android-debug-v0.1.24.apk
+beta latest:    http://119.45.240.157/changebattle-beta/latest.json
+beta page:      http://119.45.240.157/changebattle-beta/
 ```
 
 ## Release Artifact
@@ -16,7 +20,8 @@ size: 597 MiB
 发布产物命名：
 
 ```text
-ChangeBattle-V2-Desk-portable-vX.Y.Z.zip
+ChangeBattle-V2-Desk-portable-debug-vX.Y.Z.zip
+ChangeBattle-V2-Android-debug-vX.Y.Z.apk
 ```
 
 玩家解压后运行：
@@ -25,7 +30,7 @@ ChangeBattle-V2-Desk-portable-vX.Y.Z.zip
 ChangeBattle-V2-Desk.cmd
 ```
 
-玩家机器不需要安装 Node.js、pnpm、Python 或源码依赖。便携包内会包含 Electron runtime、desktop build output、前端静态资源、Pokemon Showdown runtime vendor 和 Showdown client playback vendor。
+玩家机器不需要安装 Node.js、pnpm、Python 或源码依赖。便携包内会包含 Electron runtime、desktop build output、前端静态资源、必要 vendor 和嵌入式离线 Battle API 运行所需代码。公共图片、音频、sprites/fx 不打进完整包，运行时走 COS/CDN 或本地缓存。
 
 ## Launcher Shape
 
@@ -38,6 +43,8 @@ ChangeBattle-V2-Desk.cmd
 这不代表 Electron 不能做 `.exe`。VSCode 也是 Electron，但它使用完整应用 launcher/安装器/签名链路，所以用户看到的是 `Code.exe`。V2 当前选择 `.cmd` 是为了先稳定 portable 目录结构、vendor 路径和离线运行。后续如果只想隐藏 `.cmd`，优先做小型 `ChangeBattle-V2-Desk.exe` launcher 复用同一套目录结构；安装器、签名、自动更新仍不属于本文档当前 release 范围。
 
 ## Windows Build Host
+
+当前 Desktop debug 首选 GitHub Actions；Windows 构建机流程是备用方案，用于 Actions 不可用、Android debug APK 或本地复现。
 
 Windows 构建机：
 
@@ -69,11 +76,13 @@ Windows 构建会直接失败。
 
 ## One-Command Release
 
+这是旧 Windows builder 备用流程，不是当前首选。首选流程见 `release/README.md` 的 GitHub Actions + GitHub Release。
+
 Linux 侧从仓库根目录执行：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/build_release_on_windows.sh 0.1.0
+./tools/build_release_on_windows.sh X.Y.Z
 ```
 
 这个脚本会完成：
@@ -89,19 +98,19 @@ cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
 9. 把 zip 拉回 Linux 本地：
 
 ```text
-changeBattleV2/release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
+changeBattleV2/release/ChangeBattle-V2-Desk-portable-debug-vX.Y.Z.zip
 ```
 
 Windows 侧最终产物：
 
 ```text
-D:\changeBattleV2\release\ChangeBattle-V2-Desk-portable-v0.1.0.zip
+D:\changeBattleV2\release\ChangeBattle-V2-Desk-portable-debug-vX.Y.Z.zip
 ```
 
 2026-07-04 重新验证的包同时已拉回 Linux：
 
 ```text
-/home/alexqfmm/workPlace/pokemon/changeBattleV2/release/ChangeBattle-V2-Desk-portable-v0.1.0.zip
+/home/alexqfmm/workPlace/pokemon/changeBattleV2/release/ChangeBattle-V2-Desk-portable-debug-vX.Y.Z.zip
 ```
 
 本次 release 在首次构建时暴露了 desktop player vault split table 缺少 `itemStoragePageCount/pokemonStoragePageCount` 的类型问题；已在 `f8ec6aac` 修复，并通过 Windows release checks、desktop build、IPC bundle、renderer assets 和 formal worker smoke。
@@ -112,7 +121,7 @@ D:\changeBattleV2\release\ChangeBattle-V2-Desk-portable-v0.1.0.zip
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/build_release_and_publish_update.sh 0.1.0
+./tools/build_release_and_publish_update.sh X.Y.Z
 ```
 
 这个命令会先执行普通 release，然后生成并发布：
@@ -129,7 +138,7 @@ https://65h26i.top/changebattle/latest.json
 https://65h26i.top/changebattle/
 ```
 
-发布脚本会上传 `latest.json`、下载页、文件目标清单和内容哈希对象，不上传约 600 MiB 的 portable zip。真实完整包下载链接应放到 `downloadPageUrl` 或 `mirrors`，例如网盘、GitHub Release 或其它下载页。
+发布脚本会上传 `latest.json`、下载页、文件目标清单和内容哈希对象，不上传完整 portable zip。真实完整包下载链接应放到 `downloadPageUrl` 或 `mirrors`，当前优先使用 GitHub Release。
 
 常用环境变量：
 
@@ -144,7 +153,7 @@ CHANGEBATTLE_UPDATE_WEB_ROOT="/home/ubuntu/webApp/changebattle"
 如果只想重新生成/发布更新清单，不重新打包：
 
 ```bash
-./tools/publish_desktop_update_manifest.sh 0.1.0
+./tools/publish_desktop_update_manifest.sh X.Y.Z
 ```
 
 如果使用 GitHub Actions 构建 debug 桌面端，先把 `changebattle-beta-update-metadata-vX.Y.Z` artifact 下载到本地目录，例如 `tmp/changebattle-beta-update-vX.Y.Z`，再发布该目录：
@@ -160,7 +169,7 @@ v2 增量更新不再上传 `files/vX.Y.Z/` 完整镜像。服务器目录以 `m
 如果只想本地生成清单并检查内容：
 
 ```bash
-node tools/generate_desktop_update_manifest.mjs 0.1.0
+node tools/generate_desktop_update_manifest.mjs X.Y.Z
 ```
 
 ## Manual Windows Build
@@ -169,13 +178,13 @@ node tools/generate_desktop_update_manifest.mjs 0.1.0
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-./tools/send_release_source_to_windows.sh 0.1.0
+./tools/send_release_source_to_windows.sh X.Y.Z
 ```
 
 然后在 Windows 构建机运行：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattleV2\build-desk-release.ps1 -Version 0.1.0
+powershell -NoProfile -ExecutionPolicy Bypass -File D:\changeBattleV2\build-desk-release.ps1 -Version X.Y.Z
 ```
 
 ## Windows Release Checks

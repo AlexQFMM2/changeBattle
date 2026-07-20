@@ -1,8 +1,27 @@
 # ChangeBattle V2
 
-一个干净的新基座。当前阶段已经进入 V2 正式游戏可玩验证 + Battle V4 AI/队伍生成器强化 + 正式流程服务端化 + 桌面端 GitHub Actions 发版稳定期：V1 风格首屏/首页、训练配置页、Battle V4 战斗页、正式 GameRun、休息室/商店/训练场/治疗服务、长期玩家仓库、星图天赋静态化、灵魂伴侣蛋孵化/仓库养成/同行许可/战后成长/战斗内进化、Windows Desktop portable release、桌面端内容哈希增量更新、腾讯 COS/CDN 公共资源加载都已经接入。
+ChangeBattle V2 是当前主线。`v2` 分支对应 beta/debug 通道，当前版本是 `0.1.24`。
 
-当前新的重点已经从“流程打通”转为“质量验证、服务端连续性和 AI 能力闭环”：单打 AI 已完成 depth/value/threat/resource/special-system 等第一轮强化，双打 AI 已完成 joint action/value/reply/免疫防呆和双打队伍生成器优化；正式流程已开始迁入 Redis room + Battle API，本地 Docker 已跑通从开始游戏到战斗结算的 Web smoke；下一步聚焦 rest-action / finalize-run / 断线恢复、出题/做题/评估报告、人工 debug 对局验收、合作 AI 开发，以及 Android-only 的 Capacitor App 移植。
+当前项目已经从“本地大 RunGame 草稿推进”收口到正式 room C/S 架构：服务端 `RunGameV5` 保存权威实体，Web/Desktop/Android 只通过 scoped view 和轻量 command 与 Battle API 交互。训练场和 legacy V4 helper 仍保留，但必须硬隔离，不能作为正式 room fallback。
+
+```txt
+current beta:   0.1.24
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.24
+Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.24.zip
+Android APK:    ChangeBattle-V2-Android-debug-v0.1.24.apk
+beta latest:    http://119.45.240.157/changebattle-beta/latest.json
+beta site:      http://119.45.240.157/changebattle-beta/
+official API:   https://api.65h26i.top/changebattle/battle
+assets CDN:     https://assets.65h26i.top/beta/
+```
+
+后续接手优先读：
+
+- `../README.md`：工作区总入口，解释线上、Release、分支、目录。
+- `docs/architecture.md`：当前架构边界。
+- `docs/engineering-redlines.md`：红线、代码规范和检查命令。
+- `release/README.md`：Desktop/APK/GitHub Release/线上增量发布流程。
+- `docs/release-notes-v0.1.24.md`：当前 beta 版本说明。
 
 ## Repository / Branch
 
@@ -32,12 +51,12 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - **队伍生成器**：随机队伍生成器已从“随机裁剪”升级为按 `purpose / quality / aiLevel / playerProfileHints` 分层生成；单打支持 rain/sun/trick-room 等核心完整度，双打支持 Protect 密度、控速、范围输出、Fake Out、Intimidate、重定向、lead pair 和 coop 后续复用的 doubles diagnostics。
 - **AI 验证流程**：单打和双打都已接入 self-play exam / report 流程，能批量生成题目、AI 自动答题、记录决策耗时、debug/value/reason tags，并按 severe/warning 找明显犯病点。
 - **Assets CDN**：公共图片、音频、Showdown sprites/fx、训练/商店/奖章等资源已迁到腾讯 COS/CDN，统一走 `https://assets.65h26i.top/beta/...`；`apps/web/public` 和根 `assets/` 不再作为运行时打包来源。
-- **Formal Run Server Room**：正式流程服务端化已完成第一段和战斗闭环的本地 Docker smoke。当前 `apps/api` 主服务提供 `/rooms`、starter 选择、赛程生成、`prepare-battle`、room-bound snapshot/timeline/choice、`finalize-battle`；Web 正式流程可从开房、选 starter、生成赛程、休整、进入战斗、提交一次指令、战斗结束并进入 settlement。Redis room 只承载单局临时连续性，不做账号或长期云存档。
-- **Battle Server 运行时选择**：下一步会把 Battle API URL 从构建时 env 升级为 Desktop / Android App 的运行时配置：官方服务器、自建服务器和 Desktop-only 离线服务共用同一套 `postService` / room WebSocket base URL；Desktop 离线服务由 Electron 自带 Node runtime 启动本地 Battle API，并用进程内 `MemoryRedisLike` 模拟 room 所需 Redis 子集，不要求用户安装 Node、Docker 或 Redis。Web 端不作为上线产品，只作为本地开发和 ChromeAutomation 自动化测试入口。
+- **Formal Room V5 C/S**：正式 room 主线已经改为 scoped view + 具体 command。`RunGameV5` 是服务端唯一权威；客户端不再上传、保存或接收大 `formalRun/restRunSnapshot` 作为正式 room 展示状态。休整页保留原游戏 UI，但数据源来自 V5 scoped rest view。
+- **Battle Server 运行时选择**：Desktop / Android 的 Battle API URL 已按运行时配置接入官方服务器、自建服务器和 Desktop-only 离线服务。Desktop 离线服务由 Electron 主进程启动本地 Battle API，并用进程内 `MemoryRedisLike` 模拟 room 所需 Redis 子集，不恢复旧本地正式流程。
 - **资源缓存路线**：公共资源默认继续走 COS/CDN，不重新塞回 release zip；后续增加“缓存资源到本地”开关，Desktop first，首次联网下载约 `4-500MB`，缓存完成后优先本地读取，未命中再回退 CDN。
-- **Release 流程**：debug 桌面端主流程已迁到 GitHub Actions。完整包由 GitHub Release 托管，更新 metadata 由 Actions artifact 生成，本地下载 artifact 后上传到自有服务器；旧 scp 到 Windows 构建机流程已降级为备用方案。
-- **桌面更新**：增量更新从 `files/vX.Y.Z/` 版本镜像迁移为内容哈希对象池：服务器托管 `latest.json`、`manifests/current.json`、`manifests/vX.Y.Z.json` 和 `objects/<sha>`；客户端按本地实际 sha 与远端清单比较新增/修改/删除。当前 beta 服务器清理旧对象后约 `79M`，当前版本 live objects 约 `66M`。
-- **下一步重点**：继续把 Formal Run room 化补完整，优先做金币交易类 `rest-action`、最终 `finalize-run`、room heartbeat/断线恢复、容器重启失败结算和 Loki；继续扩大出题/做题/评估样本，做人工 debug 对局验收，完善报告可解释性；推进 coop AI 和 coop 队伍/lead pair 分配；启动 Android-only App 移植。
+- **Release 流程**：debug 桌面端主流程已迁到 GitHub Actions。完整包和 Android debug APK 托管在 GitHub Release，线上服务器只发布 Desktop 增量更新 metadata 和下载页；旧 scp 到 Windows 构建机流程已降级为备用方案。
+- **桌面更新**：增量更新使用内容哈希对象池：服务器托管 `latest.json`、`manifests/current.json`、`manifests/vX.Y.Z.json` 和 `objects/<sha>`；客户端按本地实际 sha 与远端清单比较新增/修改/删除。大完整包不放线上服务器，避免流量计费。
+- **下一步重点**：继续做正式 room scoped view 细节回归、Battle V5 纯计算拆分、AI/队伍平衡、合作 AI、Android 验收和 release 稳定性。所有 room 主线新代码必须遵守 `docs/engineering-redlines.md`。
 
 - `packages/showdown-dex-core`：Web/Desktop 共用的 Dex 数据、搜索、详情聚合、图片解析、中文翻译、能力计算、学习面反查。
 - `packages/changebattle-v2-core`：V2 运行时结构、玩家仓库、星图天赋、灵魂伴侣、桌面更新等共享纯规则和 catalog。
@@ -114,7 +133,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.20` 已完成内容哈希对象池更新和 CDN 资源迁移验证；最近一次 debug release 耗时约 `4m55s`，完整包约 `138M`，增量 metadata artifact 约 `17M`。
+- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.24` 是当前 RunGame V5 C/S 与休整页热修 beta 基线；完整包和 Android debug APK 均挂 GitHub Release，线上服务器只放增量 metadata 和下载页。
 
 当前明确不做：
 
@@ -212,18 +231,19 @@ VITE_CHANGEBATTLE_BATTLE_SERVICE_URL=http://127.0.0.1:5191 pnpm --filter @change
 
 当前发布形态是 Windows Desktop portable zip，而不是安装器。debug/beta 主流程已经迁到 GitHub Actions：Actions 构建完整 portable zip 并上传 GitHub Release，同时产出 `latest.json + manifests + objects` 更新 artifact；本地下载 artifact 后发布到自有服务器。旧的“scp 到 Windows 构建机再本机构建”流程已经降级为 legacy backup。
 
-当前 debug 迁移基线：
+当前 beta/debug 基线：
 
 ```txt
-latest debug: 0.1.20
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.20
-full package: ChangeBattle-V2-Desk-portable-debug-v0.1.20.zip
+latest debug: 0.1.24
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.24
+Desktop package: ChangeBattle-V2-Desk-portable-debug-v0.1.24.zip
+Android package: ChangeBattle-V2-Android-debug-v0.1.24.apk
 beta latest:  http://119.45.240.157/changebattle-beta/latest.json
 beta site:    http://119.45.240.157/changebattle-beta/
 stable site:  http://119.45.240.157/changebattle/
 ```
 
-`0.1.20` 是内容哈希对象池更新和 CDN 资源迁移的 debug 基线。最近一次 GitHub Actions release 成功耗时约 `4m55s`，完整 debug zip 约 `138M`；本次增量 metadata artifact 约 `17M`，新增对象 6 个。服务器清理旧对象池后，beta 更新目录约 `79M`，其中当前 live objects 约 `66M`。
+`0.1.24` 是当前 RunGame V5 C/S 与休整页热修 beta 基线。完整包托管 GitHub Release；beta 服务器只保留 `latest.json`、下载页、manifest 和增量 objects，不托管大 zip/apk。
 
 玩家解压后运行：
 
@@ -254,7 +274,7 @@ debug/beta 推荐发版命令：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-VERSION=0.1.20
+VERSION=0.1.24
 git push origin v2
 gh workflow run "Release Debug Desktop" \
   --repo AlexQFMM2/changeBattle \
