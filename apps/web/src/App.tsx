@@ -43,6 +43,7 @@ import {
   type RunGameSummaryViewV5,
   type ViewScopeNameV5,
   type FormalSettlementReasonV4,
+  type LocalPokemonV4,
   type PostServiceActionNameV4,
   type PostServiceConnectionStateV4,
   type TrainingRunGameV4,
@@ -1241,6 +1242,10 @@ function RoutedApp({runtime}: AppProps) {
           ok: true as const,
           data: {
             room: response.data.room,
+            scope: response.data.scope,
+            view: response.data.view,
+            revision: response.data.revision,
+            phase: response.data.phase,
             actionType: action.type,
             message: response.data.message || payload?.message || "操作完成。",
             moneyDelta: 0,
@@ -1267,6 +1272,16 @@ function RoutedApp({runtime}: AppProps) {
     setDexInitialQuery(null);
     setDexInitialRow(null);
     setDexOpen(true);
+  }
+
+  function pokemonFromRestViewV5(view: RunGameScopedViewV5 | null | undefined, pokemonId: string): LocalPokemonV4 | undefined {
+    if (!view || !pokemonId || !("team" in view) || !Array.isArray(view.team)) return undefined;
+    return (view as RunGameRestViewV5).team.find(entry => entry.localPokemon.localPokemonId === pokemonId || entry.pokemonId === pokemonId)?.localPokemon;
+  }
+
+  function pokemonFromRestDisplayModel(model: FormalRestDisplayModel, pokemonId: string): LocalPokemonV4 | undefined {
+    if (!pokemonId) return undefined;
+    return model.player?.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === pokemonId);
   }
 
   function openDexCard(seed: {category: Extract<DexCategory, "pokemon" | "moves" | "abilities" | "items">; query: string; entry: DexSearchRow}) {
@@ -1728,7 +1743,7 @@ function RoutedApp({runtime}: AppProps) {
             onHeal: async () => {
               if (formalRoomCredential) {
                 const submitted = await submitFormalRestAction({type: "team.heal"});
-                return {...(submitted.result as any), ok: true, run: formalRestDisplayModel.legacyRun as any, message: submitted.message};
+                return {...(submitted.result as any), source: "room" as const, serverCommitted: true as const, ok: true, message: submitted.message, reused: submitted.reused};
               }
               if (!formalRun) throw new Error("正式存档不存在。");
               const result = formalGameBridge
@@ -1748,9 +1763,12 @@ function RoutedApp({runtime}: AppProps) {
                 const payload = submitted.result as any;
                 return {
                   ...payload,
+                  source: "room" as const,
+                  serverCommitted: true as const,
                   ok: true,
-                  run: formalRestDisplayModel.legacyRun as any,
                   message: submitted.message,
+                  reused: submitted.reused,
+                  cost: Number(payload?.cost || 0),
                 };
               }
               if (!formalRun) throw new Error("正式存档不存在。");
@@ -1769,9 +1787,11 @@ function RoutedApp({runtime}: AppProps) {
                 const payload = submitted.result as any;
                 return {
                   ...payload,
+                  source: "room" as const,
+                  serverCommitted: true as const,
                   ok: true,
-                  run: formalRestDisplayModel.legacyRun as any,
                   message: submitted.message,
+                  reused: submitted.reused,
                 };
               }
               if (!formalRun) throw new Error("正式存档不存在。");
@@ -1793,9 +1813,11 @@ function RoutedApp({runtime}: AppProps) {
                 const payload = submitted.result as any;
                 return {
                   ...payload,
+                  source: "room" as const,
+                  serverCommitted: true as const,
                   ok: true,
-                  run: formalRestDisplayModel.legacyRun as any,
                   message: submitted.message,
+                  reused: submitted.reused,
                   cost: Number(payload?.cost || 0),
                   view: payload?.view || unavailableFormalExchangeView(formalRestDisplayModel),
                 };
@@ -1810,7 +1832,7 @@ function RoutedApp({runtime}: AppProps) {
             serverCommitted: true,
             onAction: async action => {
               const submitted = await submitFormalRestAction(action);
-              return {ok: true, message: submitted.message};
+              return {source: "room" as const, serverCommitted: true as const, ok: true, message: submitted.message, reused: submitted.reused};
             },
           } : undefined}
           initialNotice={formalRestInitialNotice}
@@ -1829,9 +1851,9 @@ function RoutedApp({runtime}: AppProps) {
                 const savedVault = await api.savePlayerVault(nextVault);
                 setPlayerVault(savedVault);
                 setPlayerVaultDirty(false);
-                return {...payload, ok: true, run: formalRestDisplayModel.legacyRun as any, playerVault: savedVault, message: submitted.message};
+                return {...payload, source: "room" as const, serverCommitted: true as const, ok: true, playerVault: savedVault, message: submitted.message, reused: submitted.reused};
               }
-              return {...payload, ok: true, run: formalRestDisplayModel.legacyRun as any, playerVault: nextVault, message: submitted.message};
+              return {...payload, source: "room" as const, serverCommitted: true as const, ok: true, playerVault: nextVault, message: submitted.message, reused: submitted.reused};
             }
             if (!formalRun) throw new Error("正式存档不存在。");
             const result = api.claimFormalSoulmateEgg(formalRun, playerVault, input.candidateId, input.nickname);
@@ -1879,11 +1901,18 @@ function RoutedApp({runtime}: AppProps) {
               if (formalRoomCredential) {
                 const submitted = await submitFormalRestAction({type: "training.apply", input: input as Record<string, unknown>});
                 const payload = submitted.result as any;
+                const pokemonId = String(payload?.pokemonId || input.pokemonId || "");
+                const afterPokemon = pokemonFromRestViewV5(submitted.view, pokemonId);
                 return {
                   ...payload,
+                  source: "room" as const,
+                  serverCommitted: true as const,
                   ok: true,
-                  run: formalRestDisplayModel.legacyRun as any,
                   message: submitted.message,
+                  reused: submitted.reused,
+                  pokemonId,
+                  beforePokemon: pokemonFromRestDisplayModel(formalRestDisplayModel, pokemonId),
+                  afterPokemon,
                   lesson: payload?.lesson || formalRestDisplayModel.trainingGround.lesson,
                 };
               }

@@ -1236,7 +1236,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
         pokemonId: requiredString(input?.pokemonId, "pokemonId"),
         part: input?.part,
         lockedStats: Array.isArray(input?.lockedStats) ? input.lockedStats : [],
-      }, commandId));
+      }, commandId, new Date(), {calculateMaxHp: calculateFormalPokemonMaxHp}));
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
@@ -1265,7 +1265,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       const view = getPokemonExchangeViewV5(match.runGameV5, {playerId: "p1"});
       const targetPokemon = view.opponent?.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === targetPokemonId) || null;
       if (!targetPokemon) throw new HttpError(400, "invalid_pokemon", "请选择上一场对手队伍中的宝可梦。");
-      const applied = runFormalStep(() => exchangeSelfPokemonV5(match.runGameV5!, {sourcePokemonId, targetPokemon, view}, commandId));
+      const applied = runFormalStep(() => exchangeSelfPokemonV5(match.runGameV5!, {sourcePokemonId, targetPokemon, view}, commandId, new Date(), {calculateMaxHp: calculateFormalPokemonMaxHp}));
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
@@ -1285,7 +1285,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
         replaceMoveIndex: typeof trainingInput.replaceMoveIndex === "number" ? trainingInput.replaceMoveIndex : undefined,
         lessonId: typeof trainingInput.lessonId === "string" ? trainingInput.lessonId : undefined,
         lessonKind: typeof trainingInput.lessonKind === "string" ? trainingInput.lessonKind as any : undefined,
-      }, lesson, moveSummary, commandId));
+      }, lesson, moveSummary, commandId, new Date(), {calculateMaxHp: calculateFormalPokemonMaxHp}));
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
@@ -1989,10 +1989,10 @@ function getRoomFinalResult(room: FormalRoomRecordV1): FormalRoomFinalResultResp
 
 function finalResultResponse(room: FormalRoomRecordV1, finalResult: FormalRoomFinalResultV1, reused: boolean, formalRunOverride: FormalGameRunV4 | null = null): FormalRoomFinalResultResponseV1 {
   const activeMatch = findActiveRoomMatch(room);
-  const isV5Room = Boolean(activeMatch?.runGameV5);
+  const compatFormalRun = finalResult.formalRun || formalRunOverride || activeMatch?.formalRun || null;
   return {
     room: publicRoom(room),
-    ...(!isV5Room ? {formalRun: finalResult.formalRun || formalRunOverride || activeMatch?.formalRun || null} : {}),
+    ...(compatFormalRun ? {formalRun: compatFormalRun} : {}),
     profile: finalResult.profile,
     playerVault: finalResult.playerVault,
     settlementId: finalResult.settlementId,

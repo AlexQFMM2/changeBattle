@@ -51,10 +51,11 @@ import {
   validateFormalShopCatalogV4,
   type PokemonPowerProfileV4,
 } from "@changebattle-v2/core";
-import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalGameRunV4, type FormalShopRestockContextV4} from "./formalGame.js";
+import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, createFormalShopProductViewsV4, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalGameRunV4, type FormalShopProductViewV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
-import {applyTrainingLessonV5, commitFinalSettlementFromRunGameV5, createRunGameV5FromStarterRun, finalizeBattleResultFromSnapshotV5, ingestPreparedRoundPlanV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, selectStarterPokemonV5} from "./runGameV5.js";
+import {applyTrainingLessonV5, buyShopProductV5, commitFinalSettlementFromRunGameV5, createRunGameV5FromStarterRun, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, getPokemonExchangeViewV5, ingestPreparedRoundPlanV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, prepareRoundPlanFromDraftsV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5} from "./runGameV5.js";
 import {buildFormalRunCompatViewV5} from "./runGameV5CompatLegacy.js";
+import {prepareExchangedPokemonFromRuleContextV5} from "./formalRestRules.js";
 import {
   CARRY_PREP_ITEMS_NODE_ID,
   COMPULSORY_EDUCATION_NODE_ID,
@@ -2302,6 +2303,60 @@ v5Run = {
 const v5TrainingPokemonId = v5Run.playersById[v5Run.selfPlayerId]!.localTeamPokemonIds[0]!;
 const v5CommandLogForbidden = /"(?:run|formalRun|restRunSnapshot|gameMap|participants|localTeam|bag|pokemon|items)"\s*:/;
 const v5MapForbidden = /"(?:participants|localTeam|bag|money|pokemon|items)"\s*:/;
+const v5RuleSnapshot = (pokemonId: string, run = v5Run) => {
+  const pokemon = run.pokemonById[pokemonId]!.localPokemon;
+  return JSON.stringify({
+    ivs: pokemon.ivs,
+    evs: pokemon.evs,
+    nature: pokemon.nature,
+    maxHp: pokemon.maxHp,
+    entryHp: pokemon.entryHp,
+    moves: pokemon.moves.map(move => move.moveId),
+  });
+};
+const v5SelfStudyLesson = api.getFormalTrainingGroundLessons(buildFormalRunCompatViewV5(v5Run)).find(entry => entry.kind === "self-study") || api.getFormalTrainingGroundLesson(buildFormalRunCompatViewV5(v5Run));
+assert(v5SelfStudyLesson, "RunGameV5 random parity smoke should have a self-study lesson");
+const v5TrainingCommandA = applyTrainingLessonV5(v5Run, {pokemonId: v5TrainingPokemonId, lessonKind: "self-study"}, v5SelfStudyLesson, null, "v5-random-training-command-a");
+const v5TrainingCommandB = applyTrainingLessonV5(v5Run, {pokemonId: v5TrainingPokemonId, lessonKind: "self-study"}, v5SelfStudyLesson, null, "v5-random-training-command-b");
+assert(v5RuleSnapshot(v5TrainingPokemonId, v5TrainingCommandA.run) === v5RuleSnapshot(v5TrainingPokemonId, v5TrainingCommandB.run), "RunGameV5 self-study random result must not depend on commandId");
+const v5RerollCommandA = rerollSelfPokemonStatsV5(v5Run, {pokemonId: v5TrainingPokemonId, part: "ivs", lockedStats: ["hp"]}, "v5-random-reroll-command-a");
+const v5RerollCommandB = rerollSelfPokemonStatsV5(v5Run, {pokemonId: v5TrainingPokemonId, part: "ivs", lockedStats: ["hp"]}, "v5-random-reroll-command-b");
+assert(v5RuleSnapshot(v5TrainingPokemonId, v5RerollCommandA.run) === v5RuleSnapshot(v5TrainingPokemonId, v5RerollCommandB.run), "RunGameV5 stat reroll random result must not depend on commandId");
+let v5ShopRun = createRunGameV5FromStarterRun({
+  roomId: "v5-random-shop-room",
+  matchId: "v5-random-shop-match",
+  createdByMemberId: "member:v5-random-shop",
+  roomCustomId: "G100002",
+  profileSnapshot: profile as any,
+  starterRun: prepared,
+});
+v5ShopRun = selectStarterPokemonV5(v5ShopRun, [0, 1, 2], 3, "v5-random-shop-select");
+v5ShopRun = prepareRoundPlanFromDraftsV5(v5ShopRun, {
+  rounds: roundPlanned.roundPlan.map(round => ({
+    participants: round.participants,
+    mode: round.mode,
+    ruleSet: round.ruleSet,
+    seed: round.seed,
+  })),
+  commandId: "v5-random-shop-prepare-round",
+});
+v5ShopRun = {
+  ...v5ShopRun,
+  playersById: {
+    ...v5ShopRun.playersById,
+    [v5ShopRun.selfPlayerId]: {...v5ShopRun.playersById[v5ShopRun.selfPlayerId]!, money: 5000},
+  },
+};
+const v5CurrentShop = v5ShopRun.currentNodeId ? v5ShopRun.restState.shopByNodeId?.[v5ShopRun.currentNodeId] || null : null;
+const v5ShopProduct = createFormalShopProductViewsV4(v5CurrentShop, itemDetail, {getMoveDetail: moveDetail}).find((product: FormalShopProductViewV4) => product.price > 0 && product.stock > 0);
+assert(v5ShopProduct, "RunGameV5 random parity smoke should have a buyable shop product");
+const v5BuyCommandA = buyShopProductV5(v5ShopRun, v5ShopProduct, "v5-random-shop-command-a");
+const v5BuyCommandB = buyShopProductV5(v5ShopRun, v5ShopProduct, "v5-random-shop-command-b");
+const v5RestockedSlot = (run: typeof v5ShopRun) => {
+  const shop = run.currentNodeId ? run.restState.shopByNodeId?.[run.currentNodeId] || null : null;
+  return Object.values(shop?.categories || {}).flat().find(item => item.slotId === v5ShopProduct.slotId)?.itemID || "";
+};
+assert(v5RestockedSlot(v5BuyCommandA.run) === v5RestockedSlot(v5BuyCommandB.run), "RunGameV5 shop restock random result must not depend on commandId");
 let previousV5Bytes = Buffer.byteLength(JSON.stringify(v5Run), "utf8");
 for (let index = 0; index < 3; index += 1) {
   const v5Compat = buildFormalRunCompatViewV5(v5Run);
@@ -2367,6 +2422,39 @@ assert(finalizedV5Battle.result.destination === "rest", "RunGameV5 battle finali
 assert(finalizedV5Pokemon.entryHp === 7 && finalizedV5Pokemon.entryStatus === "par", "RunGameV5 battle finalize should sync HP/status into PokemonInstance");
 assert(finalizedV5Pokemon.moves[0]?.remainingPp === 1, "RunGameV5 battle finalize should sync PP into PokemonInstance");
 assert(v5Run.restState.roundSettlementByNodeId?.[preparedV5BattleSession.sessionInput.nodeId], "RunGameV5 battle finalize should write a light round settlement record");
+const calculateMockMaxHp = (pokemon: {level: number}) => 100 + pokemon.level;
+const v5ExchangeView = getPokemonExchangeViewV5(v5Run);
+assert(v5ExchangeView.available && v5ExchangeView.nodeId && v5ExchangeView.opponent?.localTeam.pokemon.length, "RunGameV5 exchange should be available after a won round");
+const v5ExchangeSourcePokemonId = v5Run.playersById[v5Run.selfPlayerId]!.localTeamPokemonIds[0]!;
+const v5ExchangeTarget = {
+  ...v5ExchangeView.opponent!.localTeam.pokemon[0]!,
+  itemId: "leftovers",
+  heldItemInstanceId: "npc-leftovers",
+  entryStatus: "par" as const,
+};
+const v5ExchangeApplied = exchangeSelfPokemonV5(v5Run, {sourcePokemonId: v5ExchangeSourcePokemonId, targetPokemon: v5ExchangeTarget, view: v5ExchangeView}, "v5-redline-exchange-default", new Date(), {calculateMaxHp: calculateMockMaxHp});
+const v5ExchangedPokemon = v5ExchangeApplied.run.pokemonById[v5ExchangeSourcePokemonId]!.localPokemon;
+assert(v5ExchangedPokemon.localPokemonId === v5ExchangeSourcePokemonId, "RunGameV5 exchange should preserve entity pokemon id");
+assert(v5ExchangedPokemon.speciesId === v5ExchangeTarget.speciesId, "RunGameV5 exchange should receive target species");
+assert(v5ExchangedPokemon.entryHp === Math.ceil(v5ExchangedPokemon.maxHp / 2), "RunGameV5 exchange should default to half HP");
+assert(v5ExchangedPokemon.entryStatus === "", "RunGameV5 exchange should clear status");
+assert(!v5ExchangedPokemon.itemId && !v5ExchangedPokemon.heldItemInstanceId, "RunGameV5 exchange should drop target item without item steal");
+assert(v5ExchangeApplied.run.restState.exchangeRollByNodeId?.[v5ExchangeView.nodeId!] === 1, "RunGameV5 exchange should advance a small server-side roll only after success");
+assert(!v5CommandLogForbidden.test(JSON.stringify(v5ExchangeApplied.run.commandLog)), "RunGameV5 exchange commandLog should not contain large run/entity payload fields");
+const v5StarExchangedPokemon = prepareExchangedPokemonFromRuleContextV5({
+  seed: v5Run.config.seed,
+  nodeId: v5ExchangeView.nodeId!,
+  pokemon: {...v5ExchangeTarget, powerProfile: "rookie"},
+  slotIndex: 0,
+  exchangeRoll: 0,
+  flags: {lossless: true, eliteEducation: true, itemSteal: true, secondExchange: true},
+  receivedPokemonId: "v5-star-exchange-received",
+  calculateMaxHp: calculateMockMaxHp,
+});
+assert(v5StarExchangedPokemon.entryHp === v5StarExchangedPokemon.maxHp, "RunGameV5 lossless exchange should receive full HP");
+assert(v5StarExchangedPokemon.itemId === "leftovers" && v5StarExchangedPokemon.heldItemInstanceId === "npc-leftovers", "RunGameV5 exchange item steal should keep target item");
+assert(powerProfileIndex(v5StarExchangedPokemon.powerProfile || "rookie") >= powerProfileIndex(v5ExchangeTarget.powerProfile || "rookie"), "RunGameV5 elite exchange education should not lower power profile");
+v5Run = v5ExchangeApplied.run;
 const v5Settlement = prepareFinalSettlementFromRunGameV5(v5Run, "surrender");
 v5Run = commitFinalSettlementFromRunGameV5(v5Run, {
   commandId: "v5-redline-finalize-run",

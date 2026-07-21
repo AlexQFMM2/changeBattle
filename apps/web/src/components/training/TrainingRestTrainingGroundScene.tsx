@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
+import {normalizeLocalPokemonV4} from "@changebattle-v2/api";
 import type {
   ChangeBattleV2Api,
   DexStatId,
@@ -25,12 +26,35 @@ export type TrainingRestTrainingGroundSceneProps = {
   player?: TrainingPlayerDraftV4 | null;
   money: number;
   busy?: boolean;
-  onApply?: (input: FormalTrainingGroundApplyInputV4) => Promise<FormalTrainingGroundResultV4> | FormalTrainingGroundResultV4;
+  onApply?: (input: FormalTrainingGroundApplyInputV4) => Promise<TrainingGroundApplyResult> | TrainingGroundApplyResult;
   onBack: () => void;
   onSelectLesson?: (lesson: FormalTrainingGroundLessonViewV4) => void;
   onCancelLesson?: () => void;
   onLessonComplete?: (message: string) => void;
 };
+
+export type RoomRestMutationResult = {
+  source: "room";
+  ok: boolean;
+  message: string;
+  serverCommitted: true;
+  reused?: boolean;
+};
+
+export type RoomTrainingApplyResult = RoomRestMutationResult & {
+  actionType?: "training.apply" | string;
+  pokemonId?: string;
+  lessonId?: string;
+  lessonKind?: FormalTrainingGroundLessonViewV4["kind"] | string;
+  fee?: number;
+  balanceAfter?: number;
+  beforePokemon?: LocalPokemonV4;
+  afterPokemon?: LocalPokemonV4;
+  lesson?: FormalTrainingGroundLessonViewV4 | null;
+};
+
+export type LegacyTrainingApplyResult = FormalTrainingGroundResultV4 & {source?: "legacy"};
+export type TrainingGroundApplyResult = LegacyTrainingApplyResult | RoomTrainingApplyResult;
 
 const TRAINING_GROUND_WELCOME_TEXT = "今天的课程已经排好了，要让哪只宝可梦进教室呢？";
 const TRAINING_GROUND_PICKER_TEXT = "今天教室都空出来了。先在上面的课程牌里选一门课，我会告诉你这堂课适合做什么。";
@@ -40,7 +64,8 @@ const STUDYING_MS = 2000;
 
 type TrainingGroundStep = "pokemon" | "move" | "replace" | "result";
 type TrainingGroundResultState = {
-  result: FormalTrainingGroundResultV4;
+  result: TrainingGroundApplyResult;
+  lesson: FormalTrainingGroundLessonViewV4;
   pokemonBefore: LocalPokemonV4;
   moveLearned?: ReturnType<ChangeBattleV2Api["getMoveDetail"]>;
   replacedMove?: TrainingMoveSlotV4;
@@ -178,7 +203,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
         setStep(lesson.kind === "self-study" ? "pokemon" : "replace");
         return;
       }
-      setResultState({result, pokemonBefore, moveLearned, replacedMove});
+      setResultState({result, lesson, pokemonBefore, moveLearned, replacedMove});
       setDialogueText(result.message);
       setStep("result");
     } catch (error) {
@@ -452,7 +477,7 @@ function MoveReplacePanel({api, currentMoves, replaceMoveIndex, onReplace}: {
 
 function TrainingResultPanel({api, state}: {api: ChangeBattleV2Api; state: TrainingGroundResultState}) {
   const after = findResultPokemon(state.result, state.pokemonBefore.localPokemonId) || state.pokemonBefore;
-  if (state.result.lesson?.kind === "self-study") {
+  if (state.lesson.kind === "self-study") {
     return <SelfStudyResultPanel api={api} before={state.pokemonBefore} after={after} result={state.result} />;
   }
   return (
@@ -469,15 +494,16 @@ function TrainingResultPanel({api, state}: {api: ChangeBattleV2Api; state: Train
   );
 }
 
-function SelfStudyResultPanel({api, before, after, result}: {api: ChangeBattleV2Api; before: LocalPokemonV4; after: LocalPokemonV4; result: FormalTrainingGroundResultV4}) {
-  const eventText = result.selfStudyEvent === "playful"
+function SelfStudyResultPanel({api, before, after, result}: {api: ChangeBattleV2Api; before: LocalPokemonV4; after: LocalPokemonV4; result: TrainingGroundApplyResult}) {
+  const selfStudyEvent = result.source === "room" ? undefined : result.selfStudyEvent;
+  const eventText = selfStudyEvent === "playful"
     ? "贪玩"
-    : result.selfStudyEvent === "focused"
+    : selfStudyEvent === "focused"
       ? "认真学习"
       : "普通自习";
-  const summaryText = result.selfStudyEvent === "playful"
+  const summaryText = selfStudyEvent === "playful"
     ? "这节课有点分心，但还是有收获。"
-    : result.selfStudyEvent === "focused"
+    : selfStudyEvent === "focused"
       ? "这堂课收获很明显，具体提升看右侧能力表。"
       : "完成了一节自习，具体变化看右侧能力表。";
   return (
@@ -498,21 +524,33 @@ function TrainingGroundPokemonDetailCard({api, before, after, headline, summary}
   headline: string;
   summary: string[];
 }) {
-  const detail = safePokemonDetail(api, after.speciesId);
-  const beforeStats = calculateStats(api, before);
-  const afterStats = calculateStats(api, after);
-  const maxStats = maxPotentialStats(api, after, afterStats);
-  const levelDelta = after.level - before.level;
+  const normalizedBefore = normalizeLocalPokemonV4(before, {
+    fallbackId: before.localPokemonId,
+    fallbackSpeciesId: before.speciesId,
+    fallbackName: before.name,
+    fallbackNameZh: before.nameZh,
+  });
+  const normalizedAfter = normalizeLocalPokemonV4(after, {
+    fallbackId: normalizedBefore.localPokemonId,
+    fallbackSpeciesId: normalizedBefore.speciesId,
+    fallbackName: normalizedBefore.name,
+    fallbackNameZh: normalizedBefore.nameZh,
+  });
+  const detail = safePokemonDetail(api, normalizedAfter.speciesId);
+  const beforeStats = calculateStats(api, normalizedBefore);
+  const afterStats = calculateStats(api, normalizedAfter);
+  const maxStats = maxPotentialStats(api, normalizedAfter, afterStats);
+  const levelDelta = normalizedAfter.level - normalizedBefore.level;
   const types = detail?.types?.length ? detail.types : [];
   return (
     <article className="training-rest-training-ground-detail-card">
       <section className="training-rest-training-ground-detail-profile">
         <h3 className="training-rest-training-ground-detail-title">
-          <span>{pokemonName(after)}</span>
-          <small>Lv.{after.level}{levelDelta ? ` ${formatDelta(levelDelta)}` : ""}</small>
+          <span>{pokemonName(normalizedAfter)}</span>
+          <small>Lv.{normalizedAfter.level}{levelDelta ? ` ${formatDelta(levelDelta)}` : ""}</small>
         </h3>
         <div className="training-rest-training-ground-detail-identity">
-          <TrainingGroundDetailSprite pokemon={after} />
+          <TrainingGroundDetailSprite pokemon={normalizedAfter} />
           <div className="training-rest-training-ground-detail-namebox">
             <div className="training-rest-training-ground-type-row">
               {types.length ? types.map(type => (
@@ -520,9 +558,9 @@ function TrainingGroundPokemonDetailCard({api, before, after, headline, summary}
               )) : <b className="training-rest-training-ground-type-badge" data-type="normal">一般</b>}
             </div>
             <div className="training-rest-training-ground-trait-row">
-              <span>特性：{after.abilityNameZh || after.abilityName || "特性未定"}</span>
-              <span>性格：{api.translateDexLabel("natures", after.nature)}</span>
-              <span>道具：{itemName(api, after.itemId)}</span>
+              <span>特性：{normalizedAfter.abilityNameZh || normalizedAfter.abilityName || "特性未定"}</span>
+              <span>性格：{api.translateDexLabel("natures", normalizedAfter.nature)}</span>
+              <span>道具：{itemName(api, normalizedAfter.itemId)}</span>
             </div>
           </div>
         </div>
@@ -550,8 +588,8 @@ function TrainingGroundPokemonDetailCard({api, before, after, headline, summary}
                     <span>{value}<StatDelta value={value - beforeValue} /></span>
                     <i aria-hidden="true" />
                   </strong>
-                  <span>{after.ivs[stat]}<StatDelta value={(after.ivs[stat] || 0) - (before.ivs[stat] || 0)} /></span>
-                  <span>{after.evs[stat]}<StatDelta value={(after.evs[stat] || 0) - (before.evs[stat] || 0)} /></span>
+                  <span>{normalizedAfter.ivs[stat]}<StatDelta value={(normalizedAfter.ivs[stat] || 0) - (normalizedBefore.ivs[stat] || 0)} /></span>
+                  <span>{normalizedAfter.evs[stat]}<StatDelta value={(normalizedAfter.evs[stat] || 0) - (normalizedBefore.evs[stat] || 0)} /></span>
                 </dd>
               </div>
             );
@@ -667,8 +705,13 @@ function trainingLessonStartText(team: LocalPokemonV4[]): string {
   return team.length ? "先选择一只宝可梦进入课堂。" : "队伍里还没有可以上课的宝可梦。";
 }
 
-function findResultPokemon(result: FormalTrainingGroundResultV4, pokemonId: string): LocalPokemonV4 | null {
-  return result.run.restRunSnapshot?.players.p1?.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === pokemonId) || null;
+function findResultPokemon(result: TrainingGroundApplyResult, pokemonId: string): LocalPokemonV4 | null {
+  if (result.source === "room") {
+    if (result.afterPokemon?.localPokemonId === pokemonId) return result.afterPokemon;
+    return null;
+  }
+  const {run} = result;
+  return run.restRunSnapshot?.players.p1?.localTeam.pokemon.find(pokemon => pokemon.localPokemonId === pokemonId) || null;
 }
 
 function safeMoveDetail(api: ChangeBattleV2Api, moveId: string) {

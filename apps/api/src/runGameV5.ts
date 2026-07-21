@@ -5,12 +5,22 @@ import {
   formalTrainingGroundLessonKindFromIdV4,
   formalTrainingGroundLessonTableV4,
 } from "@changebattle-v2/core";
+import type {DexStatId} from "@changebattle-v2/showdown-dex-core";
 import type {BattlePreferenceV4, FormalCompetitionModeV4, PlayerItemInstanceV4, ShowdownPlayerIdV4, StatTableV4, TrainingAllianceV4, TrainingBattleLogEntryV4, TrainingCoinLogEntryV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4, TrainingRuleSetV4, TrainingStatusV4} from "./training.js";
-import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceOfferV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
+import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceOfferV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopItemV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import type {LocalPokemonV4, LocalTeamV4} from "./training.js";
 import type {PlayerVaultV4, UserProfileV2} from "./index.js";
 import {createBattleGameFromNodeDraft, type BattleGameV4, type BattleSessionCreateInputV4, type BattleSessionSnapshotV4, type BattleTeamPokemonStateV4} from "./battle.js";
 import {formalTrainingGroundDiscountForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasRuntimeEffectV4} from "./starChart.js";
+import {
+  applyFormalSelfStudyRuleV5,
+  createFormalRestShopFromRuleContextV5,
+  formalRestPokemonStatRerollCostV5,
+  prepareExchangedPokemonFromRuleContextV5,
+  rerollFormalStatsWithinTotalFromRuleContextV5,
+  restockFormalShopSlotFromRuleContextV5,
+  type FormalRestRulesMaxHpCalculatorV5,
+} from "./formalRestRules.js";
 
 export type PlayerInstanceIdV5 = string;
 export type PokemonInstanceIdV5 = string;
@@ -168,6 +178,9 @@ export type RunGameV5 = {
     trainingGroundByNodeId?: FormalGameRunV4["trainingGroundByNodeId"];
     roundSettlementByNodeId?: FormalGameRunV4["roundSettlementByNodeId"];
     exchangeByNodeId?: FormalGameRunV4["exchangeByNodeId"];
+    shopRestockRollBySlotId?: Record<string, number>;
+    statRerollRollByKey?: Record<string, number>;
+    exchangeRollByNodeId?: Record<string, number>;
     medicalInsuranceOfferSeen?: boolean;
     medicalInsurance?: FormalMedicalInsuranceStateV4 | null;
     restPreviewUnlocks?: TrainingRunGameV4["restPreviewUnlocks"];
@@ -226,6 +239,10 @@ export type RunGameTrainingGroundViewV5 = {
 } | null;
 
 export type ViewScopeNameV5 = "summary" | "starter" | "rest" | "battle" | "settlement";
+
+export type RunGameV5RuleOptions = {
+  calculateMaxHp?: FormalRestRulesMaxHpCalculatorV5;
+};
 
 export type RunGameSummaryViewV5 = {
   version: 5;
@@ -878,7 +895,17 @@ export function prepareRoundPlanFromDraftsV5(run: RunGameV5, input: {
       createdAt: iso,
     });
   });
-  const shopByNodeId = Object.fromEntries(nodes.map(node => [node.nodeId, createBasicRestShopV5(node.nodeId, node.seed, iso)]));
+  const shopTeam = selfTeamPokemonFromEntitiesV5({...run, playersById, pokemonById}, self.playerId);
+  const shopByNodeId = Object.fromEntries(nodes.map(node => [node.nodeId, createFormalRestShopFromRuleContextV5({
+    seed: run.config.seed,
+    nodeId: node.nodeId,
+    roundIndex: node.index,
+    money: self.money,
+    team: shopTeam,
+    starChart: self.starChartSnapshot,
+    pendingSettlement: false,
+    updatedAt: iso,
+  })]));
   const trainingGroundByNodeId = Object.fromEntries(nodes.map(node => [node.nodeId, {nodeId: node.nodeId, lessonRoll: 0, selfStudyRoll: 0, updatedAt: iso}]));
   return assertRunGameV5RedLines({
     ...run,
@@ -927,7 +954,7 @@ export function reorderPlayerTeamV5(run: RunGameV5, pokemonIds: string[], comman
   });
 }
 
-export function applyTrainingLessonV5(run: RunGameV5, input: FormalTrainingGroundApplyInputV4, lesson: FormalTrainingGroundLessonViewV4, moveSummary: Partial<TrainingMoveSlotV4> | null, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+export function applyTrainingLessonV5(run: RunGameV5, input: FormalTrainingGroundApplyInputV4, lesson: FormalTrainingGroundLessonViewV4, moveSummary: Partial<TrainingMoveSlotV4> | null, commandId: string, now = new Date(), options: RunGameV5RuleOptions = {}): {run: RunGameV5; result: Record<string, unknown>} {
   const repeated = run.commandLog[commandId];
   if (repeated) return {run, result: repeated.result || {reused: true}};
   const self = requirePlayer(run, run.selfPlayerId);
@@ -937,15 +964,26 @@ export function applyTrainingLessonV5(run: RunGameV5, input: FormalTrainingGroun
   const current = requirePokemon(run, pokemonId);
   const iso = now.toISOString();
   const before = current.localPokemon;
-  const updatedPokemon = lesson.kind === "self-study"
-    ? applySelfStudyPokemonPatchV5(before, run, commandId)
-    : applyMoveLessonPokemonPatchV5(before, input, moveSummary);
-  const message = lesson.kind === "self-study"
-    ? `${displayPokemonNameV5(before)}踏踏实实自习了一节课，数值稳步提升。${lesson.completeText}`
-    : `${displayPokemonNameV5(before)}学会了${moveSummary?.nameZh || moveSummary?.name || input.moveId}。${lesson.completeText}`;
-  const balanceAfter = Math.max(0, Math.floor(Number(self.money || 0)) - Math.max(0, Math.floor(Number(lesson.fee || 0))));
   const currentNodeId = run.currentNodeId || "rest";
   const trainingState = run.restState.trainingGroundByNodeId?.[currentNodeId] || {nodeId: currentNodeId, lessonRoll: 0, selfStudyRoll: 0, updatedAt: iso};
+  const selfStudy = lesson.kind === "self-study"
+    ? applyFormalSelfStudyRuleV5({
+      seed: run.config.seed,
+      nodeId: currentNodeId,
+      lessonRoll: trainingState.lessonRoll,
+      selfStudyRoll: trainingState.selfStudyRoll,
+      pokemon: before,
+      starChart: self.starChartSnapshot,
+      calculateMaxHp: options.calculateMaxHp,
+    })
+    : null;
+  const updatedPokemon = lesson.kind === "self-study"
+    ? selfStudy!.pokemon
+    : applyMoveLessonPokemonPatchV5(before, input, moveSummary);
+  const message = lesson.kind === "self-study"
+    ? `${displayPokemonNameV5(before)}${selfStudy!.messageText}。${lesson.completeText}`
+    : `${displayPokemonNameV5(before)}学会了${moveSummary?.nameZh || moveSummary?.name || input.moveId}。${lesson.completeText}`;
+  const balanceAfter = Math.max(0, Math.floor(Number(self.money || 0)) - Math.max(0, Math.floor(Number(lesson.fee || 0))));
   const result = {
     actionType: "training.apply",
     message,
@@ -954,6 +992,7 @@ export function applyTrainingLessonV5(run: RunGameV5, input: FormalTrainingGroun
     lessonKind: lesson.kind,
     fee: lesson.fee,
     balanceAfter,
+    ...(selfStudy ? {selfStudyEvent: selfStudy.event, selfStudyChange: selfStudy.change} : {}),
   };
   return {
     run: assertRunGameV5RedLines({
@@ -1050,7 +1089,7 @@ export function buyShopProductV5(run: RunGameV5, product: FormalShopProductViewV
   const itemInstanceId = `item:${run.matchId}:shop:${commandId}`;
   const item: PlayerItemInstanceV4 = createPlayerItemFromProductV5(product, itemInstanceId, currentRoundIndexV5(run));
   const balanceAfter = self.money - price;
-  const nextShopByNodeId = decrementShopStockV5(run, product.slotId, iso);
+  const restockedShop = restockPurchasedShopSlotFromRulesV5(run, product.slotId, balanceAfter, iso);
   const result = {actionType: "shop.buy", message: `已购买 ${product.name}。`, itemInstanceId, itemID: product.itemID, price, balanceAfter};
   return {
     run: assertRunGameV5RedLines({
@@ -1062,7 +1101,8 @@ export function buyShopProductV5(run: RunGameV5, product: FormalShopProductViewV
       itemInstancesById: {...run.itemInstancesById, [itemInstanceId]: {itemInstanceId, ownerBagId: bag.bagId, item, createdAt: iso, updatedAt: iso}},
       restState: {
         ...run.restState,
-        shopByNodeId: nextShopByNodeId,
+        shopByNodeId: restockedShop.shopByNodeId,
+        shopRestockRollBySlotId: restockedShop.shopRestockRollBySlotId,
         coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "shop", `购买 ${product.name}`, -price, self.money, balanceAfter, currentRoundIndexV5(run), iso)),
       },
       commandLog: appendCommandLog(run, commandId, "shop.buy", result, iso, run.revision + 1),
@@ -1169,7 +1209,7 @@ export function commitSelfBagMutationV5(run: RunGameV5, input: {commandName: str
   };
 }
 
-export function rerollSelfPokemonStatsV5(run: RunGameV5, input: {pokemonId: string; part?: unknown; lockedStats?: unknown[]}, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+export function rerollSelfPokemonStatsV5(run: RunGameV5, input: {pokemonId: string; part?: unknown; lockedStats?: unknown[]}, commandId: string, now = new Date(), options: RunGameV5RuleOptions = {}): {run: RunGameV5; result: Record<string, unknown>} {
   const repeated = run.commandLog[commandId];
   if (repeated) return {run, result: repeated.result || {reused: true}};
   const self = requirePlayer(run, run.selfPlayerId);
@@ -1177,14 +1217,22 @@ export function rerollSelfPokemonStatsV5(run: RunGameV5, input: {pokemonId: stri
   if (!pokemonId || !self.localTeamPokemonIds.includes(pokemonId)) throw new Error("请选择要调整的宝可梦。");
   const current = requirePokemon(run, pokemonId);
   const part = input.part === "evs" ? "evs" : "ivs";
-  const locked = new Set((input.lockedStats || []).map(value => String(value || "")).filter(Boolean));
-  const cost = 80 + locked.size * 40;
+  const lockedStats = normalizeStatLockListForV5(input.lockedStats);
+  const cost = formalRestPokemonStatRerollCostV5(lockedStats.length);
   if (self.money < cost) throw new Error("金币不足。");
   const iso = now.toISOString();
-  const stats = part === "ivs" ? normalizeStatsV5(current.localPokemon.ivs, 31) : normalizeStatsV5(current.localPokemon.evs, 0);
-  const total = Object.values(stats).reduce((sum, value) => sum + value, 0);
-  const nextStats = rerollStatsKeepingTotalV5(stats, part === "ivs" ? 31 : 252, total, locked, `${run.config.seed}:${pokemonId}:${part}:${commandId}`);
-  const nextPokemon = {...current.localPokemon, [part]: nextStats};
+  const currentNodeId = run.currentNodeId || "rest";
+  const rerollKey = `${currentNodeId}:${pokemonId}:${part}`;
+  const rerollRoll = Math.max(0, Math.floor(Number(run.restState.statRerollRollByKey?.[rerollKey] || 0)));
+  const nextPokemon = rerollFormalStatsWithinTotalFromRuleContextV5({
+    seed: run.config.seed,
+    nodeId: currentNodeId,
+    pokemon: current.localPokemon,
+    part,
+    lockedStats,
+    rerollRoll,
+    calculateMaxHp: options.calculateMaxHp,
+  });
   const balanceAfter = self.money - cost;
   const result = {actionType: "pokemon.reroll-stats", message: `花费 ${cost} 金币，${part === "ivs" ? "个体值" : "努力值"}已重新分配。`, pokemonId, part, cost, balanceAfter};
   return {
@@ -1196,6 +1244,10 @@ export function rerollSelfPokemonStatsV5(run: RunGameV5, input: {pokemonId: stri
       pokemonById: {...run.pokemonById, [pokemonId]: {...current, localPokemon: nextPokemon, updatedAt: iso}},
       restState: {
         ...run.restState,
+        statRerollRollByKey: {
+          ...(run.restState.statRerollRollByKey || {}),
+          [rerollKey]: rerollRoll + 1,
+        },
         coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "team-reroll", `随机${part === "ivs" ? "个体值" : "努力值"}`, -cost, self.money, balanceAfter, currentRoundIndexV5(run), iso)),
       },
       commandLog: appendCommandLog(run, commandId, "pokemon.reroll-stats", result, iso, run.revision + 1),
@@ -1321,7 +1373,7 @@ export function getTrainingGroundLessonForInputV5(run: RunGameV5, input: Partial
   return trainingGroundLessonViewV5(run, node.nodeId, lesson, `${node.nodeId}:lesson:${lessonRoll}:${lesson.kind}`);
 }
 
-export function exchangeSelfPokemonV5(run: RunGameV5, input: {sourcePokemonId: string; targetPokemon: LocalPokemonV4; view: FormalPokemonExchangeViewV4}, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+export function exchangeSelfPokemonV5(run: RunGameV5, input: {sourcePokemonId: string; targetPokemon: LocalPokemonV4; view: FormalPokemonExchangeViewV4}, commandId: string, now = new Date(), options: RunGameV5RuleOptions = {}): {run: RunGameV5; result: Record<string, unknown>} {
   const repeated = run.commandLog[commandId];
   if (repeated) return {run, result: repeated.result || {reused: true}};
   const self = requirePlayer(run, run.selfPlayerId);
@@ -1332,13 +1384,19 @@ export function exchangeSelfPokemonV5(run: RunGameV5, input: {sourcePokemonId: s
   if (self.money < cost) throw new Error("金币不足。");
   const current = requirePokemon(run, sourcePokemonId);
   const iso = now.toISOString();
-  const received = {
-    ...input.targetPokemon,
-    localPokemonId: sourcePokemonId,
-    heldItemInstanceId: undefined,
-    itemId: "",
-  };
   const previousState = run.restState.exchangeByNodeId?.[input.view.nodeId] || {nodeId: input.view.nodeId, records: [], updatedAt: iso};
+  const sourceIndex = self.localTeamPokemonIds.indexOf(sourcePokemonId);
+  const exchangeRoll = Math.max(0, Math.floor(Number(run.restState.exchangeRollByNodeId?.[input.view.nodeId] || 0)));
+  const received = prepareExchangedPokemonFromRuleContextV5({
+    seed: run.config.seed,
+    nodeId: input.view.nodeId,
+    pokemon: input.targetPokemon,
+    slotIndex: sourceIndex,
+    exchangeRoll,
+    flags: input.view.flags,
+    receivedPokemonId: sourcePokemonId,
+    calculateMaxHp: options.calculateMaxHp,
+  });
   const record = {
     id: `exchange:${commandId}`,
     nodeId: input.view.nodeId,
@@ -1365,6 +1423,10 @@ export function exchangeSelfPokemonV5(run: RunGameV5, input: {sourcePokemonId: s
         exchangeByNodeId: {
           ...(run.restState.exchangeByNodeId || {}),
           [input.view.nodeId]: {...previousState, records: [...previousState.records, record], updatedAt: iso},
+        },
+        exchangeRollByNodeId: {
+          ...(run.restState.exchangeRollByNodeId || {}),
+          [input.view.nodeId]: exchangeRoll + 1,
         },
         coinLog: cost > 0 ? appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "pokemon-exchange", `交换 ${input.targetPokemon.nameZh || input.targetPokemon.name}`, -cost, self.money, balanceAfter, currentRoundIndexV5(run), iso)) : run.restState.coinLog,
       },
@@ -2043,18 +2105,6 @@ function sanitizeCommandLogResultV5(result: unknown): RunGameCommandLogResultV5 
   return result as Record<string, unknown>;
 }
 
-function applySelfStudyPokemonPatchV5(pokemon: LocalPokemonV4, run: RunGameV5, commandId: string): LocalPokemonV4 {
-  const seed = `${run.config.seed}:${run.currentNodeId || "rest"}:${commandId}:${pokemon.localPokemonId}`;
-  const statOrder = shuffleStatsV5(seed);
-  const ivs = spreadStatGainV5(normalizeStatsV5(pokemon.ivs, 31), 31, 3, statOrder);
-  const evs = spreadStatGainV5(normalizeStatsV5(pokemon.evs, 0), 252, 12, statOrder);
-  return {
-    ...pokemon,
-    ivs,
-    evs,
-  };
-}
-
 function applyMoveLessonPokemonPatchV5(pokemon: LocalPokemonV4, input: FormalTrainingGroundApplyInputV4, moveSummary: Partial<TrainingMoveSlotV4> | null): LocalPokemonV4 {
   const moveId = String(input.moveId || moveSummary?.moveId || "");
   if (!moveId) throw new Error("请选择要学习的招式。");
@@ -2080,69 +2130,6 @@ function applyMoveLessonPokemonPatchV5(pokemon: LocalPokemonV4, input: FormalTra
     ...pokemon,
     moves: pokemon.moves.map((move, index) => index === replaceMoveIndex ? nextMove : move),
   };
-}
-
-function normalizeStatsV5(stats: Partial<StatTableV4> | undefined, fallback: number): StatTableV4 {
-  return {
-    hp: clampIntV5(stats?.hp, 0, fallback, fallback),
-    atk: clampIntV5(stats?.atk, 0, fallback, fallback),
-    def: clampIntV5(stats?.def, 0, fallback, fallback),
-    spa: clampIntV5(stats?.spa, 0, fallback, fallback),
-    spd: clampIntV5(stats?.spd, 0, fallback, fallback),
-    spe: clampIntV5(stats?.spe, 0, fallback, fallback),
-  };
-}
-
-function spreadStatGainV5(stats: StatTableV4, cap: number, gain: number, order: Array<keyof StatTableV4>): StatTableV4 {
-  const next = {...stats};
-  let remaining = Math.max(0, Math.floor(Number(gain || 0)));
-  for (let pass = 0; pass < 6 && remaining > 0; pass += 1) {
-    for (const stat of order) {
-      if (remaining <= 0) break;
-      if (next[stat] >= cap) continue;
-      next[stat] += 1;
-      remaining -= 1;
-    }
-  }
-  return next;
-}
-
-function rerollStatsKeepingTotalV5(stats: StatTableV4, cap: number, total: number, locked: Set<string>, seed: string): StatTableV4 {
-  const order = shuffleStatsV5(seed);
-  const next: StatTableV4 = {...stats};
-  const unlocked = order.filter(stat => !locked.has(stat));
-  if (!unlocked.length) return next;
-  for (const stat of unlocked) next[stat] = 0;
-  let remaining = Math.max(0, Math.floor(Number(total || 0))) - Object.entries(next).reduce((sum, [stat, value]) => locked.has(stat) ? sum + value : sum, 0);
-  let state = hashNumberV5(seed);
-  while (remaining > 0 && unlocked.some(stat => next[stat] < cap)) {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    const stat = unlocked[state % unlocked.length]!;
-    if (next[stat] >= cap) continue;
-    next[stat] += 1;
-    remaining -= 1;
-  }
-  return next;
-}
-
-function shuffleStatsV5(seed: string): Array<keyof StatTableV4> {
-  const stats: Array<keyof StatTableV4> = ["hp", "atk", "def", "spa", "spd", "spe"];
-  let state = hashNumberV5(seed);
-  for (let index = stats.length - 1; index > 0; index -= 1) {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    const swapIndex = state % (index + 1);
-    [stats[index], stats[swapIndex]] = [stats[swapIndex]!, stats[index]!];
-  }
-  return stats;
-}
-
-function hashNumberV5(value: string): number {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return hash >>> 0;
 }
 
 function summarizeCoinLogV5(log: TrainingCoinLogEntryV4[]): {income: number; expense: number; net: number} {
@@ -2238,47 +2225,35 @@ function createPlayerItemFromProductV5(product: FormalShopProductViewV4, itemIns
   };
 }
 
-function decrementShopStockV5(run: RunGameV5, slotId: string, updatedAt: string): RunGameV5["restState"]["shopByNodeId"] {
+function restockPurchasedShopSlotFromRulesV5(run: RunGameV5, slotId: string, moneyAfterPurchase: number, updatedAt: string): Pick<RunGameV5["restState"], "shopByNodeId" | "shopRestockRollBySlotId"> {
   const shopByNodeId = run.restState.shopByNodeId;
-  if (!shopByNodeId || !run.currentNodeId || !shopByNodeId[run.currentNodeId]) return shopByNodeId;
+  if (!shopByNodeId || !run.currentNodeId || !shopByNodeId[run.currentNodeId]) {
+    return {shopByNodeId, shopRestockRollBySlotId: run.restState.shopRestockRollBySlotId};
+  }
+  const self = requirePlayer(run, run.selfPlayerId);
   const shop = shopByNodeId[run.currentNodeId]!;
+  const restockRoll = Math.max(0, Math.floor(Number(run.restState.shopRestockRollBySlotId?.[slotId] || 0)));
+  const restocked = restockFormalShopSlotFromRuleContextV5({
+    seed: run.config.seed,
+    nodeId: run.currentNodeId,
+    roundIndex: currentRoundIndexV5(run),
+    money: moneyAfterPurchase,
+    team: selfTeamPokemonFromEntitiesV5(run, self.playerId),
+    starChart: self.starChartSnapshot,
+    pendingSettlement: false,
+    updatedAt,
+    shop,
+    slotId,
+    restockRoll,
+  });
   return {
-    ...shopByNodeId,
-    [run.currentNodeId]: {
-      ...shop,
-      categories: Object.fromEntries(Object.entries(shop.categories).map(([category, items]) => [
-        category,
-        items.map(item => item.slotId === slotId ? {...item, stock: Math.max(0, Math.floor(Number(item.stock || 0)) - 1), updatedAt} : item),
-      ])) as typeof shop.categories,
-      updatedAt,
+    shopRestockRollBySlotId: restocked.restocked
+      ? {...(run.restState.shopRestockRollBySlotId || {}), [slotId]: restockRoll + 1}
+      : run.restState.shopRestockRollBySlotId,
+    shopByNodeId: {
+      ...shopByNodeId,
+      [run.currentNodeId]: restocked.shop,
     },
-  };
-}
-
-function createBasicRestShopV5(nodeId: string, seed: string, at: string): NonNullable<RunGameV5["restState"]["shopByNodeId"]>[string] {
-  const catalog = {
-    recovery: ["potion", "superpotion", "hyperpotion"],
-    berry: ["oranberry", "sitrusberry", "lumberry"],
-    battle: ["leftovers", "lifeorb", "choicescarf"],
-    training: ["rarecandy", "protein", "bottlecap"],
-    parenting: ["heartscale", "standardtextbook", "redthread"],
-    evolution: ["universal-evolution-stone", "linking-cord", "waterstone"],
-    tm: ["tm:protect", "tm:thunderbolt", "tm:icebeam"],
-  };
-  return {
-    nodeId,
-    seed,
-    updatedAt: at,
-    categories: Object.fromEntries(Object.entries(catalog).map(([category, itemIds]) => [
-      category,
-      itemIds.map((itemID, index) => ({
-        slotId: `${nodeId}:${category}:${index}`,
-        category,
-        itemID,
-        stock: 1,
-        generatedAt: at,
-      })),
-    ])) as NonNullable<RunGameV5["restState"]["shopByNodeId"]>[string]["categories"],
   };
 }
 
@@ -2293,6 +2268,21 @@ function currentRestNodeV5(run: RunGameV5): GameMapNodeV5 | null {
     || run.gameMap.nodes.find(node => node.state === "ready" || node.state === "running")
     || run.gameMap.nodes[0]
     || null;
+}
+
+function selfTeamPokemonFromEntitiesV5(run: RunGameV5, playerId: string): LocalPokemonV4[] {
+  const player = run.playersById[playerId];
+  if (!player) return [];
+  return player.localTeamPokemonIds
+    .map(pokemonId => run.pokemonById[pokemonId]?.localPokemon || null)
+    .filter((pokemon): pokemon is LocalPokemonV4 => Boolean(pokemon));
+}
+
+function normalizeStatLockListForV5(values: unknown[] | undefined): DexStatId[] {
+  const valid = new Set<DexStatId>(["hp", "atk", "def", "spa", "spd", "spe"]);
+  return Array.from(new Set((values || [])
+    .map(value => String(value || ""))
+    .filter((value): value is DexStatId => valid.has(value as DexStatId))));
 }
 
 function trainingGroundLessonViewV5(

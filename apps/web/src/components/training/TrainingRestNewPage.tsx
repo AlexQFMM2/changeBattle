@@ -18,7 +18,6 @@ import {
   type FormalRestPokemonStatRerollResultV4,
   type FormalTrainingGroundApplyInputV4,
   type FormalTrainingGroundLessonViewV4,
-  type FormalTrainingGroundResultV4,
   type SoulmateCandidateV4,
   type TrainingPlayerDraftV4,
   type TrainingRunGameV4,
@@ -31,7 +30,11 @@ import {TrainingRestNewActionBoard} from "./TrainingRestNewActionBoard";
 import {TrainingRestNewBagPanel} from "./TrainingRestNewBagPanel";
 import {TrainingRestShopScene} from "./TrainingRestShopScene";
 import {TrainingRestShopDialogue} from "./TrainingRestShopDialogue";
-import {TrainingRestTrainingGroundScene} from "./TrainingRestTrainingGroundScene";
+import {
+  TrainingRestTrainingGroundScene,
+  type RoomRestMutationResult,
+  type TrainingGroundApplyResult,
+} from "./TrainingRestTrainingGroundScene";
 import {TrainingRestNewTeamPanel} from "./TrainingRestNewTeamPanel";
 import {TrainingRestSideBoard} from "./TrainingRestSideBoard";
 import {TrainingRestToast, type TrainingRestToastTone} from "./TrainingRestToast";
@@ -60,7 +63,7 @@ export type TrainingRestTrainingGroundController = {
   getLessons?: () => FormalTrainingGroundLessonViewV4[];
   player: TrainingPlayerDraftV4 | null;
   money: number;
-  onApply: (input: FormalTrainingGroundApplyInputV4) => Promise<FormalTrainingGroundResultV4> | FormalTrainingGroundResultV4;
+  onApply: (input: FormalTrainingGroundApplyInputV4) => Promise<TrainingGroundApplyResult> | TrainingGroundApplyResult;
   onAdvance: () => Promise<void> | void;
 };
 
@@ -68,28 +71,44 @@ export type TrainingRestHealController = {
   money: number;
   cost?: number;
   serverCommitted?: boolean;
-  onHeal: () => Promise<FormalRestTeamHealResultV4> | FormalRestTeamHealResultV4;
+  onHeal: () => Promise<FormalRestTeamHealResultV4 | RoomRestMutationResult> | FormalRestTeamHealResultV4 | RoomRestMutationResult;
 };
 
 export type TrainingRestTeamRerollController = {
   money: number;
   locksEnabled?: boolean;
   serverCommitted?: boolean;
-  onRerollStats: (input: {pokemonId: string; part: "ivs" | "evs"; lockedStats: DexStatId[]}) => Promise<FormalRestPokemonStatRerollResultV4> | FormalRestPokemonStatRerollResultV4;
+  onRerollStats: (input: {pokemonId: string; part: "ivs" | "evs"; lockedStats: DexStatId[]}) => Promise<FormalRestPokemonStatRerollResultV4 | RoomPokemonStatRerollResult> | FormalRestPokemonStatRerollResultV4 | RoomPokemonStatRerollResult;
+};
+
+type RoomPokemonStatRerollResult = RoomRestMutationResult & {
+  cost: number;
 };
 
 export type TrainingRestOpponentPreviewController = {
   enabled: boolean;
   cost: number;
   serverCommitted?: boolean;
-  onUnlock: (input: {unlockKey: string}) => Promise<FormalRestOpponentPreviewUnlockResultV4> | FormalRestOpponentPreviewUnlockResultV4;
+  onUnlock: (input: {unlockKey: string}) => Promise<FormalRestOpponentPreviewUnlockResultV4 | RoomRestMutationResult> | FormalRestOpponentPreviewUnlockResultV4 | RoomRestMutationResult;
+};
+
+type RoomPokemonExchangeResult = RoomRestMutationResult & {
+  cost?: number;
+  view: FormalPokemonExchangeViewV4;
 };
 
 export type TrainingRestExchangeController = {
   view?: FormalPokemonExchangeViewV4 | null;
   getView?: () => FormalPokemonExchangeViewV4 | null;
   serverCommitted?: boolean;
-  onExchange: (input: {sourcePokemonId: string; targetPokemonId: string}) => Promise<FormalPokemonExchangeResultV4> | FormalPokemonExchangeResultV4;
+  onExchange: (input: {sourcePokemonId: string; targetPokemonId: string}) => Promise<FormalPokemonExchangeResultV4 | RoomPokemonExchangeResult> | FormalPokemonExchangeResultV4 | RoomPokemonExchangeResult;
+};
+
+type RoomSoulmateEggClaimResult = RoomRestMutationResult & {
+  playerVault?: FormalSoulmateEggClaimResultV4["playerVault"];
+  candidate?: FormalSoulmateEggClaimResultV4["candidate"];
+  pokemon?: FormalSoulmateEggClaimResultV4["pokemon"];
+  display?: FormalSoulmateEggClaimResultV4["display"];
 };
 
 export type TrainingRestBagActionController = {
@@ -126,7 +145,7 @@ export type TrainingRestNewPageProps = {
   onInitialNoticeConsumed?: () => void;
   soulmateRewardEnabled?: boolean;
   onSoulmateEggPrepare?: (input: {candidateId: string}) => Promise<FormalSoulmateEggHatchResultV4> | FormalSoulmateEggHatchResultV4;
-  onSoulmateEggClaim?: (input: {candidateId: string; nickname?: string}) => Promise<FormalSoulmateEggClaimResultV4> | FormalSoulmateEggClaimResultV4;
+  onSoulmateEggClaim?: (input: {candidateId: string; nickname?: string}) => Promise<FormalSoulmateEggClaimResultV4 | RoomSoulmateEggClaimResult> | FormalSoulmateEggClaimResultV4 | RoomSoulmateEggClaimResult;
 };
 
 const PENDING_SETTLEMENT_CAPTURE_ACTIONS = [
@@ -138,7 +157,7 @@ type SoulmateHatchState =
   | {phase: "hatching"; candidateId: string; prepare?: FormalSoulmateEggHatchResultV4; error?: string}
   | {phase: "naming"; candidateId: string; prepare: FormalSoulmateEggHatchResultV4; nickname: string; error?: string}
   | {phase: "saving"; candidateId: string; prepare: FormalSoulmateEggHatchResultV4; nickname?: string}
-  | {phase: "done"; result: FormalSoulmateEggClaimResultV4}
+  | {phase: "done"; result: FormalSoulmateEggClaimResultV4 | RoomSoulmateEggClaimResult}
   | {phase: "error"; message: string};
 
 export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onStartBattle, onOpenDex, onOpenPokemonDex, onSaveRunSnapshot, onTeamReorderSave, hideSaveAction = false, onAbandonRun, onProceedToSettlement, moneyAmount, displayModel, roundSettlement, onRoundSettlementSeen, shopController, trainingGroundController, healController, teamRerollController, opponentPreviewController, exchangeController, bagActionController, initialNotice, serverBusyMessage, onInitialNoticeConsumed, soulmateRewardEnabled, onSoulmateEggPrepare, onSoulmateEggClaim}: TrainingRestNewPageProps) {
@@ -262,6 +281,12 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     }
   }
 
+  function legacyRestRunFromMutationResult(result: unknown): TrainingRunGameV4 | null {
+    if (!legacyRun || typeof result !== "object" || result === null) return legacyRun;
+    const maybeRun = (result as {run?: {restRunSnapshot?: TrainingRunGameV4} | null}).run;
+    return maybeRun?.restRunSnapshot || legacyRun;
+  }
+
   async function startSoulmateEggHatch(candidate: SoulmateCandidateV4) {
     setSoulmateDialogOpen(false);
     setSoulmateDialogDismissed(true);
@@ -314,7 +339,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
         showNotice(result.message, "danger");
         return;
       }
-      if (!hideSaveAction && legacyRun) void Promise.resolve(onRunChange(result.run.restRunSnapshot || legacyRun)).catch(error => {
+      const nextRun = !hideSaveAction ? legacyRestRunFromMutationResult(result) : null;
+      if (nextRun) void Promise.resolve(onRunChange(nextRun)).catch(error => {
         const nextMessage = error instanceof Error ? error.message : "灵魂伴侣同步失败。";
         setMessage(nextMessage);
         showNotice(nextMessage, "danger");
@@ -367,7 +393,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   async function unlockPreviewPokemon(target: PreviewPokemonEntry) {
     if (opponentPreviewController) {
       const result = await withRestBusy("正在打听中", () => opponentPreviewController.onUnlock({unlockKey: target.unlockKey}));
-      if (result.ok && !opponentPreviewController.serverCommitted && legacyRun) void Promise.resolve(onRunChange(result.run.restRunSnapshot || legacyRun)).catch(error => {
+      const nextRun = result.ok && !opponentPreviewController.serverCommitted ? legacyRestRunFromMutationResult(result) : null;
+      if (nextRun) void Promise.resolve(onRunChange(nextRun)).catch(error => {
         const nextMessage = error instanceof Error ? error.message : "情报同步失败。";
         setMessage(nextMessage);
         showNotice(nextMessage, "danger");
@@ -409,7 +436,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     try {
       const result = await withRestBusy("正在交换中", () => exchangeController.onExchange(exchangeSelection));
       if (result.ok) {
-        const commit = exchangeController.serverCommitted || !legacyRun ? Promise.resolve() : Promise.resolve(onRunChange(result.run?.restRunSnapshot || legacyRun));
+        const nextRun = exchangeController.serverCommitted ? null : legacyRestRunFromMutationResult(result);
+        const commit = nextRun ? Promise.resolve(onRunChange(nextRun)) : Promise.resolve();
         void commit.catch(error => {
           const nextMessage = error instanceof Error ? error.message : "交换同步失败。";
           setMessage(nextMessage);
@@ -441,8 +469,9 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
     try {
       setMessage("正在治疗...");
       const result = await withRestBusy("正在治疗中", () => healController.onHeal());
-      if (result.ok && !healController.serverCommitted && legacyRun) {
-        void Promise.resolve(onRunChange(result.run.restRunSnapshot || legacyRun)).catch(error => {
+      const nextRun = result.ok && !healController.serverCommitted ? legacyRestRunFromMutationResult(result) : null;
+      if (nextRun) {
+        void Promise.resolve(onRunChange(nextRun)).catch(error => {
           const nextMessage = error instanceof Error ? error.message : "治疗同步失败。";
           setMessage(nextMessage);
           showNotice(nextMessage, "danger");
@@ -716,8 +745,9 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
               locksEnabled: teamRerollController.locksEnabled,
               onRerollStats: async input => {
                 const result = await withRestBusy("正在重随中", () => teamRerollController.onRerollStats(input));
-                if (result.ok && !teamRerollController.serverCommitted && legacyRun) {
-                  void Promise.resolve(onRunChange(result.run.restRunSnapshot || legacyRun)).catch(error => {
+                const nextRun = result.ok && !teamRerollController.serverCommitted ? legacyRestRunFromMutationResult(result) : null;
+                if (nextRun) {
+                  void Promise.resolve(onRunChange(nextRun)).catch(error => {
                     const nextMessage = error instanceof Error ? error.message : "重随同步失败。";
                     setMessage(nextMessage);
                     showNotice(nextMessage, "danger");

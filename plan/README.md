@@ -13,6 +13,8 @@
 
 - 工程红线 / 代码规范：[`../docs/engineering-redlines.md`](../docs/engineering-redlines.md)
 - RunGame V5 实体化模型：[`runGame-v5-entity-model-plan.md`](runGame-v5-entity-model-plan.md)
+- Formal Room 休整交互 Result Contract 去 V4 化：[`formal-room-rest-result-contract-v5-plan.md`](formal-room-rest-result-contract-v5-plan.md)
+- Formal Room V5 休整规则对齐：[`formal-room-rest-rules-parity-v5-plan.md`](formal-room-rest-rules-parity-v5-plan.md)
 - 运行时数据标准化迁移：[`runtime-data-standardization-migration-plan.md`](runtime-data-standardization-migration-plan.md)
 - 正式游戏当前主线：[`formal-game/README.md`](formal-game/README.md)
 - 灵魂伴侣蛋孵化施工计划：[`formal-game/formal-soulmate-egg-hatch-and-growth-plan.md`](formal-game/formal-soulmate-egg-hatch-and-growth-plan.md)
@@ -33,6 +35,7 @@
 - 正式 room 主线已经完成 RunGame V5 C/S 收口：服务端权威 `RunGameV5`，客户端只消费 scoped view 和轻量 command，不再传输、保存或展示依赖大 `formalRun/restRunSnapshot`。
 - legacy `/rooms/:id/formal/*`、`syncDraft/restAction`、聚合 `rest-action` 已硬隔离为 dev/legacy 入口；训练场和本地 legacy 可继续用 V4 helper，但不得进入正式 room 主线。
 - 正式休整页已经恢复原游戏 UI，数据源来自 V5 scoped rest view。后续改数据结构必须保留成品 UI，不允许退化成薄列表页。
+- ChromeAutomation 验收正式休整功能时，不能只跑自然局金币不足等失败路径。若初始金币/状态不足，必须打开测试模式或使用测试种子/测试资金，实际点击训练、商店购买补货、重随、治疗等成功路径；失败路径只能作为补充。
 - 正式游戏主流程已经进入可持续测试阶段：开局候选、星图扩展、选人、7 场计划、休整页、战斗页、单局战后结算、最终结算和 BP 发放都已接入。
 - 正式休整商店和训练场已经完成第一版闭环：购买/售出、加权补货、课程学习、自主训练、费用、金币流水和课后流程均已接入。
 - 正式流程已经从客户端/desktop worker 推进迁到服务器 room。当前网络职责是“服务端 `RunGameV5` 唯一权威、HTTP command ACK 推进页面、客户端只缓存 scoped view、WS 只做 revision/房间通知、本地不保存 room 大 run”。desktop worker 只保留为训练场/legacy/dev 能力。
@@ -55,6 +58,9 @@
 
 - 下一步正式玩法主线是继续跑完整流程、记录阻断问题，并围绕正式赛程、NPC 配队、特殊系统、商店/训练经济、结算体验和长期仓库整理做回归打磨。
 - 下一步架构主线是把 battle/result/settlement 计算里剩余的 V4-shaped helper 继续拆到纯 V5 或 legacy adapter；正式 room API 响应继续保持 scoped view 和小 result。
+- 下一步休整 UI 主线是执行 [`formal-room-rest-result-contract-v5-plan.md`](formal-room-rest-result-contract-v5-plan.md)，把 room V5 休整交互结果从 V4 `result.run/restRunSnapshot` contract 中拆出来，并用 ChromeAutomation 验收训练、治疗、商店、背包、战斗、结算闭环。
+- 下一步休整规则主线是执行 [`formal-room-rest-rules-parity-v5-plan.md`](formal-room-rest-rules-parity-v5-plan.md)：训练自习、商店出货/补货、重随、交换由后端 V5 以小 context 纯规则计算，玩法随机不得被客户端 `commandId`、前端路由或重试策略影响。
+- 下一步 ChromeAutomation 回归要优先补测试模式/测试资金下的休整成功路径，不再把 0 金币局的“金币不足”当作训练/商店/重随验收完成。
 - 下一步 AI 主线是继续扩大单打/双打出题、做题、评估样本，结合人工 debug 对局验收，优先把 severe 犯病点稳定抓出来。
 - 下一步 coop 主线是复用 doubles 队伍生成器和 lead pair diagnostics，推进合作 AI 的 seat 映射、ally coordination、joint action 调试和出题评估。
 - 下一步 App 主线只做 Android：基于 Capacitor 复用 Web UI/API/CDN 资源，先验证 640x320 视口、存档、音频、网络/API、正式战斗和更新策略；iOS 暂不进入范围。
