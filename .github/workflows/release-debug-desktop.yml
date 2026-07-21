@@ -28,14 +28,19 @@ on:
         default: "http://119.45.240.157/changebattle-beta/"
         type: string
       assets_release_tag:
-        description: "GitHub release tag that stores build assets"
+        description: "Deprecated: assets are loaded from CDN and no longer downloaded during build"
         required: true
         default: "changebattle-v2-assets-v1"
         type: string
       assets_archive_name:
-        description: "Assets archive name in the GitHub assets release"
+        description: "Deprecated: assets are loaded from CDN and no longer downloaded during build"
         required: true
         default: "changeBattleV2-assets.tgz"
+        type: string
+      release_notes:
+        description: "Release notes written to latest.json, one item per line"
+        required: false
+        default: ""
         type: string
 
 permissions:
@@ -53,7 +58,6 @@ jobs:
       CHANGEBATTLE_UPDATE_MANIFEST_URLS: ${{ inputs.update_manifest_url }}
       CHANGEBATTLE_OFFICIAL_SITE_URL: ${{ inputs.official_site_url }}
       CHANGEBATTLE_DOWNLOAD_PAGE_URL: ${{ inputs.official_site_url }}
-      CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT: ${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown-client\js
 
     steps:
       - name: Checkout
@@ -144,86 +148,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Cache release assets
-        id: release-assets-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            assets.tgz
-            assets
-          key: changebattle-release-assets-${{ secrets.CHANGEBATTLE_RELEASE_ASSETS_SHA256 }}
-
-      - name: Download release assets
-        if: steps.release-assets-cache.outputs.cache-hit != 'true'
+      - name: Validate CDN asset configuration
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ASSETS_RELEASE_TAG: ${{ inputs.assets_release_tag }}
-          ASSETS_ARCHIVE_NAME: ${{ inputs.assets_archive_name }}
-          ASSETS_URL: ${{ secrets.CHANGEBATTLE_RELEASE_ASSETS_URL }}
-          ASSETS_SHA256: ${{ secrets.CHANGEBATTLE_RELEASE_ASSETS_SHA256 }}
-          ASSETS_AUTHORIZATION: ${{ secrets.CHANGEBATTLE_RELEASE_ASSETS_AUTHORIZATION }}
         run: |
-          $downloadedFromRelease = $false
-          if (-not [string]::IsNullOrWhiteSpace($env:ASSETS_RELEASE_TAG) -and -not [string]::IsNullOrWhiteSpace($env:ASSETS_ARCHIVE_NAME)) {
-            gh release download $env:ASSETS_RELEASE_TAG `
-              --repo "${{ github.repository }}" `
-              --pattern $env:ASSETS_ARCHIVE_NAME `
-              --dir .
-            if ($LASTEXITCODE -eq 0 -and (Test-Path $env:ASSETS_ARCHIVE_NAME)) {
-              if ($env:ASSETS_ARCHIVE_NAME -ne "assets.tgz") {
-                Move-Item -Force $env:ASSETS_ARCHIVE_NAME assets.tgz
-              }
-              $downloadedFromRelease = $true
-            } else {
-              Write-Warning "GitHub assets release download failed; falling back to CHANGEBATTLE_RELEASE_ASSETS_URL if configured."
-            }
+          $config = Get-Content packages\assets-core\src\config.ts -Raw
+          if ($config -notmatch "https://assets\.65h26i\.top/beta") {
+            throw "ChangeBattle asset CDN base URL is missing from assets-core config."
           }
-          if (-not $downloadedFromRelease) {
-            if ([string]::IsNullOrWhiteSpace($env:ASSETS_URL)) {
-              throw "Assets download failed and CHANGEBATTLE_RELEASE_ASSETS_URL is not configured."
-            }
-            $headers = @{}
-            if (-not [string]::IsNullOrWhiteSpace($env:ASSETS_AUTHORIZATION)) {
-              $headers["Authorization"] = $env:ASSETS_AUTHORIZATION
-            }
-            Invoke-WebRequest -Uri $env:ASSETS_URL -Headers $headers -OutFile assets.tgz
-          }
-          if (-not [string]::IsNullOrWhiteSpace($env:ASSETS_SHA256)) {
-            $actual = (Get-FileHash assets.tgz -Algorithm SHA256).Hash.ToLowerInvariant()
-            if ($actual -ne ($env:ASSETS_SHA256).ToLowerInvariant()) {
-              throw "assets.tgz sha256 mismatch: expected $env:ASSETS_SHA256, got $actual"
-            }
-          }
-          tar -xzf assets.tgz
-
-      - name: Validate release assets
-        shell: pwsh
-        env:
-          ASSETS_SHA256: ${{ secrets.CHANGEBATTLE_RELEASE_ASSETS_SHA256 }}
-        run: |
-          if (-not (Test-Path assets.tgz)) {
-            throw "Release asset archive missing: assets.tgz"
-          }
-          if (-not [string]::IsNullOrWhiteSpace($env:ASSETS_SHA256)) {
-            $actual = (Get-FileHash assets.tgz -Algorithm SHA256).Hash.ToLowerInvariant()
-            if ($actual -ne ($env:ASSETS_SHA256).ToLowerInvariant()) {
-              throw "assets.tgz sha256 mismatch: expected $env:ASSETS_SHA256, got $actual"
-            }
-          }
-          $required = @(
-            "assets\board\rest-panel-frame.png",
-            "assets\title\spritesaurus-transition.mp4",
-            "assets\ui\button-gold.png",
-            "assets\npc\staff\nurse.png",
-            "assets\music\battle\trainer.ogg",
-            "assets\music\rest\pokemon-center.ogg"
-          )
-          foreach ($path in $required) {
-            if (-not (Test-Path $path)) {
-              throw "Release asset missing after extraction: $path"
-            }
-          }
+          $assetBaseUrl = "https://assets.65h26i.top/beta"
+          Write-Host "ChangeBattle public assets are resolved from CDN: $assetBaseUrl"
 
       - name: Run release checks
         shell: pwsh
@@ -258,24 +191,37 @@ jobs:
             -OutputDir "${{ github.workspace }}\release\desktop-launcher" `
             -MingwBin "$env:CHANGEBATTLE_MINGW_BIN"
 
+      - name: Fetch previous update manifest
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+          $previousManifest = "${{ github.workspace }}\release\changebattle\previous-current.json"
+          New-Item -ItemType Directory -Force -Path (Split-Path $previousManifest) | Out-Null
+          $manifestUrl = (New-Object System.Uri((New-Object System.Uri("$env:CHANGEBATTLE_OFFICIAL_SITE_URL")), "manifests/current.json")).AbsoluteUri
+          Write-Host "Fetching previous file manifest: $manifestUrl"
+          try {
+            Invoke-WebRequest -Uri $manifestUrl -OutFile $previousManifest -TimeoutSec 15
+            "CHANGEBATTLE_PREVIOUS_FILE_MANIFEST=$previousManifest" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            Write-Host "Previous file manifest saved to $previousManifest"
+          } catch {
+            Write-Warning "Previous file manifest unavailable; this build will stage every managed object. $($_.Exception.Message)"
+          }
+
       - name: Package portable release
         shell: pwsh
         run: |
           $env:ELECTRON_RUNTIME_PATH = "${{ github.workspace }}\apps\desktop\node_modules\electron\dist"
           $env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT = "${{ github.workspace }}\release\desktop-launcher"
-          $env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT = "${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown"
-          $env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = "${{ github.workspace }}\packages\showdown-battle-core\vendor\showdown-client"
           $env:CHANGEBATTLE_COMMIT = "$env:CHANGEBATTLE_SOURCE_COMMIT"
           python tools\package_desktop_release.py `
             --electron-runtime-path "$env:ELECTRON_RUNTIME_PATH" `
-            --launcher-output-path "$env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT" `
-            --showdown-path "$env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT" `
-            --showdown-client-path "$env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT"
+            --launcher-output-path "$env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT"
 
       - name: Generate update metadata
         shell: pwsh
         env:
           RELEASE_MIRROR_URL: https://github.com/${{ github.repository }}/releases/download/desk-debug-v${{ inputs.version }}/ChangeBattle-V2-Desk-portable-debug-v${{ inputs.version }}.zip
+          CHANGEBATTLE_RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
           $env:CHANGEBATTLE_RELEASE_MIRRORS = "GitHub Release=$env:RELEASE_MIRROR_URL"
           node tools\generate_desktop_update_manifest.mjs $env:RELEASE_VERSION --channel beta --official-site-url "$env:CHANGEBATTLE_OFFICIAL_SITE_URL"
@@ -295,8 +241,10 @@ jobs:
           path: |
             release/changebattle/latest.json
             release/changebattle/index.html
-            release/changebattle/manifests/v${{ inputs.version }}/files.json
-            release/changebattle/files/v${{ inputs.version }}/
+            release/changebattle/object-update-summary.json
+            release/changebattle/manifests/v${{ inputs.version }}.json
+            release/changebattle/manifests/current.json
+            release/changebattle/objects/
           if-no-files-found: error
           retention-days: 14
 

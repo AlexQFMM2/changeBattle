@@ -3,9 +3,9 @@ param(
   [string]$SourceRoot = "D:\changeBattleV2\changeBattleV2",
   [string]$ReleaseRoot = "D:\changeBattleV2\release",
   [string]$ElectronRuntimePath = "D:\changeBattleV2\electron-runtime\electron",
-  [string]$ShowdownPath = "",
-  [string]$ShowdownClientPath = "",
-  [string]$Commit = ""
+  [string]$Commit = "",
+  [ValidateSet("stable", "beta")]
+  [string]$Channel = "stable"
 )
 
 $ErrorActionPreference = "Stop"
@@ -16,6 +16,12 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
 
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
   throw "Version must look like X.Y.Z, got: $Version"
+}
+
+$DefaultUpdateManifestUrl = if ($Channel -eq "beta") {
+  "https://65h26i.top/changebattle-beta/latest.json"
+} else {
+  "https://65h26i.top/changebattle/latest.json"
 }
 
 if (-not (Test-Path $SourceRoot)) {
@@ -31,22 +37,6 @@ if ($PackageVersion.Trim() -ne $Version) {
 
 if (-not (Test-Path (Join-Path $ElectronRuntimePath "electron.exe"))) {
   throw "Electron runtime missing: $ElectronRuntimePath. Copy V1 runtime from D:\changeBattle\electron-runtime\electron or provide -ElectronRuntimePath."
-}
-
-if ([string]::IsNullOrWhiteSpace($ShowdownPath)) {
-  $ShowdownPath = Join-Path $SourceRoot "packages\showdown-battle-core\vendor\showdown"
-}
-
-if ([string]::IsNullOrWhiteSpace($ShowdownClientPath)) {
-  $ShowdownClientPath = Join-Path $SourceRoot "packages\showdown-battle-core\vendor\showdown-client"
-}
-
-if (-not (Test-Path (Join-Path $ShowdownPath "sim\index.js"))) {
-  throw "Pokemon Showdown vendor missing: $ShowdownPath"
-}
-
-if (-not (Test-Path (Join-Path $ShowdownClientPath "js\battle.js"))) {
-  throw "Pokemon Showdown client playback vendor missing: $ShowdownClientPath"
 }
 
 if ([string]::IsNullOrWhiteSpace($Commit)) {
@@ -79,20 +69,31 @@ pnpm typecheck
 
 Write-Host "Building desktop..."
 $env:CHANGEBATTLE_PROJECT_ROOT = $SourceRoot
-$env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = Join-Path $ShowdownClientPath "js"
+$env:CHANGEBATTLE_RELEASE_CHANNEL = $Channel
 pnpm --filter @changebattle-v2/desktop build
 pnpm --filter @changebattle-v2/desktop test:ipc-bundle
 pnpm --filter @changebattle-v2/desktop test:renderer-assets
 pnpm --filter @changebattle-v2/desktop test:formal-worker
 
+Write-Host "Building desktop launcher..."
+$LauncherOutput = Join-Path $SourceRoot "release\desktop-launcher"
+powershell -NoProfile -ExecutionPolicy Bypass -File tools\windows\build-desktop-launcher.ps1 -SourceRoot $SourceRoot -OutputDir $LauncherOutput
+
 Write-Host "Packaging desktop release..."
 $env:ELECTRON_RUNTIME_PATH = $ElectronRuntimePath
-$env:CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT = $ShowdownPath
-$env:CHANGEBATTLE_SHOWDOWN_CLIENT_VENDOR_ROOT = $ShowdownClientPath
+$env:CHANGEBATTLE_DESKTOP_LAUNCHER_OUTPUT = $LauncherOutput
 $env:CHANGEBATTLE_COMMIT = $Commit
-python tools\package_desktop_release.py --electron-runtime-path $ElectronRuntimePath --showdown-path $ShowdownPath --showdown-client-path $ShowdownClientPath
+if ([string]::IsNullOrWhiteSpace($env:CHANGEBATTLE_UPDATE_MANIFEST_URLS)) {
+  $env:CHANGEBATTLE_UPDATE_MANIFEST_URLS = $DefaultUpdateManifestUrl
+}
+python tools\package_desktop_release.py --electron-runtime-path $ElectronRuntimePath --launcher-output-path $LauncherOutput
 
-$ZipName = "ChangeBattle-V2-Desk-portable-v$Version.zip"
+$PackageName = if ($Channel -eq "beta") {
+  "ChangeBattle-V2-Desk-portable-debug-v$Version"
+} else {
+  "ChangeBattle-V2-Desk-portable-v$Version"
+}
+$ZipName = "$PackageName.zip"
 $LocalZip = Join-Path $SourceRoot "release\$ZipName"
 $ReleaseZip = Join-Path $ReleaseRoot $ZipName
 
@@ -110,20 +111,20 @@ try {
   foreach ($Entry in $Zip.Entries) {
     [void]$Names.Add($Entry.FullName)
   }
-  $Prefix = "ChangeBattle-V2-Desk-portable-v$Version"
+  $Prefix = $PackageName
   $Wanted = @(
+    "$Prefix/ChangeBattle V2.exe",
     "$Prefix/ChangeBattle-V2-Desk.cmd",
+    "$Prefix/ChangeBattle-V2-Desk.launcher.env",
     "$Prefix/RELEASE-README.md",
+    "$Prefix/resources/app-icon.ico",
+    "$Prefix/resources/app-icon.png",
     "$Prefix/update-manifest.json",
     "$Prefix/apps/desktop/out/main/main.js",
     "$Prefix/apps/desktop/out/main/formalComputeWorker.js",
     "$Prefix/apps/desktop/out/preload/preload.cjs",
     "$Prefix/apps/desktop/out/renderer/index.html",
-    "$Prefix/runtime/electron/electron.exe",
-    "$Prefix/vendor/pokemon-showdown/sim/index.js",
-    "$Prefix/vendor/pokemon-showdown/node_modules/ts-chacha20/package.json",
-    "$Prefix/vendor/showdown-client/js/battle.js",
-    "$Prefix/vendor/showdown-client/js/battle-scene-stub.js"
+    "$Prefix/runtime/electron/electron.exe"
   )
   foreach ($Item in $Wanted) {
     if (-not $Names.Contains($Item)) {
