@@ -46,11 +46,12 @@ download:    http://119.45.240.157/changebattle-beta/
 
 - `package.json.version = 0.1.26`
 - `latest.json.version = 0.1.26`
-- Desktop zip SHA256: `TBD after build`
-- Android APK SHA256: `TBD after build`
-- API typecheck / Web typecheck / `git diff --check` 需通过。
-- GitHub Actions `Release Debug Desktop` 需通过，并生成 `changebattle-beta-update-metadata-v0.1.26`。
-- Android debug APK 由 Windows builder 构建后上传同一个 GitHub Release。
+- Desktop zip SHA256: `a3569984a828dea2ff8766b91d2f8e5b5c8cd1b79fe5d470f1a328221104674e`
+- Android APK SHA256: `6362ec19c7c85a638e04e37ab2432cd933ac51fbb8c6278855cafc7f7340be3c`
+- API typecheck / Web typecheck / `git diff --check` 已通过。
+- GitHub Actions `Release Debug Desktop` 已通过，并生成 `changebattle-beta-update-metadata-v0.1.26`。
+- Android debug APK 已由 Windows builder 构建后上传同一个 GitHub Release。
+- 线上 beta `latest.json.version = 0.1.26`，完整包链接指向 GitHub Release。
 
 ## 注意事项
 
