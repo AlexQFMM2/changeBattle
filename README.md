@@ -5,10 +5,10 @@
 当前最新 beta/debug 口径：
 
 ```txt
-current beta:   0.1.24
+current beta:   0.1.25
 v2 worktree:    /home/alexqfmm/workPlace/pokemon/changeBattleV2
 release tree:   /home/alexqfmm/workPlace/pokemon/changeBattleV2-release
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.24
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.25
 beta latest:    http://119.45.240.157/changebattle-beta/latest.json
 beta site:      http://119.45.240.157/changebattle-beta/
 official API:   https://api.65h26i.top/changebattle/battle
@@ -118,9 +118,10 @@ gh run list --repo AlexQFMM2/changeBattle --limit 5
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：当前 beta 完整包为 `ChangeBattle-V2-Desk-portable-debug-v0.1.24.zip`，完整包挂 GitHub Release；桌面端支持内容哈希增量更新，线上服务器只托管 `latest.json`、manifest 和 objects。
+- Windows Desktop portable release：当前 beta 完整包为 `ChangeBattle-V2-Desk-portable-debug-v0.1.25.zip`，完整包挂 GitHub Release；桌面端支持内容哈希增量更新，线上服务器只托管 `latest.json`、manifest 和 objects。
 - Desktop launcher：`ChangeBattle-V2-Desk.exe` 已接入，`.cmd` 仍可作为 portable fallback。
-- Android App：当前已发布 debug APK `ChangeBattle-V2-Android-debug-v0.1.24.apk`，默认走官方 Battle API。
+- Android App：当前已发布 debug APK `ChangeBattle-V2-Android-debug-v0.1.25.apk`，默认走官方 Battle API。
+- 0.1.25 beta hotfix：补齐正式 room 休整规则、战斗提交失败态、投降失败不假结算、NPC 对手立绘和 AI 多回合 smoke 文档；线上 beta 仍只发布增量 metadata 和下载页，完整包继续走 GitHub Release。
 
 当前明确不做：
 
@@ -211,11 +212,11 @@ VITE_CHANGEBATTLE_BATTLE_SERVICE_URL=http://127.0.0.1:5191/changebattle/battle \
 当前发布形态是 Windows Desktop portable zip + Android debug APK。完整包托管 GitHub Release，线上服务器只托管 Desktop 增量 metadata 和下载页。
 
 ```txt
-version:        0.1.24
-tag:            desk-debug-v0.1.24
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.24
-Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.24.zip
-Android APK:    ChangeBattle-V2-Android-debug-v0.1.24.apk
+version:        0.1.25
+tag:            desk-debug-v0.1.25
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.25
+Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.25.zip
+Android APK:    ChangeBattle-V2-Android-debug-v0.1.25.apk
 beta latest:    http://119.45.240.157/changebattle-beta/latest.json
 beta page:      http://119.45.240.157/changebattle-beta/
 ```
