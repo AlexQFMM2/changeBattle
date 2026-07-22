@@ -31,7 +31,7 @@
 
 ## 当前进度
 
-- 当前 beta/debug 版本是 `0.1.24`；完整 Desktop zip 和 Android debug APK 挂 GitHub Release `desk-debug-v0.1.24`，线上 beta 服务器只保留增量 metadata 和下载页。
+- 当前 beta/debug 版本是 `0.1.25`；完整 Desktop zip 和 Android debug APK 挂 GitHub Release `desk-debug-v0.1.25`，线上 beta 服务器只保留增量 metadata 和下载页。
 - 正式 room 主线已经完成 RunGame V5 C/S 收口：服务端权威 `RunGameV5`，客户端只消费 scoped view 和轻量 command，不再传输、保存或展示依赖大 `formalRun/restRunSnapshot`。
 - legacy `/rooms/:id/formal/*`、`syncDraft/restAction`、聚合 `rest-action` 已硬隔离为 dev/legacy 入口；训练场和本地 legacy 可继续用 V4 helper，但不得进入正式 room 主线。
 - 正式休整页已经恢复原游戏 UI，数据源来自 V5 scoped rest view。后续改数据结构必须保留成品 UI，不允许退化成薄列表页。
@@ -50,7 +50,8 @@
 - 灵魂伴侣边界已经明确：仓库长期资产可以在训练家仓库养成；通过同行许可进入正式流程的是 run-local 副本，不参与局内训练、交换、TM、特效药等任何养成系统。
 - Battle V4 AI 和队伍生成器已完成第一轮重构：单打 threat/resource/special-system/reason tags，双打 joint action/value/reply/免疫防呆，单打/双打 self-play exam/report，正式流程已接入“玩家画像 -> 结构化队伍生成 -> 新 AI 决策”的链路。
 - Assets CDN 迁移已落地：公共资源统一走 `https://assets.65h26i.top/beta/...`，`apps/web/public` 和根 `assets/` 不再作为运行时打包来源；debug desktop release 不再下载 assets 包。
-- GitHub Actions release 和手动 GitHub Release 补资产流程均已跑通：`0.1.24` beta 完整包资产在 GitHub Release，线上 beta `latest.json` 的完整包链接也指向 GitHub。
+- GitHub Actions release 和手动 GitHub Release 补资产流程均已跑通：`0.1.25` beta 完整包资产在 GitHub Release，线上 beta `latest.json` 的完整包链接也指向 GitHub。
+- `0.1.25` 额外补齐战斗提交失败态、投降失败不假结算、NPC 对手立绘和正式 room 多回合 AI smoke 文档；后续遇到“表面正常但实际卡住”的问题，按 `docs/engineering-redlines.md` 的等待态/AI smoke 红线检查。
 - Battle diagnostics 已补充 AI 出招复现方法：遇到 release blocked / invalid choice，可用 diagnostics 的 `allRequests` 直接跑当前 V2 `chooseAiBattleChoiceV4` 判断是旧包落后还是当前 core 仍需修。
 - Plan 文档已收敛到当前主线；运行时标准化这类跨模块迁移保留在根目录，玩法计划优先进入对应目录 README。
 

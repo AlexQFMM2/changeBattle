@@ -50,6 +50,7 @@ type BattleV4DisplayContext = {
   battleBagEnabled: boolean;
   players: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
   selectedNpcIds: Partial<Record<ShowdownPlayerIdV4, string>>;
+  preferParticipantVisuals?: boolean;
   nodeForId: (nodeId?: string) => {index: number; participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>} | null;
   stageLabelForNode: (nodeId?: string) => string;
 };
@@ -756,7 +757,9 @@ export function BattleV4Page({api, run, roomBattleView, sessionId, debugConfig, 
       battleDebugLog(debugConfig, "snapshot", "after-submit", snapshotDebugSummary(next));
     } catch (error) {
       reportSubmitError({reason: trainerItems.length ? "submit-trainer-item-threw" : "submit-choice-threw", choice, trainerItems, error});
-      setMessage(error instanceof Error ? error.message : "提交指令失败。");
+      const errorMessage = error instanceof Error ? error.message : "提交指令失败。";
+      setChoiceStatus(`提交失败：${errorMessage}`);
+      setMessage(errorMessage);
     } finally {
       setBusy(false);
     }
@@ -788,6 +791,11 @@ export function BattleV4Page({api, run, roomBattleView, sessionId, debugConfig, 
         sessionId,
         error: error instanceof Error ? error.message : String(error),
       });
+      const errorMessage = error instanceof Error ? error.message : "投降提交失败。";
+      setChoiceStatus(`投降提交失败：${errorMessage}`);
+      setMessage(errorMessage);
+      setSurrenderSubmitting(false);
+      return;
     }
     onBattleComplete?.({sessionId, reason: "surrender"});
   }
@@ -1028,6 +1036,7 @@ function battleDisplayFromTrainingRunV4(api: ChangeBattleV2Api, run: TrainingRun
     battleBagEnabled: Boolean(run.battlePreference?.battleBagEnabled),
     players: run.players,
     selectedNpcIds: run.scenario.selectedNpcIds || {},
+    preferParticipantVisuals: false,
     nodeForId: nodeId => (nodeId ? run.gameMap.find(entry => entry.id === nodeId) : null) || api.getCurrentTrainingNode(run),
     stageLabelForNode: nodeId => battleV4StageLabelForNode(run, nodeId),
   };
@@ -1062,6 +1071,7 @@ function battleDisplayFromRoomBattleViewV5(view: RunGameBattleViewV5): BattleV4D
     battleBagEnabled: Boolean(view.battlePreference.battleBagEnabled),
     players,
     selectedNpcIds: {},
+    preferParticipantVisuals: true,
     nodeForId: () => ({index: 0, participants: players}),
     stageLabelForNode: () => view.stageLabel,
   };
@@ -1074,6 +1084,7 @@ function emptyBattleDisplayV5(): BattleV4DisplayContext {
     battleBagEnabled: false,
     players: {},
     selectedNpcIds: {},
+    preferParticipantVisuals: true,
     nodeForId: () => null,
     stageLabelForNode: () => "正式战斗",
   };
@@ -1099,11 +1110,17 @@ function buildBattleV4NarrativeTrainersFromDisplay(
       ? "玩家"
       : detail?.trainerTypeLabel || (playerId === "p3" ? "AI 队友" : "挑战者");
     const isNearSide = playerId === "p1" || playerId === "p3";
+    const participantVisual = isNearSide
+      ? draft?.backImage || draft?.avatar || ""
+      : draft?.avatar || "";
+    const detailVisual = detail?.frontGifAsset || detail?.frontAsset || detail?.avatarAsset || "";
     const image = isPlayer
       ? playerProfile?.backAsset || draft?.backImage || playerProfile?.frontGifAsset || playerProfile?.frontAsset || playerProfile?.avatarAsset || draft?.avatar || ""
-      : isNearSide
-        ? draft?.backImage || draft?.avatar || detail?.frontGifAsset || detail?.frontAsset || detail?.avatarAsset || ""
-        : detail?.frontGifAsset || detail?.frontAsset || detail?.avatarAsset || draft?.avatar || "";
+      : display.preferParticipantVisuals
+        ? participantVisual || detailVisual
+        : isNearSide
+          ? participantVisual || detailVisual
+          : detailVisual || participantVisual;
     return {playerId, name, title, image, side, detail, draft};
   });
 }
@@ -1117,6 +1134,7 @@ function resolveBattleV4TrainerDetail(
 ): DexTrainerDetail | null {
   const selected = safeTrainerDetail(api, display.selectedNpcIds[playerId]);
   if (selected && (nodeIndex === 0 || !draft || trainerDetailMatchesDraft(selected, draft))) return selected;
+  if (display.preferParticipantVisuals) return selected && battleV4TrainerUsesAuthoredDialogue(selected) ? selected : null;
   if (draft?.name) return findAuthoredTrainerDetailByName(api, draft.name);
   return selected && battleV4TrainerUsesAuthoredDialogue(selected) ? selected : null;
 }

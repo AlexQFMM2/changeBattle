@@ -392,16 +392,22 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
 
   async function unlockPreviewPokemon(target: PreviewPokemonEntry) {
     if (opponentPreviewController) {
-      const result = await withRestBusy("正在打听中", () => opponentPreviewController.onUnlock({unlockKey: target.unlockKey}));
-      const nextRun = result.ok && !opponentPreviewController.serverCommitted ? legacyRestRunFromMutationResult(result) : null;
-      if (nextRun) void Promise.resolve(onRunChange(nextRun)).catch(error => {
-        const nextMessage = error instanceof Error ? error.message : "情报同步失败。";
+      try {
+        const result = await withRestBusy("正在打听中", () => opponentPreviewController.onUnlock({unlockKey: target.unlockKey}));
+        const nextRun = result.ok && !opponentPreviewController.serverCommitted ? legacyRestRunFromMutationResult(result) : null;
+        if (nextRun) void Promise.resolve(onRunChange(nextRun)).catch(error => {
+          const nextMessage = error instanceof Error ? error.message : "情报同步失败。";
+          setMessage(nextMessage);
+          showNotice(nextMessage, "danger");
+        });
+        setUnlockTarget(null);
+        setMessage(result.message);
+        showNotice(result.message, result.ok ? "normal" : "danger");
+      } catch (error) {
+        const nextMessage = error instanceof Error ? error.message : "情报解锁失败。";
         setMessage(nextMessage);
         showNotice(nextMessage, "danger");
-      });
-      setUnlockTarget(null);
-      setMessage(result.message);
-      showNotice(result.message, result.ok ? "normal" : "danger");
+      }
       return;
     }
     const nextRun = {

@@ -28,12 +28,12 @@ server root:   /home/ubuntu/webApp/
 当前 debug/beta 实测状态：
 
 ```text
-latest debug:       0.1.24
-GitHub Release:     https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.24
-Desktop zip:        ChangeBattle-V2-Desk-portable-debug-v0.1.24.zip
-Android APK:        ChangeBattle-V2-Android-debug-v0.1.24.apk
-Desktop sha256:     95be63bb56f532bbd91d7e3e09d87ab9a7bbf0f5a291046a2dcb565b2486d209
-Android sha256:     36d12114ca42f184c3d7ecf83362f4cedda15533a241a91c19e5dbe6a42afcc0
+latest debug:       0.1.25
+GitHub Release:     https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.25
+Desktop zip:        ChangeBattle-V2-Desk-portable-debug-v0.1.25.zip
+Android APK:        ChangeBattle-V2-Android-debug-v0.1.25.apk
+Desktop sha256:     4306623dbde738455f74ae4fc6cd9bd8c74a548c8098ff0b2cf93ca787284127
+Android sha256:     bfb7550a1b77bd01896fc7bcdfa2d546a2db1711ca49851de30ca25bd0973092
 full package host:  GitHub Release
 beta server role:   latest.json / index.html / manifests / objects only
 ```
@@ -47,6 +47,7 @@ beta server role:   latest.json / index.html / manifests / objects only
 0.1.4  修复出招面板禁用技能槽位显示；结算统计优先按后端播放流程归因。
 0.1.20 debug  GitHub Actions 桌面构建 + 内容哈希对象池更新 + Assets CDN 迁移基线。
 0.1.24 debug  RunGame V5 C/S 收口 + 休整页 UI 热修 + Desktop/APK GitHub Release。
+0.1.25 debug  休整规则对齐 + 战斗提交失败态 + 投降失败不假结算 + NPC 对手立绘修复。
 ```
 
 `0.1.3` 线上完整包镜像：
@@ -136,6 +137,7 @@ git worktree add -b hotfix/<name> ../changeBattleV2-hotfix-<name> release
 - 如果已经确认不需要支持旧 manifest，可按当前 `manifests/current.json` 做对象池 GC，只保留当前 manifest 引用的对象。
 - `0.1.20` CDN 迁移后已清理 beta 旧对象池：从约 `640M` 降到约 `79M`。
 - `0.1.24` 起 beta 完整 zip/apk 明确挂 GitHub Release；服务器只保留增量更新小文件，避免流量计费被完整包下载消耗。
+- `0.1.25` 继续沿用该策略，线上增量只发布 `latest.json / index.html / manifests / objects`；完整 zip/apk 下载链接继续指向 GitHub Release。
 - GC 前必须检查 `missingLiveObjects=0`；缺对象时禁止删除旧对象。
 
 下载链接继承规则：
@@ -331,7 +333,7 @@ git push origin v2
 2. 触发 GitHub Actions：
 
 ```bash
-VERSION=0.1.24
+VERSION=0.1.25
 gh workflow run "Release Debug Desktop" \
   --repo AlexQFMM2/changeBattle \
   --ref v2 \
@@ -352,7 +354,7 @@ gh run watch <run_id> --repo AlexQFMM2/changeBattle --exit-status
 4. 下载 update metadata artifact 到本地 `tmp/`：
 
 ```bash
-VERSION=0.1.24
+VERSION=0.1.25
 RUN_ID=<run_id>
 OUT_DIR="/home/alexqfmm/workPlace/pokemon/changeBattleV2/tmp/gha-beta-update-v${VERSION}-${RUN_ID}"
 mkdir -p "$OUT_DIR"
@@ -365,7 +367,7 @@ gh run download "$RUN_ID" \
 5. 发布 artifact 内容到 beta 服务器：
 
 ```bash
-VERSION=0.1.24
+VERSION=0.1.25
 OUT_DIR="/home/alexqfmm/workPlace/pokemon/changeBattleV2/tmp/gha-beta-update-v${VERSION}-<run_id>"
 CHANGEBATTLE_RELEASE_CHANNEL=beta \
 CHANGEBATTLE_UPDATE_LOCAL_DIR="$OUT_DIR" \
@@ -384,11 +386,11 @@ http://119.45.240.157/changebattle-beta/latest.json
 https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-vX.Y.Z
 ```
 
-如果 Actions artifact 已经生成，或本地已经有完整 Desktop/APK 产物，也可以手动创建/补齐同一个 GitHub Release。`0.1.24` 热修就是这个形态：
+如果 Actions artifact 已经生成，或本地已经有完整 Desktop/APK 产物，也可以手动创建/补齐同一个 GitHub Release。`0.1.24` / `0.1.25` 热修就是这个形态：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-VERSION=0.1.24
+VERSION=0.1.25
 gh release create "desk-debug-v${VERSION}" \
   "release/ChangeBattle-V2-Desk-portable-debug-v${VERSION}.zip" \
   "release/ChangeBattle-V2-Android-debug-v${VERSION}.apk" \
@@ -404,7 +406,7 @@ gh release create "desk-debug-v${VERSION}" \
 发布线上 beta metadata 时，完整包链接必须指向 GitHub Release：
 
 ```bash
-VERSION=0.1.24
+VERSION=0.1.25
 export CHANGEBATTLE_FULL_PACKAGE_URL="https://github.com/AlexQFMM2/changeBattle/releases/download/desk-debug-v${VERSION}/ChangeBattle-V2-Desk-portable-debug-v${VERSION}.zip"
 CHANGEBATTLE_RELEASE_MIRRORS="$(printf 'Desktop Portable=https://github.com/AlexQFMM2/changeBattle/releases/download/desk-debug-v%s/ChangeBattle-V2-Desk-portable-debug-v%s.zip\nAndroid Debug APK=https://github.com/AlexQFMM2/changeBattle/releases/download/desk-debug-v%s/ChangeBattle-V2-Android-debug-v%s.apk' "$VERSION" "$VERSION" "$VERSION" "$VERSION")"
 export CHANGEBATTLE_RELEASE_MIRRORS

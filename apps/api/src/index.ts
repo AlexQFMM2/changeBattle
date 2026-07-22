@@ -893,7 +893,7 @@ function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, inp
   const {roomId, roomToken, matchId} = input;
   const loadSnapshot = async (): Promise<BattleSessionSnapshotV4> => {
     const result = await serverApi.postApi<BattleSessionSnapshotV4>("rooms.getBattleSnapshot", {roomId}, {roomToken});
-    if (!result.ok) throw new Error(result.message);
+    if (!result.ok) throw new Error(formalRoomBattleServiceErrorMessage(result));
     return result.data;
   };
   return {
@@ -909,7 +909,7 @@ function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, inp
           commandId: clientActionId,
           payload: {playerId, choice},
         }, {roomToken});
-        if (!result.ok) throw new Error(result.message);
+        if (!result.ok) throw new Error(formalRoomBattleServiceErrorMessage(result));
         return loadSnapshot();
       }
       const result = await serverApi.postApi<BattleSessionSnapshotV4>("rooms.submitBattleChoice", {
@@ -918,7 +918,7 @@ function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, inp
         playerId,
         choice,
       }, {roomToken});
-      if (!result.ok) throw new Error(result.message);
+      if (!result.ok) throw new Error(formalRoomBattleServiceErrorMessage(result));
       return result.data;
     },
     async submitTrainerItem(submitInput) {
@@ -930,7 +930,7 @@ function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, inp
           commandId: clientActionId,
           payload: {playerId: submitInput.playerId, choice: submitInput.choice, trainerItems: submitInput.trainerItems},
         }, {roomToken});
-        if (!result.ok) throw new Error(result.message);
+        if (!result.ok) throw new Error(formalRoomBattleServiceErrorMessage(result));
         return loadSnapshot();
       }
       const result = await serverApi.postApi<BattleSessionSnapshotV4>("rooms.submitBattleChoice", {
@@ -940,7 +940,7 @@ function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, inp
         choice: submitInput.choice,
         trainerItems: submitInput.trainerItems,
       }, {roomToken});
-      if (!result.ok) throw new Error(result.message);
+      if (!result.ok) throw new Error(formalRoomBattleServiceErrorMessage(result));
       return result.data;
     },
     async applyPermanentFormeChange() {
@@ -958,6 +958,13 @@ function createFormalRoomBattleServiceClient(serverApi: PostServiceClientV4, inp
       // Room-owned battle sessions are closed by the match-scoped finalize-battle command.
     },
   };
+}
+
+function formalRoomBattleServiceErrorMessage(result: Extract<PostServiceResultV4<unknown>, {ok: false}>): string {
+  if (result.error === "room_not_found") return "离线房间已结束或无法恢复，请返回房间重新创建对局。";
+  if (result.error === "battle_session_lost") return "战斗会话已丢失，请返回房间重新进入或重新创建对局。";
+  if (result.error === "active_battle_missing") return "当前房间没有可恢复的战斗，请返回休整页重新进入。";
+  return result.message;
 }
 
 function createClientActionIdV4(prefix: string): string {

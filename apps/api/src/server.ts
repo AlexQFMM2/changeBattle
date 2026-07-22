@@ -1440,28 +1440,41 @@ function createDirectRoundDraftsV5(run: RunGameV5): Array<{participants: Partial
 }
 
 function createDirectNpcDraftV5(slot: ShowdownPlayerIdV4, roundIndex: number, teamSize: number, controller: TrainingPlayerDraftV4["controller"], alliance: TrainingPlayerDraftV4["alliance"]): TrainingPlayerDraftV4 {
-  const names = slot === "p3"
-    ? ["搭档 小葵", "搭档 阿响", "搭档 莉拉"]
-    : slot === "p4"
-      ? ["对手 蓝", "对手 银", "对手 N"]
-      : ["菜鸟训练家 佑树", "普通训练家 小遥", "馆主 亚莎", "精英训练家 嘉德丽雅", "冠军 丹帝", "Boss 赤日", "Boss 坂木"];
-  const avatars = [
-    "npc/avatars/1-asset-18b76b7d.webp",
-    "npc/avatars/2-asset-7b6aa2e7.webp",
-    "npc/avatars/3-asset-28b96eb3.webp",
-    "npc/avatars/4-asset-f4d3fd74.webp",
-    "npc/avatars/5-asset-b3f2df43.webp",
-    "npc/avatars/6-asset-a73f3e71.webp",
-  ];
+  const profile = directNpcProfileV5(slot, roundIndex);
   return {
     playerId: slot,
-    name: names[Math.min(names.length - 1, roundIndex)] || `${slot.toUpperCase()} NPC`,
-    avatar: avatars[(roundIndex + (slot === "p4" ? 2 : slot === "p3" ? 1 : 0)) % avatars.length]!,
+    name: profile.name,
+    avatar: profile.avatar,
+    ...(profile.backImage ? {backImage: profile.backImage} : {}),
     controller,
     alliance,
     localTeam: formalApi.randomizeTrainingTeam(slot, teamSize),
     bag: formalApi.normalizeBagState(undefined),
   };
+}
+
+function directNpcProfileV5(slot: ShowdownPlayerIdV4, roundIndex: number): {name: string; avatar: string; backImage?: string} {
+  const partnerProfiles = [
+    {name: "搭档 斗也", avatar: "npc/player-front/black-bw-black-c8f5411e.png", backImage: "npc/player-back/black-bw-touya-back-b2e0a77d.png"},
+    {name: "搭档 小光", avatar: "npc/player-front/dawn-dp-dawn-a35e5a63.png", backImage: "npc/player-back/dawn-dp-dawn-back-65c7fd06.png"},
+    {name: "搭档 鸣依", avatar: "npc/player-front/rosa-spr-b2w2-rosa-b1af3eb8.png", backImage: "npc/player-back/rosa-b2w2-rosa-back-405f562e.png"},
+  ];
+  const rivalProfiles = [
+    {name: "对手 蓝", avatar: "npc/boss/blue-gif-bluehgss-43e96b09.gif"},
+    {name: "对手 赤红", avatar: "npc/boss/red-gif-red-c813612f.gif"},
+    {name: "对手 坂木", avatar: "npc/boss/giovanni-gif-giovannihgss-e63c106b.gif"},
+  ];
+  const opponentProfiles = [
+    {name: "短裤少年", avatar: "npc/normal/spr-bw-youngster-167-spr-bw-youngster-8905c2a1.png"},
+    {name: "精英训练家", avatar: "npc/normal/spr-bw-ace-trainer-m-101-spr-bw-ace-trainer-m-99261c96.png"},
+    {name: "馆主 亚莎", avatar: "npc/boss/flannery-spr-b2w2-flannery-596fb535.png"},
+    {name: "四天王 嘉德丽雅", avatar: "npc/boss/caitlin-spr-bw-caitlin-2c43c9f9.png"},
+    {name: "冠军 希罗娜", avatar: "npc/boss/cynthia-gif-cynthiaplatinum-9c6c1d75.gif"},
+    {name: "Boss 赤日", avatar: "npc/boss/cyrus-front-fe1ce71c.gif"},
+    {name: "Boss 坂木", avatar: "npc/boss/giovanni-gif-giovannihgss-e63c106b.gif"},
+  ];
+  const profiles = slot === "p3" ? partnerProfiles : slot === "p4" ? rivalProfiles : opponentProfiles;
+  return profiles[Math.min(profiles.length - 1, Math.max(0, roundIndex))] || profiles[0]!;
 }
 
 function advanceRoomMatchV5(room: FormalRoomRecordV1, matchId: string, runGameV5: RunGameV5): FormalRoomRecordV1 {

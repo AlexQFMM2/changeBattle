@@ -49,6 +49,13 @@
 
 不得出现乐观写权威状态、后台偷偷同步、失败后本地仍显示成功这类模糊状态。
 
+战斗页属于同一条红线：
+
+- `battle-choice` / trainer item / surrender 提交前可以显示“提交中”，但失败必须落到明确失败文案，并清除 busy/submitting。
+- 投降或战斗结束 command 失败时不得继续触发 `onBattleComplete`、结算页或返回房间。
+- 强制换人回合必须按 battle snapshot request 生成 `switch`/`pass`，不得在 smoke 或 UI 中硬发 `move` 后把服务端拒绝误判为 AI 卡死。
+- AI 出招问题不能只靠肉眼看 UI；至少看服务端 `battle-ai-choice` 日志，或跑正式 room 多回合 `battle-choice` smoke。
+
 ## UI 质量
 
 ChangeBattle 是成品游戏界面，不是 CLI。
