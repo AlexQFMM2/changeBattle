@@ -45,8 +45,8 @@ download:    http://119.45.240.157/changebattle-beta/
 
 - `package.json.version = 0.1.25`
 - `latest.json.version = 0.1.25`
-- Desktop zip SHA256: `4306623dbde738455f74ae4fc6cd9bd8c74a548c8098ff0b2cf93ca787284127`
-- Android APK SHA256: `bfb7550a1b77bd01896fc7bcdfa2d546a2db1711ca49851de30ca25bd0973092`
+- Desktop zip SHA256: `bbe60f9cab93f6b05212f1012cc58305f7962d8a2b23ed01cac018199e540fe3`
+- Android APK SHA256: `6362ec19c7c85a638e04e37ab2432cd933ac51fbb8c6278855cafc7f7340be3c`
 - API typecheck / Web typecheck / `git diff --check` 已通过。
 - `showdown-battle-core test -- --runInBand` 已通过，覆盖 AI move、AI switch、特殊系统、force switch 和 self-play smoke。
 - 本地 memory Battle API 正式 room 多回合 smoke 已通过：创建房间 -> 创建对局 -> starter -> rest -> prepare battle -> 连续 `battle-choice`，服务端日志出现 `battle-ai-choice`，最终 `winner:p1`，未卡在 wait/submitting。
