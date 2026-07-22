@@ -4,12 +4,12 @@
 
 ## 当前状态
 
-- 当前 beta/debug 版本是 `0.1.25`。
-- Desktop portable zip 和 Android debug APK 挂 GitHub Release `desk-debug-v0.1.25`。
+- 当前 beta/debug 版本是 `0.1.26`。
+- Desktop portable zip 和 Android debug APK 挂 GitHub Release `desk-debug-v0.1.26`。
 - 线上 beta 服务器只保留 `latest.json`、下载页、manifests 和增量 objects，不托管完整 zip/apk。
 - 正式 room 主线已经收口为 RunGame V5 C/S：服务端权威实体，客户端 scoped view + lightweight command。
 - 训练场和 legacy V4 helper 只允许作为本地/历史/开发路径，不能作为正式 room fallback。
-- `0.1.25` beta hotfix 补齐正式 room 休整规则、战斗提交失败态、投降失败不假结算、NPC 对手立绘和 AI 多回合 smoke 文档；线上 beta 仍只发布增量 metadata 和下载页。
+- `0.1.26` beta hotfix 补齐正式 room 休整规则、战斗提交失败态、投降失败不假结算、NPC 对手立绘和 AI 多回合 smoke 文档；线上 beta 仍只发布增量 metadata 和下载页。`0.1.25` 已在线上使用过，后续热修不得同版本覆盖。
 
 ## 当前入口
 
