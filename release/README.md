@@ -32,7 +32,7 @@ latest debug:       0.1.28
 GitHub Release:     https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.28
 Desktop zip:        ChangeBattle-V2-Desk-portable-debug-v0.1.28.zip
 Android APK:        ChangeBattle-V2-Android-debug-v0.1.26.apk
-Desktop sha256:     pending GitHub Actions
+Desktop sha256:     e684cbc782101dd00c7ed6fe3902641db137a21505d09666d896acb82c805076 (150,612,123 bytes)
 Android sha256:     6362ec19c7c85a638e04e37ab2432cd933ac51fbb8c6278855cafc7f7340be3c
 full package host:  GitHub Release
 beta server role:   latest.json / index.html / manifests / objects only

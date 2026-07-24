@@ -39,7 +39,7 @@ download:    https://65h26i.top/changebattle-beta/
 ## 校验摘要
 
 - `package.json.version = 0.1.28`
-- Desktop zip SHA256：待 GitHub Actions 构建完成后回填。
+- Desktop zip SHA256：`e684cbc782101dd00c7ed6fe3902641db137a21505d09666d896acb82c805076`（150,612,123 bytes）。
 - Web/Desktop typecheck、Desktop production build、IPC bundle、renderer asset 和 asset resolver 检查已通过。
 - Desk 离线 HTTP smoke 已覆盖 `singles/doubles/coop × standard/gen7/gen8/gen9` 共 12 条完整流程。
 - 每条流程均完成 starter、prepare-round、prepare-battle 并进入 `running`；合作模式确认 `p3 aiLevel = elite`。
