@@ -30,10 +30,18 @@ PROJECT_PATHS = [
     "README.md",
 ]
 SHOWDOWN_VENDOR_SOURCE = PROJECT_ROOT / "packages" / "showdown-battle-core" / "vendor" / "showdown"
+TS_CHACHA20_SOURCE = PROJECT_ROOT / "packages" / "showdown-battle-core" / "node_modules" / "ts-chacha20"
 SHOWDOWN_VENDOR_DESTINATION = Path("vendor") / "pokemon-showdown"
-SHOWDOWN_RUNTIME_REQUIRED = [
+SHOWDOWN_VENDOR_REQUIRED = [
     "sim/index.js",
     "sim/battle-stream.js",
+]
+TS_CHACHA20_REQUIRED = [
+    "package.json",
+    "build/src/chacha20.js",
+]
+SHOWDOWN_RUNTIME_REQUIRED = [
+    *SHOWDOWN_VENDOR_REQUIRED,
     "node_modules/ts-chacha20/package.json",
     "node_modules/ts-chacha20/build/src/chacha20.js",
 ]
@@ -135,13 +143,16 @@ def validate_desktop_outputs(stage_dir: Path) -> None:
 
 
 def copy_showdown_runtime(stage_dir: Path) -> None:
-    missing = [relative for relative in SHOWDOWN_RUNTIME_REQUIRED if not (SHOWDOWN_VENDOR_SOURCE / relative).exists()]
-    if missing:
+    vendor_missing = [relative for relative in SHOWDOWN_VENDOR_REQUIRED if not (SHOWDOWN_VENDOR_SOURCE / relative).exists()]
+    dependency_missing = [relative for relative in TS_CHACHA20_REQUIRED if not (TS_CHACHA20_SOURCE / relative).exists()]
+    if vendor_missing or dependency_missing:
+        missing = [str(SHOWDOWN_VENDOR_SOURCE / relative) for relative in vendor_missing]
+        missing.extend(str(TS_CHACHA20_SOURCE / relative) for relative in dependency_missing)
         raise RuntimeError("Showdown runtime source is incomplete; missing:\n" + "\n".join(missing))
     destination = stage_dir / SHOWDOWN_VENDOR_DESTINATION
     copy_path(SHOWDOWN_VENDOR_SOURCE, destination)
     copy_path(
-        SHOWDOWN_VENDOR_SOURCE / "node_modules" / "ts-chacha20",
+        TS_CHACHA20_SOURCE,
         destination / "node_modules" / "ts-chacha20",
     )
     staged_missing = [relative for relative in SHOWDOWN_RUNTIME_REQUIRED if not (destination / relative).exists()]
