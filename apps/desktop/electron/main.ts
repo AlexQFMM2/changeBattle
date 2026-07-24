@@ -171,30 +171,44 @@ function registerRendererAssetFileResolver() {
 
 function registerChangeBattleAssetCacheProtocol() {
   protocol.handle("changebattle-asset", async request => {
-    const relativePath = assetRelativePathFromProtocolUrl(request.url);
-    if (!relativePath) return new Response("Bad asset path", {status: 400});
-    const config = await loadDesktopBattleServerConfig();
-    const cdnUrl = `${defaultPublicAssetBaseUrl}/${relativePath}`;
-    if (!config.assetCache.enabled) return fetch(cdnUrl);
-    const root = await ensureDesktopAssetsRoot();
-    const filePath = safeAssetCacheFilePath(root, relativePath);
-    if (!filePath) return new Response("Bad asset path", {status: 400});
-    if (existsSync(filePath)) {
-      return localAssetCacheResponse(filePath, relativePath, request.headers.get("range"));
+    let relativePath = "";
+    let cdnUrl = "";
+    try {
+      relativePath = assetRelativePathFromProtocolUrl(request.url);
+      if (!relativePath) return new Response("Bad asset path", {status: 400});
+      const config = await loadDesktopBattleServerConfig();
+      cdnUrl = `${defaultPublicAssetBaseUrl}/${relativePath}`;
+      if (!config.assetCache.enabled) return await fetch(cdnUrl);
+      const root = await ensureDesktopAssetsRoot();
+      const filePath = safeAssetCacheFilePath(root, relativePath);
+      if (!filePath) return new Response("Bad asset path", {status: 400});
+      if (existsSync(filePath)) {
+        try {
+          return await localAssetCacheResponse(filePath, relativePath, request.headers.get("range"));
+        } catch (error) {
+          console.warn(`[changebattle-v2:desktop] cached asset read failed; downloading again: ${relativePath}`, error);
+        }
+      }
+      const response = await fetch(cdnUrl);
+      if (!response.ok) {
+        console.warn(`[changebattle-v2:desktop] asset cache download failed ${response.status}: ${relativePath} (${cdnUrl})`);
+        return response;
+      }
+      const bytes = Buffer.from(await response.arrayBuffer());
+      await fs.mkdir(path.dirname(filePath), {recursive: true});
+      await fs.writeFile(filePath, bytes);
+      console.info(`[changebattle-v2:desktop] asset cached: ${relativePath}`);
+      void refreshDesktopAssetCacheStats().catch(error => {
+        console.warn("[changebattle-v2:desktop] asset cache stats refresh failed", error);
+      });
+      return await localAssetCacheResponse(filePath, relativePath, request.headers.get("range"), response.headers.get("content-type") || undefined);
+    } catch (error) {
+      console.error(`[changebattle-v2:desktop] asset request failed: protocol=${request.url} path=${relativePath || "<unresolved>"} cdn=${cdnUrl || "<unresolved>"}`, error);
+      return new Response("Asset temporarily unavailable", {
+        status: 503,
+        headers: {"content-type": "text/plain; charset=utf-8", "cache-control": "no-store"},
+      });
     }
-    const response = await fetch(cdnUrl);
-    if (!response.ok) {
-      console.warn(`[changebattle-v2:desktop] asset cache download failed ${response.status}: ${relativePath}`);
-      return response;
-    }
-    const bytes = Buffer.from(await response.arrayBuffer());
-    await fs.mkdir(path.dirname(filePath), {recursive: true});
-    await fs.writeFile(filePath, bytes);
-    console.info(`[changebattle-v2:desktop] asset cached: ${relativePath}`);
-    void refreshDesktopAssetCacheStats().catch(error => {
-      console.warn("[changebattle-v2:desktop] asset cache stats refresh failed", error);
-    });
-    return localAssetCacheResponse(filePath, relativePath, request.headers.get("range"), response.headers.get("content-type") || undefined);
   });
 }
 

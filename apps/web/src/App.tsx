@@ -402,6 +402,12 @@ function RoutedApp({runtime}: AppProps) {
       });
     return () => {
       cancelled = true;
+      // The scoped view itself is part of this effect's dependencies. A
+      // successful response updates that view, which cleans up this effect
+      // before the promise's finally handler gets a chance to run. Always
+      // release the overlay during cleanup so a successful view refresh
+      // cannot leave the rest page permanently blocked.
+      setFormalRestBusyMessage(null);
     };
   }, [api, formalRoomCredential?.matchId, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRoomCurrentScope, formalRoomCurrentScopedView, formalRoomRouteActive, formalRunLoaded]);
 

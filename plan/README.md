@@ -31,7 +31,7 @@
 
 ## 当前进度
 
-- 当前 beta/debug Desktop 版本是 `0.1.27`；完整 Desktop zip 挂 GitHub Release `desk-debug-v0.1.27`，线上 beta 服务器只保留增量 metadata 和下载页；Android debug APK 当前仍为 0.1.26。
+- 当前 beta/debug Desktop 版本是 `0.1.28`；完整 Desktop zip 挂 GitHub Release `desk-debug-v0.1.28`，线上 beta 服务器只保留增量 metadata 和下载页；Android debug APK 当前仍为 0.1.26。
 - 正式 room 主线已经完成 RunGame V5 C/S 收口：服务端权威 `RunGameV5`，客户端只消费 scoped view 和轻量 command，不再传输、保存或展示依赖大 `formalRun/restRunSnapshot`。
 - legacy `/rooms/:id/formal/*`、`syncDraft/restAction`、聚合 `rest-action` 已硬隔离为 dev/legacy 入口；训练场和本地 legacy 可继续用 V4 helper，但不得进入正式 room 主线。
 - 正式休整页已经恢复原游戏 UI，数据源来自 V5 scoped rest view。后续改数据结构必须保留成品 UI，不允许退化成薄列表页。
