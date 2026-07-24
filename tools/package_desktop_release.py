@@ -29,6 +29,14 @@ PROJECT_PATHS = [
     "apps/desktop/package.json",
     "README.md",
 ]
+SHOWDOWN_VENDOR_SOURCE = PROJECT_ROOT / "packages" / "showdown-battle-core" / "vendor" / "showdown"
+SHOWDOWN_VENDOR_DESTINATION = Path("vendor") / "pokemon-showdown"
+SHOWDOWN_RUNTIME_REQUIRED = [
+    "sim/index.js",
+    "sim/battle-stream.js",
+    "node_modules/ts-chacha20/package.json",
+    "node_modules/ts-chacha20/build/src/chacha20.js",
+]
 REQUIRED_DESKTOP_OUTPUTS = [
     "apps/desktop/out/main/main.js",
     "apps/desktop/out/main/formalComputeWorker.js",
@@ -124,6 +132,21 @@ def validate_desktop_outputs(stage_dir: Path) -> None:
     missing = [relative for relative in REQUIRED_DESKTOP_OUTPUTS if not (stage_dir / relative).exists()]
     if missing:
         raise RuntimeError("Desktop build output is incomplete; missing:\n" + "\n".join(missing))
+
+
+def copy_showdown_runtime(stage_dir: Path) -> None:
+    missing = [relative for relative in SHOWDOWN_RUNTIME_REQUIRED if not (SHOWDOWN_VENDOR_SOURCE / relative).exists()]
+    if missing:
+        raise RuntimeError("Showdown runtime source is incomplete; missing:\n" + "\n".join(missing))
+    destination = stage_dir / SHOWDOWN_VENDOR_DESTINATION
+    copy_path(SHOWDOWN_VENDOR_SOURCE, destination)
+    copy_path(
+        SHOWDOWN_VENDOR_SOURCE / "node_modules" / "ts-chacha20",
+        destination / "node_modules" / "ts-chacha20",
+    )
+    staged_missing = [relative for relative in SHOWDOWN_RUNTIME_REQUIRED if not (destination / relative).exists()]
+    if staged_missing:
+        raise RuntimeError("Staged Showdown runtime is incomplete; missing:\n" + "\n".join(staged_missing))
 
 
 def copy_electron_runtime(runtime_root: Path, dst_root: Path) -> None:
@@ -254,6 +277,10 @@ def validate_zip(zip_path: Path, package_name: str) -> None:
         f"{prefix}/apps/desktop/out/preload/preload.cjs",
         f"{prefix}/apps/desktop/out/renderer/index.html",
         f"{prefix}/runtime/electron/electron.exe",
+        f"{prefix}/vendor/pokemon-showdown/sim/index.js",
+        f"{prefix}/vendor/pokemon-showdown/sim/battle-stream.js",
+        f"{prefix}/vendor/pokemon-showdown/node_modules/ts-chacha20/package.json",
+        f"{prefix}/vendor/pokemon-showdown/node_modules/ts-chacha20/build/src/chacha20.js",
     ]
     with zipfile.ZipFile(zip_path) as zf:
         names = set(zf.namelist())
@@ -287,7 +314,9 @@ def main() -> int:
 
     for relative in PROJECT_PATHS:
         copy_path(PROJECT_ROOT / relative, stage_dir / relative)
+    copy_showdown_runtime(stage_dir)
     validate_desktop_outputs(stage_dir)
+    subprocess.check_call(["node", "tools/smoke_portable_showdown_runtime.mjs", str(stage_dir)], cwd=PROJECT_ROOT)
     copy_electron_runtime(electron_runtime_root, stage_dir / "runtime" / "electron")
     write_launcher_env(stage_dir)
     copy_launcher_outputs(launcher_output_root, stage_dir)

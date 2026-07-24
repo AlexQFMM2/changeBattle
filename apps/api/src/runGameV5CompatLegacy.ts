@@ -149,6 +149,7 @@ function draftForPlayer(run: RunGameV5, playerId: string): TrainingPlayerDraftV4
     avatar: player.avatar,
     backImage: player.backImage,
     controller: player.controller,
+    aiProfile: player.npcProfile?.aiProfile,
     alliance: player.alliance,
     localTeam: teamForPlayer(run, player, `team:${player.playerId}`, `${player.name}的队伍`),
     bag: bagForPlayer(run, player),
@@ -169,14 +170,15 @@ function npcSnapshotForPlayer(player: PlayerInstanceV5 | undefined, nodeId: stri
   return {
     id: player.npcProfile?.trainerId || player.playerId,
     trainerId: player.npcProfile?.trainerId || player.playerId,
-    trainerType: player.npcProfile?.rank === "boss" ? "villain" : player.npcProfile?.rank === "champion" ? "champion" : player.npcProfile?.rank === "elite" ? "elite" : "normal",
+    trainerType: player.npcProfile?.trainerType || "normal",
     name: player.name,
     avatar: player.avatar,
     playerId: player.slot,
-    battlePreference: "balanced",
-    teamPreference: "balanced",
-    powerProfile: player.npcProfile?.rank === "boss" ? "boss" : player.npcProfile?.rank === "champion" ? "champion" : player.npcProfile?.rank === "elite" ? "elite" : "normal",
-    isBoss: player.npcProfile?.rank === "boss",
+    battlePreference: player.npcProfile?.battlePreference || "balanced",
+    teamPreference: player.npcProfile?.teamPreference || "balanced",
+    powerProfile: player.npcProfile?.powerProfile || "normal",
+    aiProfile: player.npcProfile?.aiProfile || {level: "normal", preference: "balanced"},
+    isBoss: player.npcProfile?.isBoss || false,
     diagnostics: [`v5-player:${player.playerId}`, `node:${nodeId}`],
   };
 }

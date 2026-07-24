@@ -10,6 +10,15 @@ export type TrainingControllerV4 = "local" | "ai" | "script";
 
 export type TrainingAllianceV4 = "near" | "far";
 
+export type TrainingAiLevelV4 = "rookie" | "normal" | "elite" | "gymLeader" | "eliteFour" | "champion";
+
+export type TrainingAiPreferenceV4 = "offense" | "defense" | "support" | "balanced";
+
+export type TrainingAiProfileV4 = {
+  level: TrainingAiLevelV4;
+  preference?: TrainingAiPreferenceV4;
+};
+
 export type TrainingRunStatusV4 = "configuring" | "resting" | "battlePreparing" | "battling" | "settling" | "battleEndedPendingSettlement" | "ended" | "blocked";
 
 export type TrainingRunNodeStateV4 = "locked" | "ready" | "preparing" | "running" | "won" | "lost" | "skipped" | "blocked";
@@ -78,6 +87,7 @@ export type TrainingPlayerDraftV4 = {
   avatar: string;
   backImage?: string;
   controller: TrainingControllerV4;
+  aiProfile?: TrainingAiProfileV4;
   alliance: TrainingAllianceV4;
   localTeam: LocalTeamV4;
   bag: BagStateV4;

@@ -5,11 +5,11 @@
 当前 beta：
 
 ```text
-version:        0.1.26
+version:        0.1.27
 branch:         v2
-tag:            desk-debug-v0.1.26
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.26
-Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.26.zip
+tag:            desk-debug-v0.1.27
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.27
+Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.27.zip
 Android APK:    ChangeBattle-V2-Android-debug-v0.1.26.apk
 beta latest:    http://119.45.240.157/changebattle-beta/latest.json
 beta page:      http://119.45.240.157/changebattle-beta/
@@ -166,7 +166,7 @@ CHANGEBATTLE_UPDATE_LOCAL_DIR=/home/alexqfmm/workPlace/pokemon/changeBattleV2/tm
 
 v2 增量更新不再上传 `files/vX.Y.Z/` 完整镜像。服务器目录以 `manifests/current.json` 表示目标文件状态，以 `objects/<sha前2位>/<完整sha256>` 存储内容对象。客户端会重新计算本地实际文件 sha256，按 `path + sha256` 判断新增、修改、删除。
 
-`0.1.26` 是当前 beta hotfix 基线：Desktop zip / Android debug APK 挂 GitHub Release，线上 beta 服务器只发布 `latest.json / index.html / manifests / objects`。本轮包含正式 room 休整规则、战斗提交失败态、投降失败不假结算和 NPC 对手立绘修复。`0.1.25` 已在线上使用过，后续热修必须继续升版本，不能同版本覆盖。
+`0.1.27` 是当前 beta Desktop 基线：Desktop zip 挂 GitHub Release，线上 beta 服务器只发布 `latest.json / index.html / manifests / objects`。本轮补齐 Desk 离线 Showdown runtime，恢复正式 NPC 固定赛程、强度、立绘和 AI；Android debug APK 当前仍为 0.1.26。
 
 如果只想本地生成清单并检查内容：
 

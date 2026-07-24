@@ -1033,6 +1033,10 @@ assert(roundPlanned.restRunSnapshot?.gameMap.length === 7, "formal rest snapshot
 assert(roundPlanned.competitionMode === "standard", "formal run should default to standard competition mode");
 assert(roundPlanned.restRunSnapshot?.competitionMode === "standard", "formal rest snapshot should keep competition mode");
 assert(roundPlanned.roundPlan[0]?.participants.p2?.localTeam.pokemon.length === 3, "formal round planning should generate the first opponent");
+assert(roundPlanned.roundPlan.map(round => round.difficulty).join(",") === "rookie,normal,gym,normal,normal,elite,gym", "streak zero should preserve the historical formal NPC schedule");
+assert(roundPlanned.roundPlan[0]?.npcs[0]?.aiProfile.level === "rookie", "rookie formal NPC snapshot should preserve rookie AI level");
+assert(roundPlanned.roundPlan[0]?.participants.p2?.aiProfile?.level === "rookie", "rookie formal NPC draft should preserve rookie AI level");
+assert(roundPlanned.roundPlan[0]?.participants.p2?.aiProfile?.preference === roundPlanned.roundPlan[0]?.npcs[0]?.battlePreference, "formal NPC AI preference should match its generated battle preference");
 assert(!roundPlanned.roundPlan[1]?.participants.p2, "formal round planning should defer the second opponent");
 assert(roundPlanned.restRunSnapshot?.gameMap[0]?.participants.p2?.localTeam.pokemon.length === 3, "formal rest snapshot should expose first opponent");
 assert(!roundPlanned.restRunSnapshot?.gameMap[1]?.participants.p2, "formal rest snapshot should hide future opponents");
@@ -1065,6 +1069,9 @@ rookieOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `r
 rookieOpponent.forEach((pokemon, index) => assert(pokemon.level === 48, `rookie NPC ${index + 1} should use player max level minus two`));
 assert(rookieOpponent.every(pokemon => !["choicescarf", "choiceband", "choicespecs", "lifeorb", "focussash", "assaultvest", "heavydutyboots"].includes(pokemon.itemId)), "rookie NPC should not hold strong battle items");
 const eliteNpcRun = await api.prepareFormalRoundPlan(api.selectFormalStarterPokemon(api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", streak: 2, seed: "formal-smoke-elite-npc-seed"})), [0, 1, 2]));
+assert(eliteNpcRun.roundPlan.slice(0, 6).map(round => round.difficulty).join(",") === "elite,elite,elite4,elite,gym,elite4", "streak two should preserve the historical elite schedule");
+assert(["champion", "villain"].includes(eliteNpcRun.roundPlan[6]!.difficulty), "streak two final should be a champion or seeded villain replacement");
+assert(eliteNpcRun.roundPlan[0]?.npcs[0]?.aiProfile.level === "elite", "elite formal NPC should preserve elite AI level");
 const eliteOpponent = eliteNpcRun.roundPlan[0]!.participants.p2!.localTeam.pokemon;
 eliteOpponent.forEach((pokemon, index) => assertPokemonPowerProfile(pokemon, `elite NPC ${index + 1}`, ["elite"], {checkLevel: false}));
 eliteOpponent.forEach((pokemon, index) => assert(pokemon.level === 50, `elite NPC ${index + 1} should use player max level without a dynamic level bonus`));
@@ -2264,6 +2271,7 @@ if (gen7NpcZItem?.mappedItemId === "pikaniumz") {
 const championPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "singles", streak: 3, seed: "formal-smoke-champion-seed"}));
 const championSelected = api.selectFormalStarterPokemon(championPrepared, [0, 1, 2]);
 const championPlanned = await api.prepareFormalRoundPlan(championSelected);
+assert(championPlanned.roundPlan.slice(0, 6).map(round => round.difficulty).join(",") === "elite,gym,elite,elite4,elite4,elite4", "late streak should preserve the historical boss schedule");
 assert(["champion", "villain"].includes(championPlanned.roundPlan[6]!.difficulty), "late formal skeleton should reserve champion/villain final battle");
 
 const coopPrepared = api.prepareFormalStarterCandidates(api.createFormalGameRun(profile, {mode: "coop", seed: "formal-smoke-coop-seed"}));
@@ -2292,7 +2300,18 @@ let v5Run = createRunGameV5FromStarterRun({
   starterRun: prepared,
 });
 v5Run = selectStarterPokemonV5(v5Run, [0, 1, 2], 3, "v5-redline-select");
-v5Run = ingestPreparedRoundPlanV5(v5Run, await api.prepareFormalRoundPlan(buildFormalRunCompatViewV5(v5Run)), "v5-redline-prepare-round");
+const preparedV5RoundPlan = await api.prepareFormalRoundPlan(buildFormalRunCompatViewV5(v5Run));
+v5Run = ingestPreparedRoundPlanV5(v5Run, preparedV5RoundPlan, "v5-redline-prepare-round");
+const repeatedPreparedV5Run = ingestPreparedRoundPlanV5(v5Run, preparedV5RoundPlan, "v5-redline-prepare-round");
+assert(repeatedPreparedV5Run === v5Run, "RunGameV5 prepare-round should be command-id idempotent");
+const preparedV5NpcRef = v5Run.roundPlan[0]!.npcRefs[0]!;
+const preparedV5Npc = v5Run.playersById[preparedV5NpcRef]!;
+assert(preparedV5Npc.name === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.name, "RunGameV5 NPC should preserve the formal trainer name");
+assert(preparedV5Npc.avatar === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.avatar, "RunGameV5 NPC should preserve the formal trainer avatar");
+assert(preparedV5Npc.npcProfile?.trainerId === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.trainerId, "RunGameV5 NPC should preserve the formal trainer id");
+assert(preparedV5Npc.npcProfile?.trainerType === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.trainerType, "RunGameV5 NPC should preserve the formal trainer type");
+assert(preparedV5Npc.npcProfile?.powerProfile === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.powerProfile, "RunGameV5 NPC should preserve the formal power profile");
+assert(preparedV5Npc.npcProfile?.aiProfile.level === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.aiProfile.level, "RunGameV5 NPC should preserve the formal AI level");
 v5Run = {
   ...v5Run,
   playersById: {
@@ -2374,6 +2393,9 @@ assert(!v5MapForbidden.test(JSON.stringify(v5Run.gameMap)), "RunGameV5 gameMap s
 assert(!v5MapForbidden.test(JSON.stringify(v5Run.roundPlan)), "RunGameV5 roundPlan should only contain node slot references");
 const v5BattleCompat = buildFormalRunCompatViewV5(v5Run);
 const preparedV5BattleSession = prepareBattleSessionFromRunGameV5(v5Run);
+const preparedV5P2 = preparedV5BattleSession.sessionInput.players.find(player => player.playerId === "p2")!;
+assert(preparedV5P2.aiProfile?.level === preparedV5Npc.npcProfile?.aiProfile.level, "RunGameV5 battle session should pass the NPC AI level to BattleStream");
+assert(preparedV5P2.aiProfile?.preference === preparedV5Npc.npcProfile?.aiProfile.preference, "RunGameV5 battle session should pass the NPC AI preference to BattleStream");
 const preparedV5P1 = preparedV5BattleSession.sessionInput.players.find(player => player.playerId === "p1")!;
 const preparedV5P1Pokemon = preparedV5P1.draft.localTeam.pokemon[0]!;
 const preparedV5P1Mapping = preparedV5P1.teamMapping?.[0]!;

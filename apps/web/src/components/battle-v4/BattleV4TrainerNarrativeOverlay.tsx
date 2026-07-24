@@ -45,6 +45,9 @@ export function BattleV4TrainerNarrativeOverlay({
   const finalLabel = phase === "intro" ? "开始" : "结束";
   const advanceLabel = safeIndex < lineCount - 1 ? "继续" : finalLabel;
   const speakerKind = activeTrainer.isReferee || activeTrainer.name === "裁判" ? "referee" : "trainer";
+  const standingTrainers = activeTrainer.isReferee
+    ? trainers
+    : trainers.filter(trainer => trainer.playerId !== activeTrainer.playerId);
 
   return (
     <div
@@ -60,7 +63,7 @@ export function BattleV4TrainerNarrativeOverlay({
     >
       <div className="battle-v4-trainer-narrative-scrim" />
       <div className="battle-v4-trainer-narrative-stands">
-        {trainers.map(trainer => (
+        {standingTrainers.map(trainer => (
           <span className={`battle-v4-trainer-stand seat-${trainer.playerId} side-${trainer.side}`} key={`${trainer.playerId}:${trainer.name}:${trainer.image}`}>
             <i />
             {trainer.image ? (

@@ -7,7 +7,7 @@ import {fileURLToPath} from "node:url";
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const releaseDir = path.join(rootDir, "release");
 const changebattleReleaseDir = path.join(releaseDir, "changebattle");
-const allowedPrefixes = ["apps/", "resources/"];
+const allowedPrefixes = ["apps/", "resources/", "vendor/"];
 const allowedRootFiles = new Set(["package.json"]);
 const generatedLocalManifestName = "update-manifest.json";
 const manifestVersion = 2;

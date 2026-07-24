@@ -8,7 +8,8 @@ import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAsse
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmUseFailureReasonV4} from "./itemEffects.js";
 import {matchLegacyFormalRoomRoute} from "./legacyFormalRoomRoutes.js";
 import {createMemoryRedisLikeProvider, createRedisSocketProvider, type RedisLikeCommandProvider} from "./roomStore.js";
-import {applyTrainingLessonV5, buildScopedFormalRoomViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementFromRunGameV5, commitSelfBagMutationV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, getMedicalInsuranceTierForChoiceV5, getPokemonExchangeViewV5, getTrainingGroundLessonForInputV5, healSelfTeamV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, prepareRoundPlanFromDraftsV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, viewScopeForRunGameV5, type RunGameV5, type ViewScopeNameV5} from "./runGameV5.js";
+import {applyTrainingLessonV5, buildScopedFormalRoomViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementFromRunGameV5, commitSelfBagMutationV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, getMedicalInsuranceTierForChoiceV5, getPokemonExchangeViewV5, getTrainingGroundLessonForInputV5, healSelfTeamV5, ingestFormalCoopAllyV5, ingestPreparedRoundPlanV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, viewScopeForRunGameV5, type RunGameV5, type ViewScopeNameV5} from "./runGameV5.js";
+import {buildFormalRunCompatViewV5} from "./runGameV5CompatLegacy.js";
 import {normalizeBattlePreferenceV4} from "./training.js";
 
 type ServerConfig = {
@@ -380,7 +381,7 @@ function createHttpRequestHandler(): http.RequestListener {
         return;
       }
       const input = await readJson(request);
-      const snapshot = await service.createBattleSession(input);
+      const snapshot = await createBattleSessionWithRuntimeGuard(input);
       touchSession(snapshot.id);
       logAiDecisions(snapshot);
       sendJson(response, 200, sanitizeSnapshot(snapshot));
@@ -780,6 +781,19 @@ class HttpError extends Error {
   }
 }
 
+async function createBattleSessionWithRuntimeGuard(input: Parameters<typeof service.createBattleSession>[0]): Promise<Awaited<ReturnType<typeof service.createBattleSession>>> {
+  try {
+    return await service.createBattleSession(input);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/Showdown vendor|ts-chacha20|sim[\\/]index\.js|battle-stream\.js/i.test(message)) {
+      log("error", "battle-runtime-unavailable", {error: message});
+      throw new HttpError(503, "battle_runtime_unavailable", "离线战斗运行时不可用，请重新安装完整的 Desk portable 包。");
+    }
+    throw error;
+  }
+}
+
 async function createFormalRoom(body: any): Promise<Record<string, unknown>> {
   ensureRoomStoreAvailable();
   if (roomCreateInFlightCount >= config.roomCreateMaxConcurrency) {
@@ -1173,10 +1187,8 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
     return buildFormalScopedMatchView(next, matchId, "starter", {reused: false});
   }
   if (commandName === "prepare-round") {
-    const runGameV5 = runFormalStep(() => prepareRoundPlanFromDraftsV5(match.runGameV5!, {
-      commandId,
-      rounds: createDirectRoundDraftsV5(match.runGameV5!),
-    }));
+    const preparedCompatRun = await runFormalStepAsync(() => formalApi.prepareFormalRoundPlan(buildFormalRunCompatViewV5(match.runGameV5!)));
+    const runGameV5 = runFormalStep(() => ingestPreparedRoundPlanV5(match.runGameV5!, preparedCompatRun, commandId));
     const next = advanceRoomMatchV5(current, matchId, runGameV5);
     await saveRoom(next);
     broadcastRoomUpdated(next);
@@ -1305,9 +1317,18 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
         result: {sessionId: current.activeBattle.sessionId, snapshotStatus: snapshot.status, turn: snapshot.turn},
       });
     }
-    const battleRunGameV5 = ensureDefaultSystemItemsForSelfV5(match.runGameV5);
+    let battleRunGameV5 = match.runGameV5;
+    const currentBattleNode = battleRunGameV5.gameMap.nodes.find(node => node.nodeId === battleRunGameV5.currentNodeId);
+    if (battleRunGameV5.config.mode === "coop" && !currentBattleNode?.slots.p3) {
+      const compatPreparation = await runFormalStepAsync(() => formalApi.prepareFormalBattleSession(buildFormalRunCompatViewV5(battleRunGameV5)));
+      const compatNode = compatPreparation.restRunSnapshot.gameMap.find(node => node.id === compatPreparation.restRunSnapshot.currentNodeId);
+      const coopAllyDraft = compatNode?.participants.p3 || compatPreparation.restRunSnapshot.players.p3;
+      if (!coopAllyDraft) throw new HttpError(500, "formal_coop_ally_missing", "合作搭档生成失败，请重新开始本场对局。");
+      battleRunGameV5 = ingestFormalCoopAllyV5(battleRunGameV5, coopAllyDraft, compatPreparation.coopAllyNpc);
+    }
+    battleRunGameV5 = ensureDefaultSystemItemsForSelfV5(battleRunGameV5);
     const prepared = runFormalStep(() => prepareBattleSessionFromRunGameV5(battleRunGameV5));
-    const snapshot = await service.createBattleSession(prepared.sessionInput);
+    const snapshot = await createBattleSessionWithRuntimeGuard(prepared.sessionInput);
     touchSession(snapshot.id);
     logAiDecisions(snapshot);
     const runningV5 = markBattleRunningV5(battleRunGameV5, {nodeId: prepared.sessionInput.nodeId, battleGameId: prepared.battleGame.id, commandId});
@@ -1417,64 +1438,6 @@ function formalModeMatchTitle(mode: FormalGameModeV4): string {
   if (mode === "doubles") return "双打-AI";
   if (mode === "coop") return "合作-AI";
   return "单打-AI";
-}
-
-function createDirectRoundDraftsV5(run: RunGameV5): Array<{participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>; mode: FormalGameModeV4; ruleSet: RunGameV5["config"]["ruleSet"]; seed: string}> {
-  const roundCount = run.config.competitionMode === "single" ? 1 : 7;
-  const teamSize = Math.max(run.config.mode === "doubles" ? 2 : 1, Math.min(6, run.playersById[run.selfPlayerId]?.localTeamPokemonIds.length || 3));
-  return Array.from({length: roundCount}, (_, index) => {
-    const participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>> = {
-      p2: createDirectNpcDraftV5("p2", index, teamSize, "ai", "far"),
-    };
-    if (run.config.mode === "coop") {
-      participants.p3 = createDirectNpcDraftV5("p3", index, teamSize, "script", "near");
-      participants.p4 = createDirectNpcDraftV5("p4", index, teamSize, "ai", "far");
-    }
-    return {
-      participants,
-      mode: run.config.mode,
-      ruleSet: run.config.ruleSet,
-      seed: `${run.config.seed}:round:${index + 1}`,
-    };
-  });
-}
-
-function createDirectNpcDraftV5(slot: ShowdownPlayerIdV4, roundIndex: number, teamSize: number, controller: TrainingPlayerDraftV4["controller"], alliance: TrainingPlayerDraftV4["alliance"]): TrainingPlayerDraftV4 {
-  const profile = directNpcProfileV5(slot, roundIndex);
-  return {
-    playerId: slot,
-    name: profile.name,
-    avatar: profile.avatar,
-    ...(profile.backImage ? {backImage: profile.backImage} : {}),
-    controller,
-    alliance,
-    localTeam: formalApi.randomizeTrainingTeam(slot, teamSize),
-    bag: formalApi.normalizeBagState(undefined),
-  };
-}
-
-function directNpcProfileV5(slot: ShowdownPlayerIdV4, roundIndex: number): {name: string; avatar: string; backImage?: string} {
-  const partnerProfiles = [
-    {name: "搭档 斗也", avatar: "npc/player-front/black-bw-black-c8f5411e.png", backImage: "npc/player-back/black-bw-touya-back-b2e0a77d.png"},
-    {name: "搭档 小光", avatar: "npc/player-front/dawn-dp-dawn-a35e5a63.png", backImage: "npc/player-back/dawn-dp-dawn-back-65c7fd06.png"},
-    {name: "搭档 鸣依", avatar: "npc/player-front/rosa-spr-b2w2-rosa-b1af3eb8.png", backImage: "npc/player-back/rosa-b2w2-rosa-back-405f562e.png"},
-  ];
-  const rivalProfiles = [
-    {name: "对手 蓝", avatar: "npc/boss/blue-gif-bluehgss-43e96b09.gif"},
-    {name: "对手 赤红", avatar: "npc/boss/red-gif-red-c813612f.gif"},
-    {name: "对手 坂木", avatar: "npc/boss/giovanni-gif-giovannihgss-e63c106b.gif"},
-  ];
-  const opponentProfiles = [
-    {name: "短裤少年", avatar: "npc/normal/spr-bw-youngster-167-spr-bw-youngster-8905c2a1.png"},
-    {name: "精英训练家", avatar: "npc/normal/spr-bw-ace-trainer-m-101-spr-bw-ace-trainer-m-99261c96.png"},
-    {name: "馆主 亚莎", avatar: "npc/boss/flannery-spr-b2w2-flannery-596fb535.png"},
-    {name: "四天王 嘉德丽雅", avatar: "npc/boss/caitlin-spr-bw-caitlin-2c43c9f9.png"},
-    {name: "冠军 希罗娜", avatar: "npc/boss/cynthia-gif-cynthiaplatinum-9c6c1d75.gif"},
-    {name: "Boss 赤日", avatar: "npc/boss/cyrus-front-fe1ce71c.gif"},
-    {name: "Boss 坂木", avatar: "npc/boss/giovanni-gif-giovannihgss-e63c106b.gif"},
-  ];
-  const profiles = slot === "p3" ? partnerProfiles : slot === "p4" ? rivalProfiles : opponentProfiles;
-  return profiles[Math.min(profiles.length - 1, Math.max(0, roundIndex))] || profiles[0]!;
 }
 
 function advanceRoomMatchV5(room: FormalRoomRecordV1, matchId: string, runGameV5: RunGameV5): FormalRoomRecordV1 {

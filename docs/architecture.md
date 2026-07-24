@@ -132,7 +132,7 @@ apps/desktop
 
 ### Desktop Release
 
-- 当前 beta/debug 版本为 `0.1.26`，GitHub Release tag 是 `desk-debug-v0.1.26`。
+- 当前 beta/debug 版本为 `0.1.27`，GitHub Release tag 是 `desk-debug-v0.1.27`。
 - Desktop portable zip 和 Android debug APK 挂 GitHub Release。
 - 线上 beta 服务器只托管 `latest.json`、下载页、manifest 和增量 objects，不托管完整 zip/apk。
 - 当前 launcher 包含 `ChangeBattle-V2-Desk.cmd` 和轻量 `.exe` 入口；安装器、签名、商店分发不在当前边界。

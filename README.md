@@ -1,13 +1,13 @@
 # ChangeBattle V2
 
-ChangeBattle V2 是当前主线。`v2` 分支对应 beta/debug 通道，当前版本是 `0.1.26`。
+ChangeBattle V2 是当前主线。`v2` 分支对应 beta/debug 通道，当前版本是 `0.1.27`。
 
 当前项目已经从“本地大 RunGame 草稿推进”收口到正式 room C/S 架构：服务端 `RunGameV5` 保存权威实体，Web/Desktop/Android 只通过 scoped view 和轻量 command 与 Battle API 交互。训练场和 legacy V4 helper 仍保留，但必须硬隔离，不能作为正式 room fallback。
 
 ```txt
-current beta:   0.1.26
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.26
-Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.26.zip
+current beta:   0.1.27
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.27
+Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.27.zip
 Android APK:    ChangeBattle-V2-Android-debug-v0.1.26.apk
 beta latest:    http://119.45.240.157/changebattle-beta/latest.json
 beta site:      http://119.45.240.157/changebattle-beta/
@@ -21,7 +21,7 @@ assets CDN:     https://assets.65h26i.top/beta/
 - `docs/architecture.md`：当前架构边界。
 - `docs/engineering-redlines.md`：红线、代码规范和检查命令。
 - `release/README.md`：Desktop/APK/GitHub Release/线上增量发布流程。
-- `docs/release-notes-v0.1.26.md`：当前 beta 版本说明。
+- `docs/release-notes-v0.1.27.md`：当前 beta 版本说明。
 
 ## Repository / Branch
 
@@ -56,6 +56,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - **资源缓存路线**：公共资源默认继续走 COS/CDN，不重新塞回 release zip；后续增加“缓存资源到本地”开关，Desktop first，首次联网下载约 `4-500MB`，缓存完成后优先本地读取，未命中再回退 CDN。
 - **Release 流程**：debug 桌面端主流程已迁到 GitHub Actions。完整包和 Android debug APK 托管在 GitHub Release，线上服务器只发布 Desktop 增量更新 metadata 和下载页；旧 scp 到 Windows 构建机流程已降级为备用方案。
 - **0.1.26 battle hotfix**：修复正式 room 战斗提交失败后 UI 停在“提交中”、投降提交失败仍进入结算流、情报解锁失败无明确提示的问题；正式 room 多回合 `battle-choice` smoke 已验证 AI `move/switch` 会正常推进到结束。`0.1.25` 已在线上使用过，本次热修按新版本 `0.1.26` 发布，不做同版本覆盖。
+- **0.1.27 Desk/NPC hotfix**：补齐 portable Showdown runtime 和 `ts-chacha20`，恢复历史正式 NPC 固定赛程、强度、立绘与 AI profile；Desk 离线 12 种模式/规则组合均已真实进入 BattleStream `running`。
 - **桌面更新**：增量更新使用内容哈希对象池：服务器托管 `latest.json`、`manifests/current.json`、`manifests/vX.Y.Z.json` 和 `objects/<sha>`；客户端按本地实际 sha 与远端清单比较新增/修改/删除。大完整包不放线上服务器，避免流量计费。
 - **下一步重点**：继续做正式 room scoped view 细节回归、Battle V5 纯计算拆分、AI/队伍平衡、合作 AI、Android 验收和 release 稳定性。所有 room 主线新代码必须遵守 `docs/engineering-redlines.md`。
 
@@ -134,7 +135,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.26` 是当前 RunGame V5 C/S、休整规则和战斗提交热修 beta 基线；完整包和 Android debug APK 均挂 GitHub Release，线上服务器只放增量 metadata 和下载页。
+- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.27` 是当前 Desk 离线 runtime、正式 NPC 和 AI 修复 beta 基线；线上服务器只放增量 metadata 和下载页，Android debug APK 当前仍为 0.1.26。
 
 当前明确不做：
 
@@ -170,6 +171,27 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 详细路线见 `docs/training-and-battle-roadmap.md`、`plan/formal-game/README.md` 和 `plan/formal-game/formal-lan-coop-host-mode-plan.md`。
 
 Battle API 运行时服务器选择、Desktop 离线服务和资源缓存路线见 `plan/battle-server-selection-and-offline-assets-plan.md`。
+
+## Desktop Battle API 选择
+
+Desktop 的“网络与离线 / Battle API”设置有三种模式。它们不是三套游戏流程，Renderer 始终只调用同一套 Battle API base URL；正式游戏仍走 `Room -> Match -> RunGameV5 -> HTTP commands -> final-result -> ack-final-result`。
+
+```txt
+官方服务器：Renderer -> https://api.65h26i.top/changebattle/battle -> 公网 Battle API -> Redis
+本地服务器：Renderer -> http://127.0.0.1:5191/changebattle/battle -> 自建/Docker Battle API -> Redis
+本地模拟：  Renderer -> http://127.0.0.1:<port>/changebattle/battle -> Desktop 嵌入式 Battle API -> MemoryRedisLike
+```
+
+- 官方服务器：普通玩家默认模式。需要联网，Desktop 保存配置前应请求 `/health` 成功；正式 room、战斗指令、结算都由公网 Battle API 权威推进。
+- 本地服务器：给开发者、自建服和局域网/公网 Docker 部署使用。常见本机地址是 `http://127.0.0.1:5191/changebattle/battle`，服务由 `docker/battle-api/docker-compose.yml` 启动，Redis 保存 room 状态；公网部署时在 Desktop 里填写 Nginx 反代后的 `https://.../changebattle/battle`。
+- 本地模拟（不用 Docker）：Desktop-only 离线模式。Electron 主进程启动本机嵌入式 Battle API，只监听 loopback，内部用 `MemoryRedisLike` 模拟 room 需要的 Redis 子集；玩家不需要安装 Docker、Redis、Node。应用退出后未结算离线 room 不恢复，最终结算后的 profile/vault 仍写 Desktop 本地存档。
+
+模式切换红线：
+
+- 三种模式切换都要清 room credential，不能跨服务器恢复旧 room。
+- 本地模拟启动失败不能覆盖当前已保存配置。
+- 不允许为本地模拟恢复旧的本地正式流程；它必须继续是同一套 Battle API + V5 scoped view + 轻量 command。
+- 资源缓存是独立开关，不等于 Battle API 模式；公共 assets 仍默认走 COS/CDN 或本地 cache，不由 Battle API 代理。
 
 ## UI Rules
 
@@ -235,16 +257,16 @@ VITE_CHANGEBATTLE_BATTLE_SERVICE_URL=http://127.0.0.1:5191 pnpm --filter @change
 当前 beta/debug 基线：
 
 ```txt
-latest debug: 0.1.26
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.26
-Desktop package: ChangeBattle-V2-Desk-portable-debug-v0.1.26.zip
+latest debug: 0.1.27
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.27
+Desktop package: ChangeBattle-V2-Desk-portable-debug-v0.1.27.zip
 Android package: ChangeBattle-V2-Android-debug-v0.1.26.apk
 beta latest:  http://119.45.240.157/changebattle-beta/latest.json
 beta site:    http://119.45.240.157/changebattle-beta/
 stable site:  http://119.45.240.157/changebattle/
 ```
 
-`0.1.26` 是当前 RunGame V5 C/S、休整规则和战斗提交热修 beta 基线。完整包托管 GitHub Release；beta 服务器只保留 `latest.json`、下载页、manifest 和增量 objects，不托管大 zip/apk。
+`0.1.27` 是当前 Desk 离线 runtime、正式 NPC 和 AI 修复 beta 基线。完整包托管 GitHub Release；beta 服务器只保留 `latest.json`、下载页、manifest 和增量 objects，不托管大 zip/apk。
 
 玩家解压后运行：
 
@@ -275,7 +297,7 @@ debug/beta 推荐发版命令：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-VERSION=0.1.26
+VERSION=0.1.27
 git push origin v2
 gh workflow run "Release Debug Desktop" \
   --repo AlexQFMM2/changeBattle \

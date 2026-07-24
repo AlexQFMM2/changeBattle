@@ -278,6 +278,7 @@ export type BattleServicePlayerInputV4 = {
   playerId: ShowdownPlayerIdV4;
   name: string;
   controller: "local" | "ai" | "script";
+  aiProfile?: TrainingPlayerDraftV4["aiProfile"];
   alliance: "near" | "far";
   team: BattlePokemonSetV4[];
   draft: TrainingPlayerDraftV4;
@@ -1843,6 +1844,7 @@ function compilePlayer(player: TrainingPlayerDraftV4, usedShowdownIdentityTokens
     playerId: player.playerId,
     name: player.name,
     controller: player.controller,
+    aiProfile: player.aiProfile,
     alliance: player.alliance,
     team: identity.localTeam.pokemon.map(pokemon => compilePokemon(pokemon, bagItems, teraType)),
     draft: {

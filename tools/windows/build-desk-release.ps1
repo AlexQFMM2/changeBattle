@@ -65,6 +65,7 @@ pnpm --filter @changebattle-v2/api typecheck
 pnpm --filter @changebattle-v2/web typecheck
 pnpm --filter @changebattle-v2/desktop typecheck
 pnpm --filter @changebattle-v2/api test:formal-game
+pnpm --filter @changebattle-v2/api test:desktop-offline
 pnpm typecheck
 
 Write-Host "Building desktop..."

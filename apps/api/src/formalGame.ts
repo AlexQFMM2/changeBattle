@@ -444,6 +444,7 @@ export type FormalRoundNpcSnapshotV4 = {
   battlePreference: FormalNpcBattlePreferenceV4;
   teamPreference: FormalNpcTeamPreferenceV4;
   powerProfile: PokemonPowerProfileV4;
+  aiProfile: NonNullable<TrainingPlayerDraftV4["aiProfile"]>;
   isBoss: boolean;
   diagnostics: string[];
 };
@@ -671,6 +672,7 @@ export type FormalBattleSessionPreparationV4 = {
   restRunSnapshot: TrainingRunGameV4;
   battleGame: BattleGameV4;
   sessionInput: BattleSessionCreateInputV4;
+  coopAllyNpc?: FormalRoundNpcSnapshotV4;
 };
 
 export type FormalCoinLogInputV4 = {
@@ -1133,6 +1135,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
 
     let nextRestRunSnapshot = restRunSnapshot;
     let nextNode = node;
+    let coopAllyNpc: FormalRoundNpcSnapshotV4 | undefined;
     if (normalized.mode === "coop" && !nextNode.participants.p3) {
       const usedNpcSpecies = new Set<string>();
       for (const npc of round.npcs) {
@@ -1151,6 +1154,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         partnerPreference: normalized.coopPartnerPreference,
         targetLevel: 50,
       });
+      coopAllyNpc = built.npc;
       nextRestRunSnapshot = patchFormalRestParticipant(restRunSnapshot, node.id, built.player);
       nextNode = nextRestRunSnapshot.gameMap.find(entry => entry.id === node.id) || nextNode;
     }
@@ -1160,7 +1164,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       node: nextNode,
       playersById: {...(nextNode.participants || {}), ...nextRestRunSnapshot.players},
     });
-    return {restRunSnapshot: nextRestRunSnapshot, battleGame, sessionInput};
+    return {restRunSnapshot: nextRestRunSnapshot, battleGame, sessionInput, ...(coopAllyNpc ? {coopAllyNpc} : {})};
   }
 
   async function settleFormalBattleRoundV4(run: FormalGameRunV4): Promise<FormalGameRunV4> {
@@ -2506,6 +2510,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
     const battlePreference = input.partnerPreference || pickOne(NPC_BATTLE_PREFERENCES, input.rng) || "balanced";
     const teamPreference = teamPreferenceForNpc(input.trainerType, battlePreference, input.rng);
     const powerProfile = formalNpcPowerProfileForTypeV4(input.trainerType, input.run.streak, input.roundIndex, input.controller === "script");
+    const aiProfile = {
+      level: formalShowdownAiLevelForNpc(input.trainerType, powerProfile),
+      preference: battlePreference,
+    } satisfies NonNullable<TrainingPlayerDraftV4["aiProfile"]>;
     const targetLevel = clampInt(input.targetLevel, 1, 100, input.controller === "script" ? 50 : formalNpcTargetLevel(input.run, input.trainerType));
     const boss = isBoss ? selectBossTrainer(input.trainerType, input.rng) : null;
     const visual = boss ? null : selectTrainerVisual(input.rng, input.controller === "script");
@@ -2540,6 +2548,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       battlePreference,
       teamPreference,
       powerProfile,
+      aiProfile,
       isBoss,
       diagnostics,
     };
@@ -2552,6 +2561,7 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
         avatar,
         ...(backImage ? {backImage} : {}),
         controller: input.controller,
+        aiProfile,
         alliance: input.alliance,
         localTeam: systemBagResult.team,
         bag: systemBagResult.bag,
@@ -3171,6 +3181,10 @@ export function createFormalGameRunApi(dex: ShowdownDexService, storage: FormalG
       battlePreference: normalizeNpcBattlePreference(npc.battlePreference),
       teamPreference: normalizeNpcTeamPreference(npc.teamPreference),
       powerProfile: normalizePowerProfile(npc.powerProfile),
+      aiProfile: {
+        level: formalShowdownAiLevelForNpc(normalizeNpcType(npc.trainerType), normalizePowerProfile(npc.powerProfile)),
+        preference: normalizeNpcBattlePreference(npc.aiProfile?.preference || npc.battlePreference),
+      },
       isBoss: Boolean(npc.isBoss),
       diagnostics: Array.isArray(npc.diagnostics) ? npc.diagnostics.map(String) : [],
     };

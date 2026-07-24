@@ -159,6 +159,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   const std::wstring electronExe = joinPath(portableRoot, L"runtime\\electron\\electron.exe");
   const std::wstring desktopApp = joinPath(portableRoot, L"apps\\desktop");
   const std::wstring desktopMain = joinPath(desktopApp, L"out\\main\\main.js");
+  const std::wstring showdownVendorRoot = joinPath(portableRoot, L"vendor\\pokemon-showdown");
 
   if (!fileExists(electronExe)) {
     fail(portableRoot, L"Electron runtime is missing:\n" + electronExe);
@@ -174,6 +175,7 @@ int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
   const std::wstring manifestUrls = envOrDefault(env, L"CHANGEBATTLE_UPDATE_MANIFEST_URLS", L"");
 
   setEnv(L"CHANGEBATTLE_PROJECT_ROOT", portableRoot);
+  setEnv(L"CHANGEBATTLE_SHOWDOWN_VENDOR_ROOT", showdownVendorRoot);
   setEnv(L"CHANGEBATTLE_DESKTOP_VERSION", version);
   setEnv(L"CHANGEBATTLE_PORTABLE_ROOT", portableRoot);
   setEnv(L"CHANGEBATTLE_PORTABLE_UPDATE_ENABLED", L"1");

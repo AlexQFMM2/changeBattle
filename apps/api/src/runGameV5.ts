@@ -7,7 +7,7 @@ import {
 } from "@changebattle-v2/core";
 import type {DexStatId} from "@changebattle-v2/showdown-dex-core";
 import type {BattlePreferenceV4, FormalCompetitionModeV4, PlayerItemInstanceV4, ShowdownPlayerIdV4, StatTableV4, TrainingAllianceV4, TrainingBattleLogEntryV4, TrainingCoinLogEntryV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4, TrainingRuleSetV4, TrainingStatusV4} from "./training.js";
-import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceOfferV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopItemV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
+import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceOfferV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRoundNpcSnapshotV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopItemV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import type {LocalPokemonV4, LocalTeamV4} from "./training.js";
 import type {PlayerVaultV4, UserProfileV2} from "./index.js";
 import {createBattleGameFromNodeDraft, type BattleGameV4, type BattleSessionCreateInputV4, type BattleSessionSnapshotV4, type BattleTeamPokemonStateV4} from "./battle.js";
@@ -77,11 +77,18 @@ export type PlayerInstanceV5 = {
   starChartSnapshot?: FormalGameRunV4["starChartSnapshot"];
   npcProfile?: {
     trainerId: string;
+    trainerType: FormalRoundNpcSnapshotV4["trainerType"];
     rank: "rookie" | "trainer" | "gym_leader" | "elite" | "champion" | "villain" | "boss";
     rankLabel: string;
-    aiProfile: {
-      difficulty: "easy" | "normal" | "hard" | "expert" | "boss";
-      strategy: "balanced" | "aggressive" | "defensive" | "stall" | "setup" | "random";
+    powerProfile: FormalRoundNpcSnapshotV4["powerProfile"];
+    teamPreference: FormalRoundNpcSnapshotV4["teamPreference"];
+    battlePreference: FormalRoundNpcSnapshotV4["battlePreference"];
+    isBoss: boolean;
+    aiProfile: NonNullable<TrainingPlayerDraftV4["aiProfile"]>;
+    generatedBy: {
+      nodeId: string;
+      seed: string;
+      generatedAt: string;
     };
   };
   money: number;
@@ -782,10 +789,11 @@ export function ingestPreparedRoundPlanV5(run: RunGameV5, preparedRun: FormalGam
     (["p2", "p3", "p4"] as ShowdownPlayerIdV4[]).forEach(slot => {
       const draft = round.participants[slot];
       if (!draft) return;
+      const npcSnapshot = round.npcs.find(npc => npc.playerId === slot);
       const playerId = `player:${run.matchId}:${round.id}:${slot}`;
       slots[slot] = playerId;
       npcRefs.push(playerId);
-      upsertPlayerDraftEntities({playersById, pokemonById, bagsById, itemInstancesById}, playerId, draft, iso, run.matchId, round.id);
+      upsertPlayerDraftEntities({playersById, pokemonById, bagsById, itemInstancesById}, playerId, draft, iso, run.matchId, round.id, npcSnapshot, round.seed);
     });
     return {
       nodeId: round.id,
@@ -1572,6 +1580,48 @@ export function prepareBattleSessionFromRunGameV5(run: RunGameV5): {battleGame: 
   });
 }
 
+export function ingestFormalCoopAllyV5(
+  run: RunGameV5,
+  draft: TrainingPlayerDraftV4,
+  npcSnapshot: FormalRoundNpcSnapshotV4 | undefined,
+  now = new Date(),
+): RunGameV5 {
+  const node = currentRestNodeV5(run);
+  if (!node || node.slots.p3) return run;
+  const iso = now.toISOString();
+  const playersById = {...run.playersById};
+  const pokemonById = {...run.pokemonById};
+  const bagsById = {...run.bagsById};
+  const itemInstancesById = {...run.itemInstancesById};
+  const playerId = `player:${run.matchId}:${node.nodeId}:p3`;
+  upsertPlayerDraftEntities(
+    {playersById, pokemonById, bagsById, itemInstancesById},
+    playerId,
+    draft,
+    iso,
+    run.matchId,
+    node.nodeId,
+    npcSnapshot,
+    node.seed,
+  );
+  return assertRunGameV5RedLines({
+    ...run,
+    updatedAt: iso,
+    playersById,
+    pokemonById,
+    bagsById,
+    itemInstancesById,
+    gameMap: {
+      nodes: run.gameMap.nodes.map(entry => entry.nodeId === node.nodeId
+        ? {...entry, slots: {...entry.slots, p3: playerId}}
+        : entry),
+    },
+    roundPlan: run.roundPlan.map(entry => entry.nodeId === node.nodeId
+      ? {...entry, slots: {...entry.slots, p3: playerId}, npcRefs: entry.npcRefs.includes(playerId) ? entry.npcRefs : [...entry.npcRefs, playerId]}
+      : entry),
+  });
+}
+
 export function applyBattleFinalizedResultV5(run: RunGameV5, input: {compatRun: FormalGameRunV4; commandId: string; destination: "rest" | "settlement"; reason?: FormalBattleResultFinalizeReasonV4; settlementNotice?: string}, now = new Date()): RunGameV5 {
   const repeated = run.commandLog[input.commandId];
   if (repeated) return run;
@@ -2020,6 +2070,8 @@ function upsertPlayerDraftEntities(
   iso: string,
   matchId: string,
   nodeId: string,
+  npcSnapshot?: FormalRoundNpcSnapshotV4,
+  seed = "",
 ): void {
   const bagId = `bag:${playerId}`;
   const itemInstanceIds = draft.bag.items.map((item, index) => {
@@ -2048,22 +2100,23 @@ function upsertPlayerDraftEntities(
     updatedAt: iso,
   };
   const previous = store.playersById[playerId];
+  const isNpc = draft.controller === "ai" || draft.controller === "script";
   store.playersById[playerId] = {
     ...previous,
     playerId,
     slot: draft.playerId,
-    kind: draft.controller === "ai" ? "npc" : "human",
+    kind: isNpc ? "npc" : "human",
     controller: draft.controller,
     alliance: draft.alliance,
     name: draft.name,
     avatar: draft.avatar,
     backImage: draft.backImage,
-    npcProfile: draft.controller === "ai" ? npcProfileFromDraft(draft, nodeId) : undefined,
+    npcProfile: isNpc ? npcProfileFromDraft(draft, nodeId, seed, iso, npcSnapshot) : undefined,
     money: previous?.money || 0,
     bagId,
     localTeamPokemonIds: pokemonIds,
     ready: previous?.ready || false,
-    connectionState: previous?.connectionState || (draft.controller === "ai" ? "online" : "disconnected"),
+    connectionState: previous?.connectionState || (isNpc ? "online" : "disconnected"),
     createdAt: previous?.createdAt || iso,
     updatedAt: iso,
   };
@@ -2386,6 +2439,7 @@ function draftForPlayer(run: RunGameV5, playerId: string): TrainingPlayerDraftV4
     avatar: player.avatar,
     backImage: player.backImage,
     controller: player.controller,
+    aiProfile: player.npcProfile?.aiProfile,
     alliance: player.alliance,
     localTeam: teamForPlayer(run, player, `team:${player.playerId}`, `${player.name}的队伍`),
     bag: bagForPlayer(run, player),
@@ -2401,16 +2455,39 @@ function participantsForSlots(run: RunGameV5, slots: Partial<Record<ShowdownPlay
   return Object.fromEntries(entries) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
 }
 
-function npcProfileFromDraft(draft: TrainingPlayerDraftV4, nodeId: string): PlayerInstanceV5["npcProfile"] {
-  const rank = /冠军/.test(draft.name) ? "champion" : /馆主/.test(draft.name) ? "gym_leader" : /Boss|首领|反派/.test(draft.name) ? "boss" : "trainer";
-  const rankLabel = rank === "champion" ? "冠军" : rank === "gym_leader" ? "馆主" : rank === "boss" ? "Boss" : "普通训练家";
+function npcProfileFromDraft(
+  draft: TrainingPlayerDraftV4,
+  nodeId: string,
+  seed: string,
+  generatedAt: string,
+  snapshot?: FormalRoundNpcSnapshotV4,
+): PlayerInstanceV5["npcProfile"] {
+  const trainerType = snapshot?.trainerType || "normal";
+  const {rank, rankLabel} = npcRankForTrainerTypeV5(trainerType);
   return {
-    trainerId: draft.name || draft.playerId,
+    trainerId: snapshot?.trainerId || `generated:${trainerType}:${nodeId}:${draft.playerId}`,
+    trainerType,
     rank,
     rankLabel,
-    aiProfile: {
-      difficulty: rank === "boss" ? "boss" : rank === "champion" ? "expert" : rank === "gym_leader" ? "hard" : "normal",
-      strategy: "balanced",
+    powerProfile: snapshot?.powerProfile || "normal",
+    teamPreference: snapshot?.teamPreference || "balanced",
+    battlePreference: snapshot?.battlePreference || "balanced",
+    isBoss: snapshot?.isBoss || false,
+    aiProfile: snapshot?.aiProfile || draft.aiProfile || {level: "normal", preference: "balanced"},
+    generatedBy: {
+      nodeId,
+      seed,
+      generatedAt,
     },
   };
+}
+
+function npcRankForTrainerTypeV5(trainerType: FormalRoundNpcSnapshotV4["trainerType"]): Pick<NonNullable<PlayerInstanceV5["npcProfile"]>, "rank" | "rankLabel"> {
+  if (trainerType === "rookie") return {rank: "rookie", rankLabel: "菜鸟训练家"};
+  if (trainerType === "elite") return {rank: "elite", rankLabel: "精英训练家"};
+  if (trainerType === "gym") return {rank: "gym_leader", rankLabel: "馆主"};
+  if (trainerType === "elite4") return {rank: "boss", rankLabel: "四天王"};
+  if (trainerType === "champion") return {rank: "champion", rankLabel: "冠军"};
+  if (trainerType === "villain") return {rank: "villain", rankLabel: "反派头目"};
+  return {rank: "trainer", rankLabel: "普通训练家"};
 }
