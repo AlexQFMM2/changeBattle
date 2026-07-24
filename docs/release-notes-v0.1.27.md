@@ -40,7 +40,7 @@ download:    http://119.45.240.157/changebattle-beta/
 ## 校验摘要
 
 - `package.json.version = 0.1.27`
-- Desktop zip SHA256：等待 GitHub Actions 构建完成后回填。
+- Desktop zip SHA256：`e591786ee11b7aa3657afcf55776f62b1f645d5bfa0a99c9eba62ba96c3b7302`（150,611,817 bytes）。
 - 全仓 `pnpm typecheck`、正式游戏 smoke 和 portable Showdown runtime smoke 已通过。
 - Desk 离线 HTTP smoke 已覆盖 `singles/doubles/coop × standard/gen7/gen8/gen9` 共 12 条完整流程。
 - 每条流程均完成 starter、prepare-round、prepare-battle 并进入 `running`；合作模式确认 `p3 aiLevel = elite`。
