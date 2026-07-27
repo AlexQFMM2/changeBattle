@@ -2144,7 +2144,7 @@ function RoutedApp({runtime}: AppProps) {
     )
   ) : missingProfileFormalPage;
 
-  const bgmScene = bgmSceneForRoute(location.pathname, formalRun);
+  const bgmScene = bgmSceneForRoute(location.pathname, formalRun, formalRoomRestView, formalRoomBattleView);
   const bgmControlVisible = (location.pathname === "/" || location.pathname === "/main") && !networkSettingsOpen;
   const versionBadgeLabel = desktopVersionBadgeLabel();
 
@@ -2168,7 +2168,7 @@ function RoutedApp({runtime}: AppProps) {
       versionChecking={desktopUpdateChecking}
       onVersionClick={desktopUpdatesEnabled ? checkDesktopUpdatesFromVersionBadge : undefined}
     >
-      {bgmControlVisible ? <BgmController scene={bgmScene} /> : null}
+      <BgmController scene={bgmScene} controlVisible={bgmControlVisible} />
       <Routes>
         <Route path="/" element={titlePage} />
         <Route path="/main" element={mainPage} />
@@ -2320,9 +2320,14 @@ function parseFormalRoomGatePath(pathname: string): {action: "start" | "continue
   return {action: "start", mode: parseFormalMode(match[1])};
 }
 
-function bgmSceneForRoute(pathname: string, formalRun: FormalGameRunV4 | null): BgmSceneV2 {
+function bgmSceneForRoute(
+  pathname: string,
+  formalRun: FormalGameRunV4 | null,
+  roomRestView: RunGameRestViewV5 | null,
+  roomBattleView: RunGameBattleViewV5 | null,
+): BgmSceneV2 {
   if (pathname === "/training/battle" || pathname === "/training/battle-transition") return "battle";
-  if (pathname === "/formal/battle" || pathname === "/formal/battle-transition") return isFormalBossRound(formalRun) ? "boss" : "battle";
+  if (pathname === "/formal/battle" || pathname === "/formal/battle-transition") return isFormalBossRound(formalRun, roomRestView, roomBattleView) ? "boss" : "battle";
   if (
     pathname === "/training/rest"
     || pathname === "/training/rest-new"
@@ -2365,7 +2370,13 @@ function currentEnvBattleServiceUrl(runtime: AppProps["runtime"]): string {
   return webUrl || DEFAULT_PUBLIC_BATTLE_SERVICE_URL;
 }
 
-function isFormalBossRound(run: FormalGameRunV4 | null): boolean {
+function isFormalBossRound(
+  run: FormalGameRunV4 | null,
+  roomRestView: RunGameRestViewV5 | null,
+  roomBattleView: RunGameBattleViewV5 | null,
+): boolean {
+  if (Object.values(roomBattleView?.participants || {}).some(player => player?.alliance === "far" && player.npcProfile?.isBoss)) return true;
+  if (roomRestView?.players.some(player => player.alliance === "far" && player.npcProfile?.isBoss)) return true;
   if (!run?.restRunSnapshot) return false;
   const node = run.restRunSnapshot.gameMap.find(entry => entry.id === run.restRunSnapshot?.currentNodeId)
     || run.restRunSnapshot.gameMap[run.currentRoundIndex]

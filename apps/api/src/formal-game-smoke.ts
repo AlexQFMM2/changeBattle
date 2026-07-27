@@ -53,7 +53,7 @@ import {
 } from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, createFormalShopProductViewsV4, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalGameRunV4, type FormalShopProductViewV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
-import {applyTrainingLessonV5, buyShopProductV5, commitFinalSettlementFromRunGameV5, createRunGameV5FromStarterRun, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, getPokemonExchangeViewV5, ingestPreparedRoundPlanV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, prepareRoundPlanFromDraftsV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5} from "./runGameV5.js";
+import {applyTrainingLessonV5, buildBattleViewV5, buyShopProductV5, commitFinalSettlementFromRunGameV5, createRunGameV5FromStarterRun, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, getPokemonExchangeViewV5, ingestPreparedRoundPlanV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, prepareRoundPlanFromDraftsV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5} from "./runGameV5.js";
 import {buildFormalRunCompatViewV5} from "./runGameV5CompatLegacy.js";
 import {prepareExchangedPokemonFromRuleContextV5} from "./formalRestRules.js";
 import {
@@ -2312,6 +2312,13 @@ assert(preparedV5Npc.npcProfile?.trainerId === preparedV5RoundPlan.roundPlan[0]!
 assert(preparedV5Npc.npcProfile?.trainerType === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.trainerType, "RunGameV5 NPC should preserve the formal trainer type");
 assert(preparedV5Npc.npcProfile?.powerProfile === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.powerProfile, "RunGameV5 NPC should preserve the formal power profile");
 assert(preparedV5Npc.npcProfile?.aiProfile.level === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.aiProfile.level, "RunGameV5 NPC should preserve the formal AI level");
+const preparedV5BattleView = buildBattleViewV5(v5Run);
+const repeatedPreparedV5BattleView = buildBattleViewV5(v5Run);
+assert(preparedV5BattleView.participants.p2?.npcProfile?.trainerId === preparedV5Npc.npcProfile?.trainerId, "RunGameV5 battle view should preserve authoritative NPC profile fields");
+assert(preparedV5BattleView.participants.p2?.npcProfile?.isBoss === preparedV5Npc.npcProfile?.isBoss, "RunGameV5 battle view should preserve the NPC boss marker");
+assert(preparedV5BattleView.battleBackground.path.startsWith("battle-backgrounds/"), "RunGameV5 battle view should expose a managed battle background");
+assert(preparedV5BattleView.battleBackground.id !== "champion-stage", "non-champion RunGameV5 rounds should not use the champion stage");
+assert(repeatedPreparedV5BattleView.battleBackground.id === preparedV5BattleView.battleBackground.id, "RunGameV5 battle background should be stable for the same run and round");
 v5Run = {
   ...v5Run,
   playersById: {

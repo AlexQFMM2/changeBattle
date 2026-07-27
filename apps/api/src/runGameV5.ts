@@ -1,9 +1,12 @@
 import {
+  FALLBACK_BATTLE_BACKGROUND_V4,
   FORMAL_MEDICAL_INSURANCE_TIERS,
   formalTrainingGroundLessonFeeV4,
   formalTrainingGroundLessonForRollV4,
   formalTrainingGroundLessonKindFromIdV4,
   formalTrainingGroundLessonTableV4,
+  selectBattleBackgroundV4,
+  type BattleBackgroundViewV4,
 } from "@changebattle-v2/core";
 import type {DexStatId} from "@changebattle-v2/showdown-dex-core";
 import type {BattlePreferenceV4, FormalCompetitionModeV4, PlayerItemInstanceV4, ShowdownPlayerIdV4, StatTableV4, TrainingAllianceV4, TrainingBattleLogEntryV4, TrainingCoinLogEntryV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4, TrainingRuleSetV4, TrainingStatusV4} from "./training.js";
@@ -305,6 +308,7 @@ export type RunGameBattleParticipantViewV5 = {
   backImage?: string;
   controller: PlayerInstanceV5["controller"];
   alliance: TrainingAllianceV4;
+  npcProfile?: PlayerInstanceV5["npcProfile"];
   team: RunGamePokemonViewV5[];
 };
 
@@ -321,6 +325,7 @@ export type RunGameBattleViewV5 = RunGameSummaryViewV5 & {
   mode: FormalGameModeV4;
   ruleSet: TrainingRuleSetV4;
   stageLabel: string;
+  battleBackground: BattleBackgroundViewV4;
   participants: Partial<Record<ShowdownPlayerIdV4, RunGameBattleParticipantViewV5>>;
   selfBag: RunGameBagViewV5;
   battlePreference: BattlePreferenceV4;
@@ -465,9 +470,19 @@ export function buildBattleViewV5(run: RunGameV5, activeBattle?: {sessionId?: st
       backImage: player.backImage,
       controller: player.controller,
       alliance: player.alliance,
+      npcProfile: player.npcProfile,
       team: player.localTeamPokemonIds.map(pokemonId => run.pokemonById[pokemonId]).filter((entry): entry is PokemonInstanceV5 => Boolean(entry)),
     };
   }
+  const opposingNpc = Object.values(participants).find(player => player?.alliance === "far" && player.npcProfile)?.npcProfile;
+  const battleBackground = opposingNpc ? selectBattleBackgroundV4({
+    seed: `${run.config.seed}:${node?.seed || ""}`,
+    battleIndex: node?.index ?? 0,
+    trainerId: opposingNpc.trainerId,
+    trainerType: opposingNpc.trainerType,
+    teamPoolId: opposingNpc.teamPreference,
+    bossRoute: opposingNpc.powerProfile,
+  }) : FALLBACK_BATTLE_BACKGROUND_V4;
   return {
     ...buildSummaryViewV5(run),
     config: run.config,
@@ -480,6 +495,7 @@ export function buildBattleViewV5(run: RunGameV5, activeBattle?: {sessionId?: st
     mode: node?.mode || run.config.mode,
     ruleSet: node?.ruleSet || run.config.ruleSet,
     stageLabel: formalRoundStageLabelV5(node?.index ?? 0),
+    battleBackground,
     participants,
     selfBag: bag ? {
       bagId: bag.bagId,

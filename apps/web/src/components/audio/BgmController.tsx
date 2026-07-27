@@ -70,7 +70,7 @@ function fadeAudio(audio: HTMLAudioElement, from: number, to: number, durationMs
   return frame;
 }
 
-export function BgmController({scene}: {scene: BgmSceneV2}) {
+export function BgmController({scene, controlVisible = true}: {scene: BgmSceneV2; controlVisible?: boolean}) {
   const [settings, setSettings] = useState<BgmSettingsV2>(loadSettings);
   const [open, setOpen] = useState(false);
   const [needsGesture, setNeedsGesture] = useState(false);
@@ -205,6 +205,8 @@ export function BgmController({scene}: {scene: BgmSceneV2}) {
   function updateSettings(patch: Partial<BgmSettingsV2>) {
     setSettings(current => normalizeSettings({...current, ...patch}));
   }
+
+  if (!controlVisible) return null;
 
   return (
     <div className="bgm-v2-control" data-open={open ? "true" : "false"}>

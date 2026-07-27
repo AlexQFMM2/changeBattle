@@ -3,8 +3,8 @@
 // 后续修改或排查战斗页 bug 时，优先横向对比本实现与 Showdown Client 的差异，再决定如何落到本项目架构。
 // 严禁随意修改；只有确认 Showdown Client 对应实现来源与差异后，才允许调整这里的战斗行为。
 import {useEffect, useMemo, useRef, useState, type CSSProperties} from "react";
-import type {AppDebugConfigV4, BagStateV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleServiceClientV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, FormalGameRunV4, LocalPokemonV4, PlayerItemInstanceV4, PlayerVaultV4, RequestSidePokemonV4, RunGameBattleViewV5, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
-import {battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, fillBattleCommandPassesV4, formalRoundStageLabelV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, splitBattleTrainerItemChoicesV4, stringifyBattleTrainerItemChoiceV4, translateDexLabel, validShowdownTargetLocV4} from "@changebattle-v2/api";
+import type {AppDebugConfigV4, BagStateV4, BattleBackgroundViewV4, BattleCommandActionV4, BattleCommandDraftV4, BattleMoveRequestV4, BattleNormalizedRequestV4, BattleRequestV4, BattleServiceClientV4, BattleSessionSnapshotV4, BattleSpecialChoiceV4, BattleSpecialSystemV4, BattleViewModelV4, BattleViewSlotV4, ChangeBattleV2Api, DexMoveDetail, DexTrainerDetail, FormalGameRunV4, LocalPokemonV4, PlayerItemInstanceV4, PlayerVaultV4, RequestSidePokemonV4, RunGameBattleViewV5, ShowdownPlaybackTimelineV4, ShowdownPlayerIdV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameV4, UserProfileV2} from "@changebattle-v2/api";
+import {battleDebugLog, battleSpecialSystemForChoiceV4, canUseRecoveryItemV4, createBattleCommandDraftV4, FALLBACK_BATTLE_BACKGROUND_V4, fillBattleCommandPassesV4, formalRoundStageLabelV4, patchBattleRunLocalTeamsFromSnapshot, projectBattleViewModelV4, selectBattleBackgroundV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, splitBattleTrainerItemChoicesV4, stringifyBattleTrainerItemChoiceV4, translateDexLabel, validShowdownTargetLocV4} from "@changebattle-v2/api";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {assetUrl, styleUrlAssetPath} from "../../lib/assetUrl";
 import {BattleV4MovePreviewModal} from "./BattleV4MovePreviewModal";
@@ -46,6 +46,7 @@ type BattleV4DiagnosticsContext = {
 
 type BattleV4DisplayContext = {
   mode: TrainingRunGameV4["scenario"]["mode"];
+  battleBackground: BattleBackgroundViewV4;
   selfBag?: TrainingPlayerDraftV4["bag"] | null;
   battleBagEnabled: boolean;
   players: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
@@ -239,6 +240,7 @@ type BattleSubmitErrorV4 = {
 
 export function BattleV4Page({api, run, roomBattleView, sessionId, debugConfig, diagnosticsContext, onRunChange, onBackToRest, onBattleComplete, onAfterSubmitSnapshot, battleServiceOverride, playerProfile, endFlow = "result-panel", recoveringExistingScene = false}: BattleV4PageProps) {
   const battleDisplay = useMemo(() => roomBattleView ? battleDisplayFromRoomBattleViewV5(roomBattleView) : run ? battleDisplayFromTrainingRunV4(api, run) : emptyBattleDisplayV5(), [api, roomBattleView, run]);
+  const battleBackgroundUrl = assetUrl(battleDisplay.battleBackground.path);
   const battleService = battleServiceOverride || api.battleService;
   const runRef = useRef(run || null);
   const onRunChangeRef = useRef(onRunChange);
@@ -848,7 +850,10 @@ export function BattleV4Page({api, run, roomBattleView, sessionId, debugConfig, 
   }
 
   return (
-    <section className={`battle-v4-page${narrativePhaseClass}`}>
+    <section
+      className={`battle-v4-page${narrativePhaseClass}`}
+      style={battleBackgroundUrl ? {backgroundImage: `url("${battleBackgroundUrl}")`} : undefined}
+    >
       <BattleArena
         near={visualNearTeam}
         far={visualFarTeam}
@@ -974,6 +979,7 @@ export function BattleV4Page({api, run, roomBattleView, sessionId, debugConfig, 
         <BattleV4MovePreviewModal
           api={api}
           move={previewMove}
+          backgroundPath={battleDisplay.battleBackground.path}
           initialMode={viewModel?.mode === "singles" ? "singles" : "doubles"}
           onClose={() => setPreviewMove(null)}
         />
@@ -1030,8 +1036,21 @@ function BattleV4RestoreOverlay({snapshotReady}: {snapshotReady: boolean}) {
 }
 
 function battleDisplayFromTrainingRunV4(api: ChangeBattleV2Api, run: TrainingRunGameV4): BattleV4DisplayContext {
+  const node = run.gameMap.find(entry => entry.id === run.currentNodeId) || api.getCurrentTrainingNode(run);
+  const opponentSlot = (["p2", "p4"] as ShowdownPlayerIdV4[]).find(slot => Boolean(node?.participants[slot] || run.players[slot])) || "p2";
+  const opponent = node?.participants[opponentSlot] || run.players[opponentSlot] || null;
+  const trainerId = run.scenario.selectedNpcIds[opponentSlot] || opponent?.localTeam.id || opponent?.name || "training-opponent";
+  const trainerDetail = safeTrainerDetail(api, run.scenario.selectedNpcIds[opponentSlot]);
   return {
     mode: run.scenario.mode,
+    battleBackground: selectBattleBackgroundV4({
+      seed: node?.seed || run.scenario.id,
+      battleIndex: node?.index ?? 0,
+      trainerId,
+      trainerType: trainerDetail?.trainerType,
+      teamPoolId: opponent?.localTeam.id,
+      bossRoute: node?.ruleSet || run.scenario.ruleSet,
+    }),
     selfBag: run.players.p1?.bag || null,
     battleBagEnabled: Boolean(run.battlePreference?.battleBagEnabled),
     players: run.players,
@@ -1067,6 +1086,7 @@ function battleDisplayFromRoomBattleViewV5(view: RunGameBattleViewV5): BattleV4D
   }).filter((entry): entry is [string, TrainingPlayerDraftV4] => Boolean(entry[1]))) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
   return {
     mode: view.mode,
+    battleBackground: view.battleBackground || FALLBACK_BATTLE_BACKGROUND_V4,
     selfBag: players.p1?.bag || null,
     battleBagEnabled: Boolean(view.battlePreference.battleBagEnabled),
     players,
@@ -1080,6 +1100,7 @@ function battleDisplayFromRoomBattleViewV5(view: RunGameBattleViewV5): BattleV4D
 function emptyBattleDisplayV5(): BattleV4DisplayContext {
   return {
     mode: "singles",
+    battleBackground: FALLBACK_BATTLE_BACKGROUND_V4,
     selfBag: null,
     battleBagEnabled: false,
     players: {},

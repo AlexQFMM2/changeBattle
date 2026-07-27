@@ -25,10 +25,11 @@ export type BattleV4EnvironmentPreviewEntry = {
   tags: string[];
 };
 
-export function BattleV4MovePreviewModal({move, environment, initialMode = "singles", onClose}: {
+export function BattleV4MovePreviewModal({move, environment, backgroundPath, initialMode = "singles", onClose}: {
   api: ChangeBattleV2Api;
   move?: DexMoveDetail;
   environment?: BattleV4EnvironmentPreviewEntry;
+  backgroundPath?: string;
   initialMode?: BattleV4MovePreviewMode;
   onClose: () => void;
 }) {
@@ -85,6 +86,7 @@ export function BattleV4MovePreviewModal({move, environment, initialMode = "sing
           </button>
         </div>
         <PreviewArena
+          backgroundPath={backgroundPath}
           near={playback.nearTeam}
           far={playback.farTeam}
           message={message}
@@ -161,9 +163,10 @@ export function buildBattleV4MovePreviewScript(move: DexMoveDetail, mode: Battle
   return lines;
 }
 
-function PreviewArena({near, far, message, animation, activeTimelineStep, renderedTimelineSteps = [], persistentFieldVisuals}: {
+function PreviewArena({near, far, backgroundPath, message, animation, activeTimelineStep, renderedTimelineSteps = [], persistentFieldVisuals}: {
   near: BattleViewSlotV4[];
   far: BattleViewSlotV4[];
+  backgroundPath?: string;
   message: string;
   animation: BattleAnimationEventV4 | null;
   activeTimelineStep?: ShowdownAnimationStepV4 | null;
@@ -174,8 +177,13 @@ function PreviewArena({near, far, message, animation, activeTimelineStep, render
   const farSlots = sortPreviewSlots(far, "far");
   const visuals = useMemo(() => getBattleV4ActiveTimelineVisuals(animation, activeTimelineStep || null), [animation, activeTimelineStep]);
   const fxVisuals = useMemo(() => getBattleV4ActiveTimelineFxVisuals(animation, renderedTimelineSteps), [animation, renderedTimelineSteps]);
+  const backgroundUrl = assetUrl(backgroundPath);
   return (
-    <div className="battle-v4-preview-arena battle-v4-arena" aria-label="预览战斗场地">
+    <div
+      className="battle-v4-preview-arena battle-v4-arena"
+      style={backgroundUrl ? {backgroundImage: `url("${backgroundUrl}")`} : undefined}
+      aria-label="预览战斗场地"
+    >
       <div className="battle-v4-scene-overlay" />
       {message ? <div className={`battle-v4-messagebar kind-${animation?.kind || "message"}`}><span>{message}</span></div> : null}
       <PreviewPersistentField visuals={persistentFieldVisuals} />

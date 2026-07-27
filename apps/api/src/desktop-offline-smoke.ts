@@ -74,6 +74,9 @@ async function runOfflineBattleFlow(mode: TrainingModeV4, ruleSet: TrainingRuleS
     payload: {},
   }, auth);
   assert(battle.view?.activeBattle?.status === "running", `${mode}/${ruleSet} should enter a running BattleStream session`);
+  assert(battle.view?.battleBackground?.path?.startsWith("battle-backgrounds/"), `${mode}/${ruleSet} should expose a managed battle background`);
+  assert(battle.view?.battleBackground?.id !== "champion-stage", `${mode}/${ruleSet} rookie battle should not use the champion stage`);
+  assert(battle.view?.participants?.p2?.npcProfile?.trainerType === "rookie", `${mode}/${ruleSet} battle view should preserve the formal NPC profile`);
   const snapshot = await requestJson("GET", `/rooms/${encodeURIComponent(roomId)}/battle/snapshot`, undefined, auth);
   const battleNpc = snapshot.players?.find((player: any) => player.playerId === "p2");
   assert(snapshot.status === "running", `${mode}/${ruleSet} BattleStream snapshot should be running`);

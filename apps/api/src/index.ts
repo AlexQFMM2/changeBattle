@@ -73,6 +73,10 @@ import {
 } from "./starChart.js";
 export {FORMAL_PENDING_SETTLEMENT_SHOP_SLOTS_PER_CATEGORY, REST_CENTER_LEFT_SIDE_ACTIONS_V4, REST_CENTER_PAPER_ACTIONS_V4, REST_CENTER_RIGHT_SIDE_ACTIONS_V4, createSoulmateCandidateListV4, formalShopSlotsForCategoryV4};
 export {
+  BATTLE_BACKGROUNDS_V4,
+  CHAMPION_BATTLE_BACKGROUND_V4,
+  FALLBACK_BATTLE_BACKGROUND_V4,
+  selectBattleBackgroundV4,
   formalBattleSystemLabelV4,
   formalGameModeLabelV4,
   formalMedicalInsuranceTierLabelV4,
@@ -82,7 +86,7 @@ export {
   formalSettlementReasonLabelV4,
   formalStarterRoleLabelV4,
 } from "@changebattle-v2/core";
-export type {NatureEffectV4} from "@changebattle-v2/core";
+export type {BattleBackgroundIdV4, BattleBackgroundSelectionInputV4, BattleBackgroundViewV4, NatureEffectV4} from "@changebattle-v2/core";
 export type {PostServiceActionNameV4, PostServiceConnectionStateV4, PostServiceResultV4} from "./postService.js";
 export type {BattleServiceClientV4, BattleSessionSnapshotV4, ShowdownPlaybackTimelineV4} from "./battle.js";
 export {normalizeShowdownChoiceRequestV4, showdownMoveNeedsExplicitTargetV4, showdownNormalizeMoveTargetV4, showdownTargetTypeAllowsChoiceV4, validShowdownTargetLocV4} from "@changebattle-v2/showdown-battle-core/showdownCommand";
