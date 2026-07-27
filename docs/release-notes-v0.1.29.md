@@ -39,7 +39,7 @@ download:    https://65h26i.top/changebattle-beta/
 ## 校验摘要
 
 - `package.json.version = 0.1.29`
-- Desktop zip SHA256：pending GitHub Actions。
+- Desktop zip SHA256：`7416c5dc9ca33b3d86a22625f3a12ca4302d7f2532194fbfd396518a1f7dcc3b`（150,614,189 bytes）。
 - Core 背景选择器测试、API/Web/Desktop typecheck、Desktop production build、IPC bundle 和 renderer asset 检查已通过。
 - 正式游戏 smoke 已验证 V5 battle view 保留权威 NPC profile、非冠军不使用冠军舞台、同一 run/round 背景幂等。
 - Desk 离线 HTTP smoke 已覆盖 `singles/doubles/coop × standard/gen7/gen8/gen9` 共 12 条完整流程；每条流程均完成 starter、prepare-round、prepare-battle 并进入 `running`。
