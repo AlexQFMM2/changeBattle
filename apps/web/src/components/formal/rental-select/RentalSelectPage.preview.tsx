@@ -84,7 +84,7 @@ function candidateFromSpecies(api: ChangeBattleV2Api, speciesId: string, index: 
     item_id: "",
     item_desc: "",
     item_desc_zh: "",
-    moves: [],
+    moves: previewMovesForSpecies(speciesId, api),
     base_stats: detail.baseStats,
     stats,
     evs: {hp: 0, atk: 0, def: 0, spa: 0, spd: 0, spe: 0},
@@ -104,4 +104,37 @@ function candidateFromSpecies(api: ChangeBattleV2Api, speciesId: string, index: 
       icon_style: detail.sprites.iconStyle,
     },
   };
+}
+
+function previewMovesForSpecies(speciesId: string, api: ChangeBattleV2Api): RentalPokemon["moves"] {
+  const moveIdsBySpecies: Record<string, string[]> = {
+    pikachu: ["volttackle", "thunderbolt", "irontail", "quickattack"],
+    charizard: ["flamethrower", "airslash", "dragonclaw", "roost"],
+    lapras: ["surf", "icebeam", "thunderbolt", "perishsong"],
+    gardevoir: ["psychic", "moonblast", "calmmind", "shadowball"],
+    lucario: ["closecombat", "flashcannon", "extremespeed", "swordsdance"],
+    greninja: ["hydropump", "darkpulse", "icebeam", "watershuriken"],
+    starmie: ["hydropump", "psychic", "icebeam", "recover"],
+  };
+  const moveIds = moveIdsBySpecies[speciesId] || ["tackle", "protect", "rest", "sleeptalk"];
+  return moveIds.map(id => {
+    const move = api.getMoveDetail(id);
+    return {
+      id: move.id,
+      name: move.name,
+      name_zh: move.nameZh || move.name,
+      type: move.type,
+      type_zh: api.translateDexLabel("types", move.type),
+      category: move.category,
+      category_zh: api.translateDexLabel("categories", move.category),
+      pp: move.pp,
+      power: move.power,
+      accuracy: move.accuracy,
+      priority: move.priority,
+      short_desc: move.description || "",
+      short_desc_zh: move.description || "",
+      desc: move.description || "",
+      desc_zh: move.description || "",
+    };
+  });
 }

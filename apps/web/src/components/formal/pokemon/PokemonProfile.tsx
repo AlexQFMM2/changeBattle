@@ -44,15 +44,10 @@ function FormalPokemonBasic({pokemon}: {pokemon: RentalPokemon}) {
             <span>道具：{pokemon.item_zh || "无"}</span>
           </div>
         </div>
-        <div className="formal-pokemon-basic-facts compact">
-          <div><span>图鉴</span><strong>No.{pokemon.sprite?.national_dex || "?"}</strong></div>
-          <div><span>身高</span><strong>{pokemon.heightm ? `${pokemon.heightm}m` : "--"}</strong></div>
-          <div><span>体重</span><strong>{pokemon.weightkg ? `${pokemon.weightkg}kg` : "--"}</strong></div>
-        </div>
       </div>
       <div className="formal-pokemon-basic-moves" aria-label="技能概览">
         {pokemon.moves.slice(0, 4).map((move, index) => (
-          <FormalPokemonMoveCard move={move} index={index} key={`${move.id || move.name || index}`} />
+          <FormalPokemonMoveCard move={move} index={index} compact key={`${move.id || move.name || index}`} />
         ))}
       </div>
     </section>
@@ -121,7 +116,7 @@ function FormalPokemonMoves({pokemon}: {pokemon: RentalPokemon}) {
   );
 }
 
-function FormalPokemonMoveCard({move, index}: {move: RentalPokemon["moves"][number]; index: number}) {
+function FormalPokemonMoveCard({move, index, compact = false}: {move: RentalPokemon["moves"][number]; index: number; compact?: boolean}) {
   return (
     <MoveCard
       className="formal-profile-move-card"
@@ -134,6 +129,7 @@ function FormalPokemonMoveCard({move, index}: {move: RentalPokemon["moves"][numb
       maxPp={move.pp}
       power={move.power || "--"}
       accuracy={move.accuracy ?? "必中"}
+      meta={compact ? [`威力 ${move.power || "--"}`, `命中 ${move.accuracy ?? "必中"}`] : undefined}
     />
   );
 }

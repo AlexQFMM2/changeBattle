@@ -57,17 +57,20 @@
 }
 
 .formal-pokemon-basic-tab {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 218px;
-  grid-template-rows: minmax(0, 1fr);
-  gap: 7px;
-  align-items: start;
+  position: relative;
+  display: block;
+  padding: 2px 4px;
 }
 
 .formal-pokemon-basic-identity {
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  bottom: 2px;
+  width: 150px;
   min-width: 0;
   display: grid;
-  grid-template-rows: 16px auto 16px;
+  grid-template-rows: 16px minmax(0, 1fr);
   gap: 4px;
   align-items: start;
   padding: 2px 4px;
@@ -181,73 +184,42 @@
 
 .formal-pokemon-type-row b.type-fairy { --formal-pokemon-profile-type-bg: #c96b9c; }
 
-.formal-pokemon-basic-facts {
-  min-width: 0;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: 3px;
-}
-
-.formal-pokemon-basic-facts div {
-  min-width: 0;
-  display: grid;
-  grid-template-columns: 50px minmax(0, 1fr);
-  align-items: center;
-  border: 1px solid rgb(79 57 31 / 30%);
-  border-radius: 4px;
-  background: rgb(255 253 245 / 58%);
-  padding: 3px 5px;
-}
-
-.formal-pokemon-basic-facts.compact {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 3px;
-}
-
-.formal-pokemon-basic-facts.compact div {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 2px;
-  padding: 2px 4px;
-}
-
-.formal-pokemon-basic-facts.compact span,
-.formal-pokemon-basic-facts.compact strong {
-  text-align: center;
-}
-
-.formal-pokemon-basic-facts span,
-.formal-pokemon-basic-facts strong {
-  min-width: 0;
-  overflow: hidden;
-  line-height: 1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.formal-pokemon-basic-facts span {
-  color: #70614d;
-  font-size: 6px;
-  font-weight: 900;
-}
-
-.formal-pokemon-basic-facts strong {
-  color: #25332b;
-  font-size: 7px;
-  font-weight: 950;
-  text-align: right;
-}
-
 .formal-pokemon-basic-moves {
+  position: absolute;
+  left: 158px;
+  right: 4px;
+  top: 2px;
+  bottom: 2px;
   min-width: 0;
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, 34px);
-  gap: 4px;
-  align-content: start;
-  padding-top: 2px;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 3px 4px;
+  padding: 0;
+}
+
+.formal-pokemon-basic-moves .formal-profile-move-card.move-card-sheet.move-choice,
+.formal-pokemon-basic-moves .formal-profile-move-card.move-card-sheet.move-choice:nth-child(2n) {
+  --move-card-height: 100%;
+  --move-card-name-row-height: 18px;
+  --move-card-meta-row-height: 12px;
+  --move-card-name-gap: 4px;
+  --move-card-name-padding-x: 4px;
+  --move-card-meta-gap: 3px;
+  --move-card-meta-padding-x: 4px;
+  --move-card-name-font-size: 6.5px;
+  --move-card-meta-font-size: 5.3px;
+  --move-card-type-min-width: 22px;
+  --move-card-type-min-height: 8px;
+}
+
+.formal-pokemon-basic-moves .formal-profile-move-card.move-card-sheet.move-choice .move-meta-row {
+  grid-template-columns: auto minmax(34px, 1fr) minmax(34px, 1fr);
+}
+
+.formal-pokemon-basic-moves .formal-profile-move-card.move-card-sheet.move-choice .move-name-row strong {
+  line-height: 1.15;
 }
 
 .formal-pokemon-stat-list {
