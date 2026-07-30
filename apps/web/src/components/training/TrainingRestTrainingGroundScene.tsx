@@ -499,33 +499,22 @@ function SelfStudyRoundsPanel({lesson, money, rounds, onChange}: {
   rounds: number;
   onChange: (rounds: number) => void;
 }) {
-  const maxRounds = maxAffordableSelfStudyRounds(money, lesson.fee);
+  const maxRounds = Math.min(5, maxAffordableSelfStudyRounds(money, lesson.fee));
   const selectedRounds = Math.max(1, Math.min(rounds, maxRounds));
   const total = selectedRounds * Math.max(0, Math.floor(Number(lesson.fee || 0)));
-  const options = Array.from({length: Math.min(6, maxRounds)}, (_, index) => index + 1);
+  const decrease = () => onChange(Math.max(1, selectedRounds - 1));
+  const increase = () => onChange(Math.min(maxRounds, selectedRounds + 1));
   return (
     <div className="training-rest-training-ground-self-study-panel">
       <section>
         <h3>安排自习轮数</h3>
         <p>当前最多可安排 {maxRounds.toLocaleString()} 轮，本次预计花费 {total.toLocaleString()} 金币。</p>
       </section>
-      <div className="training-rest-training-ground-self-study-options">
-        {options.map(value => (
-          <button type="button" data-selected={value === selectedRounds ? "true" : "false"} key={value} onClick={() => onChange(value)}>
-            {value} 轮
-          </button>
-        ))}
+      <div className="training-rest-training-ground-self-study-stepper" aria-label="自习轮数">
+        <button type="button" aria-label="减少自习轮数" disabled={selectedRounds <= 1} onClick={decrease}>‹</button>
+        <strong>{selectedRounds} 轮</strong>
+        <button type="button" aria-label="增加自习轮数" disabled={selectedRounds >= maxRounds} onClick={increase}>›</button>
       </div>
-      <label className="training-rest-training-ground-self-study-custom">
-        <span>自定义</span>
-        <input
-          type="number"
-          min={1}
-          max={maxRounds}
-          value={selectedRounds}
-          onChange={event => onChange(Math.max(1, Math.min(maxRounds, Math.floor(Number(event.target.value || 1)))))}
-        />
-      </label>
     </div>
   );
 }

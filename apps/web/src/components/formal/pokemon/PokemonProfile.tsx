@@ -44,11 +44,16 @@ function FormalPokemonBasic({pokemon}: {pokemon: RentalPokemon}) {
             <span>道具：{pokemon.item_zh || "无"}</span>
           </div>
         </div>
+        <div className="formal-pokemon-basic-facts compact">
+          <div><span>图鉴</span><strong>No.{pokemon.sprite?.national_dex || "?"}</strong></div>
+          <div><span>身高</span><strong>{pokemon.heightm ? `${pokemon.heightm}m` : "--"}</strong></div>
+          <div><span>体重</span><strong>{pokemon.weightkg ? `${pokemon.weightkg}kg` : "--"}</strong></div>
+        </div>
       </div>
-      <div className="formal-pokemon-basic-facts">
-        <div><span>全国图鉴</span><strong>No.{pokemon.sprite?.national_dex || "?"}</strong></div>
-        <div><span>身高</span><strong>{pokemon.heightm ? `${pokemon.heightm}m` : "--"}</strong></div>
-        <div><span>体重</span><strong>{pokemon.weightkg ? `${pokemon.weightkg}kg` : "--"}</strong></div>
+      <div className="formal-pokemon-basic-moves" aria-label="技能概览">
+        {pokemon.moves.slice(0, 4).map((move, index) => (
+          <FormalPokemonMoveCard move={move} index={index} key={`${move.id || move.name || index}`} />
+        ))}
       </div>
     </section>
   );
@@ -109,21 +114,26 @@ function FormalPokemonMoves({pokemon}: {pokemon: RentalPokemon}) {
     <section className="formal-pokemon-moves-tab">
       <div className="formal-pokemon-move-grid">
         {pokemon.moves.map((move, index) => (
-          <MoveCard
-            className="formal-profile-move-card"
-            size="sheet"
-            name={move.name_zh || move.name || `技能 ${index + 1}`}
-            moveType={move.type || move.type_zh}
-            typeLabel={move.type_zh || move.type || "一般"}
-            category={move.category_zh || move.category || "变化"}
-            pp={move.pp}
-            maxPp={move.pp}
-            power={move.power || "--"}
-            accuracy={move.accuracy ?? "必中"}
-            key={`${move.id || move.name || index}`}
-          />
+          <FormalPokemonMoveCard move={move} index={index} key={`${move.id || move.name || index}`} />
         ))}
       </div>
     </section>
+  );
+}
+
+function FormalPokemonMoveCard({move, index}: {move: RentalPokemon["moves"][number]; index: number}) {
+  return (
+    <MoveCard
+      className="formal-profile-move-card"
+      size="sheet"
+      name={move.name_zh || move.name || `技能 ${index + 1}`}
+      moveType={move.type || move.type_zh}
+      typeLabel={move.type_zh || move.type || "一般"}
+      category={move.category_zh || move.category || "变化"}
+      pp={move.pp}
+      maxPp={move.pp}
+      power={move.power || "--"}
+      accuracy={move.accuracy ?? "必中"}
+    />
   );
 }
