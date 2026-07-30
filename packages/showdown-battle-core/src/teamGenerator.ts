@@ -200,6 +200,7 @@ type ShowdownTeamSelectionV4 = {
   structure: ShowdownTeamArchetypeStructureV4;
 };
 
+const GEN7_RANDOM_BATTLE_FORMAT = "[Gen 7] Random Battle";
 const FORMAT_BY_RULESET_MODE: Record<Exclude<TrainingRuleSetV4, "standard">, Record<TrainingModeV4, string | null>> = {
   gen9: {
     singles: "[Gen 9] Random Battle",
@@ -212,9 +213,9 @@ const FORMAT_BY_RULESET_MODE: Record<Exclude<TrainingRuleSetV4, "standard">, Rec
     coop: "[Gen 8] Multi Random Battle",
   },
   gen7: {
-    singles: "[Gen 7] Random Battle",
-    doubles: null,
-    coop: null,
+    singles: GEN7_RANDOM_BATTLE_FORMAT,
+    doubles: GEN7_RANDOM_BATTLE_FORMAT,
+    coop: GEN7_RANDOM_BATTLE_FORMAT,
   },
 };
 
@@ -257,6 +258,9 @@ export async function generateShowdownRandomTeamV4(input: ShowdownRandomTeamGene
   }
 
   try {
+    if (resolvedRuleSet === "gen7" && (requestedMode === "doubles" || requestedMode === "coop") && formatId === GEN7_RANDOM_BATTLE_FORMAT) {
+      diagnostics.messages.push(`${resolvedRuleSet} ${requestedMode} 使用 Gen7 Random Battle set 来源生成队伍；战斗 format 仍由 BattleStream 按 ${requestedMode} 规则创建。`);
+    }
     if (input.formatOverride && input.formatOverride !== nativeFormatId) {
       diagnostics.messages.push(`${resolvedRuleSet} ${requestedMode} 使用 fallback format: ${input.formatOverride}`);
     }

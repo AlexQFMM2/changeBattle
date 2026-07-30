@@ -194,7 +194,7 @@ async function generateFormalParticipantV5(input: FormalRoundParticipantGenerati
     sourceKind: input.sourceKind,
     name: visual.name,
     avatar: visual.asset,
-    controller: "ai",
+    controller: input.sourceKind === "ai-ally" ? "script" : "ai",
     alliance: input.sourceKind === "ai-ally" ? "near" : "far",
     localTeam,
     bag: {

@@ -3845,6 +3845,8 @@ async function randomTeamGeneratorSmoke() {
     ["gen8", "doubles"],
     ["gen8", "coop"],
     ["gen7", "singles"],
+    ["gen7", "doubles"],
+    ["gen7", "coop"],
     ["standard", "singles"],
   ];
   for (const [ruleSet, mode] of cases) {
@@ -3857,22 +3859,23 @@ async function randomTeamGeneratorSmoke() {
     }
   }
 
-  const unavailable = await generateShowdownRandomTeamV4({ruleSet: "gen7", mode: "doubles", seed: "gen7-doubles"});
-  if (unavailable.diagnostics.ok || unavailable.pokemonSets.length || !unavailable.diagnostics.messages.length) {
-    throw new Error(`gen7 doubles should return explicit unavailable diagnostics: ${JSON.stringify(unavailable)}`);
-  }
-  const gen7DoublesFallback = await generateShowdownRandomTeamV4({
+  const gen7Doubles = await generateShowdownRandomTeamV4({
     ruleSet: "gen7",
     mode: "doubles",
-    formatOverride: "[Gen 7] Random Battle",
-    seed: "gen7-doubles-fallback",
-    teamSize: 6,
+    seed: "gen7-doubles",
+    teamSize: 4,
   });
-  if (!gen7DoublesFallback.diagnostics.ok || gen7DoublesFallback.pokemonSets.length !== 6) {
-    throw new Error(`gen7 doubles fallback should generate a full team: ${JSON.stringify(gen7DoublesFallback.diagnostics)}`);
+  if (!gen7Doubles.diagnostics.ok || gen7Doubles.pokemonSets.length !== 4 || gen7Doubles.formatId !== "[Gen 7] Random Battle") {
+    throw new Error(`gen7 doubles should generate from Gen7 random set source: ${JSON.stringify(gen7Doubles.diagnostics)}`);
   }
-  if (gen7DoublesFallback.diagnostics.fallbackFormatId !== "[Gen 7] Random Battle") {
-    throw new Error(`gen7 doubles fallback diagnostics missing format: ${JSON.stringify(gen7DoublesFallback.diagnostics)}`);
+  const gen7CoopTeam = await generateShowdownRandomTeamV4({
+    ruleSet: "gen7",
+    mode: "coop",
+    seed: "gen7-coop",
+    teamSize: 2,
+  });
+  if (!gen7CoopTeam.diagnostics.ok || gen7CoopTeam.pokemonSets.length !== 2 || gen7CoopTeam.formatId !== "[Gen 7] Random Battle") {
+    throw new Error(`gen7 coop should generate from Gen7 random set source: ${JSON.stringify(gen7CoopTeam.diagnostics)}`);
   }
 
   const allowedSpecies = ["pelipper", "torkoal", "tyranitar", "hatterene", "glimmora", "toxapex", "dragonite", "leafeon"];
