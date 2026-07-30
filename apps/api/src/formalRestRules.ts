@@ -62,12 +62,6 @@ export type FormalShopRuleContextInputV5 = {
   updatedAt: string;
 };
 
-export type FormalShopRestockRuleInputV5 = FormalShopRuleContextInputV5 & {
-  shop: FormalRestShopV4;
-  slotId: string;
-  restockRoll: number;
-};
-
 export type FormalStatRerollRuleInputV5 = {
   seed: string;
   nodeId: string;
@@ -193,28 +187,6 @@ export function createFormalRestShopFromRuleContextV5(input: FormalShopRuleConte
     return [category, items];
   })) as Record<FormalShopCategoryV4, FormalShopItemV4[]>;
   return {nodeId: input.nodeId, seed: `${input.seed}:${input.nodeId}`, categories, updatedAt: input.updatedAt};
-}
-
-export function restockFormalShopSlotFromRuleContextV5(input: FormalShopRestockRuleInputV5): {shop: FormalRestShopV4; restocked: boolean} {
-  const restockContext = buildFormalShopRestockContextV5(input);
-  let restocked = false;
-  const categories = Object.fromEntries(Object.entries(input.shop.categories).map(([rawCategory, items]) => {
-    const category = rawCategory as FormalShopCategoryV4;
-    return [category, items.map((item, index) => {
-      if (item.slotId !== input.slotId) return item;
-      restocked = true;
-      const used = new Set((input.shop.categories[category] || []).map(entry => entry.itemID));
-      return createFormalShopSlotFromRuleContextV5(input, category, index, input.restockRoll, used, restockContext);
-    })];
-  })) as Record<FormalShopCategoryV4, FormalShopItemV4[]>;
-  return {
-    shop: {
-      ...input.shop,
-      categories,
-      updatedAt: input.updatedAt,
-    },
-    restocked,
-  };
 }
 
 export function formalRestPokemonStatRerollCostV5(lockedCount: number): number {

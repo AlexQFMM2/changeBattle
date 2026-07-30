@@ -10,18 +10,18 @@ import {
 } from "@changebattle-v2/core";
 import type {DexStatId} from "@changebattle-v2/showdown-dex-core";
 import type {BattlePreferenceV4, FormalCompetitionModeV4, PlayerItemInstanceV4, ShowdownPlayerIdV4, StatTableV4, TrainingAllianceV4, TrainingBattleLogEntryV4, TrainingCoinLogEntryV4, TrainingMoveSlotV4, TrainingPlayerDraftV4, TrainingRunGameNodeV4, TrainingRunGameV4, TrainingRuleSetV4, TrainingStatusV4} from "./training.js";
-import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceOfferV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRoundNpcSnapshotV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopItemV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
+import type {FormalBattleResultFinalizeReasonV4, FormalGameModeV4, FormalMedicalInsuranceOfferV4, FormalMedicalInsuranceStateV4, FormalMedicalInsuranceTierViewV4, FormalGameRunV4, FormalPokemonExchangeViewV4, FormalRestShopV4, FormalRoundNpcSnapshotV4, FormalRoundPlanV4, FormalSettlementReasonV4, FormalShopItemV4, FormalShopProductViewV4, FormalStarterCandidateV4, FormalTrainingGroundApplyInputV4, FormalTrainingGroundLessonViewV4} from "./formalGame.js";
 import type {LocalPokemonV4, LocalTeamV4} from "./training.js";
 import type {PlayerVaultV4, UserProfileV2} from "./index.js";
 import {createBattleGameFromNodeDraft, type BattleGameV4, type BattleSessionCreateInputV4, type BattleSessionSnapshotV4, type BattleTeamPokemonStateV4} from "./battle.js";
 import {formalTrainingGroundDiscountForStarChartV4, starChartHasMedicalInsuranceV4, starChartHasRuntimeEffectV4} from "./starChart.js";
+import type {GeneratedParticipantV5, GeneratedRoundParticipantsV5} from "./formalParticipantGenerationV5.js";
 import {
   applyFormalSelfStudyRuleV5,
   createFormalRestShopFromRuleContextV5,
   formalRestPokemonStatRerollCostV5,
   prepareExchangedPokemonFromRuleContextV5,
   rerollFormalStatsWithinTotalFromRuleContextV5,
-  restockFormalShopSlotFromRuleContextV5,
   type FormalRestRulesMaxHpCalculatorV5,
 } from "./formalRestRules.js";
 
@@ -64,6 +64,8 @@ const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET_V5: Record<TrainingRuleSetV4, string[]> =
 };
 
 const MANAGED_SYSTEM_ITEM_IDS_V5 = new Set(Object.values(DEFAULT_SYSTEM_ITEMS_BY_RULE_SET_V5).flat());
+const SHOP_REFRESH_COST_V5 = 50;
+const MAX_SELF_STUDY_BATCH_ROUNDS_V5 = 100;
 
 export type PlayerInstanceV5 = {
   playerId: PlayerInstanceIdV5;
@@ -92,6 +94,7 @@ export type PlayerInstanceV5 = {
       nodeId: string;
       seed: string;
       generatedAt: string;
+      sourceKind?: "npc" | "player" | "ai-ally";
     };
   };
   money: number;
@@ -188,7 +191,7 @@ export type RunGameV5 = {
     trainingGroundByNodeId?: FormalGameRunV4["trainingGroundByNodeId"];
     roundSettlementByNodeId?: FormalGameRunV4["roundSettlementByNodeId"];
     exchangeByNodeId?: FormalGameRunV4["exchangeByNodeId"];
-    shopRestockRollBySlotId?: Record<string, number>;
+    shopRefreshRollByNodeId?: Record<string, number>;
     statRerollRollByKey?: Record<string, number>;
     exchangeRollByNodeId?: Record<string, number>;
     medicalInsuranceOfferSeen?: boolean;
@@ -295,6 +298,10 @@ export type RunGameRestViewV5 = RunGameSummaryViewV5 & {
   bag: RunGameBagViewV5;
   currentNode: RunGameRestNodeViewV5 | null;
   nextNode: RunGameRestNodeViewV5 | null;
+  shop: FormalRestShopV4 | null;
+  roundSettlement: NonNullable<RunGameV5["restState"]["roundSettlementByNodeId"]>[string] | null;
+  recentCoinLog: TrainingCoinLogEntryV4[];
+  recentBattleLog: TrainingBattleLogEntryV4[];
   rest: RunGameV5["restState"];
   trainingGround: RunGameTrainingGroundViewV5;
   exchange: FormalPokemonExchangeViewV4 | null;
@@ -396,6 +403,7 @@ export function buildRestViewV5(run: RunGameV5): RunGameRestViewV5 {
   const currentNode = currentRestNodeV5(run);
   const nextNode = run.gameMap.nodes.find(node => node.state === "ready") || currentNode || null;
   const relevantPlayers = restRelevantPlayersV5(run, [currentNode, nextNode]);
+  const currentNodeId = currentNode?.nodeId || "";
   return {
     ...buildSummaryViewV5(run),
     config: run.config,
@@ -413,6 +421,10 @@ export function buildRestViewV5(run: RunGameV5): RunGameRestViewV5 {
     } : null,
     currentNode: currentNode ? restNodeViewV5(currentNode) : null,
     nextNode: nextNode ? restNodeViewV5(nextNode) : null,
+    shop: currentNodeId ? run.restState.shopByNodeId?.[currentNodeId] || null : null,
+    roundSettlement: currentNodeId ? run.restState.roundSettlementByNodeId?.[currentNodeId] || null : null,
+    recentCoinLog: (run.restState.coinLog || []).slice(-20),
+    recentBattleLog: (run.restState.battleLog || []).slice(-20),
     rest: restStateForScopedRestViewV5(run, [currentNode, nextNode]),
     trainingGround: currentNode ? {
       nodeId: currentNode.nodeId,
@@ -443,8 +455,8 @@ function restStateForScopedRestViewV5(run: RunGameV5, nodes: Array<GameMapNodeV5
     medicalInsuranceOfferSeen: run.restState.medicalInsuranceOfferSeen,
     medicalInsurance: run.restState.medicalInsurance || null,
     restPreviewUnlocks: run.restState.restPreviewUnlocks ? {...run.restState.restPreviewUnlocks} : undefined,
-    coinLog: run.restState.coinLog ? [...run.restState.coinLog] : undefined,
-    battleLog: run.restState.battleLog ? [...run.restState.battleLog] : undefined,
+    coinLog: run.restState.coinLog ? [...run.restState.coinLog].slice(-20) : undefined,
+    battleLog: run.restState.battleLog ? [...run.restState.battleLog].slice(-20) : undefined,
   };
 }
 
@@ -790,86 +802,7 @@ export function selectStarterPokemonV5(run: RunGameV5, selectedIndexes: number[]
   });
 }
 
-export function ingestPreparedRoundPlanV5(run: RunGameV5, preparedRun: FormalGameRunV4, commandId: string, now = new Date()): RunGameV5 {
-  const repeated = run.commandLog[commandId];
-  if (repeated) return run;
-  const iso = now.toISOString();
-  const self = requirePlayer(run, run.selfPlayerId);
-  const playersById = {...run.playersById};
-  const pokemonById = {...run.pokemonById};
-  const bagsById = {...run.bagsById};
-  const itemInstancesById = {...run.itemInstancesById};
-  const roundPlan = preparedRun.roundPlan.map(round => {
-    const slots: Partial<Record<ShowdownPlayerIdV4, PlayerInstanceIdV5>> = {p1: self.playerId};
-    const npcRefs: string[] = [];
-    (["p2", "p3", "p4"] as ShowdownPlayerIdV4[]).forEach(slot => {
-      const draft = round.participants[slot];
-      if (!draft) return;
-      const npcSnapshot = round.npcs.find(npc => npc.playerId === slot);
-      const playerId = `player:${run.matchId}:${round.id}:${slot}`;
-      slots[slot] = playerId;
-      npcRefs.push(playerId);
-      upsertPlayerDraftEntities({playersById, pokemonById, bagsById, itemInstancesById}, playerId, draft, iso, run.matchId, round.id, npcSnapshot, round.seed);
-    });
-    return {
-      nodeId: round.id,
-      index: round.index,
-      mode: round.mode,
-      ruleSet: round.ruleSet,
-      difficulty: round.difficulty,
-      seed: round.seed,
-      npcRefs,
-      slots,
-      diagnostics: [...round.diagnostics],
-    };
-  });
-  const nodes = (preparedRun.restRunSnapshot?.gameMap || []).map(node => {
-    const plan = roundPlan.find(entry => entry.nodeId === node.id);
-    return {
-      nodeId: node.id,
-      index: node.index,
-      state: node.state,
-      mode: preparedRun.mode,
-      ruleSet: node.ruleSet,
-      seed: node.seed,
-      slots: plan?.slots || {p1: self.playerId},
-      battleGame: node.battleGame,
-      createdAt: node.createdAt,
-      startedAt: node.startedAt,
-      endedAt: node.endedAt,
-    };
-  });
-  return assertRunGameV5RedLines({
-    ...run,
-    status: "resting",
-    phase: "rest",
-    revision: run.revision + 1,
-    updatedAt: iso,
-    playersById,
-    pokemonById,
-    bagsById,
-    itemInstancesById,
-    roundPlan,
-    gameMap: {nodes},
-    currentNodeId: preparedRun.restRunSnapshot?.currentNodeId || nodes[0]?.nodeId || null,
-    restState: {
-      ...run.restState,
-      shopByNodeId: preparedRun.shopByNodeId,
-      trainingGroundByNodeId: preparedRun.trainingGroundByNodeId,
-      roundSettlementByNodeId: preparedRun.roundSettlementByNodeId,
-      exchangeByNodeId: preparedRun.exchangeByNodeId,
-      restPreviewUnlocks: preparedRun.restRunSnapshot?.restPreviewUnlocks,
-      coinLog: preparedRun.restRunSnapshot?.coinLog,
-      battleLog: preparedRun.restRunSnapshot?.battleLog,
-    },
-    commandLog: appendCommandLog(run, commandId, "prepare-round", {nodeCount: nodes.length}, iso, run.revision + 1),
-  });
-}
-
-export function prepareRoundPlanFromDraftsV5(run: RunGameV5, input: {
-  rounds: Array<{participants: Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>; mode?: FormalGameModeV4; ruleSet?: TrainingRuleSetV4; seed?: string}>;
-  commandId: string;
-}, now = new Date()): RunGameV5 {
+export function prepareRestRoundV5(run: RunGameV5, input: {commandId: string; rounds: GeneratedRoundParticipantsV5[]}, now = new Date()): RunGameV5 {
   const repeated = run.commandLog[input.commandId];
   if (repeated) return run;
   const iso = now.toISOString();
@@ -878,47 +811,43 @@ export function prepareRoundPlanFromDraftsV5(run: RunGameV5, input: {
   const pokemonById = {...run.pokemonById};
   const bagsById = {...run.bagsById};
   const itemInstancesById = {...run.itemInstancesById};
-  const rounds = input.rounds.length ? input.rounds : [{participants: {}}];
+  const rounds = input.rounds.length ? input.rounds : [];
+  if (!rounds.length) throw new Error("V5 round participant plan is empty.");
   const roundPlan: RoundPlanV5[] = [];
   const nodes: GameMapNodeV5[] = [];
-  rounds.forEach((round, index) => {
-    const nodeId = `round:${run.matchId}:${index + 1}`;
-    const mode = round.mode || run.config.mode;
-    const ruleSet = round.ruleSet || run.config.ruleSet;
-    const seed = round.seed || `${run.config.seed}:round:${index + 1}`;
+  for (const round of rounds) {
     const slots: Partial<Record<ShowdownPlayerIdV4, PlayerInstanceIdV5>> = {p1: self.playerId};
     const npcRefs: string[] = [];
-    (["p2", "p3", "p4"] as ShowdownPlayerIdV4[]).forEach(slot => {
-      const draft = round.participants[slot];
-      if (!draft) return;
-      const playerId = `player:${run.matchId}:${nodeId}:${slot}`;
-      slots[slot] = playerId;
+    for (const participant of round.participants) {
+      if (participant.slot === "p1") continue;
+      const playerId = `player:${run.matchId}:${round.nodeId}:${participant.slot}`;
+      slots[participant.slot] = playerId;
       npcRefs.push(playerId);
-      upsertPlayerDraftEntities({playersById, pokemonById, bagsById, itemInstancesById}, playerId, draft, iso, run.matchId, nodeId);
-    });
+      upsertGeneratedParticipantEntities({playersById, pokemonById, bagsById, itemInstancesById}, playerId, participant, iso, run.matchId, round.nodeId, round.seed);
+    }
     roundPlan.push({
-      nodeId,
-      index,
-      mode,
-      ruleSet,
-      difficulty: index >= rounds.length - 1 ? "champion" : index >= 4 ? "elite4" : index >= 2 ? "gym" : "normal",
-      seed,
+      nodeId: round.nodeId,
+      index: round.index,
+      mode: round.mode,
+      ruleSet: round.ruleSet,
+      difficulty: round.difficulty,
+      seed: round.seed,
       npcRefs,
       slots,
-      diagnostics: ["v5-direct-round-plan"],
+      diagnostics: [...round.diagnostics],
     });
     nodes.push({
-      nodeId,
-      index,
-      state: index === 0 ? "ready" : "locked",
-      mode,
-      ruleSet,
-      seed,
+      nodeId: round.nodeId,
+      index: round.index,
+      state: round.index === 0 ? "ready" : "locked",
+      mode: round.mode,
+      ruleSet: round.ruleSet,
+      seed: round.seed,
       slots,
       battleGame: null,
       createdAt: iso,
     });
-  });
+  }
   const shopTeam = selfTeamPokemonFromEntitiesV5({...run, playersById, pokemonById}, self.playerId);
   const shopByNodeId = Object.fromEntries(nodes.map(node => [node.nodeId, createFormalRestShopFromRuleContextV5({
     seed: run.config.seed,
@@ -948,11 +877,13 @@ export function prepareRoundPlanFromDraftsV5(run: RunGameV5, input: {
       ...run.restState,
       shopByNodeId,
       trainingGroundByNodeId,
+      roundSettlementByNodeId: run.restState.roundSettlementByNodeId || {},
+      exchangeByNodeId: run.restState.exchangeByNodeId || {},
       restPreviewUnlocks: run.restState.restPreviewUnlocks || {},
       coinLog: run.restState.coinLog || [],
       battleLog: run.restState.battleLog || [],
     },
-    commandLog: appendCommandLog(run, input.commandId, "prepare-round", {nodeCount: nodes.length}, iso, run.revision + 1),
+    commandLog: appendCommandLog(run, input.commandId, "prepare-round", {nodeCount: nodes.length, source: "v5-native-participants"}, iso, run.revision + 1),
   });
 }
 
@@ -982,7 +913,11 @@ export function applyTrainingLessonV5(run: RunGameV5, input: FormalTrainingGroun
   const repeated = run.commandLog[commandId];
   if (repeated) return {run, result: repeated.result || {reused: true}};
   const self = requirePlayer(run, run.selfPlayerId);
-  if (self.money < lesson.fee) throw new Error("金币不足，先去赚一点再来上课吧。");
+  const requestedRounds = lesson.kind === "self-study" ? clampIntV5(input.rounds, 1, MAX_SELF_STUDY_BATCH_ROUNDS_V5, 1) : 1;
+  const fee = Math.max(0, Math.floor(Number(lesson.fee || 0)));
+  const affordableRounds = fee > 0 ? Math.floor(Math.max(0, Math.floor(Number(self.money || 0))) / fee) : requestedRounds;
+  const effectiveRounds = lesson.kind === "self-study" ? Math.min(requestedRounds, affordableRounds, MAX_SELF_STUDY_BATCH_ROUNDS_V5) : 1;
+  if (effectiveRounds <= 0 || self.money < fee * effectiveRounds) throw new Error("金币不足，先去赚一点再来上课吧。");
   const pokemonId = String(input.pokemonId || "");
   if (!pokemonId || !self.localTeamPokemonIds.includes(pokemonId)) throw new Error("请选择要进入课堂的宝可梦。");
   const current = requirePokemon(run, pokemonId);
@@ -990,33 +925,50 @@ export function applyTrainingLessonV5(run: RunGameV5, input: FormalTrainingGroun
   const before = current.localPokemon;
   const currentNodeId = run.currentNodeId || "rest";
   const trainingState = run.restState.trainingGroundByNodeId?.[currentNodeId] || {nodeId: currentNodeId, lessonRoll: 0, selfStudyRoll: 0, updatedAt: iso};
-  const selfStudy = lesson.kind === "self-study"
-    ? applyFormalSelfStudyRuleV5({
+  const roundSummaries: Array<{round: number; event: string; levelBefore: number; levelAfter: number; ivTotalBefore: number; ivTotalAfter: number; evTotalBefore: number; evTotalAfter: number}> = [];
+  let selfStudyPokemon = before;
+  for (let round = 0; lesson.kind === "self-study" && round < effectiveRounds; round += 1) {
+    const selfStudy = applyFormalSelfStudyRuleV5({
       seed: run.config.seed,
       nodeId: currentNodeId,
       lessonRoll: trainingState.lessonRoll,
-      selfStudyRoll: trainingState.selfStudyRoll,
-      pokemon: before,
+      selfStudyRoll: Math.max(0, Math.floor(Number(trainingState.selfStudyRoll || 0))) + round,
+      pokemon: selfStudyPokemon,
       starChart: self.starChartSnapshot,
       calculateMaxHp: options.calculateMaxHp,
-    })
-    : null;
+    });
+    roundSummaries.push({
+      round: round + 1,
+      event: selfStudy.event,
+      levelBefore: selfStudy.change.levelBefore,
+      levelAfter: selfStudy.change.levelAfter,
+      ivTotalBefore: statTotalForResultV5(selfStudy.change.ivsBefore),
+      ivTotalAfter: statTotalForResultV5(selfStudy.change.ivsAfter),
+      evTotalBefore: statTotalForResultV5(selfStudy.change.evsBefore),
+      evTotalAfter: statTotalForResultV5(selfStudy.change.evsAfter),
+    });
+    selfStudyPokemon = selfStudy.pokemon;
+  }
   const updatedPokemon = lesson.kind === "self-study"
-    ? selfStudy!.pokemon
+    ? selfStudyPokemon
     : applyMoveLessonPokemonPatchV5(before, input, moveSummary);
   const message = lesson.kind === "self-study"
-    ? `${displayPokemonNameV5(before)}${selfStudy!.messageText}。${lesson.completeText}`
+    ? `${displayPokemonNameV5(before)}完成了 ${effectiveRounds} 轮自习。${lesson.completeText}`
     : `${displayPokemonNameV5(before)}学会了${moveSummary?.nameZh || moveSummary?.name || input.moveId}。${lesson.completeText}`;
-  const balanceAfter = Math.max(0, Math.floor(Number(self.money || 0)) - Math.max(0, Math.floor(Number(lesson.fee || 0))));
+  const totalFee = fee * effectiveRounds;
+  const balanceAfter = Math.max(0, Math.floor(Number(self.money || 0)) - totalFee);
   const result = {
     actionType: "training.apply",
     message,
     pokemonId,
     lessonId: lesson.lessonId,
     lessonKind: lesson.kind,
-    fee: lesson.fee,
+    fee,
+    requestedRounds,
+    effectiveRounds,
+    totalFee,
     balanceAfter,
-    ...(selfStudy ? {selfStudyEvent: selfStudy.event, selfStudyChange: selfStudy.change} : {}),
+    ...(roundSummaries.length ? {roundSummaries, selfStudyEvent: roundSummaries[roundSummaries.length - 1]?.event} : {}),
   };
   return {
     run: assertRunGameV5RedLines({
@@ -1037,7 +989,7 @@ export function applyTrainingLessonV5(run: RunGameV5, input: FormalTrainingGroun
           ...(run.restState.trainingGroundByNodeId || {}),
           [currentNodeId]: {
             ...trainingState,
-            selfStudyRoll: Math.max(0, Math.floor(Number(trainingState.selfStudyRoll || 0))) + (lesson.kind === "self-study" ? 1 : 0),
+            selfStudyRoll: Math.max(0, Math.floor(Number(trainingState.selfStudyRoll || 0))) + (lesson.kind === "self-study" ? effectiveRounds : 0),
             updatedAt: iso,
           },
         },
@@ -1047,11 +999,11 @@ export function applyTrainingLessonV5(run: RunGameV5, input: FormalTrainingGroun
           at: iso,
           roundIndex: currentRoundIndexV5(run),
           kind: "expense",
-          amount: -Math.max(0, Math.floor(Number(lesson.fee || 0))),
+          amount: -totalFee,
           balanceBefore: self.money,
           balanceAfter,
           source: "training-ground",
-          label: `训练场 ${lesson.teacherLabel}`,
+          label: lesson.kind === "self-study" && effectiveRounds > 1 ? `训练场 ${lesson.teacherLabel} x${effectiveRounds}` : `训练场 ${lesson.teacherLabel}`,
         }),
       },
       commandLog: appendCommandLog(run, commandId, "training.apply", result, iso, run.revision + 1),
@@ -1099,37 +1051,103 @@ export function healSelfTeamV5(run: RunGameV5, commandId: string, now = new Date
 }
 
 export function buyShopProductV5(run: RunGameV5, product: FormalShopProductViewV4, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  return buyShopCartProductsV5(run, [product], commandId, now, "shop.buy");
+}
+
+export function buyShopCartProductsV5(run: RunGameV5, products: FormalShopProductViewV4[], commandId: string, now = new Date(), commandName = "shop.buy-cart"): {run: RunGameV5; result: Record<string, unknown>} {
   const repeated = run.commandLog[commandId];
   if (repeated) return {run, result: repeated.result || {reused: true}};
   const self = requirePlayer(run, run.selfPlayerId);
   const bag = run.bagsById[self.bagId];
   if (!bag) throw new Error("缺少玩家背包。");
-  const price = Math.max(0, Math.floor(Number(product.price || 0)));
-  if (product.stock <= 0) throw new Error("该商品已经售罄。");
-  if (price <= 0) throw new Error("该商品暂不可购买。");
-  if (self.money < price) throw new Error("金币不足。");
-  if (bag.itemInstanceIds.length >= bag.maxSize) throw new Error("背包已满。");
+  const uniqueProducts = products.filter(Boolean);
+  if (!uniqueProducts.length) throw new Error("请选择要购买的商品。");
+  const seenSlotIds = new Set<string>();
+  for (const product of uniqueProducts) {
+    if (!product.slotId || seenSlotIds.has(product.slotId)) throw new Error("购物车包含重复商品。");
+    seenSlotIds.add(product.slotId);
+    if (product.stock <= 0) throw new Error(`${product.name || "商品"}已经售罄。`);
+    if (Math.max(0, Math.floor(Number(product.price || 0))) <= 0) throw new Error(`${product.name || "商品"}暂不可购买。`);
+  }
+  const totalPrice = uniqueProducts.reduce((sum, product) => sum + Math.max(0, Math.floor(Number(product.price || 0))), 0);
+  if (self.money < totalPrice) throw new Error("金币不足。");
+  if (bag.itemInstanceIds.length + uniqueProducts.length > bag.maxSize) throw new Error("背包空间不足。");
   const iso = now.toISOString();
-  const itemInstanceId = `item:${run.matchId}:shop:${commandId}`;
-  const item: PlayerItemInstanceV4 = createPlayerItemFromProductV5(product, itemInstanceId, currentRoundIndexV5(run));
-  const balanceAfter = self.money - price;
-  const restockedShop = restockPurchasedShopSlotFromRulesV5(run, product.slotId, balanceAfter, iso);
-  const result = {actionType: "shop.buy", message: `已购买 ${product.name}。`, itemInstanceId, itemID: product.itemID, price, balanceAfter};
+  const roundIndex = currentRoundIndexV5(run);
+  const itemInstanceIds = uniqueProducts.map((product, index) => `item:${run.matchId}:shop:${commandId}:${index + 1}`);
+  const itemInstancesById = {...run.itemInstancesById};
+  uniqueProducts.forEach((product, index) => {
+    const itemInstanceId = itemInstanceIds[index]!;
+    itemInstancesById[itemInstanceId] = {
+      itemInstanceId,
+      ownerBagId: bag.bagId,
+      item: createPlayerItemFromProductV5(product, itemInstanceId, roundIndex),
+      createdAt: iso,
+      updatedAt: iso,
+    };
+  });
+  const balanceAfter = self.money - totalPrice;
+  const nextShopByNodeId = markShopSlotsSoldOutV5(run, seenSlotIds, iso);
+  const result = {
+    actionType: commandName,
+    message: uniqueProducts.length === 1 ? `已购买 ${uniqueProducts[0]!.name}。` : `已购买 ${uniqueProducts.length} 件商品。`,
+    itemInstanceIds,
+    purchases: uniqueProducts.map((product, index) => ({slotId: product.slotId, itemInstanceId: itemInstanceIds[index], itemID: product.itemID, price: Math.max(0, Math.floor(Number(product.price || 0)))})),
+    totalPrice,
+    balanceAfter,
+  };
   return {
     run: assertRunGameV5RedLines({
       ...run,
       revision: run.revision + 1,
       updatedAt: iso,
       playersById: {...run.playersById, [self.playerId]: {...self, money: balanceAfter, updatedAt: iso}},
-      bagsById: {...run.bagsById, [bag.bagId]: {...bag, itemInstanceIds: [...bag.itemInstanceIds, itemInstanceId], updatedAt: iso}},
-      itemInstancesById: {...run.itemInstancesById, [itemInstanceId]: {itemInstanceId, ownerBagId: bag.bagId, item, createdAt: iso, updatedAt: iso}},
+      bagsById: {...run.bagsById, [bag.bagId]: {...bag, itemInstanceIds: [...bag.itemInstanceIds, ...itemInstanceIds], updatedAt: iso}},
+      itemInstancesById,
       restState: {
         ...run.restState,
-        shopByNodeId: restockedShop.shopByNodeId,
-        shopRestockRollBySlotId: restockedShop.shopRestockRollBySlotId,
-        coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "shop", `购买 ${product.name}`, -price, self.money, balanceAfter, currentRoundIndexV5(run), iso)),
+        shopByNodeId: nextShopByNodeId,
+        coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "shop", uniqueProducts.length === 1 ? `购买 ${uniqueProducts[0]!.name}` : `购物车购买 ${uniqueProducts.length} 件商品`, -totalPrice, self.money, balanceAfter, roundIndex, iso)),
       },
-      commandLog: appendCommandLog(run, commandId, "shop.buy", result, iso, run.revision + 1),
+      commandLog: appendCommandLog(run, commandId, commandName, result, iso, run.revision + 1),
+    }),
+    result,
+  };
+}
+
+export function refreshShopProductsV5(run: RunGameV5, commandId: string, now = new Date()): {run: RunGameV5; result: Record<string, unknown>} {
+  const repeated = run.commandLog[commandId];
+  if (repeated) return {run, result: repeated.result || {reused: true}};
+  const self = requirePlayer(run, run.selfPlayerId);
+  if (!run.currentNodeId || !run.restState.shopByNodeId?.[run.currentNodeId]) throw new Error("当前没有可刷新的商店。");
+  if (self.money < SHOP_REFRESH_COST_V5) throw new Error("金币不足，刷新商品需要 50 金币。");
+  const iso = now.toISOString();
+  const refreshRoll = Math.max(0, Math.floor(Number(run.restState.shopRefreshRollByNodeId?.[run.currentNodeId] || 0)));
+  const nextShop = createFormalRestShopFromRuleContextV5({
+    seed: `${run.config.seed}:shop-refresh:${refreshRoll + 1}`,
+    nodeId: run.currentNodeId,
+    roundIndex: currentRoundIndexV5(run),
+    money: self.money - SHOP_REFRESH_COST_V5,
+    team: selfTeamPokemonFromEntitiesV5(run, self.playerId),
+    starChart: self.starChartSnapshot,
+    pendingSettlement: false,
+    updatedAt: iso,
+  });
+  const balanceAfter = self.money - SHOP_REFRESH_COST_V5;
+  const result = {actionType: "shop.refresh", message: "商店商品已重新整理。", cost: SHOP_REFRESH_COST_V5, refreshRoll: refreshRoll + 1, balanceAfter};
+  return {
+    run: assertRunGameV5RedLines({
+      ...run,
+      revision: run.revision + 1,
+      updatedAt: iso,
+      playersById: {...run.playersById, [self.playerId]: {...self, money: balanceAfter, updatedAt: iso}},
+      restState: {
+        ...run.restState,
+        shopByNodeId: {...(run.restState.shopByNodeId || {}), [run.currentNodeId]: nextShop},
+        shopRefreshRollByNodeId: {...(run.restState.shopRefreshRollByNodeId || {}), [run.currentNodeId]: refreshRoll + 1},
+        coinLog: appendCoinLogV5(run.restState.coinLog || [], coinLogEntryV5(commandId, "shop-refresh", "刷新商店商品", -SHOP_REFRESH_COST_V5, self.money, balanceAfter, currentRoundIndexV5(run), iso)),
+      },
+      commandLog: appendCommandLog(run, commandId, "shop.refresh", result, iso, run.revision + 1),
     }),
     result,
   };
@@ -1596,30 +1614,16 @@ export function prepareBattleSessionFromRunGameV5(run: RunGameV5): {battleGame: 
   });
 }
 
-export function ingestFormalCoopAllyV5(
-  run: RunGameV5,
-  draft: TrainingPlayerDraftV4,
-  npcSnapshot: FormalRoundNpcSnapshotV4 | undefined,
-  now = new Date(),
-): RunGameV5 {
+export function ingestGeneratedParticipantV5(run: RunGameV5, participant: GeneratedParticipantV5, now = new Date()): RunGameV5 {
   const node = currentRestNodeV5(run);
-  if (!node || node.slots.p3) return run;
+  if (!node || node.slots[participant.slot]) return run;
   const iso = now.toISOString();
   const playersById = {...run.playersById};
   const pokemonById = {...run.pokemonById};
   const bagsById = {...run.bagsById};
   const itemInstancesById = {...run.itemInstancesById};
-  const playerId = `player:${run.matchId}:${node.nodeId}:p3`;
-  upsertPlayerDraftEntities(
-    {playersById, pokemonById, bagsById, itemInstancesById},
-    playerId,
-    draft,
-    iso,
-    run.matchId,
-    node.nodeId,
-    npcSnapshot,
-    node.seed,
-  );
+  const playerId = `player:${run.matchId}:${node.nodeId}:${participant.slot}`;
+  upsertGeneratedParticipantEntities({playersById, pokemonById, bagsById, itemInstancesById}, playerId, participant, iso, run.matchId, node.nodeId, node.seed);
   return assertRunGameV5RedLines({
     ...run,
     updatedAt: iso,
@@ -1629,91 +1633,12 @@ export function ingestFormalCoopAllyV5(
     itemInstancesById,
     gameMap: {
       nodes: run.gameMap.nodes.map(entry => entry.nodeId === node.nodeId
-        ? {...entry, slots: {...entry.slots, p3: playerId}}
+        ? {...entry, slots: {...entry.slots, [participant.slot]: playerId}}
         : entry),
     },
     roundPlan: run.roundPlan.map(entry => entry.nodeId === node.nodeId
-      ? {...entry, slots: {...entry.slots, p3: playerId}, npcRefs: entry.npcRefs.includes(playerId) ? entry.npcRefs : [...entry.npcRefs, playerId]}
+      ? {...entry, slots: {...entry.slots, [participant.slot]: playerId}, npcRefs: entry.npcRefs.includes(playerId) ? entry.npcRefs : [...entry.npcRefs, playerId]}
       : entry),
-  });
-}
-
-export function applyBattleFinalizedResultV5(run: RunGameV5, input: {compatRun: FormalGameRunV4; commandId: string; destination: "rest" | "settlement"; reason?: FormalBattleResultFinalizeReasonV4; settlementNotice?: string}, now = new Date()): RunGameV5 {
-  const repeated = run.commandLog[input.commandId];
-  if (repeated) return run;
-  const iso = now.toISOString();
-  const compatRest = input.compatRun.restRunSnapshot;
-  const currentNodeId = compatRest?.currentNodeId || run.currentNodeId;
-  const self = requirePlayer(run, run.selfPlayerId);
-  const playersById = {...run.playersById};
-  const pokemonById = {...run.pokemonById};
-  const currentCompatNode = currentNodeId ? compatRest?.gameMap.find(node => node.id === currentNodeId) : null;
-  const currentNode = currentNodeId ? run.gameMap.nodes.find(node => node.nodeId === currentNodeId) : null;
-
-  if (compatRest && currentNode) {
-    for (const [slot, playerId] of Object.entries(currentNode.slots) as Array<[ShowdownPlayerIdV4, string | undefined]>) {
-      if (!playerId) continue;
-      const draft = currentCompatNode?.participants?.[slot] || compatRest.players[slot];
-      if (!draft || !playersById[playerId]) continue;
-      playersById[playerId] = {...playersById[playerId]!, updatedAt: iso};
-      for (const compatPokemon of draft.localTeam.pokemon || []) {
-        const pokemonId = String(compatPokemon.localPokemonId || "");
-        if (!pokemonId || !pokemonById[pokemonId] || pokemonById[pokemonId]!.ownerPlayerId !== playerId) continue;
-        pokemonById[pokemonId] = {...pokemonById[pokemonId]!, localPokemon: compatPokemon, updatedAt: iso};
-      }
-    }
-  }
-
-  playersById[self.playerId] = {
-    ...playersById[self.playerId]!,
-    money: clampIntV5(input.compatRun.money, 0, 999999, self.money),
-    updatedAt: iso,
-  };
-
-  const nodeById = new Map((compatRest?.gameMap || []).map(node => [node.id, node]));
-  const gameMap = {
-    nodes: run.gameMap.nodes.map(node => {
-      const compatNode = nodeById.get(node.nodeId);
-      if (!compatNode) return node;
-      return {
-        ...node,
-        state: compatNode.state,
-        battleGame: compatNode.battleGame,
-        startedAt: compatNode.startedAt || node.startedAt,
-        endedAt: compatNode.endedAt || node.endedAt || (compatNode.state === "won" || compatNode.state === "lost" ? iso : undefined),
-      };
-    }),
-  };
-  const status = statusFromCompatRun(input.compatRun, input.destination === "settlement" ? "settlement_ready" : "resting");
-  const nextStatus = input.destination === "settlement" ? "settlement_ready" : status === "battling" || status === "battle_preparing" ? "resting" : status;
-  return assertRunGameV5RedLines({
-    ...run,
-    status: nextStatus,
-    phase: input.destination === "settlement" ? "settlement" : "rest",
-    revision: run.revision + 1,
-    updatedAt: iso,
-    playersById,
-    pokemonById,
-    gameMap,
-    currentNodeId,
-    restState: {
-      ...run.restState,
-      shopByNodeId: input.compatRun.shopByNodeId || run.restState.shopByNodeId,
-      trainingGroundByNodeId: input.compatRun.trainingGroundByNodeId || run.restState.trainingGroundByNodeId,
-      roundSettlementByNodeId: input.compatRun.roundSettlementByNodeId || run.restState.roundSettlementByNodeId,
-      exchangeByNodeId: input.compatRun.exchangeByNodeId || run.restState.exchangeByNodeId,
-      medicalInsuranceOfferSeen: Boolean(input.compatRun.medicalInsuranceOfferSeen || run.restState.medicalInsuranceOfferSeen),
-      medicalInsurance: input.compatRun.medicalInsurance || run.restState.medicalInsurance || null,
-      restPreviewUnlocks: compatRest?.restPreviewUnlocks || run.restState.restPreviewUnlocks,
-      coinLog: compatRest?.coinLog || run.restState.coinLog,
-      battleLog: compatRest?.battleLog || run.restState.battleLog,
-    },
-    commandLog: appendCommandLog(run, input.commandId, "finalize-battle", {
-      destination: input.destination,
-      reason: input.reason || null,
-      settlementNotice: input.settlementNotice || "",
-      nodeId: currentNodeId || null,
-    }, iso, run.revision + 1),
   });
 }
 
@@ -2079,23 +2004,28 @@ export function assertRunGameV5RedLines(run: RunGameV5): RunGameV5 {
   return run;
 }
 
-function upsertPlayerDraftEntities(
+function upsertGeneratedParticipantEntities(
   store: Pick<RunGameV5, "playersById" | "pokemonById" | "bagsById" | "itemInstancesById">,
   playerId: string,
-  draft: TrainingPlayerDraftV4,
+  participant: GeneratedParticipantV5,
   iso: string,
   matchId: string,
   nodeId: string,
-  npcSnapshot?: FormalRoundNpcSnapshotV4,
   seed = "",
 ): void {
   const bagId = `bag:${playerId}`;
-  const itemInstanceIds = draft.bag.items.map((item, index) => {
-    const itemInstanceId = item.id || `item:${matchId}:${nodeId}:${draft.playerId}:${index + 1}`;
-    store.itemInstancesById[itemInstanceId] = {itemInstanceId, ownerBagId: bagId, item: {...item, id: itemInstanceId}, createdAt: iso, updatedAt: iso};
+  const itemInstanceIds = participant.bag.items.map((item, index) => {
+    const itemInstanceId = `item:${matchId}:${nodeId}:${participant.slot}:${index + 1}`;
+    store.itemInstancesById[itemInstanceId] = {
+      itemInstanceId,
+      ownerBagId: bagId,
+      item: {...item, id: itemInstanceId},
+      createdAt: iso,
+      updatedAt: iso,
+    };
     return itemInstanceId;
   });
-  const pokemonIds = draft.localTeam.pokemon.map((pokemon, index) => {
+  const pokemonIds = participant.localTeam.pokemon.map((pokemon, index) => {
     const pokemonId = `${playerId}:pokemon:${index + 1}`;
     store.pokemonById[pokemonId] = {
       pokemonId,
@@ -2109,44 +2039,33 @@ function upsertPlayerDraftEntities(
   store.bagsById[bagId] = {
     bagId,
     ownerPlayerId: playerId,
-    maxSize: draft.bag.maxSize,
+    maxSize: participant.bag.maxSize,
     itemInstanceIds,
-    battleBagEnabled: draft.bag.battleBagEnabled,
+    battleBagEnabled: participant.bag.battleBagEnabled,
     createdAt: iso,
     updatedAt: iso,
   };
   const previous = store.playersById[playerId];
-  const isNpc = draft.controller === "ai" || draft.controller === "script";
+  const isHuman = participant.sourceKind === "player" && participant.controller === "local";
   store.playersById[playerId] = {
     ...previous,
     playerId,
-    slot: draft.playerId,
-    kind: isNpc ? "npc" : "human",
-    controller: draft.controller,
-    alliance: draft.alliance,
-    name: draft.name,
-    avatar: draft.avatar,
-    backImage: draft.backImage,
-    npcProfile: isNpc ? npcProfileFromDraft(draft, nodeId, seed, iso, npcSnapshot) : undefined,
+    slot: participant.slot,
+    kind: isHuman ? "human" : "npc",
+    controller: participant.controller,
+    alliance: participant.alliance,
+    name: participant.name,
+    avatar: participant.avatar,
+    backImage: participant.backImage,
+    npcProfile: participant.npcProfile ? npcProfileFromGeneratedParticipantV5(participant, nodeId, seed, iso) : undefined,
     money: previous?.money || 0,
     bagId,
     localTeamPokemonIds: pokemonIds,
-    ready: previous?.ready || false,
-    connectionState: previous?.connectionState || (isNpc ? "online" : "disconnected"),
+    ready: true,
+    connectionState: previous?.connectionState || (isHuman ? "disconnected" : "online"),
     createdAt: previous?.createdAt || iso,
     updatedAt: iso,
   };
-}
-
-function statusFromCompatRun(run: FormalGameRunV4, fallback: RunGameStatusV5): RunGameStatusV5 {
-  if (run.settled || run.status === "ended") return "ended";
-  const restStatus = run.restRunSnapshot?.status || "";
-  if (restStatus === "battlePreparing") return "battle_preparing";
-  if (restStatus === "battling") return "battling";
-  if (restStatus === "battleEndedPendingSettlement" || restStatus === "settling") return "settlement_ready";
-  if (run.restRunSnapshot) return "resting";
-  if (run.playerTeam) return "round_preparing";
-  return fallback;
 }
 
 function phaseFromStatus(status: RunGameStatusV5): RunGamePhaseV5 {
@@ -2294,36 +2213,22 @@ function createPlayerItemFromProductV5(product: FormalShopProductViewV4, itemIns
   };
 }
 
-function restockPurchasedShopSlotFromRulesV5(run: RunGameV5, slotId: string, moneyAfterPurchase: number, updatedAt: string): Pick<RunGameV5["restState"], "shopByNodeId" | "shopRestockRollBySlotId"> {
+function markShopSlotsSoldOutV5(run: RunGameV5, slotIds: Set<string>, updatedAt: string): RunGameV5["restState"]["shopByNodeId"] {
   const shopByNodeId = run.restState.shopByNodeId;
-  if (!shopByNodeId || !run.currentNodeId || !shopByNodeId[run.currentNodeId]) {
-    return {shopByNodeId, shopRestockRollBySlotId: run.restState.shopRestockRollBySlotId};
-  }
-  const self = requirePlayer(run, run.selfPlayerId);
+  if (!shopByNodeId || !run.currentNodeId || !shopByNodeId[run.currentNodeId]) return shopByNodeId;
   const shop = shopByNodeId[run.currentNodeId]!;
-  const restockRoll = Math.max(0, Math.floor(Number(run.restState.shopRestockRollBySlotId?.[slotId] || 0)));
-  const restocked = restockFormalShopSlotFromRuleContextV5({
-    seed: run.config.seed,
-    nodeId: run.currentNodeId,
-    roundIndex: currentRoundIndexV5(run),
-    money: moneyAfterPurchase,
-    team: selfTeamPokemonFromEntitiesV5(run, self.playerId),
-    starChart: self.starChartSnapshot,
-    pendingSettlement: false,
-    updatedAt,
-    shop,
-    slotId,
-    restockRoll,
-  });
+  const categories = Object.fromEntries(Object.entries(shop.categories).map(([category, entries]) => [
+    category,
+    entries.map(entry => slotIds.has(entry.slotId) ? {...entry, stock: 0} : entry),
+  ])) as FormalRestShopV4["categories"];
   return {
-    shopRestockRollBySlotId: restocked.restocked
-      ? {...(run.restState.shopRestockRollBySlotId || {}), [slotId]: restockRoll + 1}
-      : run.restState.shopRestockRollBySlotId,
-    shopByNodeId: {
-      ...shopByNodeId,
-      [run.currentNodeId]: restocked.shop,
-    },
+    ...shopByNodeId,
+    [run.currentNodeId]: {...shop, categories, updatedAt},
   };
+}
+
+function statTotalForResultV5(values: StatTableV4): number {
+  return Object.values(values || {}).reduce((sum, value) => sum + Math.max(0, Math.floor(Number(value || 0))), 0);
 }
 
 function medicalInsuranceTierLabelV5(tier: string): string {
@@ -2471,29 +2376,30 @@ function participantsForSlots(run: RunGameV5, slots: Partial<Record<ShowdownPlay
   return Object.fromEntries(entries) as Partial<Record<ShowdownPlayerIdV4, TrainingPlayerDraftV4>>;
 }
 
-function npcProfileFromDraft(
-  draft: TrainingPlayerDraftV4,
+function npcProfileFromGeneratedParticipantV5(
+  participant: GeneratedParticipantV5,
   nodeId: string,
   seed: string,
   generatedAt: string,
-  snapshot?: FormalRoundNpcSnapshotV4,
 ): PlayerInstanceV5["npcProfile"] {
-  const trainerType = snapshot?.trainerType || "normal";
-  const {rank, rankLabel} = npcRankForTrainerTypeV5(trainerType);
+  const profile = participant.npcProfile;
+  if (!profile) return undefined;
+  const {rank, rankLabel} = npcRankForTrainerTypeV5(profile.trainerType);
   return {
-    trainerId: snapshot?.trainerId || `generated:${trainerType}:${nodeId}:${draft.playerId}`,
-    trainerType,
+    trainerId: profile.trainerId,
+    trainerType: profile.trainerType,
     rank,
     rankLabel,
-    powerProfile: snapshot?.powerProfile || "normal",
-    teamPreference: snapshot?.teamPreference || "balanced",
-    battlePreference: snapshot?.battlePreference || "balanced",
-    isBoss: snapshot?.isBoss || false,
-    aiProfile: snapshot?.aiProfile || draft.aiProfile || {level: "normal", preference: "balanced"},
+    powerProfile: profile.powerProfile,
+    teamPreference: profile.teamPreference,
+    battlePreference: profile.battlePreference,
+    isBoss: profile.isBoss,
+    aiProfile: profile.aiProfile,
     generatedBy: {
       nodeId,
       seed,
       generatedAt,
+      sourceKind: profile.sourceKind,
     },
   };
 }

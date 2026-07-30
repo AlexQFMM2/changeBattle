@@ -53,6 +53,8 @@ export type TrainingRestShopController = {
   player: TrainingPlayerDraftV4 | null;
   money: number;
   onBuy: (slotId: string) => Promise<string> | string;
+  onBuyCart?: (slotIds: string[]) => Promise<string> | string;
+  onRefresh?: () => Promise<string> | string;
   onSell: (itemInstanceIds: string[]) => Promise<string> | string;
 };
 
@@ -645,6 +647,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             money={shopController?.money ?? displayMoney ?? 0}
             onBusyChange={setRestBusyMessage}
             onBuy={shopController?.onBuy}
+            onBuyCart={shopController?.onBuyCart}
+            onRefresh={shopController?.onRefresh}
             onSell={shopController?.onSell}
             onBack={() => {
               setRestScene("center");

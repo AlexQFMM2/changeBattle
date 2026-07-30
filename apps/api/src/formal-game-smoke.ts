@@ -53,8 +53,9 @@ import {
 } from "@changebattle-v2/core";
 import {FORMAL_STARTER_SHINY_RATE, createFormalGameRunApi, createFormalShopProductViewsV4, formalShopItemPriceV4, formalShopRestockItemWeightV4, formalStarterCandidateToRentalPokemonV4, isRandomGeneratableSpeciesFormV4, type FormalGameRunV4, type FormalShopProductViewV4, type FormalShopRestockContextV4} from "./formalGame.js";
 import {addDebugPlayerVaultItemV4, addDebugPlayerVaultPokemonV4} from "./debugVault.js";
-import {applyTrainingLessonV5, buildBattleViewV5, buyShopProductV5, commitFinalSettlementFromRunGameV5, createRunGameV5FromStarterRun, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, getPokemonExchangeViewV5, ingestPreparedRoundPlanV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, prepareRoundPlanFromDraftsV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5} from "./runGameV5.js";
-import {buildFormalRunCompatViewV5} from "./runGameV5CompatLegacy.js";
+import {applyTrainingLessonV5, buildBattleViewV5, buyShopCartProductsV5, buyShopProductV5, commitFinalSettlementFromRunGameV5, createRunGameV5FromStarterRun, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, getPokemonExchangeViewV5, getTrainingGroundLessonForInputV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, prepareRestRoundV5, refreshShopProductsV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5} from "./runGameV5.js";
+import {generateFormalRoundParticipantsV5} from "./formalParticipantGenerationV5.js";
+import {generateRandomBattleTeamPreviewV4} from "./teamGenerator.js";
 import {prepareExchangedPokemonFromRuleContextV5} from "./formalRestRules.js";
 import {
   CARRY_PREP_ITEMS_NODE_ID,
@@ -579,8 +580,8 @@ assert(formalNpcLevelBonusForTypeV4("rookie") === -2 && formalNpcLevelBonusForTy
 assert(formalNpcLevelBonusForTypeV4("elite") === 0, "core NPC rules should keep elite trainers at player max level");
 assert(formalNpcLevelBonusForTypeV4("gym") === 1 && formalNpcLevelBonusForTypeV4("elite4") === 1, "core NPC rules should give boss-tier trainers +1 level");
 assert(formalNpcLevelBonusForTypeV4("champion") === 2 && formalNpcLevelBonusForTypeV4("villain") === 2, "core NPC rules should give champion-tier trainers +2 levels");
-assert(formalMoveQualityRuleForSourceV4({kind: "player-starter"}).correctMoveCount === 1, "core move rules should require one correct player starter move");
-assert(formalMoveQualityRuleForSourceV4({kind: "npc", trainerType: "normal"}).correctMoveCount === 2, "core move rules should require two correct normal NPC moves");
+assert(formalMoveQualityRuleForSourceV4({kind: "player-starter"}).correctMoveCount === 3, "core move rules should require three correct player starter moves");
+assert(formalMoveQualityRuleForSourceV4({kind: "npc", trainerType: "normal"}).correctMoveCount === 3, "core move rules should require three correct normal NPC moves");
 assert(formalMoveQualityRuleForSourceV4({kind: "npc", trainerType: "elite"}).correctMoveCount === 3, "core move rules should require three correct elite NPC moves");
 assert(formalMoveQualityRuleForSourceV4({kind: "npc", trainerType: "villain", preset: true}).correctMoveCount === 4, "core move rules should let villain presets refill to four correct moves");
 const mockStarterLearnableMoveIds = new Set([
@@ -595,7 +596,8 @@ prepared.starterCandidates.forEach((candidate, index) => {
   const learnableRecommendedMoveIds = Array.from(recommendedMoveIds).filter(moveId => mockStarterLearnableMoveIds.has(moveId));
   if (!learnableRecommendedMoveIds.length) return;
   const generatedMoveIds = new Set(candidate.pokemon.moves.map(move => toTestId(move.moveId)));
-  assert(learnableRecommendedMoveIds.some(moveId => generatedMoveIds.has(moveId)), `starter candidate ${index + 1} should keep one recommended learnable move`);
+  const recommendedHitCount = learnableRecommendedMoveIds.filter(moveId => generatedMoveIds.has(moveId)).length;
+  assert(recommendedHitCount >= Math.min(3, learnableRecommendedMoveIds.length), `starter candidate ${index + 1} should keep three recommended learnable moves when available`);
 });
 prepared.starterCandidates.forEach((candidate, index) => {
   const maxStarterIv = candidate.pokemon.powerProfile === "normal" ? 26 : 28;
@@ -2300,18 +2302,31 @@ let v5Run = createRunGameV5FromStarterRun({
   starterRun: prepared,
 });
 v5Run = selectStarterPokemonV5(v5Run, [0, 1, 2], 3, "v5-redline-select");
-const preparedV5RoundPlan = await api.prepareFormalRoundPlan(buildFormalRunCompatViewV5(v5Run));
-v5Run = ingestPreparedRoundPlanV5(v5Run, preparedV5RoundPlan, "v5-redline-prepare-round");
-const repeatedPreparedV5Run = ingestPreparedRoundPlanV5(v5Run, preparedV5RoundPlan, "v5-redline-prepare-round");
+const generatedV5RoundPlan = await generateFormalRoundParticipantsV5({
+  matchId: v5Run.matchId,
+  seed: v5Run.config.seed,
+  streak: v5Run.streak,
+  mode: v5Run.config.mode,
+  competitionMode: v5Run.config.competitionMode,
+  ruleSet: v5Run.config.ruleSet,
+  battlePreference: v5Run.config.battlePreference,
+  generateRandomBattleTeam: input => generateRandomBattleTeamPreviewV4(mockDex as any, input),
+});
+v5Run = prepareRestRoundV5(v5Run, {rounds: generatedV5RoundPlan, commandId: "v5-redline-prepare-round"});
+const repeatedPreparedV5Run = prepareRestRoundV5(v5Run, {rounds: generatedV5RoundPlan, commandId: "v5-redline-prepare-round"});
 assert(repeatedPreparedV5Run === v5Run, "RunGameV5 prepare-round should be command-id idempotent");
 const preparedV5NpcRef = v5Run.roundPlan[0]!.npcRefs[0]!;
 const preparedV5Npc = v5Run.playersById[preparedV5NpcRef]!;
-assert(preparedV5Npc.name === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.name, "RunGameV5 NPC should preserve the formal trainer name");
-assert(preparedV5Npc.avatar === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.avatar, "RunGameV5 NPC should preserve the formal trainer avatar");
-assert(preparedV5Npc.npcProfile?.trainerId === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.trainerId, "RunGameV5 NPC should preserve the formal trainer id");
-assert(preparedV5Npc.npcProfile?.trainerType === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.trainerType, "RunGameV5 NPC should preserve the formal trainer type");
-assert(preparedV5Npc.npcProfile?.powerProfile === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.powerProfile, "RunGameV5 NPC should preserve the formal power profile");
-assert(preparedV5Npc.npcProfile?.aiProfile.level === preparedV5RoundPlan.roundPlan[0]!.npcs[0]!.aiProfile.level, "RunGameV5 NPC should preserve the formal AI level");
+const generatedV5Npc = generatedV5RoundPlan[0]!.participants[0]!;
+assert(preparedV5Npc.name === generatedV5Npc.name, "RunGameV5 NPC should preserve the generated trainer name");
+assert(preparedV5Npc.avatar === generatedV5Npc.avatar, "RunGameV5 NPC should preserve the generated trainer avatar");
+assert(!preparedV5Npc.avatar.startsWith("npc/avatars/"), "RunGameV5 generated NPC should use a battle trainer visual, not an avatar fallback");
+assert(/^npc\/(?:normal|boss)\//.test(preparedV5Npc.avatar), "RunGameV5 generated NPC visual should come from the typed trainer visual catalog");
+assert(preparedV5Npc.npcProfile?.trainerId === generatedV5Npc.npcProfile?.trainerId, "RunGameV5 NPC should preserve the generated trainer id");
+assert(preparedV5Npc.npcProfile?.trainerType === generatedV5Npc.npcProfile?.trainerType, "RunGameV5 NPC should preserve the generated trainer type");
+assert(preparedV5Npc.npcProfile?.powerProfile === generatedV5Npc.npcProfile?.powerProfile, "RunGameV5 NPC should preserve the generated power profile");
+assert(preparedV5Npc.npcProfile?.aiProfile.level === generatedV5Npc.npcProfile?.aiProfile.level, "RunGameV5 NPC should preserve the generated AI level");
+assert(preparedV5Npc.npcProfile?.generatedBy.sourceKind === "npc", "RunGameV5 NPC should record the V5 participant source kind");
 const preparedV5BattleView = buildBattleViewV5(v5Run);
 const repeatedPreparedV5BattleView = buildBattleViewV5(v5Run);
 assert(preparedV5BattleView.participants.p2?.npcProfile?.trainerId === preparedV5Npc.npcProfile?.trainerId, "RunGameV5 battle view should preserve authoritative NPC profile fields");
@@ -2340,11 +2355,16 @@ const v5RuleSnapshot = (pokemonId: string, run = v5Run) => {
     moves: pokemon.moves.map(move => move.moveId),
   });
 };
-const v5SelfStudyLesson = api.getFormalTrainingGroundLessons(buildFormalRunCompatViewV5(v5Run)).find(entry => entry.kind === "self-study") || api.getFormalTrainingGroundLesson(buildFormalRunCompatViewV5(v5Run));
+const v5SelfStudyLesson = getTrainingGroundLessonForInputV5(v5Run, {lessonKind: "self-study"});
 assert(v5SelfStudyLesson, "RunGameV5 random parity smoke should have a self-study lesson");
 const v5TrainingCommandA = applyTrainingLessonV5(v5Run, {pokemonId: v5TrainingPokemonId, lessonKind: "self-study"}, v5SelfStudyLesson, null, "v5-random-training-command-a");
 const v5TrainingCommandB = applyTrainingLessonV5(v5Run, {pokemonId: v5TrainingPokemonId, lessonKind: "self-study"}, v5SelfStudyLesson, null, "v5-random-training-command-b");
 assert(v5RuleSnapshot(v5TrainingPokemonId, v5TrainingCommandA.run) === v5RuleSnapshot(v5TrainingPokemonId, v5TrainingCommandB.run), "RunGameV5 self-study random result must not depend on commandId");
+const v5BatchTraining = applyTrainingLessonV5(v5Run, {pokemonId: v5TrainingPokemonId, lessonKind: "self-study", rounds: 2}, v5SelfStudyLesson, null, "v5-batch-training-command");
+assert(v5BatchTraining.result.effectiveRounds === 2, "RunGameV5 batch self-study should apply two rounds in one command");
+assert(v5BatchTraining.result.totalFee === v5SelfStudyLesson.fee * 2, "RunGameV5 batch self-study should deduct two lesson fees");
+assert(v5BatchTraining.run.restState.trainingGroundByNodeId?.[v5BatchTraining.run.currentNodeId || ""]?.selfStudyRoll === 2, "RunGameV5 batch self-study should advance self-study roll by effective rounds");
+assert(!v5CommandLogForbidden.test(JSON.stringify(v5BatchTraining.run.commandLog)), "RunGameV5 batch self-study commandLog should stay small");
 const v5RerollCommandA = rerollSelfPokemonStatsV5(v5Run, {pokemonId: v5TrainingPokemonId, part: "ivs", lockedStats: ["hp"]}, "v5-random-reroll-command-a");
 const v5RerollCommandB = rerollSelfPokemonStatsV5(v5Run, {pokemonId: v5TrainingPokemonId, part: "ivs", lockedStats: ["hp"]}, "v5-random-reroll-command-b");
 assert(v5RuleSnapshot(v5TrainingPokemonId, v5RerollCommandA.run) === v5RuleSnapshot(v5TrainingPokemonId, v5RerollCommandB.run), "RunGameV5 stat reroll random result must not depend on commandId");
@@ -2357,15 +2377,17 @@ let v5ShopRun = createRunGameV5FromStarterRun({
   starterRun: prepared,
 });
 v5ShopRun = selectStarterPokemonV5(v5ShopRun, [0, 1, 2], 3, "v5-random-shop-select");
-v5ShopRun = prepareRoundPlanFromDraftsV5(v5ShopRun, {
-  rounds: roundPlanned.roundPlan.map(round => ({
-    participants: round.participants,
-    mode: round.mode,
-    ruleSet: round.ruleSet,
-    seed: round.seed,
-  })),
-  commandId: "v5-random-shop-prepare-round",
+const generatedV5ShopRounds = await generateFormalRoundParticipantsV5({
+  matchId: v5ShopRun.matchId,
+  seed: v5ShopRun.config.seed,
+  streak: v5ShopRun.streak,
+  mode: v5ShopRun.config.mode,
+  competitionMode: v5ShopRun.config.competitionMode,
+  ruleSet: v5ShopRun.config.ruleSet,
+  battlePreference: v5ShopRun.config.battlePreference,
+  generateRandomBattleTeam: input => generateRandomBattleTeamPreviewV4(mockDex as any, input),
 });
+v5ShopRun = prepareRestRoundV5(v5ShopRun, {rounds: generatedV5ShopRounds, commandId: "v5-random-shop-prepare-round"});
 v5ShopRun = {
   ...v5ShopRun,
   playersById: {
@@ -2378,15 +2400,30 @@ const v5ShopProduct = createFormalShopProductViewsV4(v5CurrentShop, itemDetail, 
 assert(v5ShopProduct, "RunGameV5 random parity smoke should have a buyable shop product");
 const v5BuyCommandA = buyShopProductV5(v5ShopRun, v5ShopProduct, "v5-random-shop-command-a");
 const v5BuyCommandB = buyShopProductV5(v5ShopRun, v5ShopProduct, "v5-random-shop-command-b");
-const v5RestockedSlot = (run: typeof v5ShopRun) => {
+const v5ShopSlot = (run: typeof v5ShopRun, slotId: string) => {
   const shop = run.currentNodeId ? run.restState.shopByNodeId?.[run.currentNodeId] || null : null;
-  return Object.values(shop?.categories || {}).flat().find(item => item.slotId === v5ShopProduct.slotId)?.itemID || "";
+  return Object.values(shop?.categories || {}).flat().find(item => item.slotId === slotId) || null;
 };
-assert(v5RestockedSlot(v5BuyCommandA.run) === v5RestockedSlot(v5BuyCommandB.run), "RunGameV5 shop restock random result must not depend on commandId");
+assert(v5ShopSlot(v5BuyCommandA.run, v5ShopProduct.slotId)?.itemID === v5ShopProduct.itemID, "RunGameV5 shop buy should not restock the purchased slot");
+assert(v5ShopSlot(v5BuyCommandA.run, v5ShopProduct.slotId)?.stock === 0, "RunGameV5 shop buy should mark the purchased slot sold out");
+assert(v5ShopSlot(v5BuyCommandB.run, v5ShopProduct.slotId)?.stock === 0, "RunGameV5 shop buy sold-out result must not depend on commandId");
+const v5CartProducts = createFormalShopProductViewsV4(v5CurrentShop, itemDetail, {getMoveDetail: moveDetail}).filter((product: FormalShopProductViewV4) => product.price > 0 && product.stock > 0).slice(0, 2);
+assert(v5CartProducts.length === 2, "RunGameV5 cart smoke should have two buyable products");
+const v5CartBuy = buyShopCartProductsV5(v5ShopRun, v5CartProducts, "v5-cart-buy-command");
+assert(v5CartBuy.result.totalPrice === v5CartProducts.reduce((sum, product) => sum + product.price, 0), "RunGameV5 cart buy should deduct the whole cart total");
+assert(v5CartProducts.every(product => v5ShopSlot(v5CartBuy.run, product.slotId)?.stock === 0), "RunGameV5 cart buy should mark all purchased slots sold out");
+const v5CartRetry = buyShopCartProductsV5(v5CartBuy.run, v5CartProducts, "v5-cart-buy-command");
+assert(v5CartRetry.run === v5CartBuy.run, "RunGameV5 cart buy should be command-id idempotent");
+assert(!v5CommandLogForbidden.test(JSON.stringify(v5CartBuy.run.commandLog)), "RunGameV5 cart buy commandLog should stay small");
+const v5RefreshA = refreshShopProductsV5(v5ShopRun, "v5-shop-refresh-a");
+const v5RefreshB = refreshShopProductsV5(v5ShopRun, "v5-shop-refresh-b");
+const v5RefreshItems = (run: typeof v5ShopRun) => JSON.stringify(Object.values(run.restState.shopByNodeId?.[run.currentNodeId || ""]?.categories || {}).flat().map(item => [item.slotId, item.itemID, item.stock]));
+assert(v5RefreshA.result.balanceAfter === v5ShopRun.playersById[v5ShopRun.selfPlayerId]!.money - 50, "RunGameV5 shop refresh should cost 50 coins");
+assert(v5RefreshItems(v5RefreshA.run) === v5RefreshItems(v5RefreshB.run), "RunGameV5 shop refresh random result must not depend on commandId");
+assert(v5RefreshItems(v5RefreshA.run) !== v5RefreshItems(v5ShopRun), "RunGameV5 shop refresh should regenerate the current shop");
 let previousV5Bytes = Buffer.byteLength(JSON.stringify(v5Run), "utf8");
 for (let index = 0; index < 3; index += 1) {
-  const v5Compat = buildFormalRunCompatViewV5(v5Run);
-  const lesson = api.getFormalTrainingGroundLessons(v5Compat).find(entry => entry.kind === "self-study") || api.getFormalTrainingGroundLesson(v5Compat);
+  const lesson = getTrainingGroundLessonForInputV5(v5Run, {lessonKind: "self-study"});
   assert(lesson, "RunGameV5 redline smoke should have a training lesson");
   const applied = applyTrainingLessonV5(v5Run, {pokemonId: v5TrainingPokemonId, lessonKind: "self-study"}, lesson, null, `v5-redline-training-${index + 1}`);
   v5Run = applied.run;
@@ -2398,7 +2435,6 @@ assert(Object.keys(v5Run.commandLog).length === 5, "RunGameV5 redline smoke shou
 assert(!v5CommandLogForbidden.test(JSON.stringify(v5Run.commandLog)), "RunGameV5 commandLog should not contain large run/entity payload fields");
 assert(!v5MapForbidden.test(JSON.stringify(v5Run.gameMap)), "RunGameV5 gameMap should only contain node slot references");
 assert(!v5MapForbidden.test(JSON.stringify(v5Run.roundPlan)), "RunGameV5 roundPlan should only contain node slot references");
-const v5BattleCompat = buildFormalRunCompatViewV5(v5Run);
 const preparedV5BattleSession = prepareBattleSessionFromRunGameV5(v5Run);
 const preparedV5P2 = preparedV5BattleSession.sessionInput.players.find(player => player.playerId === "p2")!;
 assert(preparedV5P2.aiProfile?.level === preparedV5Npc.npcProfile?.aiProfile.level, "RunGameV5 battle session should pass the NPC AI level to BattleStream");
@@ -2411,7 +2447,7 @@ const finalizedV5Battle = finalizeBattleResultFromSnapshotV5(v5Run, {
   snapshot: {
     id: "v5-redline-battle-session",
     runId: v5Run.runId,
-    nodeId: v5Run.currentNodeId || v5BattleCompat.roundPlan[0]!.id,
+    nodeId: v5Run.currentNodeId || v5Run.roundPlan[0]!.nodeId,
     status: "ended",
     mode: "singles",
     ruleSet: "standard",

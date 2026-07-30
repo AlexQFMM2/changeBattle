@@ -47,6 +47,10 @@ export type RoomTrainingApplyResult = RoomRestMutationResult & {
   lessonId?: string;
   lessonKind?: FormalTrainingGroundLessonViewV4["kind"] | string;
   fee?: number;
+  requestedRounds?: number;
+  effectiveRounds?: number;
+  totalFee?: number;
+  roundSummaries?: Array<{round: number; event: string; ivTotalBefore: number; ivTotalAfter: number; evTotalBefore: number; evTotalAfter: number}>;
   balanceAfter?: number;
   beforePokemon?: LocalPokemonV4;
   afterPokemon?: LocalPokemonV4;
@@ -62,7 +66,7 @@ const STAT_IDS: DexStatId[] = ["hp", "atk", "def", "spa", "spd", "spe"];
 const PANEL_SWAP_MS = 380;
 const STUDYING_MS = 2000;
 
-type TrainingGroundStep = "pokemon" | "move" | "replace" | "result";
+type TrainingGroundStep = "pokemon" | "self-study" | "move" | "replace" | "result";
 type TrainingGroundResultState = {
   result: TrainingGroundApplyResult;
   lesson: FormalTrainingGroundLessonViewV4;
@@ -77,6 +81,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
   const [selectedPokemonId, setSelectedPokemonId] = useState("");
   const [selectedMoveId, setSelectedMoveId] = useState("");
   const [replaceMoveIndex, setReplaceMoveIndex] = useState<number | null>(null);
+  const [selfStudyRounds, setSelfStudyRounds] = useState(1);
   const [applying, setApplying] = useState(false);
   const [studying, setStudying] = useState(false);
   const [selectedLessonId, setSelectedLessonId] = useState("");
@@ -101,6 +106,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
     setSelectedPokemonId(trainableTeam[0]?.localPokemonId || "");
     setSelectedMoveId("");
     setReplaceMoveIndex(null);
+    setSelfStudyRounds(1);
     setStudying(false);
     setResultState(null);
   }, [lesson?.lessonId, lessonOptions.map(option => option.lessonId).join("|"), open]);
@@ -163,7 +169,10 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
   function proceedFromPokemon() {
     if (!lesson || !selectedPokemon) return;
     if (lesson.kind === "self-study") {
-      void applyLesson();
+      const maxRounds = maxAffordableSelfStudyRounds(money, lesson.fee);
+      setSelfStudyRounds(current => Math.max(1, Math.min(current, maxRounds)));
+      setDialogueText(`${pokemonName(selectedPokemon)}要自习几轮？可以按金币一次性安排。`);
+      swapPanel("self-study");
       return;
     }
     setSelectedMoveId("");
@@ -186,7 +195,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
       return;
     }
     const input: FormalTrainingGroundApplyInputV4 = lesson.kind === "self-study"
-      ? {pokemonId: selectedPokemon.localPokemonId}
+      ? {pokemonId: selectedPokemon.localPokemonId, rounds: selfStudyRounds}
       : {pokemonId: selectedPokemon.localPokemonId, moveId: selectedMoveId, replaceMoveIndex: replaceMoveIndex ?? undefined};
     const pokemonBefore = selectedPokemon;
     const replacedMove = replaceMoveIndex === null ? undefined : selectedPokemon.moves[replaceMoveIndex];
@@ -248,6 +257,7 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
     lessonOptions,
     selectedLessonOption,
     onSelectLesson,
+    selfStudyRounds,
   });
   const dialogueSpeaker = lesson ? lesson.teacherLabel : selectedLessonOption ? selectedLessonOption.teacherLabel : "训练场";
   const dialogueItemName = step && selectedPokemon ? pokemonName(selectedPokemon) : lesson ? lesson.title : selectedLessonOption ? selectedLessonOption.title : undefined;
@@ -308,6 +318,14 @@ export function TrainingRestTrainingGroundScene({api, open, lesson, lessonOption
                 moves={availableMoves}
                 selectedMoveId={selectedMoveId}
                 onMove={selectMove}
+              />
+            ) : null}
+            {step === "self-study" && lesson ? (
+              <SelfStudyRoundsPanel
+                lesson={lesson}
+                money={money}
+                rounds={selfStudyRounds}
+                onChange={setSelfStudyRounds}
               />
             ) : null}
             {step === "replace" ? (
@@ -475,6 +493,43 @@ function MoveReplacePanel({api, currentMoves, replaceMoveIndex, onReplace}: {
   );
 }
 
+function SelfStudyRoundsPanel({lesson, money, rounds, onChange}: {
+  lesson: FormalTrainingGroundLessonViewV4;
+  money: number;
+  rounds: number;
+  onChange: (rounds: number) => void;
+}) {
+  const maxRounds = maxAffordableSelfStudyRounds(money, lesson.fee);
+  const selectedRounds = Math.max(1, Math.min(rounds, maxRounds));
+  const total = selectedRounds * Math.max(0, Math.floor(Number(lesson.fee || 0)));
+  const options = Array.from({length: Math.min(6, maxRounds)}, (_, index) => index + 1);
+  return (
+    <div className="training-rest-training-ground-self-study-panel">
+      <section>
+        <h3>安排自习轮数</h3>
+        <p>当前最多可安排 {maxRounds.toLocaleString()} 轮，本次预计花费 {total.toLocaleString()} 金币。</p>
+      </section>
+      <div className="training-rest-training-ground-self-study-options">
+        {options.map(value => (
+          <button type="button" data-selected={value === selectedRounds ? "true" : "false"} key={value} onClick={() => onChange(value)}>
+            {value} 轮
+          </button>
+        ))}
+      </div>
+      <label className="training-rest-training-ground-self-study-custom">
+        <span>自定义</span>
+        <input
+          type="number"
+          min={1}
+          max={maxRounds}
+          value={selectedRounds}
+          onChange={event => onChange(Math.max(1, Math.min(maxRounds, Math.floor(Number(event.target.value || 1)))))}
+        />
+      </label>
+    </div>
+  );
+}
+
 function TrainingResultPanel({api, state}: {api: ChangeBattleV2Api; state: TrainingGroundResultState}) {
   const after = findResultPokemon(state.result, state.pokemonBefore.localPokemonId) || state.pokemonBefore;
   if (state.lesson.kind === "self-study") {
@@ -496,16 +551,20 @@ function TrainingResultPanel({api, state}: {api: ChangeBattleV2Api; state: Train
 
 function SelfStudyResultPanel({api, before, after, result}: {api: ChangeBattleV2Api; before: LocalPokemonV4; after: LocalPokemonV4; result: TrainingGroundApplyResult}) {
   const selfStudyEvent = result.source === "room" ? undefined : result.selfStudyEvent;
+  const roomRounds = result.source === "room" ? Math.max(1, Math.floor(Number(result.effectiveRounds || 1))) : 1;
+  const roomTotalFee = result.source === "room" ? Math.max(0, Math.floor(Number(result.totalFee || result.fee || 0))) : 0;
   const eventText = selfStudyEvent === "playful"
     ? "贪玩"
     : selfStudyEvent === "focused"
       ? "认真学习"
-      : "普通自习";
+      : roomRounds > 1 ? `自习 ${roomRounds} 轮` : "普通自习";
   const summaryText = selfStudyEvent === "playful"
     ? "这节课有点分心，但还是有收获。"
     : selfStudyEvent === "focused"
       ? "这堂课收获很明显，具体提升看右侧能力表。"
-      : "完成了一节自习，具体变化看右侧能力表。";
+      : roomRounds > 1
+        ? `连续完成 ${roomRounds} 轮自习，合计花费 ${roomTotalFee.toLocaleString()} 金币。`
+        : "完成了一节自习，具体变化看右侧能力表。";
   return (
     <TrainingGroundPokemonDetailCard
       api={api}
@@ -629,6 +688,7 @@ function buildDialogueActions({
   lessonOptions,
   selectedLessonOption,
   onSelectLesson,
+  selfStudyRounds,
 }: {
   step: TrainingGroundStep | null;
   lesson?: FormalTrainingGroundLessonViewV4 | null;
@@ -644,6 +704,7 @@ function buildDialogueActions({
   lessonOptions: FormalTrainingGroundLessonViewV4[];
   selectedLessonOption?: FormalTrainingGroundLessonViewV4 | null;
   onSelectLesson?: (lesson: FormalTrainingGroundLessonViewV4) => void;
+  selfStudyRounds: number;
 }) {
   if (!step) {
     if (!lesson && lessonOptions.length && onSelectLesson) {
@@ -673,6 +734,12 @@ function buildDialogueActions({
       {label: "返回", onClick: onBack},
     ];
   }
+  if (step === "self-study") {
+    return [
+      {label: "返回", onClick: onBack},
+      {label: applying ? "结算中" : `确认自习 x${selfStudyRounds}`, primary: true, onClick: onApply},
+    ];
+  }
   if (step === "replace") {
     return [
       {label: "返回", onClick: onBack},
@@ -682,6 +749,11 @@ function buildDialogueActions({
   return [
     {label: "课程结束", primary: true, onClick: onLessonComplete},
   ];
+}
+
+function maxAffordableSelfStudyRounds(money: number, fee: number): number {
+  const safeFee = Math.max(1, Math.floor(Number(fee || 1)));
+  return Math.max(1, Math.floor(Math.max(0, Math.floor(Number(money || 0))) / safeFee));
 }
 
 function lessonMovePool(api: ChangeBattleV2Api, lesson: FormalTrainingGroundLessonViewV4, speciesId: string) {

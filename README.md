@@ -1,14 +1,26 @@
 # ChangeBattle V2
 
-ChangeBattle V2 是当前主线。`v2` 分支对应 beta/debug 通道，当前版本是 `0.1.29`。
+## Development Rules First
+
+任何代码开发、重构、UI 调整、发版或计划执行前，必须先读 [`rules.md`](rules.md)。`rules.md` 是当前项目最高优先级的工程约束入口；如果旧计划、旧 README、遗留代码或临时实现与它冲突，按 `rules.md` 执行，并同步修正过期内容。
+
+关键原则：
+
+- KISS：能用一个清晰后端规则函数解决的问题，不允许绕成多路径兼容链。
+- 正式 room V5 是服务端权威；客户端只提交意图、缓存 scoped view，不恢复 `formalRun/restRunSnapshot` 主线。
+- 页面需要的小切片可以传，例如当前商店商品列表；禁止的是完整 run、完整实体表、完整历史日志等大对象。
+- 数据结构迁移必须保留成品游戏 UI，只替换数据来源，不把已有场景、立绘、对话框、卡片和动效改成调试面板。
+- ChromeAutomation 验收必须点真实用户流程；需要成功路径时用测试模式/测试种子，不要只拿金币不足等失败路径充数。
+
+ChangeBattle V2 是当前主线。`v2` 分支对应 beta/debug 通道，当前版本是 `0.1.30`。
 
 当前项目已经从“本地大 RunGame 草稿推进”收口到正式 room C/S 架构：服务端 `RunGameV5` 保存权威实体，Web/Desktop/Android 只通过 scoped view 和轻量 command 与 Battle API 交互。训练场和 legacy V4 helper 仍保留，但必须硬隔离，不能作为正式 room fallback。
 
 ```txt
-current beta:   0.1.29
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.29
-Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.29.zip
-Android APK:    ChangeBattle-V2-Android-debug-v0.1.26.apk
+current beta:   0.1.30
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.30
+Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.30.zip
+Android APK:    ChangeBattle-V2-Android-debug-v0.1.30.apk
 beta latest:    http://119.45.240.157/changebattle-beta/latest.json
 beta site:      http://119.45.240.157/changebattle-beta/
 official API:   https://api.65h26i.top/changebattle/battle
@@ -17,11 +29,12 @@ assets CDN:     https://assets.65h26i.top/beta/
 
 后续接手优先读：
 
+- `rules.md`：最高优先级开发约束，任何代码工作前必读。
 - `../README.md`：工作区总入口，解释线上、Release、分支、目录。
 - `docs/architecture.md`：当前架构边界。
 - `docs/engineering-redlines.md`：红线、代码规范和检查命令。
 - `release/README.md`：Desktop/APK/GitHub Release/线上增量发布流程。
-- `docs/release-notes-v0.1.29.md`：当前 beta 版本说明。
+- `docs/release-notes-v0.1.30.md`：当前 beta 版本说明。
 
 ## Repository / Branch
 
@@ -59,6 +72,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - **0.1.27 Desk/NPC hotfix**：补齐 portable Showdown runtime 和 `ts-chacha20`，恢复历史正式 NPC 固定赛程、强度、立绘与 AI profile；Desk 离线 12 种模式/规则组合均已真实进入 BattleStream `running`。
 - **0.1.28 scoped view hotfix**：修复正式休整页 scoped view 成功刷新时清理 effect 导致同步遮罩永久残留的问题；Desk 资源协议现在会回源重试缓存读取失败，并记录完整 protocol/CDN URL 与底层错误。
 - **0.1.29 battle presentation hotfix**：战斗页 BGM 播放器跨路由持续挂载，官方 V5 Boss 场次按权威 NPC profile 播放 Boss 音乐；恢复 10 张战斗背景的带 seed 稳定选择，冠军固定冠军舞台。
+- **0.1.30 V5 KISS/rest hotfix**：正式 room V5 prepare-round 改为 V5-native 参赛方生成；休整商店收口到服务端购物车/整店刷新，批量自习走服务端权威；生成 NPC 直接使用按类型稳定选择的战斗立绘，禁止头像兜底掩盖错误。
 - **桌面更新**：增量更新使用内容哈希对象池：服务器托管 `latest.json`、`manifests/current.json`、`manifests/vX.Y.Z.json` 和 `objects/<sha>`；客户端按本地实际 sha 与远端清单比较新增/修改/删除。大完整包不放线上服务器，避免流量计费。
 - **下一步重点**：继续做正式 room scoped view 细节回归、Battle V5 纯计算拆分、AI/队伍平衡、合作 AI、Android 验收和 release 稳定性。所有 room 主线新代码必须遵守 `docs/engineering-redlines.md`。
 
@@ -137,7 +151,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.29` 是当前战斗 BGM、Boss 场景识别和正式背景选择修复 beta 基线；线上服务器只放增量 metadata 和下载页，Android debug APK 当前仍为 0.1.26。
+- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.30` 是当前 V5 KISS/rest/NPC 立绘修复 beta 基线；线上服务器只放增量 metadata 和下载页，Android debug APK 同步为 0.1.30。
 
 当前明确不做：
 
@@ -259,16 +273,16 @@ VITE_CHANGEBATTLE_BATTLE_SERVICE_URL=http://127.0.0.1:5191 pnpm --filter @change
 当前 beta/debug 基线：
 
 ```txt
-latest debug: 0.1.29
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.29
-Desktop package: ChangeBattle-V2-Desk-portable-debug-v0.1.29.zip
-Android package: ChangeBattle-V2-Android-debug-v0.1.26.apk
+latest debug: 0.1.30
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.30
+Desktop package: ChangeBattle-V2-Desk-portable-debug-v0.1.30.zip
+Android package: ChangeBattle-V2-Android-debug-v0.1.30.apk
 beta latest:  http://119.45.240.157/changebattle-beta/latest.json
 beta site:    http://119.45.240.157/changebattle-beta/
 stable site:  http://119.45.240.157/changebattle/
 ```
 
-`0.1.29` 是当前战斗 BGM、Boss 场景识别和正式背景选择修复 beta 基线。完整包托管 GitHub Release；beta 服务器只保留 `latest.json`、下载页、manifest 和增量 objects，不托管大 zip/apk。
+`0.1.30` 是当前 V5 KISS/rest/NPC 立绘修复 beta 基线。完整包托管 GitHub Release；beta 服务器只保留 `latest.json`、下载页、manifest 和增量 objects，不托管大 zip/apk。
 
 玩家解压后运行：
 
@@ -299,7 +313,7 @@ debug/beta 推荐发版命令：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-VERSION=0.1.29
+VERSION=0.1.30
 git push origin v2
 gh workflow run "Release Debug Desktop" \
   --repo AlexQFMM2/changeBattle \

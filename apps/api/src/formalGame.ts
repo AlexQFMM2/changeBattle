@@ -404,6 +404,7 @@ export type FormalTrainingGroundApplyInputV4 = {
   replaceMoveIndex?: number;
   lessonId?: string;
   lessonKind?: FormalTrainingGroundLessonKindV4;
+  rounds?: number;
 };
 
 export type FormalTrainingGroundSelfStudyChangeV4 = {
@@ -4180,15 +4181,15 @@ function normalizeMovesForDetail(
   const speciesTypes = new Set(detail.types.map(toID));
   const stabDamagingPool = fallbackPool.filter(move => move.power > 0 && move.pp > 0 && speciesTypes.has(toID(move.typeId || move.type)));
   const roleMoves = preferredMovesForRole(fallbackPool, role, rng);
-  const isPlayerStarterRule = moveRule.correctMoveCount <= 1 && !moveRule.preferPresetMoves;
-  const starterCoreMoves = isPlayerStarterRule
+  const shouldUseStarterCoreMoves = moveRule.correctMoveCount >= 3 && !moveRule.preferPresetMoves;
+  const starterCoreMoves = shouldUseStarterCoreMoves
     ? uniqueById([
       ...strongStarterDamagingMoves(recommendedPool.filter(move => move.power > 0 && move.pp > 0), rng),
       ...strongStarterDamagingMoves(stabDamagingPool, rng),
       ...preferredMovesForRole(recommendedPool, role, rng),
-    ]).slice(0, 2)
+    ]).slice(0, Math.max(0, moveRule.correctMoveCount))
     : [];
-  const recommendedMoves = isPlayerStarterRule
+  const recommendedMoves = shouldUseStarterCoreMoves
     ? starterCoreMoves
     : preferredMovesForRole(recommendedPool, role, rng).slice(0, Math.max(0, moveRule.correctMoveCount));
   const presetMoves = moveRule.preferPresetMoves ? presetMovesForDetail(dex, presetMoveIds, fallbackPool) : [];

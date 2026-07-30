@@ -441,6 +441,8 @@ export type FormalRoomRestActionV1 =
   | {type: "team.heal"}
   | {type: "pokemon.exchange"; sourcePokemonId: string; targetPokemonId: string}
   | {type: "shop.buy"; slotId: string}
+  | {type: "shop.buy-cart"; slotIds: string[]}
+  | {type: "shop.refresh"}
   | {type: "shop.sell"; itemInstanceIds: string[]}
   | {type: "training.apply"; input: Record<string, unknown>}
   | {type: "pokemon.reroll-stats"; input: Record<string, unknown>}
@@ -699,6 +701,8 @@ export function createChangeBattleV2Api(options: ChangeBattleV2ApiOptions = {}) 
       | "rooms.matches.commands.teamHeal"
       | "rooms.matches.commands.pokemonExchange"
       | "rooms.matches.commands.shopBuy"
+      | "rooms.matches.commands.shopBuyCart"
+      | "rooms.matches.commands.shopRefresh"
       | "rooms.matches.commands.shopSell"
       | "rooms.matches.commands.trainingApply"
       | "rooms.matches.commands.pokemonRerollStats"

@@ -72,14 +72,14 @@ export function trainingRestDisplayFromRestViewV5(input: {
     pendingSettlement: view.status === "settlement_ready" || view.phase === "settlement",
     roundSettlement,
     exchange: view.exchange || null,
-    shop: currentNode?.id ? view.rest.shopByNodeId?.[currentNode.id] || null : null,
+    shop: view.shop || null,
     trainingGround: {
       lessons: view.trainingGround?.lessons || [],
       lesson: view.trainingGround?.lesson || null,
     },
     restPreviewUnlocks: view.rest.restPreviewUnlocks,
-    battleLog: view.rest.battleLog,
-    coinLog: view.rest.coinLog,
+    battleLog: view.recentBattleLog || [],
+    coinLog: view.recentCoinLog || [],
   };
 }
 

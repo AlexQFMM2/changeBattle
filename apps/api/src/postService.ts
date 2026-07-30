@@ -17,6 +17,8 @@ export type PostServiceActionNameV4 =
   | "rooms.matches.commands.teamHeal"
   | "rooms.matches.commands.pokemonExchange"
   | "rooms.matches.commands.shopBuy"
+  | "rooms.matches.commands.shopBuyCart"
+  | "rooms.matches.commands.shopRefresh"
   | "rooms.matches.commands.shopSell"
   | "rooms.matches.commands.trainingApply"
   | "rooms.matches.commands.pokemonRerollStats"
@@ -166,6 +168,16 @@ const ACTIONS: Record<PostServiceActionNameV4, ActionDefinition> = {
   "rooms.matches.commands.shopBuy": {
     method: "POST",
     path: input => matchCommandPath(input, "shop.buy"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.shopBuyCart": {
+    method: "POST",
+    path: input => matchCommandPath(input, "shop.buy-cart"),
+    body: commandBody,
+  },
+  "rooms.matches.commands.shopRefresh": {
+    method: "POST",
+    path: input => matchCommandPath(input, "shop.refresh"),
     body: commandBody,
   },
   "rooms.matches.commands.shopSell": {

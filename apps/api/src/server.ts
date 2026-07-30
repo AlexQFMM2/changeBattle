@@ -4,12 +4,12 @@ import net from "node:net";
 import {pathToFileURL} from "node:url";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
 import {addPlayerVaultItemV4} from "@changebattle-v2/core";
-import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAssetFieldsV4, normalizePlayerVault, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
+import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAssetFieldsV4, normalizePlayerVault, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type FormalShopProductViewV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmUseFailureReasonV4} from "./itemEffects.js";
 import {matchLegacyFormalRoomRoute} from "./legacyFormalRoomRoutes.js";
 import {createMemoryRedisLikeProvider, createRedisSocketProvider, type RedisLikeCommandProvider} from "./roomStore.js";
-import {applyTrainingLessonV5, buildScopedFormalRoomViewV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementFromRunGameV5, commitSelfBagMutationV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, getMedicalInsuranceTierForChoiceV5, getPokemonExchangeViewV5, getTrainingGroundLessonForInputV5, healSelfTeamV5, ingestFormalCoopAllyV5, ingestPreparedRoundPlanV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, viewScopeForRunGameV5, type RunGameV5, type ViewScopeNameV5} from "./runGameV5.js";
-import {buildFormalRunCompatViewV5} from "./runGameV5CompatLegacy.js";
+import {applyTrainingLessonV5, buildScopedFormalRoomViewV5, buyShopCartProductsV5, buyShopProductV5, chooseMedicalInsuranceV5, commitFinalSettlementFromRunGameV5, commitSelfBagMutationV5, createRunGameV5FromStarterRun, ensureDefaultSystemItemsForSelfV5, exchangeSelfPokemonV5, finalizeBattleResultFromSnapshotV5, getMedicalInsuranceTierForChoiceV5, getPokemonExchangeViewV5, getTrainingGroundLessonForInputV5, healSelfTeamV5, ingestGeneratedParticipantV5, markBattleRunningV5, prepareBattleSessionFromRunGameV5, prepareFinalSettlementFromRunGameV5, prepareRestRoundV5, refreshShopProductsV5, reorderPlayerTeamV5, rerollSelfPokemonStatsV5, selectStarterPokemonV5, sellBagItemsV5, unlockOpponentPreviewV5, viewScopeForRunGameV5, type RunGameV5, type ViewScopeNameV5} from "./runGameV5.js";
+import {generateFormalCoopAllyParticipantV5, generateFormalRoundParticipantsV5} from "./formalParticipantGenerationV5.js";
 import {normalizeBattlePreferenceV4} from "./training.js";
 
 type ServerConfig = {
@@ -1113,6 +1113,8 @@ const FORMAL_REST_COMMAND_NAMES_V5 = new Set([
   "team.heal",
   "pokemon.exchange",
   "shop.buy",
+  "shop.buy-cart",
+  "shop.refresh",
   "shop.sell",
   "training.apply",
   "pokemon.reroll-stats",
@@ -1187,8 +1189,17 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
     return buildFormalScopedMatchView(next, matchId, "starter", {reused: false});
   }
   if (commandName === "prepare-round") {
-    const preparedCompatRun = await runFormalStepAsync(() => formalApi.prepareFormalRoundPlan(buildFormalRunCompatViewV5(match.runGameV5!)));
-    const runGameV5 = runFormalStep(() => ingestPreparedRoundPlanV5(match.runGameV5!, preparedCompatRun, commandId));
+    const rounds = await runFormalStepAsync(() => generateFormalRoundParticipantsV5({
+      matchId: match.runGameV5!.matchId,
+      seed: match.runGameV5!.config.seed,
+      streak: match.runGameV5!.streak,
+      mode: match.runGameV5!.config.mode,
+      competitionMode: match.runGameV5!.config.competitionMode,
+      ruleSet: match.runGameV5!.config.ruleSet,
+      battlePreference: match.runGameV5!.config.battlePreference,
+      generateRandomBattleTeam: formalApi.generateRandomBattleTeamPreviewV4,
+    }));
+    const runGameV5 = runFormalStep(() => prepareRestRoundV5(match.runGameV5!, {commandId, rounds}));
     const next = advanceRoomMatchV5(current, matchId, runGameV5);
     await saveRoom(next);
     broadcastRoomUpdated(next);
@@ -1222,6 +1233,27 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       const product = formalApi.createFormalShopProductViews(shop).find(entry => entry.slotId === slotId);
       if (!product) throw new HttpError(400, "formal_rest_action_failed", "商品不存在。");
       const applied = runFormalStep(() => buyShopProductV5(match.runGameV5!, product, commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "shop.buy-cart") {
+      const slotIds = Array.isArray((action as any)?.slotIds) ? (action as any).slotIds.map((value: unknown) => String(value || "").trim()).filter(Boolean) : [];
+      const currentNodeId = match.runGameV5!.currentNodeId;
+      const shop = currentNodeId ? match.runGameV5!.restState.shopByNodeId?.[currentNodeId] || null : null;
+      const bySlotId = new Map(formalApi.createFormalShopProductViews(shop).map(entry => [entry.slotId, entry]));
+      const products: Array<FormalShopProductViewV4 | null> = slotIds.map((slotId: string) => bySlotId.get(slotId) || null);
+      if (!slotIds.length || products.some((product): product is null => !product)) throw new HttpError(400, "formal_rest_action_failed", "购物车包含不存在的商品。");
+      const selectedProducts = products.filter((product): product is NonNullable<typeof product> => Boolean(product));
+      const applied = runFormalStep(() => buyShopCartProductsV5(match.runGameV5!, selectedProducts, commandId));
+      const next = advanceRoomMatchV5(current, matchId, applied.run);
+      await saveRoom(next);
+      broadcastRoomUpdated(next);
+      return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: applied.result.message, result: applied.result});
+    }
+    if (actionType === "shop.refresh") {
+      const applied = runFormalStep(() => refreshShopProductsV5(match.runGameV5!, commandId));
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
       broadcastRoomUpdated(next);
@@ -1297,6 +1329,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
         replaceMoveIndex: typeof trainingInput.replaceMoveIndex === "number" ? trainingInput.replaceMoveIndex : undefined,
         lessonId: typeof trainingInput.lessonId === "string" ? trainingInput.lessonId : undefined,
         lessonKind: typeof trainingInput.lessonKind === "string" ? trainingInput.lessonKind as any : undefined,
+        rounds: trainingInput.rounds === undefined ? undefined : Number(trainingInput.rounds),
       }, lesson, moveSummary, commandId, new Date(), {calculateMaxHp: calculateFormalPokemonMaxHp}));
       const next = advanceRoomMatchV5(current, matchId, applied.run);
       await saveRoom(next);
@@ -1320,11 +1353,21 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
     let battleRunGameV5 = match.runGameV5;
     const currentBattleNode = battleRunGameV5.gameMap.nodes.find(node => node.nodeId === battleRunGameV5.currentNodeId);
     if (battleRunGameV5.config.mode === "coop" && !currentBattleNode?.slots.p3) {
-      const compatPreparation = await runFormalStepAsync(() => formalApi.prepareFormalBattleSession(buildFormalRunCompatViewV5(battleRunGameV5)));
-      const compatNode = compatPreparation.restRunSnapshot.gameMap.find(node => node.id === compatPreparation.restRunSnapshot.currentNodeId);
-      const coopAllyDraft = compatNode?.participants.p3 || compatPreparation.restRunSnapshot.players.p3;
-      if (!coopAllyDraft) throw new HttpError(500, "formal_coop_ally_missing", "合作搭档生成失败，请重新开始本场对局。");
-      battleRunGameV5 = ingestFormalCoopAllyV5(battleRunGameV5, coopAllyDraft, compatPreparation.coopAllyNpc);
+      if (!currentBattleNode) throw new HttpError(409, "formal_current_node_missing", "当前没有可进入战斗的节点。");
+      const ally = await runFormalStepAsync(() => generateFormalCoopAllyParticipantV5({
+        matchId: battleRunGameV5.matchId,
+        seed: battleRunGameV5.config.seed,
+        streak: battleRunGameV5.streak,
+        mode: battleRunGameV5.config.mode,
+        competitionMode: battleRunGameV5.config.competitionMode,
+        ruleSet: battleRunGameV5.config.ruleSet,
+        battlePreference: battleRunGameV5.config.battlePreference,
+        generateRandomBattleTeam: formalApi.generateRandomBattleTeamPreviewV4,
+        nodeId: currentBattleNode.nodeId,
+        nodeIndex: currentBattleNode.index,
+        nodeSeed: currentBattleNode.seed,
+      }));
+      battleRunGameV5 = ingestGeneratedParticipantV5(battleRunGameV5, ally);
     }
     battleRunGameV5 = ensureDefaultSystemItemsForSelfV5(battleRunGameV5);
     const prepared = runFormalStep(() => prepareBattleSessionFromRunGameV5(battleRunGameV5));
@@ -1965,7 +2008,7 @@ function getRoomFinalResult(room: FormalRoomRecordV1): FormalRoomFinalResultResp
 
 function finalResultResponse(room: FormalRoomRecordV1, finalResult: FormalRoomFinalResultV1, reused: boolean, formalRunOverride: FormalGameRunV4 | null = null): FormalRoomFinalResultResponseV1 {
   const activeMatch = findActiveRoomMatch(room);
-  const compatFormalRun = finalResult.formalRun || formalRunOverride || activeMatch?.formalRun || null;
+  const compatFormalRun = activeMatch?.runGameV5 ? null : finalResult.formalRun || formalRunOverride || activeMatch?.formalRun || null;
   return {
     room: publicRoom(room),
     ...(compatFormalRun ? {formalRun: compatFormalRun} : {}),

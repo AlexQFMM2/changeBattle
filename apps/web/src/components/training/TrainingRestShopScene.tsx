@@ -16,6 +16,8 @@ export type TrainingRestShopSceneProps = {
   busy?: boolean;
   onBusyChange?: (message: string | null) => void;
   onBuy?: (slotId: string) => Promise<string> | string;
+  onBuyCart?: (slotIds: string[]) => Promise<string> | string;
+  onRefresh?: () => Promise<string> | string;
   onSell?: (itemInstanceIds: string[]) => Promise<string> | string;
   onBack: () => void;
 };
@@ -23,6 +25,7 @@ export type TrainingRestShopSceneProps = {
 const SHOP_WELCOME_TEXT = "欢迎光临，今天想要做些什么呢";
 const SHOP_BUY_TEXT = "想看看今天的货物吗？";
 const SHOP_SELL_TEXT = "需要整理背包里的道具吗？";
+const SHOP_REFRESH_COST = 50;
 const SHOP_BREAK_ANIMATION_MS = 840;
 const SHOP_RESTOCK_ANIMATION_MS = 720;
 const SHOP_CONFUSION_HEAL_BERRY_IDS = new Set(["figyberry", "wikiberry", "magoberry", "aguavberry", "iapapaberry"]);
@@ -47,12 +50,15 @@ const SHOP_RESIST_BERRY_EFFECTS: Record<string, {attackType: string; weakTo: str
   roseliberry: {attackType: "Fairy", weakTo: ["Fighting", "Dragon", "Dark"]},
 };
 
-export function TrainingRestShopScene({api, open, shop, player, money, busy = false, onBusyChange, onBuy, onSell, onBack}: TrainingRestShopSceneProps) {
+export function TrainingRestShopScene({api, open, shop, player, money, busy = false, onBusyChange, onBuy, onBuyCart, onRefresh, onSell, onBack}: TrainingRestShopSceneProps) {
   const [dialogueText, setDialogueText] = useState(SHOP_WELCOME_TEXT);
   const [interactionMode, setInteractionMode] = useState<TrainingRestShopInteractionMode | null>(null);
   const [selectedShopItem, setSelectedShopItem] = useState<FormalShopProductViewV4 | null>(null);
+  const [cartSlotIds, setCartSlotIds] = useState<Set<string>>(() => new Set());
   const [selectedSellIds, setSelectedSellIds] = useState<Set<string>>(() => new Set());
   const [selling, setSelling] = useState(false);
+  const [buyingCart, setBuyingCart] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [buyingSlotId, setBuyingSlotId] = useState<string | null>(null);
   const [breakingSlotId, setBreakingSlotId] = useState<string | null>(null);
   const [breakingProduct, setBreakingProduct] = useState<FormalShopProductViewV4 | null>(null);
@@ -62,6 +68,9 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
   const shopProducts = useMemo(() => api?.createFormalShopProductViews ? api.createFormalShopProductViews(shop) : [], [api, shop]);
   const slotItemIds = useMemo(() => new Map(shopProducts.map(product => [product.slotId, product.itemID])), [shopProducts]);
   const sellItems = player?.bag.items || [];
+  const selectedCartProducts = useMemo(() => shopProducts.filter(product => cartSlotIds.has(product.slotId) && product.stock > 0), [cartSlotIds, shopProducts]);
+  const cartTotal = useMemo(() => selectedCartProducts.reduce((sum, product) => sum + Math.max(0, Math.floor(Number(product.price || 0))), 0), [selectedCartProducts]);
+  const availableBagSlots = Math.max(0, Math.floor(Number(player?.bag.maxSize || 0)) - sellItems.length);
   const heldItemInstanceIds = useMemo(() => new Set((player?.localTeam.pokemon || []).map(pokemon => pokemon.heldItemInstanceId).filter(Boolean) as string[]), [player]);
   const selectedSellItems = useMemo(() => sellItems.filter(item => selectedSellIds.has(item.id) && item.canSale && !heldItemInstanceIds.has(item.id) && sellPrice(item) > 0), [heldItemInstanceIds, selectedSellIds, sellItems]);
   const selectedSellTotal = useMemo(() => selectedSellItems.reduce((sum, item) => sum + sellPrice(item), 0), [selectedSellItems]);
@@ -105,6 +114,7 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
     setDialogueText(SHOP_WELCOME_TEXT);
     setInteractionMode(null);
     setSelectedShopItem(null);
+    setCartSlotIds(new Set());
     setSelectedSellIds(new Set());
     setBreakingSlotId(null);
     setBreakingProduct(null);
@@ -117,12 +127,14 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
     setInteractionMode(mode);
     setSelectedShopItem(null);
     setSelectedSellIds(new Set());
+    setCartSlotIds(new Set());
     setDialogueText(mode === "buy" ? SHOP_BUY_TEXT : SHOP_SELL_TEXT);
   }
 
   function closeInteractionMode() {
     setInteractionMode(null);
     setSelectedShopItem(null);
+    setCartSlotIds(new Set());
     setSelectedSellIds(new Set());
     setDialogueText(SHOP_WELCOME_TEXT);
     setBreakingSlotId(null);
@@ -138,35 +150,97 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
 
   function closeShopItemDetail() {
     setSelectedShopItem(null);
-    setDialogueText(SHOP_BUY_TEXT);
+    setDialogueText(cartSummaryText());
   }
 
-  async function buyShopItem(item: FormalShopProductViewV4) {
-    if (!onBuy) {
+  function toggleCartItem(item: FormalShopProductViewV4) {
+    if (item.stock <= 0) {
+      setDialogueText("这件商品已经售罄。");
+      return;
+    }
+    setCartSlotIds(current => {
+      const next = new Set(current);
+      if (next.has(item.slotId)) next.delete(item.slotId);
+      else next.add(item.slotId);
+      const products = shopProducts.filter(product => next.has(product.slotId) && product.stock > 0);
+      const total = products.reduce((sum, product) => sum + Math.max(0, Math.floor(Number(product.price || 0))), 0);
+      setDialogueText(products.length ? `购物车 ${products.length} 件，合计 ${total.toLocaleString()} 金币。` : SHOP_BUY_TEXT);
+      return next;
+    });
+  }
+
+  function cartSummaryText() {
+    if (!selectedCartProducts.length) return SHOP_BUY_TEXT;
+    return `购物车 ${selectedCartProducts.length} 件，合计 ${cartTotal.toLocaleString()} 金币。`;
+  }
+
+  async function buySelectedCart() {
+    if (!onBuyCart && !onBuy) {
       setDialogueText("购买功能正在整理中。");
       return;
     }
-    setBuyingSlotId(item.slotId);
+    if (!selectedCartProducts.length) {
+      setDialogueText("先把想买的商品加入购物车吧。");
+      return;
+    }
+    if (cartTotal > money) {
+      setDialogueText("金币不足，先调整购物车吧。");
+      return;
+    }
+    if (selectedCartProducts.length > availableBagSlots) {
+      setDialogueText("背包空间不足，先整理背包吧。");
+      return;
+    }
+    setBuyingCart(true);
     onBusyChange?.("正在购买中");
-    setDialogueText("正在购买...");
+    setDialogueText("正在结算购物车...");
     try {
-      const message = await onBuy(item.slotId);
-      pendingRestockRef.current = {slotId: item.slotId, itemID: item.itemID};
-      setBreakingProduct(item);
-      setBreakingSlotId(item.slotId);
-      queueAnimationTimer(playRestockIfReady, 0);
-      queueAnimationTimer(() => {
-        setBreakingSlotId(current => current === item.slotId ? null : current);
-        setBreakingProduct(current => current?.slotId === item.slotId ? null : current);
-        pendingRestockRef.current = pendingRestockRef.current?.slotId === item.slotId ? null : pendingRestockRef.current;
-      }, SHOP_BREAK_ANIMATION_MS);
+      const slotIds = selectedCartProducts.map(product => product.slotId);
+      const message = onBuyCart
+        ? await onBuyCart(slotIds)
+        : await buyCartViaSingleProductFallback(slotIds);
+      setCartSlotIds(new Set());
       setSelectedShopItem(null);
       setDialogueText(message || "购买完成。");
     } catch (error) {
       setDialogueText(shopBuyErrorMessage(error));
     } finally {
       onBusyChange?.(null);
-      setBuyingSlotId(null);
+      setBuyingCart(false);
+    }
+  }
+
+  async function buyCartViaSingleProductFallback(slotIds: string[]) {
+    if (!onBuy) return "购买功能正在整理中。";
+    let message = "";
+    for (const slotId of slotIds) {
+      message = await onBuy(slotId);
+    }
+    return message || `已购买 ${slotIds.length} 件商品。`;
+  }
+
+  async function refreshShop() {
+    if (!onRefresh) {
+      setDialogueText("刷新商品功能正在整理中。");
+      return;
+    }
+    if (money < SHOP_REFRESH_COST) {
+      setDialogueText("金币不足，刷新商品需要 50 金币。");
+      return;
+    }
+    setRefreshing(true);
+    onBusyChange?.("正在刷新商品");
+    setDialogueText("正在整理新的货架...");
+    try {
+      const message = await onRefresh();
+      setCartSlotIds(new Set());
+      setSelectedShopItem(null);
+      setDialogueText(message || "商店商品已重新整理。");
+    } catch (error) {
+      setDialogueText(shopBuyErrorMessage(error));
+    } finally {
+      onBusyChange?.(null);
+      setRefreshing(false);
     }
   }
 
@@ -212,7 +286,7 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
   const dialogueActions = selectedShopItem
     ? [
         {label: "返回", onClick: closeShopItemDetail},
-        {label: "立即购买", primary: true, onClick: () => void buyShopItem(selectedShopItem)},
+        {label: cartSlotIds.has(selectedShopItem.slotId) ? "移出购物车" : "加入购物车", primary: true, onClick: () => toggleCartItem(selectedShopItem)},
       ]
     : interactionMode
     ? interactionMode === "sell"
@@ -220,7 +294,11 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
           {label: "返回", onClick: closeInteractionMode},
           {label: selling ? "处理中" : selectedSellItems.length ? `确认售出 +${selectedSellTotal.toLocaleString()}` : "确认售出", primary: true, onClick: () => void sellSelectedItems()},
         ]
-      : [{label: "返回", onClick: closeInteractionMode}]
+      : [
+          {label: "返回", onClick: closeInteractionMode},
+          ...(onRefresh ? [{label: refreshing ? "刷新中" : "刷新 -50", onClick: () => void refreshShop()}] : []),
+          {label: buyingCart ? "结算中" : selectedCartProducts.length ? `确认购买 -${cartTotal.toLocaleString()}` : "确认购买", primary: true, onClick: () => void buySelectedCart()},
+        ]
     : [
         {label: "离开", onClick: leaveShop},
         {label: "售出", onClick: () => openInteractionMode("sell")},
@@ -244,8 +322,10 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
             breakingSlotId={breakingSlotId}
             breakingProduct={breakingProduct}
             restockingSlotId={restockingSlotId}
+            cartSlotIds={cartSlotIds}
+            pending={buyingCart || refreshing}
             onDetail={showShopItemDetail}
-            onBuy={item => void buyShopItem(item)}
+            onToggleCart={toggleCartItem}
           />
         ) : null}
         {interactionMode === "sell" ? (

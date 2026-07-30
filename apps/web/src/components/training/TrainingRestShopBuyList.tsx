@@ -11,25 +11,29 @@ export type TrainingRestShopBuyListProps = {
   breakingSlotId?: string | null;
   breakingProduct?: FormalShopProductViewV4 | null;
   restockingSlotId?: string | null;
+  cartSlotIds?: Set<string>;
+  pending?: boolean;
   onDetail: (item: FormalShopProductViewV4) => void;
-  onBuy: (item: FormalShopProductViewV4) => void;
+  onToggleCart: (item: FormalShopProductViewV4) => void;
 };
 
-export function TrainingRestShopBuyList({products, selectedSlotId, buyingSlotId, breakingSlotId, breakingProduct, restockingSlotId, onDetail, onBuy}: TrainingRestShopBuyListProps) {
+export function TrainingRestShopBuyList({products, selectedSlotId, buyingSlotId, breakingSlotId, breakingProduct, restockingSlotId, cartSlotIds, pending = false, onDetail, onToggleCart}: TrainingRestShopBuyListProps) {
   return (
     <div className="training-rest-shop-buy-list" aria-label="商店购买清单">
       {products.map(product => {
         const selected = product.slotId === selectedSlotId;
+        const inCart = Boolean(cartSlotIds?.has(product.slotId));
         const buying = product.slotId === buyingSlotId;
         const breaking = product.slotId === breakingSlotId;
         const restocking = product.slotId === restockingSlotId;
         const soldOut = product.stock <= 0;
-        const disabled = buying || breaking || soldOut;
+        const disabled = pending || buying || breaking || soldOut;
         const displayProduct = breaking && breakingProduct?.slotId === product.slotId ? breakingProduct : product;
         return (
           <article
             className="training-rest-shop-buy-card"
             data-selected={selected ? "true" : "false"}
+            data-cart={inCart ? "true" : "false"}
             data-buying={buying ? "true" : "false"}
             data-breaking={breaking ? "true" : "false"}
             data-restocking={restocking ? "true" : "false"}
@@ -47,7 +51,7 @@ export function TrainingRestShopBuyList({products, selectedSlotId, buyingSlotId,
             </div>
             <div className="training-rest-shop-buy-actions">
               <button type="button" disabled={disabled} onClick={() => onDetail(displayProduct)}>详情</button>
-              <button type="button" disabled={disabled} onClick={() => onBuy(displayProduct)}>{soldOut ? "售罄" : buying ? "处理中" : "购买"}</button>
+              <button type="button" disabled={disabled} onClick={() => onToggleCart(displayProduct)}>{soldOut ? "售罄" : inCart ? "移出" : "加入"}</button>
             </div>
           </article>
         );

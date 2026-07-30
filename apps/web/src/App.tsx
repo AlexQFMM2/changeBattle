@@ -1886,6 +1886,27 @@ function RoutedApp({runtime}: AppProps) {
               setFormalRun(result.run);
               return result.message;
             },
+            onBuyCart: async slotIds => {
+              if (formalRoomCredential) {
+                const submitted = await submitFormalRestAction({type: "shop.buy-cart", slotIds});
+                return submitted.message;
+              }
+              if (!formalRun) return "正式存档不存在。";
+              let nextRun = formalRun;
+              let message = "";
+              for (const slotId of slotIds) {
+                const result = api.buyFormalRestShopItem(nextRun, slotId);
+                if (!result.ok) throw new Error(result.message);
+                nextRun = result.run;
+                message = result.message;
+              }
+              setFormalRun(nextRun);
+              return slotIds.length > 1 ? `已购买 ${slotIds.length} 件商品。` : message;
+            },
+            onRefresh: formalRoomCredential ? async () => {
+              const submitted = await submitFormalRestAction({type: "shop.refresh"});
+              return submitted.message;
+            } : undefined,
             onSell: async itemInstanceIds => {
               if (formalRoomCredential) {
                 const submitted = await submitFormalRestAction({type: "shop.sell", itemInstanceIds});
@@ -2761,7 +2782,7 @@ function latestUnreadRoundSettlement(run: FormalGameRunV4, seen: Record<string, 
 
 function formalRestActionStorageKey(roomId: string, matchId: string, revision: number, action: FormalRoomRestActionV1): string {
   const actionHash = stableHash(JSON.stringify(action));
-  return `changebattle-v2:formal-room:${roomId}:match:${matchId}:rest-action:${revision}:${actionHash}`;
+  return `changebattle-v2:formal-room:${roomId}:match:${matchId}:rest-command:${revision}:${actionHash}`;
 }
 
 function formalTeamReorderStorageKey(roomId: string, matchId: string, revision: number, pokemonIds: string[]): string {
@@ -2773,6 +2794,8 @@ function formalRestActionLabel(action: FormalRoomRestActionV1): string {
   if (action.type === "team.heal") return "治疗";
   if (action.type === "pokemon.exchange") return "交换";
   if (action.type === "shop.buy") return "购买";
+  if (action.type === "shop.buy-cart") return "购物车购买";
+  if (action.type === "shop.refresh") return "刷新商品";
   if (action.type === "shop.sell") return "出售";
   if (action.type === "training.apply") return "学习";
   if (action.type === "pokemon.reroll-stats") return "重随能力";
@@ -2786,6 +2809,8 @@ function formalRestCommandActionName(action: FormalRoomRestActionV1): Extract<Po
   | "rooms.matches.commands.teamHeal"
   | "rooms.matches.commands.pokemonExchange"
   | "rooms.matches.commands.shopBuy"
+  | "rooms.matches.commands.shopBuyCart"
+  | "rooms.matches.commands.shopRefresh"
   | "rooms.matches.commands.shopSell"
   | "rooms.matches.commands.trainingApply"
   | "rooms.matches.commands.pokemonRerollStats"
@@ -2799,6 +2824,8 @@ function formalRestCommandActionName(action: FormalRoomRestActionV1): Extract<Po
   if (action.type === "team.heal") return "rooms.matches.commands.teamHeal";
   if (action.type === "pokemon.exchange") return "rooms.matches.commands.pokemonExchange";
   if (action.type === "shop.buy") return "rooms.matches.commands.shopBuy";
+  if (action.type === "shop.buy-cart") return "rooms.matches.commands.shopBuyCart";
+  if (action.type === "shop.refresh") return "rooms.matches.commands.shopRefresh";
   if (action.type === "shop.sell") return "rooms.matches.commands.shopSell";
   if (action.type === "training.apply") return "rooms.matches.commands.trainingApply";
   if (action.type === "pokemon.reroll-stats") return "rooms.matches.commands.pokemonRerollStats";
