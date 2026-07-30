@@ -6,6 +6,7 @@ import {
   formalTrainingGroundLessonKindFromIdV4,
   formalTrainingGroundLessonTableV4,
   selectBattleBackgroundV4,
+  summarizeBattleLogByPokemonV4,
   type BattleBackgroundViewV4,
 } from "@changebattle-v2/core";
 import type {DexStatId} from "@changebattle-v2/showdown-dex-core";
@@ -55,6 +56,39 @@ export type RunGameConfigV5 = {
 };
 
 export type RunGameCommandLogResultV5 = Record<string, unknown> | null;
+
+export type BattlePokemonStatsV5 = {
+  pokemonId: PokemonInstanceIdV5;
+  ownerPlayerId: PlayerInstanceIdV5;
+  slot: ShowdownPlayerIdV4;
+  speciesId: string;
+  name: string;
+  nameZh: string;
+  iconUrl?: string;
+  iconStyle?: string;
+  spriteUrl?: string;
+  shiny?: boolean;
+  kills: number;
+  deaths: number;
+  assists: number;
+  damageDealt: number;
+  damageTaken: number;
+  healing: number;
+  usedRounds: number[];
+  kdaScore: number;
+  mvpScore: number;
+};
+
+export type BattleStatsRecordV5 = {
+  nodeId: GameNodeIdV5;
+  sessionId: string;
+  winner: ShowdownPlayerIdV4 | null;
+  status: BattleSessionSnapshotV4["status"];
+  turn: number;
+  rawLogLength: number;
+  finalizedAt: string;
+  pokemonStats: BattlePokemonStatsV5[];
+};
 
 const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET_V5: Record<TrainingRuleSetV4, string[]> = {
   standard: [],
@@ -199,6 +233,7 @@ export type RunGameV5 = {
     restPreviewUnlocks?: TrainingRunGameV4["restPreviewUnlocks"];
     coinLog?: TrainingRunGameV4["coinLog"];
     battleLog?: TrainingRunGameV4["battleLog"];
+    battleStatsByNodeId?: Record<GameNodeIdV5, BattleStatsRecordV5>;
   };
   soulmateState?: {
     eggClaimedAt?: string;
@@ -423,8 +458,8 @@ export function buildRestViewV5(run: RunGameV5): RunGameRestViewV5 {
     nextNode: nextNode ? restNodeViewV5(nextNode) : null,
     shop: currentNodeId ? run.restState.shopByNodeId?.[currentNodeId] || null : null,
     roundSettlement: currentNodeId ? run.restState.roundSettlementByNodeId?.[currentNodeId] || null : null,
-    recentCoinLog: (run.restState.coinLog || []).slice(-20),
-    recentBattleLog: (run.restState.battleLog || []).slice(-20),
+    recentCoinLog: [],
+    recentBattleLog: [],
     rest: restStateForScopedRestViewV5(run, [currentNode, nextNode]),
     trainingGround: currentNode ? {
       nodeId: currentNode.nodeId,
@@ -455,8 +490,6 @@ function restStateForScopedRestViewV5(run: RunGameV5, nodes: Array<GameMapNodeV5
     medicalInsuranceOfferSeen: run.restState.medicalInsuranceOfferSeen,
     medicalInsurance: run.restState.medicalInsurance || null,
     restPreviewUnlocks: run.restState.restPreviewUnlocks ? {...run.restState.restPreviewUnlocks} : undefined,
-    coinLog: run.restState.coinLog ? [...run.restState.coinLog].slice(-20) : undefined,
-    battleLog: run.restState.battleLog ? [...run.restState.battleLog].slice(-20) : undefined,
   };
 }
 
@@ -1667,9 +1700,14 @@ export function finalizeBattleResultFromSnapshotV5(run: RunGameV5, input: {snaps
 
   let playersById = synced.playersById;
   let pokemonById = synced.pokemonById;
+  const battleStatsRecord = buildBattleStatsRecordV5({...run, playersById, pokemonById}, snapshot, currentNode, iso);
   let restState: RunGameV5["restState"] = {
     ...run.restState,
     battleLog: appendBattleSummaryLogV5(run.restState.battleLog || [], snapshot, currentNode.nodeId, won, input.commandId, iso),
+    battleStatsByNodeId: {
+      ...(run.restState.battleStatsByNodeId || {}),
+      [currentNode.nodeId]: battleStatsRecord,
+    },
   };
 
   let currentNodeId = run.currentNodeId || currentNode.nodeId;
@@ -1889,6 +1927,406 @@ function appendBattleSummaryLogV5(log: TrainingBattleLogEntryV4[], snapshot: Bat
     rawLine: won ? "|win|p1" : `|win|${snapshot.winner || "opponent"}`,
   };
   return [...log, entry].slice(-500);
+}
+
+function buildBattleStatsRecordV5(run: RunGameV5, snapshot: BattleSessionSnapshotV4, node: GameMapNodeV5, finalizedAt: string): BattleStatsRecordV5 {
+  const aliases = buildBattlePokemonAliasMapV5(run, snapshot, node);
+  const metadata = buildBattlePokemonMetadataMapV5(run, snapshot, node);
+  const entries = parseBattleStatsLogEntriesV5(snapshot, aliases);
+  const summaries = summarizeBattleLogByPokemonV4(entries, {
+    playerId: "all",
+    resolvePokemonKey: (entry, role) => role === "source" ? entry.sourcePokemonKey : entry.targetPokemonKey,
+    getRoundIndex: () => node.index,
+  });
+  const statsByPokemonId = new Map<PokemonInstanceIdV5, BattlePokemonStatsV5>();
+
+  for (const summary of summaries) {
+    const meta = metadata.get(summary.pokemonKey);
+    if (!meta) continue;
+    statsByPokemonId.set(summary.pokemonKey, {
+      ...meta,
+      kills: summary.kills,
+      deaths: summary.deaths,
+      assists: summary.assists,
+      damageDealt: summary.damageDealt,
+      damageTaken: summary.damageTaken,
+      healing: summary.healing,
+      usedRounds: summary.usedRounds,
+      kdaScore: summary.kdaScore,
+      mvpScore: summary.mvpScore,
+    });
+  }
+
+  for (const meta of metadata.values()) {
+    const state = battlePokemonFinalStateForRecordV5(snapshot, meta.slot, meta.pokemonId);
+    if (!state?.fainted && !(state && state.hp <= 0)) continue;
+    const existing = statsByPokemonId.get(meta.pokemonId);
+    if (existing) {
+      if (existing.deaths <= 0) {
+        existing.deaths = 1;
+        existing.kdaScore = (existing.kills + existing.assists * 0.5 + 1) / Math.max(1, existing.deaths);
+        existing.mvpScore = existing.kills * 120 + existing.assists * 40 - existing.deaths * 35 + existing.damageDealt + existing.damageTaken * 0.35 + existing.healing * 0.25 + existing.usedRounds.length * 10;
+      }
+      if (!existing.usedRounds.includes(node.index)) existing.usedRounds.push(node.index);
+      continue;
+    }
+    statsByPokemonId.set(meta.pokemonId, {
+      ...meta,
+      kills: 0,
+      deaths: 1,
+      assists: 0,
+      damageDealt: 0,
+      damageTaken: 0,
+      healing: 0,
+      usedRounds: [node.index],
+      kdaScore: 1,
+      mvpScore: -25,
+    });
+  }
+
+  const pokemonStats = Array.from(statsByPokemonId.values()).map(entry => ({
+    ...entry,
+    usedRounds: [...new Set(entry.usedRounds)].sort((left, right) => left - right),
+    kills: clampIntV5(entry.kills, 0, 999, 0),
+    deaths: clampIntV5(entry.deaths, 0, 999, 0),
+    assists: clampIntV5(entry.assists, 0, 999, 0),
+    damageDealt: clampIntV5(entry.damageDealt, 0, 999999, 0),
+    damageTaken: clampIntV5(entry.damageTaken, 0, 999999, 0),
+    healing: clampIntV5(entry.healing, 0, 999999, 0),
+  })).sort((left, right) => right.mvpScore - left.mvpScore || right.damageDealt - left.damageDealt || right.damageTaken - left.damageTaken || left.nameZh.localeCompare(right.nameZh, "zh-Hans-CN"));
+
+  return {
+    nodeId: node.nodeId,
+    sessionId: snapshot.id,
+    winner: snapshot.winner,
+    status: snapshot.status,
+    turn: Math.max(0, Math.floor(Number(snapshot.turn || 0))),
+    rawLogLength: Math.max(0, snapshot.rawLog.length),
+    finalizedAt,
+    pokemonStats,
+  };
+}
+
+function buildBattlePokemonAliasMapV5(run: RunGameV5, snapshot: BattleSessionSnapshotV4, node: GameMapNodeV5): Map<string, PokemonInstanceIdV5> {
+  const result = new Map<string, PokemonInstanceIdV5>();
+  const add = (rawKey: unknown, pokemonId: PokemonInstanceIdV5) => {
+    const key = normalizeBattlePokemonKeyV5(rawKey);
+    if (key) result.set(key, pokemonId);
+  };
+  for (const snapshotPlayer of snapshot.players) {
+    const playerId = node.slots[snapshotPlayer.playerId];
+    const player = playerId ? run.playersById[playerId] : null;
+    if (!player) continue;
+    snapshotPlayer.draft.localTeam.pokemon.forEach((draftPokemon, teamIndex) => {
+      const mapped = snapshotPlayer.teamMapping?.find(entry => entry.localPokemonId === draftPokemon.localPokemonId || entry.teamIndex === teamIndex);
+      const pokemonId = mapped?.localPokemonId && run.pokemonById[mapped.localPokemonId]
+        ? mapped.localPokemonId
+        : player.localTeamPokemonIds[teamIndex] || draftPokemon.localPokemonId;
+      if (!pokemonId) return;
+      const names = [
+        draftPokemon.localPokemonId,
+        draftPokemon.nickname,
+        draftPokemon.nameZh,
+        draftPokemon.name,
+        draftPokemon.speciesId,
+        draftPokemon.showdownIdentityToken,
+        draftPokemon.showdownId,
+        draftPokemon.pokeballId,
+        mapped?.localPokemonId,
+        mapped?.displayName,
+        mapped?.showdownIdentityToken,
+        mapped?.showdownId,
+        mapped?.pokeballId,
+      ];
+      add(pokemonId, pokemonId);
+      for (const position of ["a", "b", "c", "d"]) {
+        names.forEach(name => add(`${snapshotPlayer.playerId}${position}:${battleNameIdV5(name)}`, pokemonId));
+      }
+    });
+  }
+  return result;
+}
+
+function buildBattlePokemonMetadataMapV5(run: RunGameV5, snapshot: BattleSessionSnapshotV4, node: GameMapNodeV5): Map<PokemonInstanceIdV5, Omit<BattlePokemonStatsV5, "kills" | "deaths" | "assists" | "damageDealt" | "damageTaken" | "healing" | "usedRounds" | "kdaScore" | "mvpScore">> {
+  const result = new Map<PokemonInstanceIdV5, Omit<BattlePokemonStatsV5, "kills" | "deaths" | "assists" | "damageDealt" | "damageTaken" | "healing" | "usedRounds" | "kdaScore" | "mvpScore">>();
+  for (const snapshotPlayer of snapshot.players) {
+    const playerId = node.slots[snapshotPlayer.playerId];
+    const player = playerId ? run.playersById[playerId] : null;
+    if (!player) continue;
+    snapshotPlayer.draft.localTeam.pokemon.forEach((draftPokemon, teamIndex) => {
+      const mapped = snapshotPlayer.teamMapping?.find(entry => entry.localPokemonId === draftPokemon.localPokemonId || entry.teamIndex === teamIndex);
+      const pokemonId = mapped?.localPokemonId && run.pokemonById[mapped.localPokemonId]
+        ? mapped.localPokemonId
+        : player.localTeamPokemonIds[teamIndex] || draftPokemon.localPokemonId;
+      const entityPokemon = run.pokemonById[pokemonId]?.localPokemon;
+      const pokemon = entityPokemon?.speciesId === draftPokemon.speciesId ? entityPokemon : draftPokemon;
+      if (!pokemonId || result.has(pokemonId)) return;
+      result.set(pokemonId, {
+        pokemonId,
+        ownerPlayerId: player.playerId,
+        slot: player.slot,
+        speciesId: pokemon.speciesId,
+        name: pokemon.name || pokemon.speciesId,
+        nameZh: pokemon.nameZh || pokemon.name || pokemon.speciesId,
+        iconUrl: pokemon.iconUrl,
+        iconStyle: pokemon.iconStyle,
+        spriteUrl: pokemon.frontSpriteUrl || pokemon.spriteUrl || pokemon.iconUrl,
+        shiny: Boolean(pokemon.shiny),
+      });
+    });
+  }
+  return result;
+}
+
+type BattleStatsMoveContextV5 = {playerId?: ShowdownPlayerIdV4; pokemonKey?: string; pokemonName?: string; moveId?: string; moveName?: string};
+
+function parseBattleStatsLogEntriesV5(snapshot: BattleSessionSnapshotV4, aliases: Map<string, PokemonInstanceIdV5>): TrainingBattleLogEntryV4[] {
+  const entries: TrainingBattleLogEntryV4[] = [];
+  let currentMove: BattleStatsMoveContextV5 | null = null;
+  const hpMaxByBattleKey = buildBattleHpMaxMapV5(snapshot);
+  const hpByBattleKey = new Map<string, {hp: number; maxHp: number}>();
+  const lastDirectDamageByTarget = new Map<string, BattleStatsMoveContextV5>();
+  const makeEntry = (rawLogIndex: number, rawLine: string, patch: Partial<TrainingBattleLogEntryV4>): TrainingBattleLogEntryV4 => ({
+    id: `battle-stat:${snapshot.id}:${rawLogIndex}`,
+    key: `battle-stat:${snapshot.id}:${rawLogIndex}:${rawLine}`,
+    at: snapshot.updatedAt || new Date(0).toISOString(),
+    sessionId: snapshot.id,
+    nodeId: snapshot.nodeId,
+    turn: Math.max(0, Math.floor(Number(snapshot.turn || 0))),
+    rawLogIndex,
+    eventType: patch.eventType || "other",
+    damage: patch.damage,
+    healing: patch.healing,
+    sourcePlayerId: patch.sourcePlayerId,
+    sourcePokemonKey: patch.sourcePokemonKey,
+    sourcePokemonName: patch.sourcePokemonName,
+    targetPlayerId: patch.targetPlayerId,
+    targetPokemonKey: patch.targetPokemonKey,
+    targetPokemonName: patch.targetPokemonName,
+    moveId: patch.moveId,
+    moveName: patch.moveName,
+    directness: patch.directness,
+    rawLine,
+  });
+  const resolveIdent = (value: string | undefined) => {
+    const ident = parseBattleIdentV5(value);
+    const pokemonId = aliases.get(ident.key) || aliases.get(battleNameIdV5(ident.name)) || "";
+    return {...ident, pokemonId};
+  };
+  for (let index = 0; index < snapshot.rawLog.length; index += 1) {
+    const rawLine = snapshot.rawLog[index] || "";
+    const parts = rawLine.split("|");
+    const command = parts[1] || "";
+    if (command === "turn" || command === "upkeep") {
+      currentMove = null;
+      continue;
+    }
+    if (command === "move") {
+      const actor = resolveIdent(parts[2]);
+      currentMove = {playerId: actor.playerId, pokemonKey: actor.pokemonId || actor.key, pokemonName: actor.name, moveId: tokenV5(parts[3]), moveName: parts[3] || ""};
+      entries.push(makeEntry(index, rawLine, {
+        eventType: "move",
+        sourcePlayerId: actor.playerId,
+        sourcePokemonKey: currentMove.pokemonKey,
+        sourcePokemonName: actor.name,
+        moveId: currentMove.moveId,
+        moveName: currentMove.moveName,
+        directness: "direct",
+      }));
+      continue;
+    }
+    if (command === "switch" || command === "drag") {
+      currentMove = null;
+      const target = resolveIdent(parts[2]);
+      const state = hpStateFromProtocolV5(parts[4] || "", hpMaxByBattleKey.get(target.key));
+      if (state && target.key) hpByBattleKey.set(target.key, state);
+      continue;
+    }
+    if (command === "-damage") {
+      const target = resolveIdent(parts[2]);
+      const state = hpStateFromProtocolV5(parts[3] || "", hpMaxByBattleKey.get(target.key));
+      const previousHp = hpByBattleKey.get(target.key)?.hp;
+      const damage = battleLogHpDeltaV5(parts[3] || "", state, previousHp);
+      if (state && target.key) hpByBattleKey.set(target.key, state);
+      const attribution = resolveBattleLogAttributionV5(currentMove, parts, 4, aliases);
+      if (target.key) {
+        if (attribution.context && attribution.directness === "direct" && damage > 0) lastDirectDamageByTarget.set(target.key, attribution.context);
+        else lastDirectDamageByTarget.delete(target.key);
+      }
+      entries.push(makeEntry(index, rawLine, {
+        eventType: "damage",
+        damage,
+        sourcePlayerId: attribution.context?.playerId,
+        sourcePokemonKey: attribution.context?.pokemonKey,
+        sourcePokemonName: attribution.context?.pokemonName,
+        targetPlayerId: target.playerId,
+        targetPokemonKey: target.pokemonId || target.key,
+        targetPokemonName: target.name,
+        moveId: attribution.context?.moveId,
+        moveName: attribution.context?.moveName,
+        directness: attribution.directness,
+      }));
+      continue;
+    }
+    if (command === "-heal") {
+      const target = resolveIdent(parts[2]);
+      const state = hpStateFromProtocolV5(parts[3] || "", hpMaxByBattleKey.get(target.key));
+      const previousHp = hpByBattleKey.get(target.key)?.hp;
+      const healing = state && previousHp !== undefined ? Math.max(0, state.hp - previousHp) : 0;
+      if (state && target.key) hpByBattleKey.set(target.key, state);
+      const attribution = resolveBattleLogAttributionV5(currentMove, parts, 4, aliases);
+      entries.push(makeEntry(index, rawLine, {
+        eventType: "heal",
+        healing,
+        sourcePlayerId: attribution.context?.playerId,
+        sourcePokemonKey: attribution.context?.pokemonKey,
+        sourcePokemonName: attribution.context?.pokemonName,
+        targetPlayerId: target.playerId,
+        targetPokemonKey: target.pokemonId || target.key,
+        targetPokemonName: target.name,
+        moveId: attribution.context?.moveId,
+        moveName: attribution.context?.moveName,
+        directness: attribution.directness,
+      }));
+      continue;
+    }
+    if (command === "faint") {
+      const target = resolveIdent(parts[2]);
+      if (target.key) hpByBattleKey.set(target.key, {hp: 0, maxHp: hpByBattleKey.get(target.key)?.maxHp || hpMaxByBattleKey.get(target.key) || 0});
+      const directMove = target.key ? lastDirectDamageByTarget.get(target.key) || null : null;
+      if (target.key) lastDirectDamageByTarget.delete(target.key);
+      entries.push(makeEntry(index, rawLine, {
+        eventType: "faint",
+        sourcePlayerId: directMove?.playerId,
+        sourcePokemonKey: directMove?.pokemonKey,
+        sourcePokemonName: directMove?.pokemonName,
+        targetPlayerId: target.playerId,
+        targetPokemonKey: target.pokemonId || target.key,
+        targetPokemonName: target.name,
+        moveId: directMove?.moveId,
+        moveName: directMove?.moveName,
+        directness: directMove ? "direct" : "indirect",
+      }));
+      continue;
+    }
+    if (command === "win") {
+      entries.push(makeEntry(index, rawLine, {eventType: "win", directness: "unknown"}));
+    }
+  }
+  return entries;
+}
+
+function resolveBattleLogAttributionV5(
+  currentMove: BattleStatsMoveContextV5 | null,
+  parts: string[],
+  tagStartIndex: number,
+  aliases: Map<string, PokemonInstanceIdV5>,
+): {context: BattleStatsMoveContextV5 | null; directness: NonNullable<TrainingBattleLogEntryV4["directness"]>} {
+  const tags = parseBattleLogProtocolTagsV5(parts, tagStartIndex);
+  if (!tags.from) return currentMove ? {context: currentMove, directness: "direct"} : {context: null, directness: "unknown"};
+  if (tags.of) {
+    const source = parseBattleIdentV5(tags.of);
+    const pokemonId = aliases.get(source.key) || aliases.get(battleNameIdV5(source.name)) || source.key;
+    return {context: {playerId: source.playerId, pokemonKey: pokemonId, pokemonName: source.name, moveId: tags.fromKind === "move" ? tags.fromId : undefined, moveName: tags.fromKind === "move" ? tags.fromName : undefined}, directness: tags.fromKind === "move" ? "indirect" : "indirect"};
+  }
+  if (tags.fromKind === "move" && currentMove && (!tags.fromId || tags.fromId === currentMove.moveId)) return {context: currentMove, directness: "direct"};
+  return {context: null, directness: "indirect"};
+}
+
+function parseBattleLogProtocolTagsV5(parts: string[], startIndex: number): {from?: string; fromKind?: string; fromId?: string; fromName?: string; of?: string} {
+  const tags: {from?: string; fromKind?: string; fromId?: string; fromName?: string; of?: string} = {};
+  for (const part of parts.slice(startIndex)) {
+    const text = String(part || "").trim();
+    if (text.startsWith("[from]")) {
+      const value = text.replace(/^\[from\]\s*/, "").trim();
+      const match = value.match(/^([^:]+):\s*(.+)$/);
+      tags.from = value;
+      tags.fromKind = tokenV5(match?.[1] || value);
+      tags.fromName = (match?.[2] || value).trim();
+      tags.fromId = tokenV5(match?.[2] || value);
+    } else if (text.startsWith("[of]")) {
+      tags.of = text.replace(/^\[of\]\s*/, "").trim();
+    }
+  }
+  return tags;
+}
+
+function battlePokemonFinalStateForRecordV5(snapshot: BattleSessionSnapshotV4, slot: ShowdownPlayerIdV4, pokemonId: PokemonInstanceIdV5): BattleTeamPokemonStateV4 | null {
+  const state = snapshot.teamStateByPlayer?.[slot];
+  if (!state) return null;
+  return Object.values(state.pokemonByToken).find(entry => entry.localPokemonId === pokemonId) || null;
+}
+
+function buildBattleHpMaxMapV5(snapshot: BattleSessionSnapshotV4): Map<string, number> {
+  const result = new Map<string, number>();
+  const add = (key: unknown, maxHp: unknown) => {
+    const normalized = normalizeBattlePokemonKeyV5(key);
+    const hp = Math.round(Number(maxHp));
+    if (normalized && Number.isFinite(hp) && hp > 0) result.set(normalized, hp);
+  };
+  for (const player of snapshot.players) {
+    player.draft.localTeam.pokemon.forEach((pokemon, teamIndex) => {
+      const mapping = player.teamMapping?.find(entry => entry.localPokemonId === pokemon.localPokemonId || entry.teamIndex === teamIndex);
+      const names = [pokemon.localPokemonId, pokemon.nickname, pokemon.nameZh, pokemon.name, pokemon.speciesId, pokemon.showdownIdentityToken, pokemon.showdownId, pokemon.pokeballId, mapping?.displayName, mapping?.showdownIdentityToken, mapping?.showdownId, mapping?.pokeballId];
+      for (const position of ["a", "b", "c", "d"]) names.forEach(name => add(`${player.playerId}${position}:${battleNameIdV5(name)}`, pokemon.maxHp));
+    });
+  }
+  snapshot.active.forEach(active => {
+    const ident = parseBattleIdentV5(active.ident);
+    add(ident.key, active.maxHp);
+    const names = [active.localPokemonId, active.showdownIdentityToken, active.showdownId, active.pokeballId, active.species];
+    for (const position of ["a", "b", "c", "d"]) names.forEach(name => add(`${active.playerId}${position}:${battleNameIdV5(name)}`, active.maxHp));
+  });
+  return result;
+}
+
+function parseBattleIdentV5(value: string | undefined): {playerId?: ShowdownPlayerIdV4; key: string; name: string} {
+  const raw = String(value || "");
+  const match = raw.match(/^(p[1-4])([a-d])?:\s*(.+)$/i);
+  const playerId = normalizeShowdownPlayerIdV5(match?.[1]?.toLowerCase());
+  const position = (match?.[2] || "a").toLowerCase();
+  const name = (match?.[3] || raw).trim();
+  return {
+    playerId,
+    key: playerId ? normalizeBattlePokemonKeyV5(`${playerId}${position}:${battleNameIdV5(name)}`) : battleNameIdV5(name),
+    name,
+  };
+}
+
+function normalizeBattlePokemonKeyV5(value: unknown): string {
+  const text = String(value || "");
+  const match = text.match(/^(p[1-4][a-d]):(.+)$/i);
+  if (!match) return battleNameIdV5(text);
+  return `${match[1].toLowerCase()}:${battleNameIdV5(match[2])}`;
+}
+
+function battleNameIdV5(value: unknown): string {
+  return tokenV5(value) || String(value || "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
+function hpStateFromProtocolV5(condition: string, trueMaxHp?: number): {hp: number; maxHp: number} | null {
+  if (condition.includes("fnt")) return {hp: 0, maxHp: Math.max(0, Math.round(Number(trueMaxHp || 0)))};
+  const match = condition.match(/^(\d+)\/(\d+)/);
+  if (!match) return null;
+  const protocolHp = Number(match[1]);
+  const protocolMaxHp = Number(match[2]);
+  if (!Number.isFinite(protocolHp) || !Number.isFinite(protocolMaxHp) || protocolMaxHp <= 0) return null;
+  const maxHp = Math.round(Number(trueMaxHp || 0));
+  if (protocolMaxHp === 100 && maxHp > 0 && maxHp !== protocolMaxHp) {
+    return {hp: Math.max(0, Math.min(maxHp, Math.round(protocolHp / protocolMaxHp * maxHp))), maxHp};
+  }
+  return {hp: protocolHp, maxHp: protocolMaxHp};
+}
+
+function battleLogHpDeltaV5(condition: string, hpState: {hp: number; maxHp: number} | null, previousHp: number | undefined): number {
+  if (!hpState) return condition.includes("fnt") ? 1 : 0;
+  if (previousHp !== undefined) return Math.max(0, previousHp - hpState.hp);
+  if (hpState.maxHp > 0) return Math.max(0, hpState.maxHp - hpState.hp);
+  return condition.includes("fnt") ? 1 : 0;
+}
+
+function normalizeShowdownPlayerIdV5(value: unknown): ShowdownPlayerIdV4 | undefined {
+  return value === "p1" || value === "p2" || value === "p3" || value === "p4" ? value : undefined;
 }
 
 function syncMovePpFromBattleStateV5(moves: TrainingMoveSlotV4[], stateMoves: Array<{moveId: string; remainingPp: number; maxPp: number}>): TrainingMoveSlotV4[] {
@@ -2131,36 +2569,85 @@ function summarizeCoinLogV5(log: TrainingCoinLogEntryV4[]): {income: number; exp
 }
 
 function buildSettlementPokemonStatsV5(run: RunGameV5, self: PlayerInstanceV5): NonNullable<FormalGameRunV4["settlement"]>["pokemonStats"] {
-  const usedRounds = run.gameMap.nodes.filter(node => node.state === "won" || node.state === "lost").map(node => node.index);
-  const values = self.localTeamPokemonIds.flatMap((pokemonId, index) => {
-    const entry = run.pokemonById[pokemonId];
-    if (!entry) return [];
-    const pokemon = entry.localPokemon;
-    const fainted = Math.floor(Number(pokemon.entryHp || 0)) <= 0;
-    const mvpScore = Math.max(0, run.gameMap.nodes.filter(node => node.state === "won").length * 10 - index);
-    return [{
-      pokemonKey: pokemon.localPokemonId || pokemonId,
-      localPokemonId: pokemon.localPokemonId || pokemonId,
-      speciesId: pokemon.speciesId,
-      name: pokemon.name || pokemon.speciesId,
-      nameZh: pokemon.nameZh || pokemon.name || pokemon.speciesId,
-      iconUrl: pokemon.iconUrl,
-      iconStyle: pokemon.iconStyle,
-      spriteUrl: pokemon.spriteUrl,
-      shiny: Boolean(pokemon.shiny),
-      kills: 0,
-      deaths: fainted ? 1 : 0,
-      assists: 0,
-      damageDealt: 0,
-      damageTaken: 0,
-      healing: 0,
-      usedRounds,
-      kdaScore: fainted ? 0 : 1,
+  const records = Object.values(run.restState.battleStatsByNodeId || {});
+  const selfBattleStats = new Map<PokemonInstanceIdV5, BattlePokemonStatsV5>();
+  for (const record of records) {
+    for (const stats of record.pokemonStats) {
+      if (stats.ownerPlayerId !== self.playerId) continue;
+      const current = selfBattleStats.get(stats.pokemonId);
+      if (!current) {
+        selfBattleStats.set(stats.pokemonId, {...stats, usedRounds: [...stats.usedRounds]});
+        continue;
+      }
+      current.kills += stats.kills;
+      current.deaths += stats.deaths;
+      current.assists += stats.assists;
+      current.damageDealt += stats.damageDealt;
+      current.damageTaken += stats.damageTaken;
+      current.healing += stats.healing;
+      current.usedRounds = [...new Set([...current.usedRounds, ...stats.usedRounds])].sort((left, right) => left - right);
+    }
+  }
+
+  const values = Array.from(selfBattleStats.values()).map(stats => {
+    const kdaScore = (stats.kills + stats.assists * 0.5 + 1) / Math.max(1, stats.deaths);
+    const mvpScore = stats.kills * 120 + stats.assists * 40 - stats.deaths * 35 + stats.damageDealt + stats.damageTaken * 0.35 + stats.healing * 0.25 + stats.usedRounds.length * 10;
+    return {
+      pokemonKey: stats.pokemonId,
+      localPokemonId: stats.pokemonId,
+      speciesId: stats.speciesId,
+      name: stats.name || stats.speciesId,
+      nameZh: stats.nameZh || stats.name || stats.speciesId,
+      iconUrl: stats.iconUrl,
+      iconStyle: stats.iconStyle,
+      spriteUrl: stats.spriteUrl || stats.iconUrl,
+      shiny: Boolean(stats.shiny),
+      kills: stats.kills,
+      deaths: stats.deaths,
+      assists: stats.assists,
+      damageDealt: stats.damageDealt,
+      damageTaken: stats.damageTaken,
+      healing: stats.healing,
+      usedRounds: stats.usedRounds,
+      kdaScore,
       mvpScore,
       isMvp: false,
-    }];
+    };
   });
-  values.sort((left, right) => right.mvpScore - left.mvpScore || left.nameZh.localeCompare(right.nameZh, "zh-Hans-CN"));
+
+  if (values.length === 0) {
+    const usedRounds = run.gameMap.nodes.filter(node => node.state === "won" || node.state === "lost").map(node => node.index);
+    values.push(...self.localTeamPokemonIds.flatMap((pokemonId, index) => {
+      const entry = run.pokemonById[pokemonId];
+      if (!entry) return [];
+      const pokemon = entry.localPokemon;
+      const fainted = Math.floor(Number(pokemon.entryHp || 0)) <= 0;
+      const mvpScore = Math.max(0, run.gameMap.nodes.filter(node => node.state === "won").length * 10 - index);
+      return [{
+        pokemonKey: pokemon.localPokemonId || pokemonId,
+        localPokemonId: pokemon.localPokemonId || pokemonId,
+        speciesId: pokemon.speciesId,
+        name: pokemon.name || pokemon.speciesId,
+        nameZh: pokemon.nameZh || pokemon.name || pokemon.speciesId,
+        iconUrl: pokemon.iconUrl,
+        iconStyle: pokemon.iconStyle,
+        spriteUrl: pokemon.spriteUrl,
+        shiny: Boolean(pokemon.shiny),
+        kills: 0,
+        deaths: fainted ? 1 : 0,
+        assists: 0,
+        damageDealt: 0,
+        damageTaken: 0,
+        healing: 0,
+        usedRounds,
+        kdaScore: fainted ? 0 : 1,
+        mvpScore,
+        isMvp: false,
+      }];
+    }));
+  }
+
+  values.sort((left, right) => right.mvpScore - left.mvpScore || right.damageDealt - left.damageDealt || right.damageTaken - left.damageTaken || left.nameZh.localeCompare(right.nameZh, "zh-Hans-CN"));
   if (values[0]) values[0].isMvp = true;
   return values;
 }

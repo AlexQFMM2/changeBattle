@@ -2442,6 +2442,80 @@ assert(preparedV5P2.aiProfile?.preference === preparedV5Npc.npcProfile?.aiProfil
 const preparedV5P1 = preparedV5BattleSession.sessionInput.players.find(player => player.playerId === "p1")!;
 const preparedV5P1Pokemon = preparedV5P1.draft.localTeam.pokemon[0]!;
 const preparedV5P1Mapping = preparedV5P1.teamMapping?.[0]!;
+const preparedV5P2Pokemon = preparedV5P2.draft.localTeam.pokemon[0]!;
+const preparedV5P2Mapping = preparedV5P2.teamMapping?.[0]!;
+const preparedV5P1Name = preparedV5P1Pokemon.nameZh || preparedV5P1Pokemon.name || preparedV5P1Pokemon.speciesId;
+const preparedV5P2Name = preparedV5P2Pokemon.nameZh || preparedV5P2Pokemon.name || preparedV5P2Pokemon.speciesId;
+const preparedV5P1AfterHit = Math.max(1, preparedV5P1Pokemon.maxHp - 40);
+const preparedV5P2AfterHit = Math.max(1, preparedV5P2Pokemon.maxHp - 35);
+const finalizedV5LossBattle = finalizeBattleResultFromSnapshotV5(v5Run, {
+  commandId: "v5-redline-finalize-battle-loss",
+  snapshot: {
+    id: "v5-redline-battle-session-loss",
+    runId: v5Run.runId,
+    nodeId: v5Run.currentNodeId || v5Run.roundPlan[0]!.nodeId,
+    status: "ended",
+    mode: "singles",
+    ruleSet: "standard",
+    turn: 2,
+    winner: "p2",
+    error: null,
+    players: preparedV5BattleSession.sessionInput.players,
+    requests: {},
+    active: [],
+    teamStateByPlayer: {
+      p1: {
+        updatedAt: new Date().toISOString(),
+        pokemonByToken: {
+          [preparedV5P1Mapping.showdownIdentityToken]: {
+            localPokemonId: preparedV5P1Pokemon.localPokemonId,
+            showdownIdentityToken: preparedV5P1Mapping.showdownIdentityToken,
+            showdownId: preparedV5P1Mapping.showdownId,
+            pokeballId: preparedV5P1Mapping.pokeballId,
+            hp: 0,
+            maxHp: preparedV5P1Pokemon.maxHp,
+            status: "fnt",
+            fainted: true,
+            moves: [],
+          },
+        },
+      },
+      p2: {
+        updatedAt: new Date().toISOString(),
+        pokemonByToken: {
+          [preparedV5P2Mapping.showdownIdentityToken]: {
+            localPokemonId: preparedV5P2Pokemon.localPokemonId,
+            showdownIdentityToken: preparedV5P2Mapping.showdownIdentityToken,
+            showdownId: preparedV5P2Mapping.showdownId,
+            pokeballId: preparedV5P2Mapping.pokeballId,
+            hp: preparedV5P2AfterHit,
+            maxHp: preparedV5P2Pokemon.maxHp,
+            status: "",
+            fainted: false,
+            moves: [],
+          },
+        },
+      },
+    },
+    rawLog: [
+      `|switch|p1a: ${preparedV5P1Name}|${preparedV5P1Pokemon.speciesId}, L${preparedV5P1Pokemon.level}|${preparedV5P1Pokemon.maxHp}/${preparedV5P1Pokemon.maxHp}`,
+      `|switch|p2a: ${preparedV5P2Name}|${preparedV5P2Pokemon.speciesId}, L${preparedV5P2Pokemon.level}|${preparedV5P2Pokemon.maxHp}/${preparedV5P2Pokemon.maxHp}`,
+      `|move|p1a: ${preparedV5P1Name}|Tackle|p2a: ${preparedV5P2Name}`,
+      `|-damage|p2a: ${preparedV5P2Name}|${preparedV5P2AfterHit}/${preparedV5P2Pokemon.maxHp}`,
+      `|move|p2a: ${preparedV5P2Name}|Tackle|p1a: ${preparedV5P1Name}`,
+      `|-damage|p1a: ${preparedV5P1Name}|0/${preparedV5P1Pokemon.maxHp}`,
+      `|faint|p1a: ${preparedV5P1Name}`,
+      "|win|P2",
+    ],
+    debug: {inputLog: [], lastChoices: [], playerStreams: []},
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as never,
+});
+const v5LossSettlement = prepareFinalSettlementFromRunGameV5(finalizedV5LossBattle.run, "loss");
+const v5LossPokemonStats = v5LossSettlement.pokemonStats.find(stat => stat.localPokemonId === preparedV5P1Pokemon.localPokemonId);
+assert(finalizedV5LossBattle.result.destination === "settlement", "RunGameV5 first-round loss should route directly to settlement");
+assert(v5LossPokemonStats?.damageDealt && v5LossPokemonStats.damageTaken && v5LossPokemonStats.deaths === 1 && v5LossPokemonStats.usedRounds.length === 1, "RunGameV5 first-round loss settlement should keep battle stats instead of all-zero metrics");
 const finalizedV5Battle = finalizeBattleResultFromSnapshotV5(v5Run, {
   commandId: "v5-redline-finalize-battle",
   snapshot: {
@@ -2474,8 +2548,33 @@ const finalizedV5Battle = finalizeBattleResultFromSnapshotV5(v5Run, {
           },
         },
       },
+      p2: {
+        updatedAt: new Date().toISOString(),
+        pokemonByToken: {
+          [preparedV5P2Mapping.showdownIdentityToken]: {
+            localPokemonId: preparedV5P2Pokemon.localPokemonId,
+            showdownIdentityToken: preparedV5P2Mapping.showdownIdentityToken,
+            showdownId: preparedV5P2Mapping.showdownId,
+            pokeballId: preparedV5P2Mapping.pokeballId,
+            hp: 0,
+            maxHp: preparedV5P2Pokemon.maxHp,
+            status: "fnt",
+            fainted: true,
+            moves: [],
+          },
+        },
+      },
     },
-    rawLog: ["|win|P1"],
+    rawLog: [
+      `|switch|p1a: ${preparedV5P1Name}|${preparedV5P1Pokemon.speciesId}, L${preparedV5P1Pokemon.level}|${preparedV5P1Pokemon.maxHp}/${preparedV5P1Pokemon.maxHp}`,
+      `|switch|p2a: ${preparedV5P2Name}|${preparedV5P2Pokemon.speciesId}, L${preparedV5P2Pokemon.level}|${preparedV5P2Pokemon.maxHp}/${preparedV5P2Pokemon.maxHp}`,
+      `|move|p2a: ${preparedV5P2Name}|Tackle|p1a: ${preparedV5P1Name}`,
+      `|-damage|p1a: ${preparedV5P1Name}|${preparedV5P1AfterHit}/${preparedV5P1Pokemon.maxHp}`,
+      `|move|p1a: ${preparedV5P1Name}|Tackle|p2a: ${preparedV5P2Name}`,
+      `|-damage|p2a: ${preparedV5P2Name}|0/${preparedV5P2Pokemon.maxHp}`,
+      `|faint|p2a: ${preparedV5P2Name}`,
+      "|win|P1",
+    ],
     debug: {inputLog: [], lastChoices: [], playerStreams: []},
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -2487,6 +2586,8 @@ assert(finalizedV5Battle.result.destination === "rest", "RunGameV5 battle finali
 assert(finalizedV5Pokemon.entryHp === 7 && finalizedV5Pokemon.entryStatus === "par", "RunGameV5 battle finalize should sync HP/status into PokemonInstance");
 assert(finalizedV5Pokemon.moves[0]?.remainingPp === 1, "RunGameV5 battle finalize should sync PP into PokemonInstance");
 assert(v5Run.restState.roundSettlementByNodeId?.[preparedV5BattleSession.sessionInput.nodeId], "RunGameV5 battle finalize should write a light round settlement record");
+const finalizedV5BattleStats = v5Run.restState.battleStatsByNodeId?.[preparedV5BattleSession.sessionInput.nodeId]?.pokemonStats.find(stat => stat.pokemonId === preparedV5P1Pokemon.localPokemonId);
+assert(finalizedV5BattleStats?.damageDealt && finalizedV5BattleStats.damageTaken && finalizedV5BattleStats.kills === 1, "RunGameV5 battle finalize should write server-side per-pokemon battle stats");
 const calculateMockMaxHp = (pokemon: {level: number}) => 100 + pokemon.level;
 const v5ExchangeView = getPokemonExchangeViewV5(v5Run);
 assert(v5ExchangeView.available && v5ExchangeView.nodeId && v5ExchangeView.opponent?.localTeam.pokemon.length, "RunGameV5 exchange should be available after a won round");
@@ -2521,6 +2622,8 @@ assert(v5StarExchangedPokemon.itemId === "leftovers" && v5StarExchangedPokemon.h
 assert(powerProfileIndex(v5StarExchangedPokemon.powerProfile || "rookie") >= powerProfileIndex(v5ExchangeTarget.powerProfile || "rookie"), "RunGameV5 elite exchange education should not lower power profile");
 v5Run = v5ExchangeApplied.run;
 const v5Settlement = prepareFinalSettlementFromRunGameV5(v5Run, "surrender");
+const v5SettlementPokemonStats = v5Settlement.pokemonStats.find(stat => stat.localPokemonId === preparedV5P1Pokemon.localPokemonId);
+assert(v5SettlementPokemonStats?.damageDealt && v5SettlementPokemonStats.damageTaken && v5SettlementPokemonStats.kills === 1, "RunGameV5 final settlement should summarize stored battle stats instead of hard-coded zero metrics");
 v5Run = commitFinalSettlementFromRunGameV5(v5Run, {
   commandId: "v5-redline-finalize-run",
   settlement: v5Settlement,

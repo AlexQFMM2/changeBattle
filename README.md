@@ -12,14 +12,14 @@
 - 数据结构迁移必须保留成品游戏 UI，只替换数据来源，不把已有场景、立绘、对话框、卡片和动效改成调试面板。
 - ChromeAutomation 验收必须点真实用户流程；需要成功路径时用测试模式/测试种子，不要只拿金币不足等失败路径充数。
 
-ChangeBattle V2 是当前主线。`v2` 分支对应 beta/debug 通道，当前版本是 `0.1.32`。
+ChangeBattle V2 是当前主线。`v2` 分支对应 beta/debug 通道，当前版本是 `0.1.33`。
 
 当前项目已经从“本地大 RunGame 草稿推进”收口到正式 room C/S 架构：服务端 `RunGameV5` 保存权威实体，Web/Desktop/Android 只通过 scoped view 和轻量 command 与 Battle API 交互。训练场和 legacy V4 helper 仍保留，但必须硬隔离，不能作为正式 room fallback。
 
 ```txt
-current beta:   0.1.32
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.32
-Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.32.zip
+current beta:   0.1.33
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.33
+Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.33.zip
 Android APK:    ChangeBattle-V2-Android-debug-v0.1.32.apk
 beta latest:    http://119.45.240.157/changebattle-beta/latest.json
 beta site:      http://119.45.240.157/changebattle-beta/
@@ -34,7 +34,7 @@ assets CDN:     https://assets.65h26i.top/beta/
 - `docs/architecture.md`：当前架构边界。
 - `docs/engineering-redlines.md`：红线、代码规范和检查命令。
 - `release/README.md`：Desktop/APK/GitHub Release/线上增量发布流程。
-- `docs/release-notes-v0.1.32.md`：当前 beta 版本说明。
+- `docs/release-notes-v0.1.33.md`：当前 beta 版本说明。
 
 ## Repository / Branch
 
@@ -75,6 +75,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - **0.1.30 V5 KISS/rest hotfix**：正式 room V5 prepare-round 改为 V5-native 参赛方生成；休整商店收口到服务端购物车/整店刷新，批量自习走服务端权威；生成 NPC 直接使用按类型稳定选择的战斗立绘，禁止头像兜底掩盖错误。
 - **0.1.31 UI hotfix**：starter 候选基础页直接展示 4 个技能卡；训练场批量自习轮数改为左右箭头步进，限制为 1-5 轮并受金币上限约束。本轮只改 UI，不更新线上 Battle API 容器。
 - **0.1.32 starter detail UI hotfix**：starter 候选基础页恢复 2x2 技能卡布局，移除图鉴/身高/体重弱信息，基础页技能卡不显示 PP，优先展示类型、分类、威力和命中。本轮只改 UI，不更新线上 Battle API 容器。
+- **0.1.33 settlement stats hotfix**：正式 room V5 在 `finalize-battle` 生成服务端轻量战斗统计账本，`finalize-run` 用它汇总结算；第一轮失败也能显示输出/承伤/死亡/出场。官方服务器需要更新 Battle API 容器，Desktop 本地模拟需要新版 Desk 包。
 - **桌面更新**：增量更新使用内容哈希对象池：服务器托管 `latest.json`、`manifests/current.json`、`manifests/vX.Y.Z.json` 和 `objects/<sha>`；客户端按本地实际 sha 与远端清单比较新增/修改/删除。大完整包不放线上服务器，避免流量计费。
 - **下一步重点**：继续做正式 room scoped view 细节回归、Battle V5 纯计算拆分、AI/队伍平衡、合作 AI、Android 验收和 release 稳定性。所有 room 主线新代码必须遵守 `docs/engineering-redlines.md`。
 
@@ -153,7 +154,7 @@ hotfix/*  从 release 临时切出的正式版修复分支，不长期保留
 - Battle V4 提交流水：控制台会按“等待补全 / 草稿完成 / 正在提交 / 提交成功 / 提交失败”打印高信号日志；双打残局里攻击目标会正确携带目标后缀，避免卡在 `1/2` 没有反馈。
 - 正式赛程：7 场正式战斗已采用小组赛/晋级赛阶段命名，战斗开场/结束按裁判和训练家对话流程组织。
 - 特殊系统：gen7 会保障玩家初始候选至少 2 个可 Mega 宝可梦，NPC 队伍至少 1 个 Mega 手并携带映射 Mega 石；Z 招式专属优先并补齐 required move；gen8/9 NPC 默认获得极巨手环/太晶珠。
-- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.32` 是当前 starter detail UI hotfix beta 基线；线上服务器只放增量 metadata 和下载页，Android debug APK 同步为 0.1.32。
+- Windows Desktop portable release：debug 桌面端主发布链路已迁到 GitHub Actions；完整 zip 由 GitHub Release 托管，更新 metadata artifact 下载到本地后发布到自有服务器。`0.1.33` 是当前正式 room V5 结算统计热修 beta 基线；线上服务器只放增量 metadata 和下载页，Android debug APK 暂停留在 0.1.32。
 
 当前明确不做：
 
@@ -275,16 +276,16 @@ VITE_CHANGEBATTLE_BATTLE_SERVICE_URL=http://127.0.0.1:5191 pnpm --filter @change
 当前 beta/debug 基线：
 
 ```txt
-latest debug: 0.1.32
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.32
-Desktop package: ChangeBattle-V2-Desk-portable-debug-v0.1.32.zip
+latest debug: 0.1.33
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.33
+Desktop package: ChangeBattle-V2-Desk-portable-debug-v0.1.33.zip
 Android package: ChangeBattle-V2-Android-debug-v0.1.32.apk
 beta latest:  http://119.45.240.157/changebattle-beta/latest.json
 beta site:    http://119.45.240.157/changebattle-beta/
 stable site:  http://119.45.240.157/changebattle/
 ```
 
-`0.1.32` 是当前 starter detail UI hotfix beta 基线。完整包托管 GitHub Release；beta 服务器只保留 `latest.json`、下载页、manifest 和增量 objects，不托管大 zip/apk。本轮未改 API 服务端代码，线上 Battle API 容器无需更新。
+`0.1.33` 是当前正式 room V5 结算统计热修 beta 基线。完整 Desk 包托管 GitHub Release；beta 服务器只保留 `latest.json`、下载页、manifest 和增量 objects，不托管大 zip/apk。本轮需要更新线上 Battle API 容器，Android APK 暂停留在 0.1.32。
 
 玩家解压后运行：
 
@@ -315,7 +316,7 @@ debug/beta 推荐发版命令：
 
 ```bash
 cd /home/alexqfmm/workPlace/pokemon/changeBattleV2
-VERSION=0.1.32
+VERSION=0.1.33
 git push origin v2
 gh workflow run "Release Debug Desktop" \
   --repo AlexQFMM2/changeBattle \
