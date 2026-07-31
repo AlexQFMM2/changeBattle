@@ -5,12 +5,12 @@
 当前 beta：
 
 ```text
-version:        0.1.32
+version:        0.1.34
 branch:         v2
-tag:            desk-debug-v0.1.32
-GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.32
-Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.32.zip
-Android APK:    ChangeBattle-V2-Android-debug-v0.1.32.apk
+tag:            desk-debug-v0.1.34
+GitHub Release: https://github.com/AlexQFMM2/changeBattle/releases/tag/desk-debug-v0.1.34
+Desktop zip:    ChangeBattle-V2-Desk-portable-debug-v0.1.34.zip
+Android APK:    ChangeBattle-V2-Android-debug-v0.1.34.apk
 beta latest:    http://119.45.240.157/changebattle-beta/latest.json
 beta page:      http://119.45.240.157/changebattle-beta/
 ```
@@ -166,7 +166,7 @@ CHANGEBATTLE_UPDATE_LOCAL_DIR=/home/alexqfmm/workPlace/pokemon/changeBattleV2/tm
 
 v2 增量更新不再上传 `files/vX.Y.Z/` 完整镜像。服务器目录以 `manifests/current.json` 表示目标文件状态，以 `objects/<sha前2位>/<完整sha256>` 存储内容对象。客户端会重新计算本地实际文件 sha256，按 `path + sha256` 判断新增、修改、删除。
 
-`0.1.32` 是当前 beta Desktop / Android debug 基线：Desktop zip 和 Android APK 挂 GitHub Release，线上 beta 服务器只发布 `latest.json / index.html / manifests / objects`。本轮只修 Web UI：starter 候选基础页恢复 2x2 技能卡布局，移除图鉴/身高/体重弱信息，基础页技能卡不显示 PP；未改 API 服务端代码。
+`0.1.34` 是当前 beta Desktop / Android debug 基线：Desktop zip 和 Android APK 挂 GitHub Release，线上 beta 服务器只发布 `latest.json / index.html / manifests / objects`。本轮包含正式 room 人工反馈热修、Desktop 内置离线 API 同步和 Android debug APK 同步；线上 Battle API 容器也需要更新。
 
 如果只想本地生成清单并检查内容：
 

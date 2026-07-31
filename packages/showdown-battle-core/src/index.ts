@@ -1247,6 +1247,7 @@ function buildTrainerItemAction(session: RuntimeSession, playerId: ShowdownPlaye
     pokemon: active,
     target: battlePokemon,
     targetLocalPokemonId: resolved.localPokemon.localPokemonId,
+    targetTeamIndex: resolved.mapping?.teamIndex ?? resolved.teamIndex,
     itemInstanceId: action.itemInstanceId,
     itemId,
     itemName: item.name || item.itemID || item.itemId || "道具",
@@ -1283,6 +1284,7 @@ function executeTrainerItemAction(session: RuntimeSession, playerId: ShowdownPla
 
   if (action.target) applyTrainerItemEffectToBattlePokemon(session, action.target, action.effect, result, action.itemName);
   else addTrainerItemProtocol(session, `|-message|${displayPokemonName(result.pokemon)} 使用了 ${item.name || item.itemID || item.itemId || "道具"}。`);
+  syncTrainerItemSnapshotRows(session, playerId, action, result.pokemon);
   session.snapshot.debug.inputLog.push(`[BattleV4][trainer-item] ${playerId} active=${action.requestActiveIndex} item=${action.itemId} target=${action.targetLocalPokemonId}${result.noEffect ? " noEffect=true" : ""}`);
   touch(session);
 }
@@ -1451,6 +1453,46 @@ function applyTrainerItemEffectToBattlePokemon(session: RuntimeSession, pokemon:
     battle.add("-message", `${displayBattlePokemonName(pokemon)} 恢复了 ${result.ppRecovered} 点 PP。`);
   }
   battle.sendUpdates?.();
+}
+
+function syncTrainerItemSnapshotRows(session: RuntimeSession, playerId: ShowdownPlayerIdV4, action: any, pokemon: LocalPokemonLikeForBattleV4): void {
+  const condition = localPokemonBattleCondition(pokemon);
+  const fainted = Number(pokemon.entryHp || 0) <= 0;
+  const targetKey = normalizeIdentityToken(action.targetKey || action.targetLocalPokemonId || "");
+  const targetIndex = Math.floor(Number(action.targetTeamIndex ?? -1));
+  const patchRows = (rows: BattleServiceSidePokemonV4[] | undefined): BattleServiceSidePokemonV4[] | undefined => {
+    if (!rows) return rows;
+    return rows.map((row, index) => {
+      const rowKey = normalizeIdentityToken(row.pokeball || row.ident || row.details || "");
+      const matched = index === targetIndex || rowKey === targetKey || normalizeIdentityToken(row.pokeball || "") === targetKey;
+      return matched ? {...row, condition, fainted, active: row.active && !fainted} : row;
+    });
+  };
+  const request = session.snapshot.requests[playerId];
+  if (request?.side?.pokemon) {
+    session.snapshot.requests = {
+      ...session.snapshot.requests,
+      [playerId]: {
+        ...request,
+        side: {...request.side, pokemon: patchRows(request.side.pokemon) || []},
+      },
+    };
+  }
+  session.snapshot.debug.latestSidePokemon = {
+    ...(session.snapshot.debug.latestSidePokemon || {}),
+    [playerId]: patchRows(session.snapshot.debug.latestSidePokemon?.[playerId]) || session.snapshot.debug.latestSidePokemon?.[playerId] || [],
+  };
+  if (action.target?.isActive) {
+    const ident = String(action.target.fullname || action.target.name || "");
+    if (ident) patchActiveCondition(session, ident, condition);
+  }
+}
+
+function localPokemonBattleCondition(pokemon: LocalPokemonLikeForBattleV4): string {
+  const hp = Math.max(0, Math.floor(Number(pokemon.entryHp || 0)));
+  const maxHp = Math.max(1, Math.floor(Number(pokemon.maxHp || hp || 1)));
+  const status = hp <= 0 ? "fnt" : String(pokemon.entryStatus || "").trim();
+  return `${hp}/${maxHp}${status && status !== "fnt" ? ` ${status}` : hp <= 0 ? " fnt" : ""}`;
 }
 
 function addTrainerItemProtocol(session: RuntimeSession, line: string): void {

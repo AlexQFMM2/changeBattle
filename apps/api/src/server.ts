@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import net from "node:net";
 import {pathToFileURL} from "node:url";
 import {createInMemoryBattleService} from "@changebattle-v2/showdown-battle-core";
-import {addPlayerVaultItemV4} from "@changebattle-v2/core";
+import {addPlayerVaultItemV4, formalSpeciesRankForIdsV4, isFormalRandomGeneratableSpeciesV4, isFormalStarterAllowedRankV4} from "@changebattle-v2/core";
 import {claimFormalSettlementBp, createChangeBattleV2Api, invalidUserProfileAssetFieldsV4, normalizePlayerVault, type BattlePreferenceV4, type FormalBattleResultFinalizeReasonV4, type FormalGameModeV4, type FormalGameRunV4, type FormalShopProductViewV4, type LocalPokemonV4, type PlayerItemInstanceV4, type PlayerVaultV4, type ShowdownPlayerIdV4, type FormalSettlementReasonV4, type TrainingPlayerDraftV4, type TrainingRunGameV4, type UserProfileV2} from "./index.js";
 import {applyRecoveryItemToPokemonV4, applyTmItemToPokemonV4, applyTrainingItemToPokemonV4, canUseRecoveryItemV4, canUseTmItemV4, canUseTrainingItemV4, clearConsumedItemFromTeamV4, tmUseFailureReasonV4} from "./itemEffects.js";
 import {matchLegacyFormalRoomRoute} from "./legacyFormalRoomRoutes.js";
@@ -1197,6 +1197,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
       competitionMode: match.runGameV5!.config.competitionMode,
       ruleSet: match.runGameV5!.config.ruleSet,
       battlePreference: match.runGameV5!.config.battlePreference,
+      allowedSpeciesIds: formalAllowedSpeciesIdsForPreferenceV5(match.runGameV5!.config.battlePreference),
       generateRandomBattleTeam: formalApi.generateRandomBattleTeamPreviewV4,
     }));
     const runGameV5 = runFormalStep(() => prepareRestRoundV5(match.runGameV5!, {commandId, rounds}));
@@ -1208,7 +1209,14 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
   if (commandName === "team.reorder") {
     const pokemonIds = Array.isArray((payload as any).pokemonIds) ? (payload as any).pokemonIds : [];
     const runGameV5 = runFormalStep(() => reorderPlayerTeamV5(match.runGameV5!, pokemonIds, commandId));
-    const next = advanceRoomMatchV5(current, matchId, runGameV5);
+    const shouldClearActiveBattle = Boolean(current.activeBattle?.sessionId && current.activeBattle.status !== "finalized");
+    if (shouldClearActiveBattle && current.activeBattle?.sessionId) {
+      await closeSession(current.activeBattle.sessionId).catch(() => undefined);
+    }
+    const next = {
+      ...advanceRoomMatchV5(current, matchId, runGameV5),
+      activeBattle: shouldClearActiveBattle ? null : current.activeBattle,
+    };
     await saveRoom(next);
     broadcastRoomUpdated(next);
     return buildFormalScopedMatchView(next, matchId, "rest", {reused: false, message: "队伍顺序已保存。"});
@@ -1362,6 +1370,7 @@ async function handleFormalMatchCommand(roomId: string, request: http.IncomingMe
         competitionMode: battleRunGameV5.config.competitionMode,
         ruleSet: battleRunGameV5.config.ruleSet,
         battlePreference: battleRunGameV5.config.battlePreference,
+        allowedSpeciesIds: formalAllowedSpeciesIdsForPreferenceV5(battleRunGameV5.config.battlePreference),
         generateRandomBattleTeam: formalApi.generateRandomBattleTeamPreviewV4,
         nodeId: currentBattleNode.nodeId,
         nodeIndex: currentBattleNode.index,
@@ -2597,6 +2606,59 @@ function randomToken(bytes: number): string {
 
 function hashToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function formalAllowedSpeciesIdsForPreferenceV5(preference: BattlePreferenceV4): string[] {
+  const normalized = normalizeBattlePreferenceV4(preference);
+  const allowedGenerations = new Set(normalized.allowedGenerations);
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (let offset = 0; offset < 2000; offset += 100) {
+    const page = formalApi.searchDex({category: "pokemon", query: "", offset, limit: 100});
+    for (const row of page.rows || []) {
+      if (row.category !== "pokemon") continue;
+      let detail: ReturnType<typeof formalApi.getPokemonDetail>;
+      try {
+        detail = formalApi.getPokemonDetail(row.id);
+      } catch {
+        continue;
+      }
+      if (!isFormalRandomGeneratableSpeciesV4({
+        id: detail.id,
+        name: detail.name,
+        baseSpecies: detail.baseSpecies,
+        forme: detail.forme,
+        num: detail.num,
+        isNonstandard: detail.isNonstandard,
+        isMega: detail.isMega,
+        battleOnly: detail.battleOnly,
+        changesFrom: detail.changesFrom,
+      })) continue;
+      const generation = generationForDexNumV5(detail.num);
+      if (!allowedGenerations.has(generation)) continue;
+      const rank = formalSpeciesRankForIdsV4({id: detail.id, name: detail.name, baseSpecies: detail.baseSpecies});
+      if (!normalized.legendaryBattle && rank === "legendary") continue;
+      if (rank !== "legendary" && !isFormalStarterAllowedRankV4(rank)) continue;
+      if (!seen.has(detail.id)) {
+        seen.add(detail.id);
+        ids.push(detail.id);
+      }
+    }
+    if (!page.hasMore) break;
+  }
+  return ids;
+}
+
+function generationForDexNumV5(num: number): number {
+  if (num <= 151) return 1;
+  if (num <= 251) return 2;
+  if (num <= 386) return 3;
+  if (num <= 493) return 4;
+  if (num <= 649) return 5;
+  if (num <= 721) return 6;
+  if (num <= 809) return 7;
+  if (num <= 905) return 8;
+  return 9;
 }
 
 async function redisCommand(...parts: string[]): Promise<unknown> {

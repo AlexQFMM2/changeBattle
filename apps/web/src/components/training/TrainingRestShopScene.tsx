@@ -25,7 +25,7 @@ export type TrainingRestShopSceneProps = {
 const SHOP_WELCOME_TEXT = "欢迎光临，今天想要做些什么呢";
 const SHOP_BUY_TEXT = "想看看今天的货物吗？";
 const SHOP_SELL_TEXT = "需要整理背包里的道具吗？";
-const SHOP_REFRESH_COST = 50;
+const SHOP_REFRESH_COST = 10;
 const SHOP_BREAK_ANIMATION_MS = 840;
 const SHOP_RESTOCK_ANIMATION_MS = 720;
 const SHOP_CONFUSION_HEAL_BERRY_IDS = new Set(["figyberry", "wikiberry", "magoberry", "aguavberry", "iapapaberry"]);
@@ -225,7 +225,7 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
       return;
     }
     if (money < SHOP_REFRESH_COST) {
-      setDialogueText("金币不足，刷新商品需要 50 金币。");
+      setDialogueText(`金币不足，刷新商品需要 ${SHOP_REFRESH_COST} 金币。`);
       return;
     }
     setRefreshing(true);
@@ -296,7 +296,7 @@ export function TrainingRestShopScene({api, open, shop, player, money, busy = fa
         ]
       : [
           {label: "返回", onClick: closeInteractionMode},
-          ...(onRefresh ? [{label: refreshing ? "刷新中" : "刷新 -50", onClick: () => void refreshShop()}] : []),
+          ...(onRefresh ? [{label: refreshing ? "刷新中" : `刷新 -${SHOP_REFRESH_COST}`, onClick: () => void refreshShop()}] : []),
           {label: buyingCart ? "结算中" : selectedCartProducts.length ? `确认购买 -${cartTotal.toLocaleString()}` : "确认购买", primary: true, onClick: () => void buySelectedCart()},
         ]
     : [

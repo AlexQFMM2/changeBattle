@@ -346,7 +346,7 @@ export function BattleV4Page({api, run, roomBattleView, sessionId, debugConfig, 
   const visualNearTeam = pokemonBattleOBJ.nearSlots;
   const visualFarTeam = pokemonBattleOBJ.farSlots;
   const battleError = useMemo(() => battleV4BlockingError(snapshot, lastSubmitError), [snapshot, lastSubmitError]);
-  const activeBattleBag = api.normalizeBagState(battleDisplay.selfBag);
+  const activeBattleBag = api.normalizeBagState(snapshot?.players.find(player => player.playerId === "p1")?.draft?.bag || battleDisplay.selfBag);
   const battleBagEnabled = Boolean(battleDisplay.battleBagEnabled && activeBattleBag.battleBagEnabled);
 
   useEffect(() => {

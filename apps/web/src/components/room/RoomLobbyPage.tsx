@@ -1,6 +1,6 @@
 import {useMemo, useState} from "react";
 import type {BattlePreferenceV4, ChangeBattleV2Api, FormalCompetitionModeV4, FormalGameModeV4, FormalRoomMatchV1, FormalRoomMemberV1, FormalRoomV1, UserProfileV2} from "@changebattle-v2/api";
-import {BATTLE_GENERATION_OPTIONS_V4, BATTLE_RULE_PRESET_OPTIONS_V4, normalizeBattlePreferenceV4} from "@changebattle-v2/api";
+import {BATTLE_RULE_PRESET_OPTIONS_V4, normalizeBattlePreferenceV4} from "@changebattle-v2/api";
 import {assetUrl} from "../../lib/assetUrl";
 import {ImageWithFallback} from "../shared/ImageWithFallback";
 import {GameDrawer} from "../shared/GameDrawer";
@@ -19,7 +19,7 @@ export type RoomLobbyPageProps = {
   onLeave: () => void;
 };
 
-type DrawerKind = "mode" | "competition" | "generations" | "rule-set" | "legendary" | "battle-bag" | "match-info" | null;
+type DrawerKind = "mode" | "competition" | "rule-set" | "legendary" | "battle-bag" | "match-info" | null;
 
 const MODE_OPTIONS: Array<{mode: FormalGameModeV4; label: string; description: string}> = [
   {mode: "singles", label: "单打-AI", description: "标准单人流程，先跑通正式闭环。"},
@@ -44,13 +44,6 @@ export function RoomLobbyPage({api: _api, profile, room, busyMessage, error, onC
       value: competitionModeLabel(draftPreference.competitionMode),
       caption: competitionModeCaption(draftPreference.competitionMode),
       mark: "RUN",
-    },
-    {
-      key: "generations" as const,
-      label: "地区限制",
-      value: generationSummary(draftPreference),
-      caption: generationCaption(draftPreference),
-      mark: "MAP",
     },
     {
       key: "rule-set" as const,
@@ -185,24 +178,14 @@ function PreferenceDrawer({kind, preference, onChange, onClose}: {
   onChange: (preference: BattlePreferenceV4) => void;
   onClose: () => void;
 }) {
-  const open = kind === "competition" || kind === "generations" || kind === "rule-set" || kind === "legendary" || kind === "battle-bag";
+  const open = kind === "competition" || kind === "rule-set" || kind === "legendary" || kind === "battle-bag";
   const title = kind === "competition" ? "赛程长度"
-    : kind === "generations" ? "地区限制"
     : kind === "rule-set" ? "战斗环境"
     : kind === "legendary" ? "是否神战"
     : "战斗背包";
 
   function apply(next: Partial<BattlePreferenceV4>) {
     onChange(normalizeBattlePreferenceV4({...preference, ...next}));
-  }
-
-  function toggleGeneration(generation: number) {
-    const selected = preference.allowedGenerations.includes(generation);
-    if (selected && preference.allowedGenerations.length <= 1) return;
-    const allowedGenerations = selected
-      ? preference.allowedGenerations.filter(value => value !== generation)
-      : [...preference.allowedGenerations, generation].sort((a, b) => a - b);
-    apply({allowedGenerations});
   }
 
   return (
@@ -212,19 +195,6 @@ function PreferenceDrawer({kind, preference, onChange, onClose}: {
           value={preference.competitionMode}
           onSelect={value => { apply({competitionMode: value}); onClose(); }}
         />
-      ) : null}
-      {kind === "generations" ? (
-        <div className="room-lobby-generation-grid">
-          {BATTLE_GENERATION_OPTIONS_V4.map(option => {
-            const selected = preference.allowedGenerations.includes(option.generation);
-            return (
-              <button className={selected ? "selected" : ""} type="button" key={option.generation} onClick={() => toggleGeneration(option.generation)}>
-                <strong>第 {option.generation} 世代</strong>
-                <span>{option.region}</span>
-              </button>
-            );
-          })}
-        </div>
       ) : null}
       {kind === "rule-set" ? (
         <div className="room-lobby-drawer-list">
@@ -486,20 +456,6 @@ function competitionModeCaption(mode: FormalCompetitionModeV4): string {
   if (mode === "single") return "1 场后结算";
   if (mode === "leagueLoop") return "后续开放";
   return "完整流程";
-}
-
-function generationSummary(preference: BattlePreferenceV4): string {
-  if (preference.allowedGenerations.length >= 9) return "全地区";
-  const generations = [...preference.allowedGenerations].sort((a, b) => a - b);
-  const contiguous = generations.every((value, index) => index === 0 || value === generations[index - 1]! + 1);
-  if (contiguous && generations.length > 2) return `G${generations[0]}-G${generations[generations.length - 1]}`;
-  return generations.map(value => `G${value}`).join(" / ");
-}
-
-function generationCaption(preference: BattlePreferenceV4): string {
-  const count = preference.allowedGenerations.length;
-  if (count >= 9) return "全世代";
-  return `${count} 个地区`;
 }
 
 function ruleSetLabel(preference: BattlePreferenceV4): string {

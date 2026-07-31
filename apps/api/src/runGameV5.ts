@@ -98,7 +98,7 @@ const DEFAULT_SYSTEM_ITEMS_BY_RULE_SET_V5: Record<TrainingRuleSetV4, string[]> =
 };
 
 const MANAGED_SYSTEM_ITEM_IDS_V5 = new Set(Object.values(DEFAULT_SYSTEM_ITEMS_BY_RULE_SET_V5).flat());
-const SHOP_REFRESH_COST_V5 = 50;
+const SHOP_REFRESH_COST_V5 = 10;
 const MAX_SELF_STUDY_BATCH_ROUNDS_V5 = 100;
 
 export type PlayerInstanceV5 = {
@@ -338,6 +338,7 @@ export type RunGameRestViewV5 = RunGameSummaryViewV5 & {
   recentCoinLog: TrainingCoinLogEntryV4[];
   recentBattleLog: TrainingBattleLogEntryV4[];
   rest: RunGameV5["restState"];
+  medicalInsuranceOffer: FormalMedicalInsuranceOfferV4;
   trainingGround: RunGameTrainingGroundViewV5;
   exchange: FormalPokemonExchangeViewV4 | null;
 };
@@ -461,6 +462,7 @@ export function buildRestViewV5(run: RunGameV5): RunGameRestViewV5 {
     recentCoinLog: [],
     recentBattleLog: [],
     rest: restStateForScopedRestViewV5(run, [currentNode, nextNode]),
+    medicalInsuranceOffer: getMedicalInsuranceOfferV5(run),
     trainingGround: currentNode ? {
       nodeId: currentNode.nodeId,
       lessons: getTrainingGroundLessonsV5(run),
@@ -1153,7 +1155,7 @@ export function refreshShopProductsV5(run: RunGameV5, commandId: string, now = n
   if (repeated) return {run, result: repeated.result || {reused: true}};
   const self = requirePlayer(run, run.selfPlayerId);
   if (!run.currentNodeId || !run.restState.shopByNodeId?.[run.currentNodeId]) throw new Error("当前没有可刷新的商店。");
-  if (self.money < SHOP_REFRESH_COST_V5) throw new Error("金币不足，刷新商品需要 50 金币。");
+  if (self.money < SHOP_REFRESH_COST_V5) throw new Error(`金币不足，刷新商品需要 ${SHOP_REFRESH_COST_V5} 金币。`);
   const iso = now.toISOString();
   const refreshRoll = Math.max(0, Math.floor(Number(run.restState.shopRefreshRollByNodeId?.[run.currentNodeId] || 0)));
   const nextShop = createFormalRestShopFromRuleContextV5({

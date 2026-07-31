@@ -91,6 +91,7 @@ export type FormalRoundParticipantGenerationInputV5 = {
   competitionMode: FormalCompetitionModeV4;
   ruleSet: TrainingRuleSetV4;
   battlePreference: BattlePreferenceV4;
+  allowedSpeciesIds?: string[];
   sourceCandidates?: FormalParticipantSourceCandidateV5[];
   generateRandomBattleTeam: (input: RandomBattleTeamPreviewInputV4) => Promise<RandomBattleTeamPreviewResultV4>;
 };
@@ -171,7 +172,7 @@ async function generateFormalParticipantV5(input: FormalRoundParticipantGenerati
     teamSize,
     playerId: input.slot,
     localTeamName: `${input.slot.toUpperCase()} ${teamPreference}`,
-    pokemonFilter: {excludedSpeciesIds: [...input.usedSpecies]},
+    pokemonFilter: {speciesIds: input.allowedSpeciesIds || [], excludedSpeciesIds: [...input.usedSpecies]},
     teamArchetype: teamPreference,
     archetypeAttempts: generationQualityForNpcV5(input.trainerType, powerProfile) === "strict" ? 64 : 32,
     aiLevel: aiProfile.level,

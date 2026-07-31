@@ -141,9 +141,9 @@ export function formalTrainingGroundStableSelfStudyGainRuleV4(rule: FormalTraini
 }
 
 function selfStudyDynamicRuleForEvent(event: FormalTrainingGroundSelfStudyEventV4) {
-  if (event === "focused") return {iv: {minRate: 0.22, maxRate: 0.3, minimum: 14}, ev: {minRate: 0.24, maxRate: 0.32, minimum: 55}};
-  if (event === "normal") return {iv: {minRate: 0.12, maxRate: 0.18, minimum: 8}, ev: {minRate: 0.14, maxRate: 0.2, minimum: 28}};
-  return {iv: {minRate: 0.06, maxRate: 0.1, minimum: 4}, ev: {minRate: 0.06, maxRate: 0.1, minimum: 12}};
+  if (event === "focused") return {iv: {minRate: 0.3, maxRate: 0.42, minimum: 24}, ev: {minRate: 0.32, maxRate: 0.42, minimum: 65}};
+  if (event === "normal") return {iv: {minRate: 0.22, maxRate: 0.32, minimum: 18}, ev: {minRate: 0.22, maxRate: 0.32, minimum: 45}};
+  return {iv: {minRate: 0.12, maxRate: 0.2, minimum: 10}, ev: {minRate: 0.14, maxRate: 0.22, minimum: 30}};
 }
 
 function dynamicSelfStudyRange(

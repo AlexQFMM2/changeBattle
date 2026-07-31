@@ -174,7 +174,6 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
   const [restBusyMessage, setRestBusyMessage] = useState<string | null>(null);
   const [abandonOpen, setAbandonOpen] = useState(false);
   const [healConfirmOpen, setHealConfirmOpen] = useState(false);
-  const [lessonEndOpen, setLessonEndOpen] = useState(false);
   const [selectedTrainingLesson, setSelectedTrainingLesson] = useState<FormalTrainingGroundLessonViewV4 | null>(null);
   const [unlockTarget, setUnlockTarget] = useState<PreviewPokemonEntry | null>(null);
   const [soulmateDialogOpen, setSoulmateDialogOpen] = useState(false);
@@ -452,7 +451,8 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
           showNotice(nextMessage, "danger");
         });
         setExchangeSelection({sourcePokemonId: "", targetPokemonId: ""});
-        setExchangeView(result.view);
+        setExchangeView(null);
+        setExchangePanelOpen(false);
       }
       setMessage(result.message);
       showNotice(result.message, result.ok ? "normal" : "danger");
@@ -703,8 +703,11 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
               lessonKind: selectedTrainingLesson?.kind,
             })) : undefined}
             onLessonComplete={nextMessage => {
+              setSelectedTrainingLesson(null);
+              setRestScene("center");
+              setActiveAction("我的队伍");
               setMessage(nextMessage);
-              setLessonEndOpen(true);
+              showNotice(nextMessage);
             }}
             onSelectLesson={enterTrainingLesson}
             onCancelLesson={() => {
@@ -714,7 +717,13 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
               setMessage("重新选择课程。");
             }}
             onBack={() => {
-              setSelectedTrainingLesson(null);
+              if (selectedTrainingLesson) {
+                setSelectedTrainingLesson(null);
+                setRestScene("training-ground");
+                setActiveAction("训练场");
+                setMessage("重新选择课程。");
+                return;
+              }
               setRestScene("center");
               setActiveAction("我的队伍");
               setMessage("已返回休息室。");
@@ -872,25 +881,6 @@ export function TrainingRestNewPage({api, run, onRunChange, onBackToConfig, onSt
             ]}
           />
         </div>
-      ) : null}
-      {lessonEndOpen ? (
-        <TrainingRestConfirmDialog
-          title="当前课程已结束"
-          message="可以继续选择课程，也可以返回休息室。"
-          confirmLabel="继续选课"
-          cancelLabel="返回休息室"
-          ariaLabel="训练课程结束"
-          onCancel={() => {
-            setLessonEndOpen(false);
-            setRestScene("center");
-            setActiveAction("我的队伍");
-            setMessage("已返回休息室。");
-          }}
-          onConfirm={() => {
-            setLessonEndOpen(false);
-            openTrainingGroundSelection();
-          }}
-        />
       ) : null}
       {soulmateDialogOpen ? (
         <div className="training-rest-new-modal-layer training-rest-new-soulmate-layer" role="presentation">

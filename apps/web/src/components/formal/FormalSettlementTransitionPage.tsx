@@ -62,6 +62,9 @@ export function FormalSettlementTransitionPage({api, formalGameBridge, run, prof
         });
         if (!finalized.ok) throw new Error(finalized.message);
         onRoomScopedViewChange?.(finalized.data.scope, finalized.data.view, {revision: finalized.data.revision, phase: finalized.data.phase});
+        if (finalized.data.scope !== "settlement" || !(finalized.data.view as {settlement?: unknown} | null)?.settlement) {
+          throw new Error("最终结算视图返回异常，请重试。");
+        }
         const settlementId = finalized.data.settlementId;
         const nextProfile = finalized.data.profile;
         const nextVault = finalized.data.playerVault;

@@ -440,7 +440,15 @@ function RoutedApp({runtime}: AppProps) {
     if (!formalRoomCredential?.roomId || formalRoomSettlementView?.settlement || !formalRunLoaded) return;
     if (location.pathname !== "/formal/settlement" && location.pathname !== "/formal/settlement-transition") return;
     let cancelled = false;
-    api.getFormalRoomFinalResult({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken})
+    const restoreSettlementView = formalRoomCredential.matchId
+      ? api.getFormalRoomMatchView({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken, matchId: formalRoomCredential.matchId, scope: "settlement"})
+        .then(result => {
+          if (cancelled || !result.ok) return;
+          applyFormalRoomScopedView(result.data.scope, result.data.view, {revision: result.data.revision, phase: result.data.phase});
+        })
+      : Promise.resolve();
+    restoreSettlementView
+      .then(() => api.getFormalRoomFinalResult({roomId: formalRoomCredential.roomId, roomToken: formalRoomCredential.roomToken}))
       .then(result => {
         if (cancelled || !result.ok) return;
         setProfile(result.data.profile);
@@ -451,7 +459,7 @@ function RoutedApp({runtime}: AppProps) {
     return () => {
       cancelled = true;
     };
-  }, [api, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRoomSettlementView?.settlement, formalRunLoaded, location.pathname]);
+  }, [api, applyFormalRoomScopedView, formalRoomCredential?.matchId, formalRoomCredential?.roomId, formalRoomCredential?.roomToken, formalRoomSettlementView?.settlement, formalRunLoaded, location.pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1686,11 +1694,12 @@ function RoutedApp({runtime}: AppProps) {
     )
   ) : missingProfileFormalPage;
 
-  const medicalInsuranceOffer = formalRun?.restRunSnapshot ? api.getFormalMedicalInsuranceOffer(formalRun) : null;
+  const medicalInsuranceOffer = formalRoomCredential && formalRoomRestView
+    ? formalRoomRestView.medicalInsuranceOffer
+    : formalRun?.restRunSnapshot ? api.getFormalMedicalInsuranceOffer(formalRun) : null;
   const shouldShowMedicalInsurance = Boolean(
-    !formalRoomCredential
-      && formalRun?.restRunSnapshot
-      && formalRun.currentRoundIndex === 0
+    (formalRoomCredential || formalRun?.restRunSnapshot)
+      && (formalRoomCredential || formalRun?.currentRoundIndex === 0)
       && medicalInsuranceOffer?.available
       && !medicalInsuranceOffer.seen
       && !medicalInsuranceOffer.purchased

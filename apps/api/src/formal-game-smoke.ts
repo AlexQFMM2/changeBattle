@@ -603,7 +603,7 @@ prepared.starterCandidates.forEach((candidate, index) => {
   const maxStarterIv = candidate.pokemon.powerProfile === "normal" ? 26 : 28;
   assert(Object.values(candidate.pokemon.ivs).every(value => value <= maxStarterIv), `starter candidate ${index + 1} should leave IV growth room`);
 });
-prepared.starterCandidates.forEach((candidate, index) => assertPokemonPowerProfile(candidate.pokemon, `starter candidate ${index + 1}`, ["normal", "elite"], {checkLevel: false}));
+prepared.starterCandidates.forEach((candidate, index) => assertPlayerStarterNumericProfile(candidate.pokemon, `starter candidate ${index + 1}`));
 assert(prepared.starterCandidates.every(candidate => candidate.diagnostics.generation >= 1 && candidate.diagnostics.generation <= 3), "allowedGenerations should filter candidates");
 assert(prepared.battlePreference.battleBagEnabled === true, "formal run should keep battlePreference snapshot battle bag flag");
 assert(prepared.battlePreference.legendaryBattle === false, "formal run should keep battlePreference snapshot legendary flag");
@@ -1512,16 +1512,16 @@ const selfStudyFocusedEastAsiaWeights = formalTrainingGroundSelfStudyEventWeight
 assert(selfStudyFocusedEastAsiaWeights.focused === selfStudyFocusedWeights.focused, "east asia education should no longer change self-study event weights");
 const lowSelfStudyRule = formalTrainingGroundDynamicSelfStudyGainRuleV4("normal", {ivTotal: 90, evTotal: 120});
 const highSelfStudyRule = formalTrainingGroundDynamicSelfStudyGainRuleV4("normal", {ivTotal: 170, evTotal: 470});
-assert(lowSelfStudyRule.iv[0] === 11 && lowSelfStudyRule.iv[1] === 17, "low IV totals should get larger normal self-study catch-up gains");
-assert(lowSelfStudyRule.ev[0] === 55 && lowSelfStudyRule.ev[1] === 78, "low EV totals should get larger normal self-study catch-up gains");
-assert(highSelfStudyRule.iv.join(",") === "8,8", "high IV totals should use minimum normal self-study gains within remaining room");
-assert(highSelfStudyRule.ev.join(",") === "28,28", "high EV totals should use minimum normal self-study gains within remaining room");
+assert(lowSelfStudyRule.iv[0] === 21 && lowSelfStudyRule.iv[1] === 30, "low IV totals should get larger normal self-study catch-up gains");
+assert(lowSelfStudyRule.ev[0] === 86 && lowSelfStudyRule.ev[1] === 125, "low EV totals should get larger normal self-study catch-up gains");
+assert(highSelfStudyRule.iv.join(",") === "11,11", "high IV totals should use remaining room when it is below the minimum normal gain");
+assert(highSelfStudyRule.ev.join(",") === "40,40", "high EV totals should use remaining room when it is below the minimum normal gain");
 assert(formalTrainingGroundDynamicSelfStudyGainRuleV4("focused", {ivTotal: 180, evTotal: 509}).iv.join(",") === "1,1", "near-target IV self-study should clamp to remaining target room");
 assert(formalTrainingGroundDynamicSelfStudyGainRuleV4("focused", {ivTotal: 180, evTotal: 509}).ev.join(",") === "1,1", "near-target EV self-study should clamp to remaining target room");
 assert(formalTrainingGroundDynamicSelfStudyGainRuleV4("playful", {ivTotal: 181, evTotal: 510}).iv.join(",") === "0,0", "target IV total should stop self-study IV gain");
 assert(formalTrainingGroundDynamicSelfStudyGainRuleV4("playful", {ivTotal: 181, evTotal: 510}).ev.join(",") === "0,0", "target EV total should stop self-study EV gain");
-assert(formalTrainingGroundStableSelfStudyGainRuleV4(lowSelfStudyRule).iv.join(",") === "14,17", "stable self-study should start at the dynamic IV midpoint");
-assert(formalTrainingGroundStableSelfStudyGainRuleV4(lowSelfStudyRule).ev.join(",") === "67,78", "stable self-study should start at the dynamic EV midpoint");
+assert(formalTrainingGroundStableSelfStudyGainRuleV4(lowSelfStudyRule).iv.join(",") === "26,30", "stable self-study should start at the dynamic IV midpoint");
+assert(formalTrainingGroundStableSelfStudyGainRuleV4(lowSelfStudyRule).ev.join(",") === "106,125", "stable self-study should start at the dynamic EV midpoint");
 const sevenStudyTarget = simulateSelfStudyCatchUpTotals(100, 120, ["normal", "normal", "focused", "normal", "focused", "normal", "focused"], true);
 assert(sevenStudyTarget.iv >= 176 && sevenStudyTarget.iv <= 181, "seven mixed self-study sessions should bring IV total close to the 181 target");
 assert(sevenStudyTarget.ev === 510, "seven mixed self-study sessions should be able to reach the EV target");
@@ -2302,6 +2302,8 @@ let v5Run = createRunGameV5FromStarterRun({
   starterRun: prepared,
 });
 v5Run = selectStarterPokemonV5(v5Run, [0, 1, 2], 3, "v5-redline-select");
+const v5AllowedSpeciesIds = ["pikachu", "charizard", "venusaur"];
+const v5ParticipantGenerationFilters: string[][] = [];
 const generatedV5RoundPlan = await generateFormalRoundParticipantsV5({
   matchId: v5Run.matchId,
   seed: v5Run.config.seed,
@@ -2310,8 +2312,25 @@ const generatedV5RoundPlan = await generateFormalRoundParticipantsV5({
   competitionMode: v5Run.config.competitionMode,
   ruleSet: v5Run.config.ruleSet,
   battlePreference: v5Run.config.battlePreference,
-  generateRandomBattleTeam: input => generateRandomBattleTeamPreviewV4(mockDex as any, input),
+  allowedSpeciesIds: v5AllowedSpeciesIds,
+  generateRandomBattleTeam: input => {
+    const filter = Array.isArray(input.pokemonFilter) ? input.pokemonFilter : input.pokemonFilter?.speciesIds || [];
+    v5ParticipantGenerationFilters.push(filter.map(String));
+    const teamSize = Math.max(1, Math.floor(Number(input.teamSize || 1)));
+    const pokemon = Array.from({length: teamSize}, (_value, index) => ({
+      ...prepared.starterCandidates[index % prepared.starterCandidates.length]!.pokemon,
+      localPokemonId: `v5-filtered-npc-${index + 1}`,
+      speciesId: v5AllowedSpeciesIds[index % v5AllowedSpeciesIds.length]!,
+    }));
+    return Promise.resolve({
+      pokemonSets: [],
+      diagnostics: {ok: true, messages: [], pokemonFilter: null, archetype: null, generationAttempts: [], adjustedPokemon: []},
+      localTeam: {id: "v5-filtered-npc-team", name: "V5 Filtered NPC", pokemon},
+      adapterDiagnostics: {ok: true, messages: [], missingSpecies: [], missingMoves: [], missingAbilities: [], missingItems: []},
+    } as any);
+  },
 });
+assert(v5ParticipantGenerationFilters.length > 0 && v5ParticipantGenerationFilters.every(filter => filter.join(",") === v5AllowedSpeciesIds.join(",")), "RunGameV5 participant generation should pass the server species whitelist into the team generator");
 v5Run = prepareRestRoundV5(v5Run, {rounds: generatedV5RoundPlan, commandId: "v5-redline-prepare-round"});
 const repeatedPreparedV5Run = prepareRestRoundV5(v5Run, {rounds: generatedV5RoundPlan, commandId: "v5-redline-prepare-round"});
 assert(repeatedPreparedV5Run === v5Run, "RunGameV5 prepare-round should be command-id idempotent");
@@ -2418,7 +2437,7 @@ assert(!v5CommandLogForbidden.test(JSON.stringify(v5CartBuy.run.commandLog)), "R
 const v5RefreshA = refreshShopProductsV5(v5ShopRun, "v5-shop-refresh-a");
 const v5RefreshB = refreshShopProductsV5(v5ShopRun, "v5-shop-refresh-b");
 const v5RefreshItems = (run: typeof v5ShopRun) => JSON.stringify(Object.values(run.restState.shopByNodeId?.[run.currentNodeId || ""]?.categories || {}).flat().map(item => [item.slotId, item.itemID, item.stock]));
-assert(v5RefreshA.result.balanceAfter === v5ShopRun.playersById[v5ShopRun.selfPlayerId]!.money - 50, "RunGameV5 shop refresh should cost 50 coins");
+assert(v5RefreshA.result.balanceAfter === v5ShopRun.playersById[v5ShopRun.selfPlayerId]!.money - 10, "RunGameV5 shop refresh should cost 10 coins");
 assert(v5RefreshItems(v5RefreshA.run) === v5RefreshItems(v5RefreshB.run), "RunGameV5 shop refresh random result must not depend on commandId");
 assert(v5RefreshItems(v5RefreshA.run) !== v5RefreshItems(v5ShopRun), "RunGameV5 shop refresh should regenerate the current shop");
 let previousV5Bytes = Buffer.byteLength(JSON.stringify(v5Run), "utf8");
@@ -2698,6 +2717,24 @@ function assertPokemonPowerProfile(pokemon: {
   assert(inRange(evCap, rule.evTotal[0], rule.evTotal[1]), `${label} EV cap should stay in ${profile} bounds`);
   assert(ivTotal <= ivCap, `${label} IV total should not exceed instance cap`);
   assert(evTotal <= evCap, `${label} EV total should not exceed instance cap`);
+}
+
+function assertPlayerStarterNumericProfile(pokemon: {
+  powerProfile?: PokemonPowerProfileV4;
+  level: number;
+  ivs: Record<string, number>;
+  evs: Record<string, number>;
+  ivTotalCap?: number;
+  evTotalCap?: number;
+}, label: string) {
+  assert(["normal", "elite"].includes(pokemon.powerProfile || ""), `${label} should keep normal/elite starter profile labels`);
+  assert(pokemon.level === 50, `${label} should start at level 50`);
+  const ivTotal = statTotal(pokemon.ivs);
+  const evTotal = statTotal(pokemon.evs);
+  assert(inRange(pokemon.ivTotalCap ?? ivTotal, 90, 120), `${label} IV cap should use player starter bounds`);
+  assert(inRange(pokemon.evTotalCap ?? evTotal, 280, 320), `${label} EV cap should use player starter bounds`);
+  assert(ivTotal <= (pokemon.ivTotalCap ?? ivTotal), `${label} IV total should not exceed instance cap`);
+  assert(evTotal <= (pokemon.evTotalCap ?? evTotal), `${label} EV total should not exceed instance cap`);
 }
 
 function powerProfileRule(profile: PokemonPowerProfileV4): {level: [number, number]; ivTotal: [number, number]; evTotal: [number, number]} {

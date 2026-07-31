@@ -3707,6 +3707,7 @@ function buildFormalStarterCandidate(dex: ShowdownDexService, input: {
     index: input.index,
     role: input.role,
     powerProfile: input.powerProfile,
+    numericBudget: {ivTotal: [90, 120], evTotal: [280, 320]},
     rng: input.rng,
     seed: input.seed,
   });
@@ -4116,6 +4117,10 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
   powerProfile: PokemonPowerProfileV4;
   moveRule?: FormalMoveQualityRuleV4;
   presetMoveIds?: string[];
+  numericBudget?: {
+    ivTotal: readonly [number, number];
+    evTotal: readonly [number, number];
+  };
   rng: () => number;
   seed: string;
   level?: number;
@@ -4123,8 +4128,12 @@ function createStarterPokemon(dex: ShowdownDexService, detail: DexPokemonDetail,
   const ability = pickOne(detail.abilities, options.rng) || detail.abilities[0];
   const level = clampInt(options.level, 1, 100, 50);
   const nature = pickOne(NATURES, options.rng) || "Serious";
-  const ivTotalCap = formalRollPowerProfileIvCapV4(options.powerProfile, options.rng);
-  const evTotalCap = formalRollPowerProfileEvCapV4(options.powerProfile, options.rng);
+  const ivTotalCap = options.numericBudget
+    ? randomInt(options.numericBudget.ivTotal[0], options.numericBudget.ivTotal[1], options.rng)
+    : formalRollPowerProfileIvCapV4(options.powerProfile, options.rng);
+  const evTotalCap = options.numericBudget
+    ? randomInt(options.numericBudget.evTotal[0], options.numericBudget.evTotal[1], options.rng)
+    : formalRollPowerProfileEvCapV4(options.powerProfile, options.rng);
   const evs = evsForPowerProfileCap(evTotalCap, options.role, options.rng);
   const ivs = distributeStatBudget(ivTotalCap, formalStarterIvStatCapForPowerProfileV4(options.powerProfile), STAT_IDS, options.rng);
   const moves = normalizeMovesForDetail(dex, detail, options.role, options.powerProfile, options.rng, options.moveRule, options.presetMoveIds);
