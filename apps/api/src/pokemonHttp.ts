@@ -41,14 +41,14 @@ export async function pokemonHttp(battles: ChatBattles, method: string, url: URL
       return {status: 200, body: {...source, category: type, detail: result}};
     }
     if (method === 'GET' && path === '/chat-battles/availability') return {status: 200, body: await battles.availability(owner)};
-    const match = /^\/chat-battles\/([a-zA-Z0-9_-]{16,100})(?:\/(select|actions|end))?$/.exec(path);
+    const match = /^\/chat-battles\/([a-zA-Z0-9_-]{16,100})(?:\/(configure|select|actions|end))?$/.exec(path);
     if (method === 'GET' && match && !match[2]) return {status: 200, body: await battles.get(owner, match[1]!, instance, url.searchParams.get('operationId') || undefined)};
     if (method === 'POST' && (path === '/chat-battles' || match?.[2])) {
       if (!body || typeof body !== 'object' || Array.isArray(body)) throw new ChatBattleError(400, 'invalid_input', '请求格式无效');
       const data = body as Record<string, unknown>;
-      const allowed = new Set(['id','instanceId','operationId','issuedAt','revision','selection','actionId']);
+      const allowed = new Set(['id','instanceId','operationId','issuedAt','revision','environment','selection','actionId']);
       if (Object.keys(data).some(k => !allowed.has(k))) throw new ChatBattleError(400, 'invalid_input', '包含不支持的参数');
-      const kind = path === '/chat-battles' ? 'start' : match![2] === 'actions' ? 'act' : match![2] as 'select' | 'end';
+      const kind = path === '/chat-battles' ? 'start' : match![2] === 'actions' ? 'act' : match![2] as 'configure' | 'select' | 'end';
       return {status: 200, body: await battles.command(owner, kind, path === '/chat-battles' ? data.id as string : match![1]!, data as ChatCommand)};
     }
     throw new ChatBattleError(404, 'not_found', '没有这个接口');

@@ -236,7 +236,7 @@ function createHttpRequestHandler(): http.RequestListener {
         uptimeMs: Date.now() - config.startedAt,
         pokemonEnabled: config.pokemonEnabled && Boolean(config.pokemonToken),
         chatInstanceId: chatBattles.instanceId,
-        chatContractVersion: 1,
+        chatContractVersion: 2,
         sessionCount: sessionMeta.size,
         redis,
         storage: roomStore?.storageKind || "disabled",
