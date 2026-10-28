@@ -16,7 +16,8 @@
     "test:identity-sync": "tsc -p tsconfig.test.json && node dist-test/identity-sync-smoke.js",
     "test:item-effects": "pnpm --filter @changebattle-v2/core build && tsc -p tsconfig.test.json && node dist-test/item-effects-smoke.js",
     "test:profile-assets": "pnpm --filter @changebattle-v2/core build && tsc -p tsconfig.test.json && node dist-test/profile-assets-smoke.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test:chat-battle": "tsc -p tsconfig.test.json && node dist-test/chat-battle-smoke.js"
   },
   "dependencies": {
     "@changebattle-v2/core": "workspace:*",

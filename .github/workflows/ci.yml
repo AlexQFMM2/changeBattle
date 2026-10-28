@@ -54,6 +54,9 @@ jobs:
       - name: API formal game smoke
         run: pnpm --filter @changebattle-v2/api test:formal-game
 
+      - name: API chat battle smoke
+        run: pnpm --filter @changebattle-v2/api test:chat-battle
+
       - name: API typecheck
         run: pnpm --filter @changebattle-v2/api typecheck
 

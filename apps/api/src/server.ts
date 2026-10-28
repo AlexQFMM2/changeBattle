@@ -1,4 +1,6 @@
 import http from "node:http";
+import {ChatBattles} from "./chatBattle.js";
+import {pokemonHttp} from "./pokemonHttp.js";
 import crypto from "node:crypto";
 import net from "node:net";
 import {pathToFileURL} from "node:url";
@@ -13,6 +15,8 @@ import {generateFormalCoopAllyParticipantV5, generateFormalRoundParticipantsV5} 
 import {normalizeBattlePreferenceV4} from "./training.js";
 
 type ServerConfig = {
+  pokemonEnabled: boolean;
+  pokemonToken: string;
   host: string;
   port: number;
   basePath: string;
@@ -190,6 +194,7 @@ export type BattleApiServerHandle = {
 let service = createInMemoryBattleService();
 let formalApi = createChangeBattleV2Api();
 let config = loadConfig();
+let chatBattles = new ChatBattles(formalApi.dex, service);
 let roomStore: RedisLikeCommandProvider | null = config.redisUrl ? createRedisSocketProvider(config.redisUrl) : null;
 let sessionMeta = new Map<string, SessionMeta>();
 let loggedAiDecisionCounts = new Map<string, number>();
@@ -211,15 +216,16 @@ function createHttpRequestHandler(): http.RequestListener {
   const startedAt = Date.now();
   const requestId = createRequestId();
   try {
-    if (!authorize(request)) {
+    const url = new URL(request.url || "/", `http://${request.headers.host || `${config.host}:${config.port}`}`);
+    const pathname = normalizePathname(url.pathname);
+    const pokemonRoute = pathname.startsWith("/dex/") || pathname === "/chat-battles" || pathname.startsWith("/chat-battles/");
+    if (!pokemonRoute && !authorize(request)) {
       sendJson(response, 401, {error: "unauthorized"});
       log("warn", "request-unauthorized", {requestId, method: request.method, url: request.url});
       return;
     }
 
     sweepExpiredSessions();
-    const url = new URL(request.url || "/", `http://${request.headers.host || `${config.host}:${config.port}`}`);
-    const pathname = normalizePathname(url.pathname);
 
     if (request.method === "GET" && pathname === "/health") {
       const redis = await redisHealth();
@@ -228,10 +234,31 @@ function createHttpRequestHandler(): http.RequestListener {
         service: "changebattle-v2-battle-service",
         version: config.version,
         uptimeMs: Date.now() - config.startedAt,
+        pokemonEnabled: config.pokemonEnabled && Boolean(config.pokemonToken),
+        chatInstanceId: chatBattles.instanceId,
+        chatContractVersion: 1,
         sessionCount: sessionMeta.size,
         redis,
         storage: roomStore?.storageKind || "disabled",
       });
+      return;
+    }
+
+    if (pokemonRoute) {
+      if (!config.pokemonEnabled || !config.pokemonToken) {
+        sendJson(response, 503, {error: "pokemon_disabled", message: "宝可梦聊天接口未启用"});
+        return;
+      }
+      if (String(request.headers.authorization || "") !== `Bearer ${config.pokemonToken}`) {
+        sendJson(response, 401, {error: "unauthorized"});
+        return;
+      }
+      const scopedUrl = new URL(url); scopedUrl.pathname = pathname;
+      const result = await pokemonHttp(chatBattles, request.method || "", scopedUrl,
+        String(request.headers["x-changebattle-chat-owner"] || ""),
+        String(request.headers["x-changebattle-instance"] || ""),
+        request.method === "POST" ? await readJson(request) : null, config.version);
+      sendJson(response, result.status, result.body);
       return;
     }
 
@@ -539,6 +566,7 @@ export function createBattleApiServer(options: BattleApiServerOptions = {}): Bat
   config = nextConfig;
   service = options.battleService || createInMemoryBattleService();
   formalApi = createChangeBattleV2Api();
+  chatBattles = new ChatBattles(formalApi.dex, service);
   roomStore = options.roomStore || (options.storageKind === "memory"
     ? createMemoryRedisLikeProvider()
     : config.redisUrl
@@ -595,6 +623,7 @@ export function createBattleApiServer(options: BattleApiServerOptions = {}): Bat
       return handle;
     },
     async close() {
+      await chatBattles.close();
       if (roomSweepTimer) {
         clearInterval(roomSweepTimer);
         roomSweepTimer = null;
@@ -641,6 +670,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 
 function loadConfig(): ServerConfig {
   return {
+    pokemonEnabled: booleanEnv("CHANGEBATTLE_POKEMON_CHAT_ENABLED", false),
+    pokemonToken: process.env.CHANGEBATTLE_POKEMON_CHAT_TOKEN || "",
     host: process.env.CHANGEBATTLE_BATTLE_SERVICE_HOST || "127.0.0.1",
     port: numberEnv("CHANGEBATTLE_BATTLE_SERVICE_PORT", numberEnv("PORT", 5191)),
     basePath: normalizeBasePath(process.env.CHANGEBATTLE_BATTLE_SERVICE_BASE_PATH || ""),
@@ -667,7 +698,7 @@ function loadConfig(): ServerConfig {
 
 function setCorsHeaders(response: http.ServerResponse): void {
   response.setHeader("Access-Control-Allow-Origin", config.corsOrigin);
-  response.setHeader("Access-Control-Allow-Headers", "authorization,content-type,x-changebattle-battle-token,x-changebattle-room-token");
+  response.setHeader("Access-Control-Allow-Headers", "authorization,content-type,x-changebattle-battle-token,x-changebattle-room-token,x-changebattle-chat-owner,x-changebattle-instance");
   response.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
 }
 
